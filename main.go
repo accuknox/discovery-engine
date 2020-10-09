@@ -7,6 +7,6 @@ import (
 )
 
 func main() {
-	fmt.Println("hello")
+	fmt.Println("he0llo")
 	autopol.TestGenerateNetworkPolicies()
 }
