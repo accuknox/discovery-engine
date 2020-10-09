@@ -1,6 +1,7 @@
 package autodiscovery
 
 import (
+	"fmt"
 	"math/rand"
 	"reflect"
 	"sort"
@@ -869,4 +870,12 @@ func GenerateNetworkPolicies(networkLogs []types.NetworkLog, microName string, s
 	policies := BuildNetworkPolicies(microName, perGroupedSrcGroupedDst)
 
 	return policies
+}
+
+// ======================= //
+// == Policy Generation == //
+// ======================= //
+
+func TestGenerateNetworkPolicies() {
+	fmt.Println("TestGenerateNetworkPolicies")
 }
