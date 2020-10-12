@@ -1,13 +1,12 @@
-package autodiscovery
+package core
 
 import (
-	"math/rand"
 	"reflect"
 	"sort"
 	"strconv"
 	"strings"
 
-	bl "github.com/seungsoo-lee/knoxAutoPolicy/common"
+	bl "github.com/seungsoo-lee/knoxAutoPolicy/libs"
 	types "github.com/seungsoo-lee/knoxAutoPolicy/types"
 )
 
@@ -56,8 +55,6 @@ type LabelCount struct {
 	Count int
 }
 
-var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-
 // ============ //
 // == Common == //
 // ============ //
@@ -90,87 +87,6 @@ func filterLogs(originalLogs []types.NetworkLog, microName string) []types.Netwo
 	}
 
 	return filteredLogs
-}
-
-// RandSeq Function
-func RandSeq(n int) string {
-	b := make([]rune, n)
-
-	for i := range b {
-		b[i] = letters[rand.Intn(len(letters))]
-	}
-
-	return string(b)
-}
-
-// getProtocol Function
-func getProtocol(protocol int) string {
-	protocolMap := map[int]string{
-		1:   "icmp",
-		6:   "tcp",
-		17:  "udp",
-		132: "stcp",
-	}
-
-	return protocolMap[protocol]
-}
-
-// isExposedPort Function
-func isExposedPort(protocol int, port int) bool {
-	if protocol == 6 { // tcp
-		if bl.ContainsElement(exposedTCPPorts, port) {
-			return true
-		}
-	} else if protocol == 17 { // udp
-		if bl.ContainsElement(exposedUDPPorts, port) {
-			return true
-		}
-	} else if protocol == 132 { // udp
-		if bl.ContainsElement(exposedSCTPPorts, port) {
-			return true
-		}
-	}
-
-	return false
-}
-
-// updateExposedPorts Function
-func updateExposedPorts(services []types.K8sService, contGroups []types.ContainerGroup) {
-	// step 1: (k8s) service port update
-	for _, service := range services {
-		if service.Protocol == "tcp" { // TCP
-			if !bl.ContainsElement(exposedTCPPorts, service.ServicePort) {
-				exposedTCPPorts = append(exposedTCPPorts, service.ServicePort)
-			}
-		} else if service.Protocol == "udp" { // UDP
-			if !bl.ContainsElement(exposedUDPPorts, service.ServicePort) {
-				exposedUDPPorts = append(exposedUDPPorts, service.ServicePort)
-			}
-		} else if service.Protocol == "sctp" { // SCTP
-			if !bl.ContainsElement(exposedSCTPPorts, service.ServicePort) {
-				exposedSCTPPorts = append(exposedSCTPPorts, service.ServicePort)
-			}
-		}
-	}
-
-	// step 2: port binding update
-	for _, conGroup := range contGroups {
-		for _, portBinding := range conGroup.PortBindings {
-			if portBinding.Protocol == "tcp" {
-				if !bl.ContainsElement(exposedTCPPorts, portBinding.Port) {
-					exposedTCPPorts = append(exposedTCPPorts, portBinding.Port)
-				}
-			} else if portBinding.Protocol == "udp" {
-				if !bl.ContainsElement(exposedUDPPorts, portBinding.Port) {
-					exposedUDPPorts = append(exposedUDPPorts, portBinding.Port)
-				}
-			} else if portBinding.Protocol == "sctp" {
-				if !bl.ContainsElement(exposedSCTPPorts, portBinding.Port) {
-					exposedSCTPPorts = append(exposedSCTPPorts, portBinding.Port)
-				}
-			}
-		}
-	}
 }
 
 // countLabel Function
@@ -332,6 +248,64 @@ func removeDstMerged(dsts []DstMerged, remove DstMerged) []DstMerged {
 	return cp
 }
 
+// IsExposedPort Function
+func IsExposedPort(protocol int, port int) bool {
+	if protocol == 6 { // tcp
+		if bl.ContainsElement(exposedTCPPorts, port) {
+			return true
+		}
+	} else if protocol == 17 { // udp
+		if bl.ContainsElement(exposedUDPPorts, port) {
+			return true
+		}
+	} else if protocol == 132 { // udp
+		if bl.ContainsElement(exposedSCTPPorts, port) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// UpdateExposedPorts Function
+func UpdateExposedPorts(services []types.K8sService, contGroups []types.ContainerGroup) {
+	// step 1: (k8s) service port update
+	for _, service := range services {
+		if service.Protocol == "tcp" { // TCP
+			if !bl.ContainsElement(exposedTCPPorts, service.ServicePort) {
+				exposedTCPPorts = append(exposedTCPPorts, service.ServicePort)
+			}
+		} else if service.Protocol == "udp" { // UDP
+			if !bl.ContainsElement(exposedUDPPorts, service.ServicePort) {
+				exposedUDPPorts = append(exposedUDPPorts, service.ServicePort)
+			}
+		} else if service.Protocol == "sctp" { // SCTP
+			if !bl.ContainsElement(exposedSCTPPorts, service.ServicePort) {
+				exposedSCTPPorts = append(exposedSCTPPorts, service.ServicePort)
+			}
+		}
+	}
+
+	// step 2: port binding update
+	for _, conGroup := range contGroups {
+		for _, portBinding := range conGroup.PortBindings {
+			if portBinding.Protocol == "tcp" {
+				if !bl.ContainsElement(exposedTCPPorts, portBinding.Port) {
+					exposedTCPPorts = append(exposedTCPPorts, portBinding.Port)
+				}
+			} else if portBinding.Protocol == "udp" {
+				if !bl.ContainsElement(exposedUDPPorts, portBinding.Port) {
+					exposedUDPPorts = append(exposedUDPPorts, portBinding.Port)
+				}
+			} else if portBinding.Protocol == "sctp" {
+				if !bl.ContainsElement(exposedSCTPPorts, portBinding.Port) {
+					exposedSCTPPorts = append(exposedSCTPPorts, portBinding.Port)
+				}
+			}
+		}
+	}
+}
+
 // ============================ //
 // == Build Network Policies == //
 // ============================ //
@@ -342,7 +316,7 @@ func BuildNetworkPolicies(microName string, perGroupedSrcGroupedDst map[string][
 
 	for groupedSrc, dsts := range perGroupedSrcGroupedDst {
 		for _, dst := range dsts {
-			policyName := "generated_" + RandSeq(10)
+			policyName := "generated_" + bl.RandSeq(10)
 
 			policy := types.NetworkPolicy{
 				APIVersion: "v1",
@@ -407,7 +381,7 @@ func BuildNetworkPolicies(microName string, perGroupedSrcGroupedDst map[string][
 func getSimpleDst(log types.NetworkLog) Dst {
 	port := 0
 
-	if isExposedPort(log.Protocol, log.DstPort) {
+	if IsExposedPort(log.Protocol, log.DstPort) {
 		port = log.DstPort
 	}
 
@@ -465,7 +439,7 @@ func getReverseFlows(dst Dst, originLogs []types.NetworkLog) []Dst {
 
 	for _, log := range originLogs {
 		port := 0
-		if isExposedPort(log.Protocol, log.DstPort) {
+		if IsExposedPort(log.Protocol, log.DstPort) {
 			port = log.DstPort
 		}
 
@@ -544,12 +518,8 @@ func getMergedLabels(microName, groupName string, groups []types.ContainerGroup)
 			// remove common name identities
 			identities := []string{}
 
-			for _, identity := range group.Identities {
-				key := strings.Split(identity, "=")[0]
-				if bl.ContainsElement(skipLabels, key) {
-					continue
-				}
-				identities = append(identities, identity)
+			for _, label := range group.Labels {
+				identities = append(identities, label)
 			}
 
 			sort.Slice(identities, func(i, j int) bool {
@@ -656,7 +626,7 @@ func mergingDstProtocolPorts(dstMergeds []DstMerged, dst Dst) []DstMerged {
 			Action:             dst.Action}
 
 		if simple1 == simple2 { // matched, append protocol+port info
-			port := types.ToPort{Protocol: getProtocol(dst.Protocol),
+			port := types.ToPort{Protocol: bl.GetProtocol(dst.Protocol),
 				Ports: strconv.Itoa(dst.DstPort)}
 
 			dstMergeds[i].ToPorts = append(dstMergeds[i].ToPorts, port)
@@ -666,7 +636,7 @@ func mergingDstProtocolPorts(dstMergeds []DstMerged, dst Dst) []DstMerged {
 	}
 
 	// if not matched, create new one,
-	port := types.ToPort{Protocol: getProtocol(dst.Protocol),
+	port := types.ToPort{Protocol: bl.GetProtocol(dst.Protocol),
 		Ports: strconv.Itoa(dst.DstPort)}
 
 	dstMerged := DstMerged{
@@ -836,16 +806,19 @@ func groupingDst(perGroupedSrcMergedDst map[string][]DstMerged, conGroups []type
 	return perGroupedSrcGroupedDst
 }
 
-// ======================= //
-// == Policy Generation == //
-// ======================= //
+// =============================== //
+// == Network Policy Generation == //
+// =============================== //
 
 // GenerateNetworkPolicies Function
-func GenerateNetworkPolicies(microName string, networkLogs []types.NetworkLog, services []types.K8sService, conGroups []types.ContainerGroup) []types.NetworkPolicy {
-	networkLogs = filterLogs(networkLogs, microName)
+func GenerateNetworkPolicies(microserviceName string,
+	networkLogs []types.NetworkLog,
+	k8sServices []types.K8sService,
+	containerGroups []types.ContainerGroup) []types.NetworkPolicy {
+	networkLogs = filterLogs(networkLogs, microserviceName)
 
 	// step 0: update exposed ports (k8s service, docker-compose portbinding)
-	updateExposedPorts(services, conGroups)
+	UpdateExposedPorts(k8sServices, containerGroups)
 
 	// step 1: {dst: [network logs (src+dst)]}
 	perDst := groupingNetLogsPerDst(networkLogs)
@@ -854,7 +827,7 @@ func GenerateNetworkPolicies(microName string, networkLogs []types.NetworkLog, s
 	removingReserveFlow(perDst, networkLogs)
 
 	// step 3-1: {dst: [network logs (src+dst)]} -> {dst: [srcs]}
-	perDstSrcLabel := replacingLogsToSrc(perDst, conGroups)
+	perDstSrcLabel := replacingLogsToSrc(perDst, containerGroups)
 
 	// step 3-2: {dst: srcs} -> {dst: [grouped src labels]}
 	perDstGroupedSrc := groupingSrc(perDstSrcLabel)
@@ -863,10 +836,10 @@ func GenerateNetworkPolicies(microName string, networkLogs []types.NetworkLog, s
 	perGroupedSrcMergedDst := mergingDst(perDstGroupedSrc)
 
 	// step 5: grouping dst based on labels
-	perGroupedSrcGroupedDst := groupingDst(perGroupedSrcMergedDst, conGroups)
+	perGroupedSrcGroupedDst := groupingDst(perGroupedSrcMergedDst, containerGroups)
 
 	// finalize network policies
-	policies := BuildNetworkPolicies(microName, perGroupedSrcGroupedDst)
+	policies := BuildNetworkPolicies(microserviceName, perGroupedSrcGroupedDst)
 
 	return policies
 }
