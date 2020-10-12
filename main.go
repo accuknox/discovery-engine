@@ -4,22 +4,28 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"strings"
 
-	autopol "github.com/seungsoo-lee/knoxAutoPolicy/autodiscovery"
 	"github.com/seungsoo-lee/knoxAutoPolicy/dbase"
+
+	pb "github.com/cilium/cilium/api/v1/flow"
 
 	"github.com/cilium/cilium/api/v1/observer"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 //ConnectHubbleRelay function
 func ConnectHubbleRelay() *grpc.ClientConn {
 	url := os.Getenv("HUBBLE_URL")
 	port := os.Getenv("HUBBLE_PORT")
+
+	// for test
+	url = "10.104.6.225"
+	port = "80"
+
 	addr := url + ":" + port
 	conn, err := grpc.Dial(addr, grpc.WithInsecure())
 	if err != nil {
@@ -315,12 +321,18 @@ func StartFeederService(ctx context.Context) error {
 
 	client := observer.NewObserverClient(conn)
 
+	wl := []*pb.FlowFilter{
+		{
+			SourceIp: []string{"10.0.1.222"},
+		},
+	}
+
 	req := &observer.GetFlowsRequest{
 		Number:    20,
 		Follow:    true,
-		Whitelist: nil,
+		Whitelist: wl,
 		Blacklist: nil,
-		Since:     nil,
+		Since:     timestamppb.Now(),
 		Until:     nil,
 	}
 
@@ -333,6 +345,7 @@ func StartFeederService(ctx context.Context) error {
 			if err != nil {
 				return errors.New("can't receive network flow")
 			}
+
 			err = insertFlow(res)
 			if err != nil {
 				return err
@@ -344,8 +357,5 @@ func StartFeederService(ctx context.Context) error {
 }
 
 func main() {
-	autopol.TestGenerateNetworkPolicies()
-	url := os.Getenv("HUBBLE_URL")
-	port := os.Getenv("HUBBLE_PORT")
-	fmt.Println(url, port)
+	StartFeederService(context.Background())
 }

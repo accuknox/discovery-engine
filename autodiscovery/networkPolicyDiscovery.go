@@ -1,7 +1,6 @@
 package autodiscovery
 
 import (
-	"fmt"
 	"math/rand"
 	"reflect"
 	"sort"
@@ -842,7 +841,7 @@ func groupingDst(perGroupedSrcMergedDst map[string][]DstMerged, conGroups []type
 // ======================= //
 
 // GenerateNetworkPolicies Function
-func GenerateNetworkPolicies(networkLogs []types.NetworkLog, microName string, services []types.K8sService, conGroups []types.ContainerGroup) []types.NetworkPolicy {
+func GenerateNetworkPolicies(microName string, networkLogs []types.NetworkLog, services []types.K8sService, conGroups []types.ContainerGroup) []types.NetworkPolicy {
 	networkLogs = filterLogs(networkLogs, microName)
 
 	// step 0: update exposed ports (k8s service, docker-compose portbinding)
@@ -870,12 +869,4 @@ func GenerateNetworkPolicies(networkLogs []types.NetworkLog, microName string, s
 	policies := BuildNetworkPolicies(microName, perGroupedSrcGroupedDst)
 
 	return policies
-}
-
-// ======================= //
-// == Policy Generation == //
-// ======================= //
-
-func TestGenerateNetworkPolicies() {
-	fmt.Println("TestGenerateNetworkPolicies")
 }

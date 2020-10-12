@@ -14,7 +14,14 @@ func Conn() (db *sql.DB) {
 	dbUser := os.Getenv("NETWORKFLOW_DB_USER")
 	dbPass := os.Getenv("NETWORKFLOW_DB_PASS")
 	dbName := os.Getenv("NETWORKFLOW_DB_NAME")
-	db, err := sql.Open(dbDriver, dbUser+":"+dbPass+"@/"+dbName)
+
+	// for test
+	dbDriver = "mysql"
+	dbUser = "root"
+	dbPass = "password"
+	dbName = "flow_management"
+
+	db, err := sql.Open(dbDriver, dbUser+":"+dbPass+"@tcp(localhost:3306)/"+dbName)
 	if err != nil {
 		panic(err.Error())
 	}
