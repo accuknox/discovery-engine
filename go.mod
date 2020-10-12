@@ -13,7 +13,8 @@ require (
 	github.com/docker/docker v1.13.1
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/golang/protobuf v1.4.2 // indirect
-	go.mongodb.org/mongo-driver v1.4.2
+	github.com/google/go-cmp v0.5.2 // indirect
+	go.mongodb.org/mongo-driver v1.3.0
 	golang.org/x/net v0.0.0-20201010224723-4f7140c49acb // indirect
 	golang.org/x/sys v0.0.0-20201009025420-dfb3f7c4e634 // indirect
 	google.golang.org/genproto v0.0.0-20201009135657-4d944d34d83c // indirect

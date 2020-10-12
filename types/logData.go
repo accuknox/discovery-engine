@@ -1,22 +1,5 @@
 package types
 
-import "github.com/docker/docker/api/types/events"
-
-// DockerEvent Structure
-type DockerEvent struct {
-	HostName string `json:"host_name" bson:"host_name"`
-
-	ContainerID   string `json:"container_id" bson:"container_id"`
-	ContainerName string `json:"container_name" bson:"container_name"`
-
-	Type   string `json:"type" bson:"type"`
-	Action string `json:"action" bson:"action"`
-
-	RawEvent events.Message `json:"raw_event" bson:"raw_event"`
-
-	UpdatedTime string `json:"updated_time" bson:"updated_time"`
-}
-
 // NetworkLog Structure
 type NetworkLog struct {
 	HostName string `json:"host_name" bson:"host_name"`
@@ -52,25 +35,6 @@ type NetworkLog struct {
 	ByteRaw uint64 `json:"byte_raw" bson:"byte_raw"`
 
 	UpdatedTime string `json:"updated_time" bson:"updated_time"`
-}
-
-// NetworkStats Structure
-type NetworkStats struct {
-	// host and container group
-	HostName           string `json:"host_name" bson:"host_name"`
-	MicroserviceName   string `json:"microservice_name" bson:"microservice_name"`
-	ContainerGroupName string `json:"container_group_name" bson:"container_group_name"`
-
-	InBoundPkts     int    `json:"in_bound_pkts" bson:"in_bound_pkts"`
-	InBoundBytes    string `json:"in_bound_bytes" bson:"in_bound_bytes"`
-	InBoundBytesRaw int    `json:"in_bound_bytes_raw" bson:"in_bound_bytes_raw"`
-
-	OutBoundPkts     int    `json:"out_bound_pkts" bson:"out_bound_pkts"`
-	OutBoundBytes    string `json:"out_bound_bytes" bson:"out_bound_bytes"`
-	OutBoundBytesRaw int    `json:"out_bound_bytes_raw" bson:"out_bound_bytes_raw"`
-
-	ForwardPkts int `json:"forwarded_packets" bson:"forwarded_packets"`
-	DropPkts    int `json:"dropped_packets" bson:"dropped_packets"`
 }
 
 // SystemLog Structure
@@ -124,17 +88,6 @@ type RuntimeLog struct {
 	ContainerName string `json:"container_name" bson:"container_name"`
 
 	Type    string `json:"type" bson:"type"`
-	Message string `json:"message" bson:"message"`
-
-	UpdatedTime string `json:"updated_time" bson:"updated_time"`
-}
-
-// Message Structure
-type Message struct {
-	Source   string `json:"source" bson:"source"`
-	SourceIP string `json:"source_ip" bson:"source_ip"`
-
-	Level   string `json:"level" bson:"level"`
 	Message string `json:"message" bson:"message"`
 
 	UpdatedTime string `json:"updated_time" bson:"updated_time"`
