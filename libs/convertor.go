@@ -30,7 +30,7 @@ func getProtocol(l4 types.KnoxL4) int {
 	} else if l4.UDP.SourcePort != 0 {
 		return 17
 	} else {
-		return -1 // unkown
+		return 1 // assume icmp for test
 	}
 }
 

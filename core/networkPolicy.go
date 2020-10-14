@@ -64,11 +64,6 @@ func filterLogs(originalLogs []types.NetworkLog, microName string) []types.Netwo
 	filteredLogs := []types.NetworkLog{}
 
 	for _, log := range originalLogs {
-		// filter egress
-		if log.Direction != "egress" {
-			continue
-		}
-
 		// filter microservice name
 		if log.SrcMicroserviceName != microName || log.DstMicroserviceName != microName {
 			continue
@@ -824,7 +819,7 @@ func GenerateNetworkPolicies(microserviceName string,
 	perDst := groupingNetLogsPerDst(networkLogs)
 
 	// step 2: removing reverse flows from perDst
-	removingReserveFlow(perDst, networkLogs)
+	// removingReserveFlow(perDst, networkLogs)
 
 	// step 3-1: {dst: [network logs (src+dst)]} -> {dst: [srcs]}
 	perDstSrcLabel := replacingLogsToSrc(perDst, containerGroups)
