@@ -258,7 +258,7 @@ func IsExposedPort(protocol int, port int) bool {
 		if bl.ContainsElement(exposedUDPPorts, port) {
 			return true
 		}
-	} else if protocol == 132 { // udp
+	} else if protocol == 132 { // sctp
 		if bl.ContainsElement(exposedSCTPPorts, port) {
 			return true
 		}

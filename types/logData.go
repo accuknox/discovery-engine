@@ -4,15 +4,12 @@ package types
 type NetworkLog struct {
 	HostName string `json:"host_name" bson:"host_name"`
 
-	MicroserviceName   string `json:"microservice_name" bson:"microservice_name"`
-	ContainerGroupName string `json:"container_group_name" bson:"container_group_name"`
-
 	SrcMicroserviceName   string `json:"src_microservice_name" bson:"src_microservice_name"`
 	SrcContainerGroupName string `json:"src_container_group_name" bson:"src_container_group_name"`
 	DstMicroserviceName   string `json:"dst_microservice_name" bson:"dst_microservice_name"`
 	DstContainerGroupName string `json:"dst_container_group_name" bson:"dst_container_group_name"`
 
-	EtherType int    `json:"ether_type" bson:"ether_type"`
+	EtherType int    `json:"ether_type" bson:"ether_type"` // default ipv4
 	SrcMac    string `json:"src_mac" bson:"src_mac"`
 	DstMac    string `json:"dst_mac" bson:"dst_mac"`
 
@@ -22,19 +19,10 @@ type NetworkLog struct {
 	SrcPort  int    `json:"src_port" bson:"src_port"`
 	DstPort  int    `json:"dst_port" bson:"dst_port"`
 
-	TotalSize uint64 `json:"total_size" bson:"total_size"`
-
 	Action    string `json:"action" bson:"action"`
 	Direction string `json:"direction" bson:"direction"` // ingress or egress
 
-	Reason   string `json:"reason" bson:"reason"`
-	PolicyId uint32 `json:"policy_id" bson:"policy_id"`
-
-	Count   uint64 `json:"count" bson:"count"`
-	ByteStr string `json:"byte" bson:"byte"`
-	ByteRaw uint64 `json:"byte_raw" bson:"byte_raw"`
-
-	UpdatedTime string `json:"updated_time" bson:"updated_time"`
+	Reason string `json:"reason" bson:"reason"`
 }
 
 // SystemLog Structure
@@ -77,8 +65,6 @@ type SystemLog struct {
 	SockAddr     map[string]string `json:"sock_addr,omitempty" bson:"sock_addr,omitempty"`
 
 	Data string `json:"data" bson:"data"`
-
-	UpdatedTime string `json:"updated_time" bson:"updated_time"`
 }
 
 // RuntimeLog Structure
@@ -100,6 +86,4 @@ type SuricataLog struct {
 
 	Type    string `json:"type" bson:"type"`
 	RawData string `json:"raw_data" bson:"raw_data"`
-
-	UpdatedTime string `json:"updated_time" bson:"updated_time"`
 }
