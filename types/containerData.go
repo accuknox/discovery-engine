@@ -15,8 +15,6 @@ type ContainerGroup struct {
 	ContainerGroupUID  string `json:"container_group_uid" bson:"container_group_uid"`
 	ContainerGroupName string `json:"container_group_name" bson:"container_group_name"`
 
-	Status string `json:"status" bson:"status"`
-
 	HostID   string `json:"host_id" bson:"host_id"`
 	HostName string `json:"host_name" bson:"host_name"`
 	HostIP   string `json:"host_ip" bson:"host_ip"`
