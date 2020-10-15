@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"reflect"
 	"sort"
 	"strconv"
@@ -526,27 +527,34 @@ func mergingSrcByLabels(perDstSrcLabel map[Dst][]SrcSimple) map[Dst][]string {
 
 		// enumerating src label by descending order
 		for _, perLabel := range countsPerLabel {
-			// merge if at least match count >= 2
-			// it could be single (a=b) or combined (a=b,c=d)
-			label := perLabel.Label
+			if perLabel.Count >= 2 {
+				// merge if at least match count >= 2
+				// it could be single (a=b) or combined (a=b,c=d)
+				label := perLabel.Label
+				fmt.Println(label)
 
-			// if 'src' contains the label, remove 'src' from srcs
-			for _, src := range srcs {
-				if containLabel(label, src.MatchLabels) {
-					srcs = removeSrc(srcs, src)
+				// if 'src' contains the label, remove 'src' from srcs
+				for _, src := range srcs {
+					if containLabel(label, src.MatchLabels) {
+						srcs = removeSrc(srcs, src)
+					}
 				}
-			}
 
-			if perDstGroupedSrc[dst] == nil {
-				perDstGroupedSrc[dst] = []string{}
-			}
+				if perDstGroupedSrc[dst] == nil {
+					perDstGroupedSrc[dst] = []string{}
+				}
 
-			// append the label (the removed src included) to the dst
-			if !bl.ContainsElement(perDstGroupedSrc[dst], label) {
-				perDstGroupedSrc[dst] = append(perDstGroupedSrc[dst], label)
+				// append the label (the removed src included) to the dst
+				if !bl.ContainsElement(perDstGroupedSrc[dst], label) {
+					perDstGroupedSrc[dst] = append(perDstGroupedSrc[dst], label)
+				}
 			}
 		}
 
+		// if there is remained src, add its match label
+		for _, src := range srcs {
+			perDstGroupedSrc[dst] = append(perDstGroupedSrc[dst], src.MatchLabels)
+		}
 	}
 
 	return perDstGroupedSrc
@@ -778,24 +786,34 @@ func mergingDstByLabels(mergedSrcPerMergedProtoDst map[string][]MergedDst, conGr
 
 		// remove matched label dsts
 		for _, labelCount := range labelCounts {
-			// at least match count >= 2
-			label := labelCount.Label
+			if labelCount.Count >= 2 {
+				// at least match count >= 2
+				label := labelCount.Label
 
-			groupedDsts := make([]MergedDst, 0)
-			for _, dst := range mergedProtoPort {
-				if containLabel(label, dst.MatchLabels) {
-					groupedDsts = append(groupedDsts, dst)
-					mergedProtoPort = removeDstMerged(mergedProtoPort, dst)
+				groupedDsts := make([]MergedDst, 0)
+				for _, dst := range mergedProtoPort {
+					if containLabel(label, dst.MatchLabels) {
+						groupedDsts = append(groupedDsts, dst)
+						mergedProtoPort = removeDstMerged(mergedProtoPort, dst)
+					}
 				}
-			}
 
+				if perGroupedSrcGroupedDst[mergedSrc] == nil {
+					perGroupedSrcGroupedDst[mergedSrc] = []MergedDst{}
+				}
+
+				// groupingDsts -> one merged grouping dst
+				groupedDst := groupingDstMergeds(label, groupedDsts)
+				perGroupedSrcGroupedDst[mergedSrc] = append(perGroupedSrcGroupedDst[mergedSrc], groupedDst)
+			}
+		}
+
+		// not grouped dst remains, append it
+		for _, mergedDst := range mergedProtoPort {
 			if perGroupedSrcGroupedDst[mergedSrc] == nil {
 				perGroupedSrcGroupedDst[mergedSrc] = []MergedDst{}
 			}
-
-			// groupingDsts -> one merged grouping dst
-			groupedDst := groupingDstMergeds(label, groupedDsts)
-			perGroupedSrcGroupedDst[mergedSrc] = append(perGroupedSrcGroupedDst[mergedSrc], groupedDst)
+			perGroupedSrcGroupedDst[mergedSrc] = append(perGroupedSrcGroupedDst[mergedSrc], mergedDst)
 		}
 	}
 
@@ -827,6 +845,7 @@ func GenerateNetworkPolicies(microserviceName string,
 
 	// step 4: merging protocols and ports for the same destinations
 	mergedSrcPerMergedProtoDst := mergingDstByProtoPort(mergedSrcPerDst)
+	fmt.Println(mergedSrcPerMergedProtoDst)
 
 	// step 5: grouping dst based on labels
 	mergedSrcPerMergedDst := mergingDstByLabels(mergedSrcPerMergedProtoDst, containerGroups)
