@@ -10,14 +10,16 @@ import (
 	types "github.com/seungsoo-lee/knoxAutoPolicy/types"
 )
 
-var skipLabels = []string{"host_name", "microservice_name", "container_group_name", "container_name", "image_name"}
+var skippedLabels = []string{"pod-template-hash"}
 
 var exposedTCPPorts = []int{}
 var exposedUDPPorts = []int{}
 var exposedSCTPPorts = []int{}
 
-// Src Structure
-type Src struct {
+var DefaultSelectorKey string = "container_group_name"
+
+// SrcSimple Structure
+type SrcSimple struct {
 	MicroserviceName   string
 	ContainerGroupName string
 	MatchLabels        string
@@ -40,8 +42,8 @@ type DstSimple struct {
 	Action             string
 }
 
-// DstMerged Structure
-type DstMerged struct {
+// MergedDst Structure
+type MergedDst struct {
 	MicroserviceName   string
 	ContainerGroupName string
 	MatchLabels        string
@@ -70,11 +72,8 @@ func filterLogs(originalLogs []types.NetworkLog, microName string) []types.Netwo
 		}
 
 		// filter cni network logs
-		if bl.ContainsElement([]string{"WeaveNet", "Flannel", "Calico"}, log.SrcContainerGroupName) {
-			continue
-		}
-
-		if bl.ContainsElement([]string{"WeaveNet", "Flannel", "Calico"}, log.DstContainerGroupName) {
+		if bl.ContainsElement([]string{"WeaveNet", "Flannel", "Calico"}, log.SrcContainerGroupName) ||
+			bl.ContainsElement([]string{"WeaveNet", "Flannel", "Calico"}, log.DstContainerGroupName) {
 			continue
 		}
 
@@ -84,8 +83,8 @@ func filterLogs(originalLogs []types.NetworkLog, microName string) []types.Netwo
 	return filteredLogs
 }
 
-// countLabel Function
-func countLabel(labelCount map[string]int, mergedLabels string) {
+// countLabelByCombinations Function (combination!)
+func countLabelByCombinations(labelCount map[string]int, mergedLabels string) {
 	// split labels
 	labels := strings.Split(mergedLabels, ",")
 
@@ -162,8 +161,8 @@ func descendingLabelCountMap(labelCountMap map[string]int) []LabelCount {
 }
 
 // removeSrc Function
-func removeSrc(srcs []Src, remove Src) []Src {
-	cp := make([]Src, len(srcs))
+func removeSrc(srcs []SrcSimple, remove SrcSimple) []SrcSimple {
+	cp := make([]SrcSimple, len(srcs))
 	copy(cp, srcs)
 
 	for i, src := range srcs {
@@ -195,7 +194,7 @@ func sortingLableCount(labelCountMap map[string]int) []LabelCount {
 }
 
 // updateDstLabels Function
-func updateDstLabels(dsts []DstMerged, groups []types.ContainerGroup) []DstMerged {
+func updateDstLabels(dsts []MergedDst, groups []types.ContainerGroup) []MergedDst {
 	for i, dst := range dsts {
 		matchLabels := getMergedLabels(dst.MicroserviceName, dst.ContainerGroupName, groups)
 
@@ -226,8 +225,8 @@ func removeDst(dsts []Dst, remove Dst) []Dst {
 }
 
 // removeDstMerged Function
-func removeDstMerged(dsts []DstMerged, remove DstMerged) []DstMerged {
-	cp := make([]DstMerged, len(dsts))
+func removeDstMerged(dsts []MergedDst, remove MergedDst) []MergedDst {
+	cp := make([]MergedDst, len(dsts))
 	copy(cp, dsts)
 
 	for i, dst := range dsts {
@@ -266,15 +265,15 @@ func IsExposedPort(protocol int, port int) bool {
 func UpdateExposedPorts(services []types.K8sService, contGroups []types.ContainerGroup) {
 	// step 1: (k8s) service port update
 	for _, service := range services {
-		if service.Protocol == "tcp" { // TCP
+		if strings.ToLower(service.Protocol) == "tcp" { // TCP
 			if !bl.ContainsElement(exposedTCPPorts, service.ServicePort) {
 				exposedTCPPorts = append(exposedTCPPorts, service.ServicePort)
 			}
-		} else if service.Protocol == "udp" { // UDP
+		} else if strings.ToLower(service.Protocol) == "udp" { // UDP
 			if !bl.ContainsElement(exposedUDPPorts, service.ServicePort) {
 				exposedUDPPorts = append(exposedUDPPorts, service.ServicePort)
 			}
-		} else if service.Protocol == "sctp" { // SCTP
+		} else if strings.ToLower(service.Protocol) == "sctp" { // SCTP
 			if !bl.ContainsElement(exposedSCTPPorts, service.ServicePort) {
 				exposedSCTPPorts = append(exposedSCTPPorts, service.ServicePort)
 			}
@@ -284,15 +283,15 @@ func UpdateExposedPorts(services []types.K8sService, contGroups []types.Containe
 	// step 2: port binding update
 	for _, conGroup := range contGroups {
 		for _, portBinding := range conGroup.PortBindings {
-			if portBinding.Protocol == "tcp" {
+			if strings.ToLower(portBinding.Protocol) == "tcp" {
 				if !bl.ContainsElement(exposedTCPPorts, portBinding.Port) {
 					exposedTCPPorts = append(exposedTCPPorts, portBinding.Port)
 				}
-			} else if portBinding.Protocol == "udp" {
+			} else if strings.ToLower(portBinding.Protocol) == "udp" {
 				if !bl.ContainsElement(exposedUDPPorts, portBinding.Port) {
 					exposedUDPPorts = append(exposedUDPPorts, portBinding.Port)
 				}
-			} else if portBinding.Protocol == "sctp" {
+			} else if strings.ToLower(portBinding.Protocol) == "sctp" {
 				if !bl.ContainsElement(exposedSCTPPorts, portBinding.Port) {
 					exposedSCTPPorts = append(exposedSCTPPorts, portBinding.Port)
 				}
@@ -306,11 +305,11 @@ func UpdateExposedPorts(services []types.K8sService, contGroups []types.Containe
 // ============================ //
 
 // BuildNetworkPolicies Function
-func BuildNetworkPolicies(microName string, perGroupedSrcGroupedDst map[string][]DstMerged) []types.NetworkPolicy {
+func BuildNetworkPolicies(microName string, mergedSrcPerMergedDst map[string][]MergedDst) []types.NetworkPolicy {
 	networkPolicies := []types.NetworkPolicy{}
 
-	for groupedSrc, dsts := range perGroupedSrcGroupedDst {
-		for _, dst := range dsts {
+	for mergedSrc, mergedDst := range mergedSrcPerMergedDst {
+		for _, dst := range mergedDst {
 			policyName := "generated_" + bl.RandSeq(10)
 
 			policy := types.NetworkPolicy{
@@ -329,13 +328,13 @@ func BuildNetworkPolicies(microName string, perGroupedSrcGroupedDst map[string][
 						Networks:    []types.PolicyNetwork{},
 						MatchNames:  map[string]string{},
 						MatchLabels: map[string]string{}},
-					SSCFunctions: []types.SSCFunction{},
-					Action:       dst.Action,
+					Action: dst.Action,
 				},
 				UpdatedTime: bl.GetDateTimeZero(),
 			}
 
-			srcs := strings.Split(groupedSrc, ",")
+			// set selector labels
+			srcs := strings.Split(mergedSrc, ",")
 			for _, src := range srcs {
 				srcKey := strings.Split(src, "=")[0]
 				srcVal := strings.Split(src, "=")[1]
@@ -343,13 +342,18 @@ func BuildNetworkPolicies(microName string, perGroupedSrcGroupedDst map[string][
 				policy.Spec.Selector.MatchLabels[srcKey] = srcVal
 			}
 
+			// set egress labels
 			if dst.MatchLabels != "" {
-				dstkey := strings.Split(dst.MatchLabels, "=")[0]
-				dstval := strings.Split(dst.MatchLabels, "=")[1]
-				policy.Spec.Egress.MatchLabels[dstkey] = dstval
+				dsts := strings.Split(dst.MatchLabels, ",")
+				for _, dst := range dsts {
+					dstkey := strings.Split(dst, "=")[0]
+					dstval := strings.Split(dst, "=")[1]
+
+					policy.Spec.Egress.MatchLabels[dstkey] = dstval
+				}
 			} else {
-				// by default
-				policy.Spec.Egress.MatchNames["container_group_name"] = dst.ContainerGroupName
+				// there is no any labels... by default
+				policy.Spec.Egress.MatchNames[DefaultSelectorKey] = dst.ContainerGroupName
 			}
 
 			if dst.ToPorts != nil && len(dst.ToPorts) > 0 {
@@ -373,11 +377,15 @@ func BuildNetworkPolicies(microName string, perGroupedSrcGroupedDst map[string][
 // =========================================== //
 
 // getSimpleDst Function
-func getSimpleDst(log types.NetworkLog) Dst {
+func getSimpleDst(log types.NetworkLog) (Dst, bool) {
 	port := 0
 
-	if IsExposedPort(log.Protocol, log.DstPort) {
+	if IsExposedPort(log.Protocol, log.DstPort) { // if tcp, udp, or sctp
 		port = log.DstPort
+	} else if log.Protocol == 1 { // if icmp,
+		// TODO: type, code
+	} else {
+		return Dst{}, false
 	}
 
 	dst := Dst{
@@ -388,16 +396,19 @@ func getSimpleDst(log types.NetworkLog) Dst {
 		Action:             log.Action,
 	}
 
-	return dst
+	return dst, true
 }
 
-// groupingNetLogsPerDst Function
-func groupingNetLogsPerDst(networkLogs []types.NetworkLog) map[Dst][]types.NetworkLog {
+// groupingLogsPerDst Function
+func groupingLogsPerDst(networkLogs []types.NetworkLog) map[Dst][]types.NetworkLog {
 	perDst := map[Dst][]types.NetworkLog{}
 
 	for _, log := range networkLogs {
-		dst := getSimpleDst(log)
-
+		dst, valid := getSimpleDst(log)
+		if !valid {
+			continue
+		}
+		// fmt.Println(dst)
 		if _, ok := perDst[dst]; !ok {
 			perDst[dst] = []types.NetworkLog{log}
 		} else {
@@ -407,10 +418,6 @@ func groupingNetLogsPerDst(networkLogs []types.NetworkLog) map[Dst][]types.Netwo
 
 	return perDst
 }
-
-// ==================================== //
-// == Step 2: Removing Reverse Flows == //
-// ==================================== //
 
 // FlowCount Structure
 type FlowCount struct {
@@ -467,8 +474,8 @@ func removingReserveFlow(perDst map[Dst][]types.NetworkLog, originLogs []types.N
 	perDstLogsCount := map[Dst]int{}
 
 	// count each dst flows and container group
-	for dst, count := range perDst {
-		perDstLogsCount[dst] = len(count)
+	for dst, logs := range perDst {
+		perDstLogsCount[dst] = len(logs)
 	}
 
 	var flowCounts []FlowCount
@@ -503,48 +510,97 @@ func removingReserveFlow(perDst map[Dst][]types.NetworkLog, originLogs []types.N
 // == Step 3: Grouping Src Based on Labels == //
 // ========================================== //
 
+// mergingSrcByLabels Function
+func mergingSrcByLabels(perDstSrcLabel map[Dst][]SrcSimple) map[Dst][]string {
+	perDstGroupedSrc := map[Dst][]string{}
+
+	for dst, srcs := range perDstSrcLabel {
+		// first, count each src label (a=b:1 a=b,c=d:2 e=f:1, ... )
+		labelCountMap := map[string]int{}
+		for _, src := range srcs {
+			countLabelByCombinations(labelCountMap, src.MatchLabels)
+		}
+
+		// sorting label by descending order (e=f:10, f=e:9, d=s:5, ...)
+		countsPerLabel := descendingLabelCountMap(labelCountMap)
+
+		// enumerating src label by descending order
+		for _, perLabel := range countsPerLabel {
+			// merge if at least match count >= 2
+			// it could be single (a=b) or combined (a=b,c=d)
+			label := perLabel.Label
+
+			// if 'src' contains the label, remove 'src' from srcs
+			for _, src := range srcs {
+				if containLabel(label, src.MatchLabels) {
+					srcs = removeSrc(srcs, src)
+				}
+			}
+
+			if perDstGroupedSrc[dst] == nil {
+				perDstGroupedSrc[dst] = []string{}
+			}
+
+			// append the label (the removed src included) to the dst
+			if !bl.ContainsElement(perDstGroupedSrc[dst], label) {
+				perDstGroupedSrc[dst] = append(perDstGroupedSrc[dst], label)
+			}
+		}
+
+	}
+
+	return perDstGroupedSrc
+}
+
+// ====================================== //
+// == Step 2: Replacing Src to Labeled == //
+// ====================================== //
+
 // getMergedLabels Function
 func getMergedLabels(microName, groupName string, groups []types.ContainerGroup) string {
-	matchLabels := ""
+	mergedLabels := ""
 
 	for _, group := range groups {
 		// find the container group of src
 		if microName == group.MicroserviceName && groupName == group.ContainerGroupName {
 			// remove common name identities
-			identities := []string{}
+			labels := []string{}
 
 			for _, label := range group.Labels {
-				identities = append(identities, label)
+				if !bl.ContainsElement(skippedLabels, strings.Split(label, "=")[0]) {
+					labels = append(labels, label)
+				}
 			}
 
-			sort.Slice(identities, func(i, j int) bool {
-				return identities[i] > identities[j]
+			sort.Slice(labels, func(i, j int) bool {
+				return labels[i] > labels[j]
 			})
 
-			matchLabels = strings.Join(identities, ",")
-			return matchLabels
+			mergedLabels = strings.Join(labels, ",")
+			return mergedLabels
 		}
 	}
 
-	return matchLabels
+	return mergedLabels
 }
 
-// replacingLogsToSrc Function
-func replacingLogsToSrc(perDst map[Dst][]types.NetworkLog, conGroups []types.ContainerGroup) map[Dst][]Src {
-	perDstSrcLabel := map[Dst][]Src{}
+// extractingSrcFromLogs Function
+func extractingSrcFromLogs(perDst map[Dst][]types.NetworkLog, conGroups []types.ContainerGroup) map[Dst][]SrcSimple {
+	perDstSrcLabel := map[Dst][]SrcSimple{}
 
 	for dst, logs := range perDst {
-		srcs := []Src{}
+		srcs := []SrcSimple{}
 
 		for _, log := range logs {
-			// get merged matchlables (,)
+			// get merged matchlables: "a=b,c=d,e=f"
 			mergedLabels := getMergedLabels(log.SrcMicroserviceName, log.SrcContainerGroupName, conGroups)
 
-			src := Src{
+			src := SrcSimple{
 				MicroserviceName:   log.SrcMicroserviceName,
 				ContainerGroupName: log.SrcContainerGroupName,
 				MatchLabels:        mergedLabels}
 
+			// remove redundant
 			if !bl.ContainsElement(srcs, src) {
 				srcs = append(srcs, src)
 			}
@@ -556,62 +612,13 @@ func replacingLogsToSrc(perDst map[Dst][]types.NetworkLog, conGroups []types.Con
 	return perDstSrcLabel
 }
 
-// groupingSrc Function
-func groupingSrc(perDstSrcLabel map[Dst][]Src) map[Dst][]string {
-	perDstGroupedSrc := map[Dst][]string{}
+// =========================================== //
+// == Step 4: Merging Dst's Protocol + Port == //
+// =========================================== //
 
-	for dst, srcs := range perDstSrcLabel {
-		// count each src label first
-		labelCountMap := map[string]int{}
-		for _, src := range srcs {
-			countLabel(labelCountMap, src.MatchLabels)
-		}
-
-		// sorting label by descending order
-		labelCounts := descendingLabelCountMap(labelCountMap)
-
-		// enumerating src label by descending order
-		for _, labelCount := range labelCounts {
-			if labelCount.Count >= 2 { // at least match count >= 2
-				// it could be single or combined
-				label := labelCount.Label
-
-				// if src contains the label, remove src from srcs
-				for _, src := range srcs {
-					if containLabel(label, src.MatchLabels) {
-						srcs = removeSrc(srcs, src)
-					}
-				}
-
-				if perDstGroupedSrc[dst] == nil {
-					perDstGroupedSrc[dst] = []string{}
-				}
-
-				// append the label to the dst
-				if !bl.ContainsElement(perDstGroupedSrc[dst], label) {
-					perDstGroupedSrc[dst] = append(perDstGroupedSrc[dst], label)
-				}
-			}
-		}
-
-		// it src who not contains the label, append group name by default
-		for _, src := range srcs {
-			if !bl.ContainsElement(perDstGroupedSrc[dst], "container_group_name="+src.ContainerGroupName) {
-				perDstGroupedSrc[dst] = append(perDstGroupedSrc[dst], "container_group_name="+src.ContainerGroupName)
-			}
-		}
-	}
-
-	return perDstGroupedSrc
-}
-
-// ========================================= //
-// == Step 4: Merging Dst Protocol + Port == //
-// ========================================= //
-
-// mergingDstProtocolPorts Function
-func mergingDstProtocolPorts(dstMergeds []DstMerged, dst Dst) []DstMerged {
-	for i, dstPort := range dstMergeds {
+// mergingProtocolPorts Function
+func mergingProtocolPorts(mergedDsts []MergedDst, dst Dst) []MergedDst {
+	for i, dstPort := range mergedDsts {
 		simple1 := DstSimple{MicroserviceName: dstPort.MicroserviceName,
 			ContainerGroupName: dstPort.ContainerGroupName,
 			Action:             dstPort.Action}
@@ -624,9 +631,9 @@ func mergingDstProtocolPorts(dstMergeds []DstMerged, dst Dst) []DstMerged {
 			port := types.ToPort{Protocol: bl.GetProtocol(dst.Protocol),
 				Ports: strconv.Itoa(dst.DstPort)}
 
-			dstMergeds[i].ToPorts = append(dstMergeds[i].ToPorts, port)
+			mergedDsts[i].ToPorts = append(mergedDsts[i].ToPorts, port)
 
-			return dstMergeds
+			return mergedDsts
 		}
 	}
 
@@ -634,37 +641,38 @@ func mergingDstProtocolPorts(dstMergeds []DstMerged, dst Dst) []DstMerged {
 	port := types.ToPort{Protocol: bl.GetProtocol(dst.Protocol),
 		Ports: strconv.Itoa(dst.DstPort)}
 
-	dstMerged := DstMerged{
+	mergedDst := MergedDst{
 		MicroserviceName:   dst.MicroserviceName,
 		ContainerGroupName: dst.ContainerGroupName,
 		Action:             dst.Action,
 		ToPorts:            []types.ToPort{port},
 	}
 
-	dstMergeds = append(dstMergeds, dstMerged)
+	mergedDsts = append(mergedDsts, mergedDst)
 
-	return dstMergeds
+	return mergedDsts
 }
 
-// mergingDst Function
-func mergingDst(perDstGroupedSrc map[Dst][]string) map[string][]DstMerged {
+// mergingDstByProtoPort Function
+func mergingDstByProtoPort(perDstGroupedSrc map[Dst][]string) map[string][]MergedDst {
+	mergedSrcPerMergedDst := map[string][]MergedDst{}
+
 	// conver perDst -> perSrc
-	perGroupedSrcDst := map[string][]Dst{}
-	for dst, groupedSrcs := range perDstGroupedSrc {
-		for _, groupedSrc := range groupedSrcs {
-			if perGroupedSrcDst[groupedSrc] == nil {
-				perGroupedSrcDst[groupedSrc] = make([]Dst, 0)
+	mergedSrcPerDst := map[string][]Dst{}
+	for dst, mergedSrcs := range perDstGroupedSrc {
+		for _, mergedSrc := range mergedSrcs {
+			if mergedSrcPerDst[mergedSrc] == nil {
+				mergedSrcPerDst[mergedSrc] = make([]Dst, 0)
 			}
 
-			if !bl.ContainsElement(perGroupedSrcDst[groupedSrc], dst) {
-				perGroupedSrcDst[groupedSrc] = append(perGroupedSrcDst[groupedSrc], dst)
+			if !bl.ContainsElement(mergedSrcPerDst[mergedSrc], dst) {
+				mergedSrcPerDst[mergedSrc] = append(mergedSrcPerDst[mergedSrc], dst)
 			}
 		}
 	}
 
-	perGroupedSrcGroupedDst := map[string][]DstMerged{}
-	for groupedSrc, dsts := range perGroupedSrcDst {
-		// dst -> dst simple and count each dst simple
+	for mergedSrc, dsts := range mergedSrcPerDst {
+		// first, convert dst -> dstSimple, and count each dstSimple
 		dstSimpleCounts := map[DstSimple]int{}
 		for _, dst := range dsts {
 			dstSimple := DstSimple{MicroserviceName: dst.MicroserviceName,
@@ -693,11 +701,11 @@ func mergingDst(perDstGroupedSrc map[Dst][]string) map[string][]DstMerged {
 			return dstCounts[i].Count > dstCounts[j].Count
 		})
 
-		if perGroupedSrcGroupedDst[groupedSrc] == nil {
-			perGroupedSrcGroupedDst[groupedSrc] = []DstMerged{}
+		if mergedSrcPerMergedDst[mergedSrc] == nil {
+			mergedSrcPerMergedDst[mergedSrc] = []MergedDst{}
 		}
 
-		// if dst is matched dst simple, remove it from origin dst
+		// if dst is matched dstSimple, remove it from origin dst list
 		for _, dstCount := range dstCounts {
 			if dstCount.Count >= 2 { // at least match count >= 2
 				for _, dst := range dsts {
@@ -707,25 +715,25 @@ func mergingDst(perDstGroupedSrc map[Dst][]string) map[string][]DstMerged {
 
 					if dstCount.DstSimple == simple {
 						// merge protocol + port
-						perGroupedSrcGroupedDst[groupedSrc] = mergingDstProtocolPorts(perGroupedSrcGroupedDst[groupedSrc], dst)
-						// remove dst
+						mergedSrcPerMergedDst[mergedSrc] = mergingProtocolPorts(mergedSrcPerMergedDst[mergedSrc], dst)
+						// and then, remove dst
 						dsts = removeDst(dsts, dst)
 					}
 				}
 			}
 		}
 
-		perGroupedSrcDst[groupedSrc] = dsts
+		mergedSrcPerDst[mergedSrc] = dsts
 	}
 
 	// if not merged dsts remains, append it by default
-	for groupedSrc, dsts := range perGroupedSrcDst {
+	for mergedSrc, dsts := range mergedSrcPerDst {
 		for _, dst := range dsts {
-			perGroupedSrcGroupedDst[groupedSrc] = mergingDstProtocolPorts(perGroupedSrcGroupedDst[groupedSrc], dst)
+			mergedSrcPerMergedDst[mergedSrc] = mergingProtocolPorts(mergedSrcPerMergedDst[mergedSrc], dst)
 		}
 	}
 
-	return perGroupedSrcGroupedDst
+	return mergedSrcPerMergedDst
 }
 
 // ========================================= //
@@ -733,8 +741,8 @@ func mergingDst(perDstGroupedSrc map[Dst][]string) map[string][]DstMerged {
 // ========================================= //
 
 // groupingDstMergeds Function
-func groupingDstMergeds(label string, dsts []DstMerged) DstMerged {
-	merged := DstMerged{MatchLabels: label}
+func groupingDstMergeds(label string, dsts []MergedDst) MergedDst {
+	merged := MergedDst{MatchLabels: label}
 	merged.ToPorts = []types.ToPort{}
 
 	for _, dst := range dsts {
@@ -751,18 +759,18 @@ func groupingDstMergeds(label string, dsts []DstMerged) DstMerged {
 	return merged
 }
 
-// groupingDst Function
-func groupingDst(perGroupedSrcMergedDst map[string][]DstMerged, conGroups []types.ContainerGroup) map[string][]DstMerged {
-	perGroupedSrcGroupedDst := map[string][]DstMerged{}
+// mergingDstByLabels Function
+func mergingDstByLabels(mergedSrcPerMergedProtoDst map[string][]MergedDst, conGroups []types.ContainerGroup) map[string][]MergedDst {
+	perGroupedSrcGroupedDst := map[string][]MergedDst{}
 
-	for groupedSrc, dstMergeds := range perGroupedSrcMergedDst {
+	for mergedSrc, mergedProtoPort := range mergedSrcPerMergedProtoDst {
 		// dst merged label count
-		dstMergeds = updateDstLabels(dstMergeds, conGroups)
+		mergedProtoPort = updateDstLabels(mergedProtoPort, conGroups)
 		labelCountMap := map[string]int{}
 
 		// count each dst label
-		for _, dst := range dstMergeds {
-			countLabel(labelCountMap, dst.MatchLabels)
+		for _, dst := range mergedProtoPort {
+			countLabelByCombinations(labelCountMap, dst.MatchLabels)
 		}
 
 		// sort label count by descending orders
@@ -770,31 +778,24 @@ func groupingDst(perGroupedSrcMergedDst map[string][]DstMerged, conGroups []type
 
 		// remove matched label dsts
 		for _, labelCount := range labelCounts {
-			if labelCount.Count >= 2 { // at least match count >= 2
-				label := labelCount.Label
+			// at least match count >= 2
+			label := labelCount.Label
 
-				groupedDsts := make([]DstMerged, 0)
-				for _, dst := range dstMergeds {
-					if containLabel(label, dst.MatchLabels) {
-						groupedDsts = append(groupedDsts, dst)
-						dstMergeds = removeDstMerged(dstMergeds, dst)
-					}
+			groupedDsts := make([]MergedDst, 0)
+			for _, dst := range mergedProtoPort {
+				if containLabel(label, dst.MatchLabels) {
+					groupedDsts = append(groupedDsts, dst)
+					mergedProtoPort = removeDstMerged(mergedProtoPort, dst)
 				}
-
-				if perGroupedSrcGroupedDst[groupedSrc] == nil {
-					perGroupedSrcGroupedDst[groupedSrc] = []DstMerged{}
-				}
-
-				// groupingDsts -> one merged grouping dst
-				groupedDst := groupingDstMergeds(label, groupedDsts)
-				perGroupedSrcGroupedDst[groupedSrc] = append(perGroupedSrcGroupedDst[groupedSrc], groupedDst)
 			}
-		}
 
-		// not grouped dst remains
-		for _, dst := range dstMergeds {
-			dst.MatchLabels = "" // clear match labels
-			perGroupedSrcGroupedDst[groupedSrc] = append(perGroupedSrcGroupedDst[groupedSrc], dst)
+			if perGroupedSrcGroupedDst[mergedSrc] == nil {
+				perGroupedSrcGroupedDst[mergedSrc] = []MergedDst{}
+			}
+
+			// groupingDsts -> one merged grouping dst
+			groupedDst := groupingDstMergeds(label, groupedDsts)
+			perGroupedSrcGroupedDst[mergedSrc] = append(perGroupedSrcGroupedDst[mergedSrc], groupedDst)
 		}
 	}
 
@@ -816,25 +817,22 @@ func GenerateNetworkPolicies(microserviceName string,
 	UpdateExposedPorts(k8sServices, containerGroups)
 
 	// step 1: {dst: [network logs (src+dst)]}
-	perDst := groupingNetLogsPerDst(networkLogs)
+	logsPerDst := groupingLogsPerDst(networkLogs)
 
-	// step 2: removing reverse flows from perDst
-	// removingReserveFlow(perDst, networkLogs)
+	// step 2: {dst: [network logs (src+dst)]} -> {dst: [srcs]}
+	labeledSrcPerDst := extractingSrcFromLogs(logsPerDst, containerGroups)
 
-	// step 3-1: {dst: [network logs (src+dst)]} -> {dst: [srcs]}
-	perDstSrcLabel := replacingLogsToSrc(perDst, containerGroups)
-
-	// step 3-2: {dst: srcs} -> {dst: [grouped src labels]}
-	perDstGroupedSrc := groupingSrc(perDstSrcLabel)
+	// step 3: {dst: [srcs]} -> {dst: [merged srcs]}
+	mergedSrcPerDst := mergingSrcByLabels(labeledSrcPerDst)
 
 	// step 4: merging protocols and ports for the same destinations
-	perGroupedSrcMergedDst := mergingDst(perDstGroupedSrc)
+	mergedSrcPerMergedProtoDst := mergingDstByProtoPort(mergedSrcPerDst)
 
 	// step 5: grouping dst based on labels
-	perGroupedSrcGroupedDst := groupingDst(perGroupedSrcMergedDst, containerGroups)
+	mergedSrcPerMergedDst := mergingDstByLabels(mergedSrcPerMergedProtoDst, containerGroups)
 
 	// finalize network policies
-	policies := BuildNetworkPolicies(microserviceName, perGroupedSrcGroupedDst)
+	networkPolicies := BuildNetworkPolicies(microserviceName, mergedSrcPerMergedDst)
 
-	return policies
+	return networkPolicies
 }

@@ -104,12 +104,9 @@ type SSCFunction struct {
 
 // Spec Structure
 type Spec struct {
-	Selector Selector `json:"selector" bson:"selector"`
-	Ingress  Ingress  `json:"ingress" bson:"ingress"`
-	Egress   Egress   `json:"egress" bson:"egress"`
-
-	SSC          string        `json:"ssc,omitempty" bson:"ssc,omitempty"`
-	SSCFunctions []SSCFunction `json:"ssc_functions,omitempty" bson:"ssc_functions,omitempty"`
+	Selector Selector `json:"selector,omitempty" bson:"selector,omitempty"`
+	Ingress  Ingress  `json:"ingress,omitempty" bson:"ingress,omitempty"`
+	Egress   Egress   `json:"egress,omitempty" bson:"egress,omitempty"`
 
 	Action  string            `json:"action,omitempty" bson:"action,omitempty"`
 	Actions map[string]string `json:"actions,omitempty" bson:"actions,omitempty"`
