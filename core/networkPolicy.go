@@ -1,7 +1,6 @@
 package core
 
 import (
-	"fmt"
 	"reflect"
 	"sort"
 	"strconv"
@@ -335,8 +334,13 @@ func BuildNetworkPolicies(microName string, mergedSrcPerMergedDst map[string][]M
 			// set selector labels
 			srcs := strings.Split(mergedSrc, ",")
 			for _, src := range srcs {
-				srcKey := strings.Split(src, "=")[0]
-				srcVal := strings.Split(src, "=")[1]
+				kv := strings.Split(src, "=")
+				if len(kv) != 2 {
+					continue
+				}
+
+				srcKey := kv[0]
+				srcVal := kv[1]
 
 				policy.Spec.Selector.MatchLabels[srcKey] = srcVal
 			}
@@ -345,8 +349,13 @@ func BuildNetworkPolicies(microName string, mergedSrcPerMergedDst map[string][]M
 			if dst.MatchLabels != "" {
 				dsts := strings.Split(dst.MatchLabels, ",")
 				for _, dst := range dsts {
-					dstkey := strings.Split(dst, "=")[0]
-					dstval := strings.Split(dst, "=")[1]
+					kv := strings.Split(dst, "=")
+					if len(kv) != 2 {
+						continue
+					}
+
+					dstkey := kv[0]
+					dstval := kv[1]
 
 					policy.Spec.Egress.MatchLabels[dstkey] = dstval
 				}
@@ -411,7 +420,7 @@ func groupingLogsPerDst(networkLogs []types.NetworkLog) map[Dst][]types.NetworkL
 		if !valid {
 			continue
 		}
-		// fmt.Println(dst)
+
 		if _, ok := perDst[dst]; !ok {
 			perDst[dst] = []types.NetworkLog{log}
 		} else {
@@ -533,7 +542,6 @@ func mergingSrcByLabels(perDstSrcLabel map[Dst][]SrcSimple) map[Dst][]string {
 				// merge if at least match count >= 2
 				// it could be single (a=b) or combined (a=b,c=d)
 				label := perLabel.Label
-				fmt.Println(label)
 
 				// if 'src' contains the label, remove 'src' from srcs
 				for _, src := range srcs {

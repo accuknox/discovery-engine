@@ -6,7 +6,7 @@ import (
 )
 
 func isSynFlagOnly(tcp *pb.TCP) bool {
-	if tcp.Flags.SYN || !tcp.Flags.ACK {
+	if tcp.Flags.SYN && !tcp.Flags.ACK {
 		return true
 	}
 	return false
