@@ -55,7 +55,9 @@ func TrafficToLog(traffic types.NetworkTraffic) types.NetworkLog {
 
 	log.SrcPort, log.DstPort = getL4Ports(traffic.L4)
 
-	log.Action = traffic.Verdict
+	if traffic.Verdict == "1" {
+		log.Action = "allow"
+	}
 	log.Direction = getTrafficDirection(traffic.TrafficDirection)
 
 	return log

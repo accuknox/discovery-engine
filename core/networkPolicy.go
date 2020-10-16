@@ -317,7 +317,6 @@ func BuildNetworkPolicies(microName string, mergedSrcPerMergedDst map[string][]M
 				APIVersion: "v1",
 				Kind:       "BastionNetworkPolicy",
 				Metadata:   map[string]string{"name": policyName, "microservice_name": microName},
-				Priority:   32768,
 				Spec: types.Spec{
 					Selector: types.Selector{
 						Identities:  []string{},
@@ -331,7 +330,6 @@ func BuildNetworkPolicies(microName string, mergedSrcPerMergedDst map[string][]M
 						MatchLabels: map[string]string{}},
 					Action: dst.Action,
 				},
-				UpdatedTime: bl.GetDateTimeZero(),
 			}
 
 			// set selector labels
@@ -845,7 +843,6 @@ func GenerateNetworkPolicies(microserviceName string,
 
 	// step 4: merging protocols and ports for the same destinations
 	mergedSrcPerMergedProtoDst := mergingDstByProtoPort(mergedSrcPerDst)
-	fmt.Println(mergedSrcPerMergedProtoDst)
 
 	// step 5: grouping dst based on labels
 	mergedSrcPerMergedDst := mergingDstByLabels(mergedSrcPerMergedProtoDst, containerGroups)
