@@ -2,22 +2,23 @@ package types
 
 // NetworkLog Structure
 type NetworkLog struct {
-	HostName string `json:"host_name" bson:"host_name"`
-
 	SrcMicroserviceName   string `json:"src_microservice_name" bson:"src_microservice_name"`
 	SrcContainerGroupName string `json:"src_container_group_name" bson:"src_container_group_name"`
 	DstMicroserviceName   string `json:"dst_microservice_name" bson:"dst_microservice_name"`
 	DstContainerGroupName string `json:"dst_container_group_name" bson:"dst_container_group_name"`
 
-	EtherType int    `json:"ether_type" bson:"ether_type"` // default ipv4
-	SrcMac    string `json:"src_mac" bson:"src_mac"`
-	DstMac    string `json:"dst_mac" bson:"dst_mac"`
+	EtherType int `json:"ether_type" bson:"ether_type"` // assume ipv4
+
+	SrcMac string `json:"src_mac" bson:"src_mac"`
+	DstMac string `json:"dst_mac" bson:"dst_mac"`
 
 	Protocol int    `json:"protocol" bson:"protocol"`
 	SrcIP    string `json:"src_ip" bson:"src_ip"`
 	DstIP    string `json:"dst_ip" bson:"dst_ip"`
 	SrcPort  int    `json:"src_port" bson:"src_port"`
 	DstPort  int    `json:"dst_port" bson:"dst_port"`
+
+	SynFlag bool `json:"syn_flag" bson:"syn_flag"`
 
 	Action    string `json:"action" bson:"action"`
 	Direction string `json:"direction" bson:"direction"` // ingress or egress

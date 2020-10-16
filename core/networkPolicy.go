@@ -68,7 +68,7 @@ func filterLogs(originalLogs []types.NetworkLog, microName string) []types.Netwo
 
 	for _, log := range originalLogs {
 		// filter microservice name
-		if log.SrcMicroserviceName != microName || log.DstMicroserviceName != microName {
+		if log.SrcMicroserviceName != microName && log.DstMicroserviceName != microName {
 			continue
 		}
 
@@ -379,10 +379,14 @@ func BuildNetworkPolicies(microName string, mergedSrcPerMergedDst map[string][]M
 func getSimpleDst(log types.NetworkLog) (Dst, bool) {
 	port := 0
 
-	if IsExposedPort(log.Protocol, log.DstPort) { // if tcp, udp, or sctp
+	if IsExposedPort(log.Protocol, log.DstPort) { // if exposed tcp, udp, or sctp
+		port = log.DstPort
+	} else if log.Protocol == 6 && log.SynFlag { // if tcp + syn flag
 		port = log.DstPort
 	} else if log.Protocol == 1 { // if icmp,
-		// TODO: type, code
+		if log.SrcPort != 8 { // srcport == type (8: icmp request)
+			return Dst{}, false
+		}
 	} else {
 		return Dst{}, false
 	}

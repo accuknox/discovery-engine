@@ -9,6 +9,7 @@ replace (
 )
 
 require (
+	github.com/accuknox/knoxServiceFlowMgmt/src v0.0.0-20201013160109-437b5a1f2593
 	github.com/cilium/cilium v1.8.4
 	github.com/docker/docker v1.13.1
 	github.com/go-sql-driver/mysql v1.5.0
