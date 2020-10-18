@@ -28,7 +28,7 @@ type Service struct {
 // ToCIDR Structure
 type ToCIDR struct {
 	CIDR   string   `json:"cidr" yaml:"cidr"`
-	Except []string `json:"except" yaml:"except"`
+	Except []string `json:"except,omitempty" yaml:"except,omitempty"`
 }
 
 // ToPort Structure

@@ -56,6 +56,7 @@ type MergedDst struct {
 	ContainerGroupName string
 	MatchLabels        string
 	ToPorts            []types.ToPort
+	ToCIDRs            []types.ToCIDR
 	Action             string
 }
 
@@ -371,18 +372,23 @@ func BuildNetworkPolicies(microName string, mergedSrcPerMergedDst map[string][]M
 
 					policy.Spec.Egress.MatchLabels[dstkey] = dstval
 				}
-			} else {
-				// there is no any labels... by default
-				policy.Spec.Egress.MatchNames[DefaultSelectorKey] = dst.ContainerGroupName
-			}
 
-			if dst.ToPorts != nil && len(dst.ToPorts) > 0 {
-				for i, toPort := range dst.ToPorts {
-					if toPort.Ports == "0" {
-						dst.ToPorts[i].Ports = ""
+				if dst.ToPorts != nil && len(dst.ToPorts) > 0 {
+					for i, toPort := range dst.ToPorts {
+						if toPort.Ports == "0" {
+							dst.ToPorts[i].Ports = ""
+						}
 					}
+					policy.Spec.Egress.ToPorts = dst.ToPorts
 				}
-				policy.Spec.Egress.ToPorts = dst.ToPorts
+			} else if dst.MicroserviceName == "external" {
+				cidr := types.ToCIDR{
+					CIDR: dst.ContainerGroupName,
+				}
+
+				policy.Spec.Egress.ToCIDRs = []types.ToCIDR{cidr}
+			} else {
+				continue
 			}
 
 			networkPolicies = append(networkPolicies, policy)
@@ -693,8 +699,8 @@ func mergingProtocolPorts(mergedDsts []MergedDst, dst Dst) []MergedDst {
 	return mergedDsts
 }
 
-// mergingDstByProtoPort Function
-func mergingDstByProtoPort(perDstGroupedSrc map[Dst][]string) map[string][]MergedDst {
+// mergingDstToPorts Function
+func mergingDstToPorts(perDstGroupedSrc map[Dst][]string) map[string][]MergedDst {
 	mergedSrcPerMergedDst := map[string][]MergedDst{}
 
 	// conver perDst -> perSrc
@@ -877,7 +883,7 @@ func GenerateNetworkPolicies(microserviceName string,
 	mergedSrcPerDst := mergingSrcByLabels(labeledSrcPerDst)
 
 	// step 4: merging protocols and ports for the same destinations
-	mergedSrcPerMergedProtoDst := mergingDstByProtoPort(mergedSrcPerDst)
+	mergedSrcPerMergedProtoDst := mergingDstToPorts(mergedSrcPerDst)
 
 	// step 5: grouping dst based on labels
 	mergedSrcPerMergedDst := mergingDstByLabels(mergedSrcPerMergedProtoDst, containerGroups)
