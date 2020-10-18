@@ -1,6 +1,7 @@
 package core
 
 import (
+	"net"
 	"reflect"
 	"sort"
 	"strconv"
@@ -17,6 +18,13 @@ var exposedUDPPorts = []int{}
 var exposedSCTPPorts = []int{}
 
 var DefaultSelectorKey string = "container_group_name"
+
+var (
+	ICMP int = 1
+	TCP  int = 6
+	UDP  int = 17
+	SCTP int = 132
+)
 
 // SrcSimple Structure
 type SrcSimple struct {
@@ -304,32 +312,36 @@ func UpdateExposedPorts(services []types.K8sService, contGroups []types.Containe
 // == Build Network Policies == //
 // ============================ //
 
+func buildNewPolicy(action string) types.NetworkPolicy {
+	policyName := "generated_" + bl.RandSeq(10)
+
+	return types.NetworkPolicy{
+		APIVersion: "v1",
+		Kind:       "KnoxNetworkPolicy",
+		Metadata:   map[string]string{"name": policyName},
+		Spec: types.Spec{
+			Selector: types.Selector{
+				Identities:  []string{},
+				Networks:    []types.PolicyNetwork{},
+				MatchNames:  map[string]string{},
+				MatchLabels: map[string]string{}},
+			Egress: types.Egress{
+				Identities:  []string{},
+				Networks:    []types.PolicyNetwork{},
+				MatchNames:  map[string]string{},
+				MatchLabels: map[string]string{}},
+			Action: action,
+		},
+	}
+}
+
 // BuildNetworkPolicies Function
 func BuildNetworkPolicies(microName string, mergedSrcPerMergedDst map[string][]MergedDst) []types.NetworkPolicy {
 	networkPolicies := []types.NetworkPolicy{}
 
-	for mergedSrc, mergedDst := range mergedSrcPerMergedDst {
-		for _, dst := range mergedDst {
-			policyName := "generated_" + bl.RandSeq(10)
-
-			policy := types.NetworkPolicy{
-				APIVersion: "v1",
-				Kind:       "BastionNetworkPolicy",
-				Metadata:   map[string]string{"name": policyName, "microservice_name": microName},
-				Spec: types.Spec{
-					Selector: types.Selector{
-						Identities:  []string{},
-						Networks:    []types.PolicyNetwork{},
-						MatchNames:  map[string]string{},
-						MatchLabels: map[string]string{}},
-					Egress: types.Egress{
-						Identities:  []string{},
-						Networks:    []types.PolicyNetwork{},
-						MatchNames:  map[string]string{},
-						MatchLabels: map[string]string{}},
-					Action: dst.Action,
-				},
-			}
+	for mergedSrc, mergedDsts := range mergedSrcPerMergedDst {
+		for _, dst := range mergedDsts {
+			policy := buildNewPolicy(dst.Action)
 
 			// set selector labels
 			srcs := strings.Split(mergedSrc, ",")
@@ -385,14 +397,15 @@ func BuildNetworkPolicies(microName string, mergedSrcPerMergedDst map[string][]M
 // =========================================== //
 
 // getSimpleDst Function
-func getSimpleDst(log types.NetworkLog) (Dst, bool) {
-	port := 0
+func getSimpleDst(log types.NetworkLog, cidrBits int) (Dst, bool) {
+	dstPort := 0
+	dstGroupName := ""
 
 	if IsExposedPort(log.Protocol, log.DstPort) { // if exposed tcp, udp, or sctp
-		port = log.DstPort
-	} else if log.Protocol == 6 && log.SynFlag { // if tcp + syn flag
-		port = log.DstPort
-	} else if log.Protocol == 1 { // if icmp,
+		dstPort = log.DstPort
+	} else if log.Protocol == TCP && log.SynFlag { // if tcp + syn flag
+		dstPort = log.DstPort
+	} else if log.Protocol == ICMP { // if icmp,
 		if log.SrcPort != 8 { // srcport == type (8: icmp request)
 			return Dst{}, false
 		}
@@ -400,11 +413,20 @@ func getSimpleDst(log types.NetworkLog) (Dst, bool) {
 		return Dst{}, false
 	}
 
+	// if dst is out of cluster, get cidr/bits
+	if log.DstMicroserviceName == "external" && net.ParseIP(log.DstContainerGroupName) != nil {
+		ipNetwork := log.DstContainerGroupName + "/" + strconv.Itoa(cidrBits)
+		_, network, _ := net.ParseCIDR(ipNetwork)
+		dstGroupName = network.String()
+	} else {
+		dstGroupName = log.DstContainerGroupName
+	}
+
 	dst := Dst{
 		MicroserviceName:   log.DstMicroserviceName,
-		ContainerGroupName: log.DstContainerGroupName,
+		ContainerGroupName: dstGroupName,
 		Protocol:           log.Protocol,
-		DstPort:            port,
+		DstPort:            dstPort,
 		Action:             log.Action,
 	}
 
@@ -412,11 +434,11 @@ func getSimpleDst(log types.NetworkLog) (Dst, bool) {
 }
 
 // groupingLogsPerDst Function
-func groupingLogsPerDst(networkLogs []types.NetworkLog) map[Dst][]types.NetworkLog {
+func groupingLogsPerDst(networkLogs []types.NetworkLog, cidrBits int) map[Dst][]types.NetworkLog {
 	perDst := map[Dst][]types.NetworkLog{}
 
 	for _, log := range networkLogs {
-		dst, valid := getSimpleDst(log)
+		dst, valid := getSimpleDst(log, cidrBits)
 		if !valid {
 			continue
 		}
@@ -836,6 +858,7 @@ func mergingDstByLabels(mergedSrcPerMergedProtoDst map[string][]MergedDst, conGr
 
 // GenerateNetworkPolicies Function
 func GenerateNetworkPolicies(microserviceName string,
+	cidrBits int, // for CIDR policy, 32 bits -> per IP
 	networkLogs []types.NetworkLog,
 	k8sServices []types.K8sService,
 	containerGroups []types.ContainerGroup) []types.NetworkPolicy {
@@ -845,7 +868,7 @@ func GenerateNetworkPolicies(microserviceName string,
 	UpdateExposedPorts(k8sServices, containerGroups)
 
 	// step 1: {dst: [network logs (src+dst)]}
-	logsPerDst := groupingLogsPerDst(networkLogs)
+	logsPerDst := groupingLogsPerDst(networkLogs, cidrBits)
 
 	// step 2: {dst: [network logs (src+dst)]} -> {dst: [srcs]}
 	labeledSrcPerDst := extractingSrcFromLogs(logsPerDst, containerGroups)

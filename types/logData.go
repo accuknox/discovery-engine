@@ -4,6 +4,7 @@ package types
 type NetworkLog struct {
 	SrcMicroserviceName   string `json:"src_microservice_name" bson:"src_microservice_name"`
 	SrcContainerGroupName string `json:"src_container_group_name" bson:"src_container_group_name"`
+
 	DstMicroserviceName   string `json:"dst_microservice_name" bson:"dst_microservice_name"`
 	DstContainerGroupName string `json:"dst_container_group_name" bson:"dst_container_group_name"`
 
