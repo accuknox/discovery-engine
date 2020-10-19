@@ -1,6 +1,8 @@
 package libs
 
 import (
+	"strings"
+
 	"github.com/accuknox/knoxAutoPolicy/types"
 	pb "github.com/accuknox/knoxServiceFlowMgmt/src/proto"
 )
@@ -102,34 +104,45 @@ func ToCiliumNetworkPolicy(inPolicy types.KnoxNetworkPolicy) types.CiliumNetwork
 	// update selector
 	ciliumPolicy.Spec.Selector.MatchLabels = map[string]string{}
 	for k, v := range inPolicy.Spec.Selector.MatchLabels {
-		ciliumPolicy.Metadata[k] = v
+		ciliumPolicy.Spec.Selector.MatchLabels[k] = v
 	}
 
 	// update egress
+	egress := types.CiliumEgress{}
+
 	if inPolicy.Spec.Egress.MatchLabels != nil {
-		ciliumPolicy.Spec.Egress.ToEndpoints.MatchLabels = map[string]string{}
+		matchLabels := map[string]string{}
 		for k, v := range inPolicy.Spec.Egress.MatchLabels {
-			ciliumPolicy.Spec.Egress.ToEndpoints.MatchLabels[k] = v
+			matchLabels[k] = v
 		}
+
+		toEndpoints := []types.CiliumToEndpoints{types.CiliumToEndpoints{matchLabels}}
+		egress.ToEndpoints = toEndpoints
 	}
 
 	// update toPorts
 	for _, toPort := range inPolicy.Spec.Egress.ToPorts {
-		if ciliumPolicy.Spec.Egress.ToPorts == nil {
-			ciliumPolicy.Spec.Egress.ToPorts = []types.ToPort{}
+		if egress.ToPorts == nil {
+			egress.ToPorts = []types.CiliumToPort{}
 		}
 
-		ciliumPolicy.Spec.Egress.ToPorts = append(ciliumPolicy.Spec.Egress.ToPorts, toPort)
+		port := types.CiliumPort{Port: toPort.Ports, Protocol: strings.ToUpper(toPort.Protocol)}
+		ciliumToPorts := types.CiliumToPort{Ports: []types.CiliumPort{port}}
+
+		egress.ToPorts = append(egress.ToPorts, ciliumToPorts)
 	}
 
 	// update toCIDRs
 	for _, toCIDR := range inPolicy.Spec.Egress.ToCIDRs {
-		if ciliumPolicy.Spec.Egress.ToCIDRs == nil {
-			ciliumPolicy.Spec.Egress.ToCIDRs = []types.ToCIDR{}
+		if egress.ToCIDRs == nil {
+			egress.ToCIDRs = []types.ToCIDR{}
 		}
 
-		ciliumPolicy.Spec.Egress.ToCIDRs = append(ciliumPolicy.Spec.Egress.ToCIDRs, toCIDR)
+		egress.ToCIDRs = append(egress.ToCIDRs, toCIDR)
 	}
+
+	ciliumPolicy.Spec.Egress = []types.CiliumEgress{}
+	ciliumPolicy.Spec.Egress = append(ciliumPolicy.Spec.Egress, egress)
 
 	return ciliumPolicy
 }

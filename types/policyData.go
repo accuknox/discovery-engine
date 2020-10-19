@@ -123,6 +123,17 @@ type KnoxNetworkPolicy struct {
 // == Cilium Network Policy == //
 // =========================== //
 
+// CiliumPort Structure
+type CiliumPort struct {
+	Port     string `json:"port,omitempty" yaml:"port,omitempty"`
+	Protocol string `json:"protocol" yaml:"protocol"`
+}
+
+// CiliumToPort Structure
+type CiliumToPort struct {
+	Ports []CiliumPort `json:"ports,omitempty" yaml:"ports,omitempty"`
+}
+
 // CiliumToEndpoints Structure
 type CiliumToEndpoints struct {
 	MatchLabels map[string]string `json:"matchLabels,omitempty" yaml:"matchLabels,omitempty"`
@@ -130,19 +141,19 @@ type CiliumToEndpoints struct {
 
 // CiliumEgress Structure
 type CiliumEgress struct {
-	ToEndpoints CiliumToEndpoints `json:"toEndpoints,omitempty" yaml:"toEndpoints,omitempty"`
+	ToEndpoints []CiliumToEndpoints `json:"toEndpoints,omitempty" yaml:"toEndpoints,omitempty"`
 
-	ToCIDRs []ToCIDR `json:"toCIDRs,omitempty" yaml:"toCIDRs,omitempty"`
-	ToPorts []ToPort `json:"toPorts,omitempty" yaml:"toPorts,omitempty"`
-	ToFQDNs []ToFQDN `json:"toFQDNs,omitempty" yaml:"toFQDNs,omitempty"`
-	ToHTTPs []ToHTTP `json:"toHTTPs,omitempty" yaml:"toHTTPs,omitempty"`
+	ToCIDRs []ToCIDR       `json:"toCIDRs,omitempty" yaml:"toCIDRs,omitempty"`
+	ToPorts []CiliumToPort `json:"toPorts,omitempty" yaml:"toPorts,omitempty"`
+	ToFQDNs []ToFQDN       `json:"toFQDNs,omitempty" yaml:"toFQDNs,omitempty"`
+	ToHTTPs []ToHTTP       `json:"toHTTPs,omitempty" yaml:"toHTTPs,omitempty"`
 }
 
 // CiliumSpec Structure
 type CiliumSpec struct {
 	Selector Selector `json:"endpointSelector,omitempty" yaml:"endpointSelector,omitempty"`
 
-	Egress CiliumEgress `json:"egress,omitempty" yaml:"egress,omitempty"`
+	Egress []CiliumEgress `json:"egress,omitempty" yaml:"egress,omitempty"`
 }
 
 // CiliumNetworkPolicy Structure

@@ -68,13 +68,14 @@ func Combinations(set []string, n int) (subsets [][]string) {
 }
 
 var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+var LowerLetters = []rune("abcdefghijklmnopqrstuvwxyz")
 
 // RandSeq Function
 func RandSeq(n int) string {
 	b := make([]rune, n)
 
 	for i := range b {
-		b[i] = letters[rand.Intn(len(letters))]
+		b[i] = letters[rand.Intn(len(LowerLetters))]
 	}
 
 	return string(b)
