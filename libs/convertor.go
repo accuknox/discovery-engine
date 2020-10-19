@@ -1,62 +1,90 @@
 package libs
 
 import (
+	pb "github.com/accuknox/knoxServiceFlowMgmt/src/proto"
 	"github.com/seungsoo-lee/knoxAutoPolicy/types"
 )
 
-func getTrafficDirection(val int) string {
-	if val == 1 {
-		return "ingress"
-	} else if val == 2 {
-		return "egress"
-	} else {
-		return "unknown"
+func isSynFlagOnly(tcp *pb.TCP) bool {
+	if tcp.Flags.SYN && !tcp.Flags.ACK {
+		return true
 	}
+	return false
 }
 
-func getL4Ports(l4 types.KnoxL4) (int, int) {
-	if l4.TCP.SourcePort != 0 {
+func getL4Ports(l4 *pb.Layer4) (int, int) {
+	if l4.TCP != nil {
 		return int(l4.TCP.SourcePort), int(l4.TCP.DestinationPort)
-	} else if l4.UDP.SourcePort != 0 {
+	} else if l4.UDP != nil {
 		return int(l4.UDP.SourcePort), int(l4.UDP.DestinationPort)
+	} else if l4.ICMPv4 != nil {
+		return int(l4.ICMPv4.Type), int(l4.ICMPv4.Code)
 	} else {
-		return -1, -1 // unkown
+		return -1, -1
 	}
 }
 
-func getProtocol(l4 types.KnoxL4) int {
-	if l4.TCP.SourcePort != 0 {
+func getProtocol(l4 *pb.Layer4) int {
+	if l4.TCP != nil {
 		return 6
-	} else if l4.UDP.SourcePort != 0 {
+	} else if l4.UDP != nil {
 		return 17
+	} else if l4.ICMPv4 != nil {
+		return 1
 	} else {
-		return 1 // assume icmp for test
+		return 0 // unknown?
 	}
 }
 
-func TrafficToLog(traffic types.NetworkTraffic) types.NetworkLog {
+func TrafficToLog(flow *pb.TrafficFlow) types.NetworkLog {
 	log := types.NetworkLog{}
 
-	log.HostName = traffic.NodeName
+	if flow.Source.Namespace == "" {
+		log.SrcMicroserviceName = "external"
+	} else {
+		log.SrcMicroserviceName = flow.Source.Namespace
+	}
 
-	log.SrcMicroserviceName = traffic.Source.Namespace
-	log.SrcContainerGroupName = traffic.SrcPodName
+	if flow.Source.Pod == "" {
+		log.SrcContainerGroupName = flow.Ip.Source
+	} else {
+		log.SrcContainerGroupName = flow.Source.Pod
+	}
 
-	log.DstMicroserviceName = traffic.Destination.Namespace
-	log.DstContainerGroupName = traffic.DstPodName
+	if flow.Destination.Namespace == "" {
+		log.DstMicroserviceName = "external"
+	} else {
+		log.DstMicroserviceName = flow.Destination.Namespace
+	}
 
-	log.SrcMac = traffic.Ethernet.Source
-	log.DstMac = traffic.Ethernet.Destination
+	if flow.Destination.Pod == "" {
+		log.DstContainerGroupName = flow.Ip.Destination
+	} else {
+		log.DstContainerGroupName = flow.Destination.Pod
+	}
 
-	log.Protocol = getProtocol(traffic.L4)
+	log.SrcMac = flow.Ethernet.Source
+	log.DstMac = flow.Ethernet.Destination
 
-	log.SrcIP = traffic.IP.Source
-	log.DstIP = traffic.IP.Destination
+	log.Protocol = getProtocol(flow.L4)
+	if log.Protocol == 6 { //
+		log.SynFlag = isSynFlagOnly(flow.L4.TCP)
+	}
 
-	log.SrcPort, log.DstPort = getL4Ports(traffic.L4)
+	log.SrcIP = flow.Ip.Source
+	log.DstIP = flow.Ip.Destination
 
-	log.Action = traffic.Verdict
-	log.Direction = getTrafficDirection(traffic.TrafficDirection)
+	log.SrcPort, log.DstPort = getL4Ports(flow.L4)
+
+	if flow.Verdict == "FORWARDED" {
+		log.Action = "allow"
+	} else if flow.Verdict == "DROPPED" {
+		log.Action = "deny"
+	} else { // default
+		log.Action = "allow"
+	}
+
+	log.Direction = flow.TrafficDirection
 
 	return log
 }

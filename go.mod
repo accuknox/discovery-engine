@@ -9,6 +9,7 @@ replace (
 )
 
 require (
+	github.com/accuknox/knoxServiceFlowMgmt/src v0.0.0-20201013160109-437b5a1f2593
 	github.com/cilium/cilium v1.8.4
 	github.com/docker/docker v1.13.1
 	github.com/go-sql-driver/mysql v1.5.0
@@ -20,6 +21,7 @@ require (
 	google.golang.org/genproto v0.0.0-20201009135657-4d944d34d83c // indirect
 	google.golang.org/grpc v1.33.0
 	google.golang.org/protobuf v1.25.0
+	gopkg.in/yaml.v2 v2.3.0
 	k8s.io/api v0.18.9
 	k8s.io/apimachinery v0.18.9
 	k8s.io/client-go v0.18.9
