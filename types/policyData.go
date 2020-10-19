@@ -111,14 +111,46 @@ type Spec struct {
 	Action string `json:"action,omitempty" yaml:"action,omitempty"`
 }
 
-// NetworkPolicy Structure
-type NetworkPolicy struct {
-	ID uint32 `json:"id,omitempty" yaml:"id,omitempty"`
-
+// KnoxNetworkPolicy Structure
+type KnoxNetworkPolicy struct {
 	APIVersion string            `json:"apiVersion,omitempty" yaml:"apiVersion,omitempty"`
 	Kind       string            `json:"kind,omitempty" yaml:"kind,omitempty"`
 	Metadata   map[string]string `json:"metadata,omitempty" yaml:"metadata,omitempty"`
 	Spec       Spec              `json:"spec" yaml:"spec"`
+}
+
+// =========================== //
+// == Cilium Network Policy == //
+// =========================== //
+
+// CiliumToEndpoints Structure
+type CiliumToEndpoints struct {
+	MatchLabels map[string]string `json:"matchLabels,omitempty" yaml:"matchLabels,omitempty"`
+}
+
+// CiliumEgress Structure
+type CiliumEgress struct {
+	ToEndpoints CiliumToEndpoints `json:"toEndpoints,omitempty" yaml:"toEndpoints,omitempty"`
+
+	ToCIDRs []ToCIDR `json:"toCIDRs,omitempty" yaml:"toCIDRs,omitempty"`
+	ToPorts []ToPort `json:"toPorts,omitempty" yaml:"toPorts,omitempty"`
+	ToFQDNs []ToFQDN `json:"toFQDNs,omitempty" yaml:"toFQDNs,omitempty"`
+	ToHTTPs []ToHTTP `json:"toHTTPs,omitempty" yaml:"toHTTPs,omitempty"`
+}
+
+// CiliumSpec Structure
+type CiliumSpec struct {
+	Selector Selector `json:"endpointSelector,omitempty" yaml:"endpointSelector,omitempty"`
+
+	Egress CiliumEgress `json:"egress,omitempty" yaml:"egress,omitempty"`
+}
+
+// CiliumNetworkPolicy Structure
+type CiliumNetworkPolicy struct {
+	APIVersion string            `json:"apiVersion,omitempty" yaml:"apiVersion,omitempty"`
+	Kind       string            `json:"kind,omitempty" yaml:"kind,omitempty"`
+	Metadata   map[string]string `json:"metadata,omitempty" yaml:"metadata,omitempty"`
+	Spec       CiliumSpec        `json:"spec" yaml:"spec"`
 }
 
 // ========================== //

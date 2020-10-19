@@ -88,3 +88,48 @@ func TrafficToLog(flow *pb.TrafficFlow) types.NetworkLog {
 
 	return log
 }
+
+func ToCiliumNetworkPolicy(inPolicy types.KnoxNetworkPolicy) types.CiliumNetworkPolicy {
+	ciliumPolicy := types.CiliumNetworkPolicy{}
+
+	ciliumPolicy.APIVersion = "cilium.io/v2"
+	ciliumPolicy.Kind = "CiliumNetworkPolicy"
+	ciliumPolicy.Metadata = map[string]string{}
+	for k, v := range inPolicy.Metadata {
+		ciliumPolicy.Metadata[k] = v
+	}
+
+	// update selector
+	ciliumPolicy.Spec.Selector.MatchLabels = map[string]string{}
+	for k, v := range inPolicy.Spec.Selector.MatchLabels {
+		ciliumPolicy.Metadata[k] = v
+	}
+
+	// update egress
+	if inPolicy.Spec.Egress.MatchLabels != nil {
+		ciliumPolicy.Spec.Egress.ToEndpoints.MatchLabels = map[string]string{}
+		for k, v := range inPolicy.Spec.Egress.MatchLabels {
+			ciliumPolicy.Spec.Egress.ToEndpoints.MatchLabels[k] = v
+		}
+	}
+
+	// update toPorts
+	for _, toPort := range inPolicy.Spec.Egress.ToPorts {
+		if ciliumPolicy.Spec.Egress.ToPorts == nil {
+			ciliumPolicy.Spec.Egress.ToPorts = []types.ToPort{}
+		}
+
+		ciliumPolicy.Spec.Egress.ToPorts = append(ciliumPolicy.Spec.Egress.ToPorts, toPort)
+	}
+
+	// update toCIDRs
+	for _, toCIDR := range inPolicy.Spec.Egress.ToCIDRs {
+		if ciliumPolicy.Spec.Egress.ToCIDRs == nil {
+			ciliumPolicy.Spec.Egress.ToCIDRs = []types.ToCIDR{}
+		}
+
+		ciliumPolicy.Spec.Egress.ToCIDRs = append(ciliumPolicy.Spec.Egress.ToCIDRs, toCIDR)
+	}
+
+	return ciliumPolicy
+}

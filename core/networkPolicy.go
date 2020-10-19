@@ -318,10 +318,10 @@ func UpdateExposedPorts(services []types.K8sService, contGroups []types.Containe
 // == Build Network Policies == //
 // ============================ //
 
-func buildNewPolicy(action string) types.NetworkPolicy {
+func buildNewPolicy(action string) types.KnoxNetworkPolicy {
 	policyName := "generated_" + libs.RandSeq(10)
 
-	return types.NetworkPolicy{
+	return types.KnoxNetworkPolicy{
 		APIVersion: "v1",
 		Kind:       "KnoxNetworkPolicy",
 		Metadata:   map[string]string{"name": policyName},
@@ -342,8 +342,8 @@ func buildNewPolicy(action string) types.NetworkPolicy {
 }
 
 // BuildNetworkPolicies Function
-func BuildNetworkPolicies(microName string, mergedSrcPerMergedDst map[string][]MergedDst) []types.NetworkPolicy {
-	networkPolicies := []types.NetworkPolicy{}
+func BuildNetworkPolicies(microName string, mergedSrcPerMergedDst map[string][]MergedDst) []types.KnoxNetworkPolicy {
+	networkPolicies := []types.KnoxNetworkPolicy{}
 
 	for mergedSrc, mergedDsts := range mergedSrcPerMergedDst {
 		for _, dst := range mergedDsts {
@@ -872,7 +872,7 @@ func GenerateNetworkPolicies(microserviceName string,
 	cidrBits int, // for CIDR policy, 32 bits -> per IP
 	networkLogs []types.NetworkLog,
 	k8sServices []types.K8sService,
-	containerGroups []types.ContainerGroup) []types.NetworkPolicy {
+	containerGroups []types.ContainerGroup) []types.KnoxNetworkPolicy {
 	networkLogs = filterLogs(networkLogs, microserviceName)
 
 	// step 1: update exposed ports (k8s service, docker-compose portbinding)
