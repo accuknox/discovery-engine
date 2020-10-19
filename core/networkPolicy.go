@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	bl "github.com/seungsoo-lee/knoxAutoPolicy/libs"
-	types "github.com/seungsoo-lee/knoxAutoPolicy/types"
+	"github.com/accuknox/knoxAutoPolicy/libs"
+	types "github.com/accuknox/knoxAutoPolicy/types"
 )
 
 var skippedLabels = []string{"pod-template-hash"}
@@ -86,8 +86,8 @@ func filterLogs(originalLogs []types.NetworkLog, microName string) []types.Netwo
 		}
 
 		// filter cni network logs
-		if bl.ContainsElement([]string{"WeaveNet", "Flannel", "Calico"}, log.SrcContainerGroupName) ||
-			bl.ContainsElement([]string{"WeaveNet", "Flannel", "Calico"}, log.DstContainerGroupName) {
+		if libs.ContainsElement([]string{"WeaveNet", "Flannel", "Calico"}, log.SrcContainerGroupName) ||
+			libs.ContainsElement([]string{"WeaveNet", "Flannel", "Calico"}, log.DstContainerGroupName) {
 			continue
 		}
 
@@ -122,7 +122,7 @@ func countLabelByCombinations(labelCount map[string]int, mergedLabels string) {
 
 	// step 2: count multiple labels (at least, it should be 2)
 	for i := 2; i <= len(labels); i++ {
-		results := bl.Combinations(labels, i)
+		results := libs.Combinations(labels, i)
 		for _, comb := range results {
 			combineLabel := strings.Join(comb, ",")
 			if val, ok := labelCount[combineLabel]; ok {
@@ -147,7 +147,7 @@ func containLabel(label, targetLabel string) bool {
 		}
 	} else {
 		for i := 2; i <= len(targetLabels); i++ {
-			results := bl.Combinations(targetLabels, i)
+			results := libs.Combinations(targetLabels, i)
 			for _, comb := range results {
 				combineLabel := strings.Join(comb, ",")
 				if label == combineLabel {
@@ -259,15 +259,15 @@ func removeDstMerged(dsts []MergedDst, remove MergedDst) []MergedDst {
 // IsExposedPort Function
 func IsExposedPort(protocol int, port int) bool {
 	if protocol == 6 { // tcp
-		if bl.ContainsElement(exposedTCPPorts, port) {
+		if libs.ContainsElement(exposedTCPPorts, port) {
 			return true
 		}
 	} else if protocol == 17 { // udp
-		if bl.ContainsElement(exposedUDPPorts, port) {
+		if libs.ContainsElement(exposedUDPPorts, port) {
 			return true
 		}
 	} else if protocol == 132 { // sctp
-		if bl.ContainsElement(exposedSCTPPorts, port) {
+		if libs.ContainsElement(exposedSCTPPorts, port) {
 			return true
 		}
 	}
@@ -280,15 +280,15 @@ func UpdateExposedPorts(services []types.K8sService, contGroups []types.Containe
 	// step 1: (k8s) service port update
 	for _, service := range services {
 		if strings.ToLower(service.Protocol) == "tcp" { // TCP
-			if !bl.ContainsElement(exposedTCPPorts, service.ServicePort) {
+			if !libs.ContainsElement(exposedTCPPorts, service.ServicePort) {
 				exposedTCPPorts = append(exposedTCPPorts, service.ServicePort)
 			}
 		} else if strings.ToLower(service.Protocol) == "udp" { // UDP
-			if !bl.ContainsElement(exposedUDPPorts, service.ServicePort) {
+			if !libs.ContainsElement(exposedUDPPorts, service.ServicePort) {
 				exposedUDPPorts = append(exposedUDPPorts, service.ServicePort)
 			}
 		} else if strings.ToLower(service.Protocol) == "sctp" { // SCTP
-			if !bl.ContainsElement(exposedSCTPPorts, service.ServicePort) {
+			if !libs.ContainsElement(exposedSCTPPorts, service.ServicePort) {
 				exposedSCTPPorts = append(exposedSCTPPorts, service.ServicePort)
 			}
 		}
@@ -298,15 +298,15 @@ func UpdateExposedPorts(services []types.K8sService, contGroups []types.Containe
 	for _, conGroup := range contGroups {
 		for _, portBinding := range conGroup.PortBindings {
 			if strings.ToLower(portBinding.Protocol) == "tcp" {
-				if !bl.ContainsElement(exposedTCPPorts, portBinding.Port) {
+				if !libs.ContainsElement(exposedTCPPorts, portBinding.Port) {
 					exposedTCPPorts = append(exposedTCPPorts, portBinding.Port)
 				}
 			} else if strings.ToLower(portBinding.Protocol) == "udp" {
-				if !bl.ContainsElement(exposedUDPPorts, portBinding.Port) {
+				if !libs.ContainsElement(exposedUDPPorts, portBinding.Port) {
 					exposedUDPPorts = append(exposedUDPPorts, portBinding.Port)
 				}
 			} else if strings.ToLower(portBinding.Protocol) == "sctp" {
-				if !bl.ContainsElement(exposedSCTPPorts, portBinding.Port) {
+				if !libs.ContainsElement(exposedSCTPPorts, portBinding.Port) {
 					exposedSCTPPorts = append(exposedSCTPPorts, portBinding.Port)
 				}
 			}
@@ -319,7 +319,7 @@ func UpdateExposedPorts(services []types.K8sService, contGroups []types.Containe
 // ============================ //
 
 func buildNewPolicy(action string) types.NetworkPolicy {
-	policyName := "generated_" + bl.RandSeq(10)
+	policyName := "generated_" + libs.RandSeq(10)
 
 	return types.NetworkPolicy{
 		APIVersion: "v1",
@@ -588,7 +588,7 @@ func mergingSrcByLabels(perDstSrcLabel map[Dst][]SrcSimple) map[Dst][]string {
 				}
 
 				// append the label (the removed src included) to the dst
-				if !bl.ContainsElement(perDstGroupedSrc[dst], label) {
+				if !libs.ContainsElement(perDstGroupedSrc[dst], label) {
 					perDstGroupedSrc[dst] = append(perDstGroupedSrc[dst], label)
 				}
 			}
@@ -618,7 +618,7 @@ func getMergedLabels(microName, groupName string, groups []types.ContainerGroup)
 			labels := []string{}
 
 			for _, label := range group.Labels {
-				if !bl.ContainsElement(skippedLabels, strings.Split(label, "=")[0]) {
+				if !libs.ContainsElement(skippedLabels, strings.Split(label, "=")[0]) {
 					labels = append(labels, label)
 				}
 			}
@@ -652,7 +652,7 @@ func extractingSrcFromLogs(perDst map[Dst][]types.NetworkLog, conGroups []types.
 				MatchLabels:        mergedLabels}
 
 			// remove redundant
-			if !bl.ContainsElement(srcs, src) {
+			if !libs.ContainsElement(srcs, src) {
 				srcs = append(srcs, src)
 			}
 		}
@@ -679,7 +679,7 @@ func mergingProtocolPorts(mergedDsts []MergedDst, dst Dst) []MergedDst {
 			Action:             dst.Action}
 
 		if simple1 == simple2 { // matched, append protocol+port info
-			port := types.ToPort{Protocol: bl.GetProtocol(dst.Protocol),
+			port := types.ToPort{Protocol: libs.GetProtocol(dst.Protocol),
 				Ports: strconv.Itoa(dst.DstPort)}
 
 			mergedDsts[i].ToPorts = append(mergedDsts[i].ToPorts, port)
@@ -689,7 +689,7 @@ func mergingProtocolPorts(mergedDsts []MergedDst, dst Dst) []MergedDst {
 	}
 
 	// if not matched, create new one,
-	port := types.ToPort{Protocol: bl.GetProtocol(dst.Protocol),
+	port := types.ToPort{Protocol: libs.GetProtocol(dst.Protocol),
 		Ports: strconv.Itoa(dst.DstPort)}
 
 	mergedDst := MergedDst{
@@ -716,7 +716,7 @@ func mergingDstToPorts(perDstGroupedSrc map[Dst][]string) map[string][]MergedDst
 				mergedSrcPerDst[mergedSrc] = make([]Dst, 0)
 			}
 
-			if !bl.ContainsElement(mergedSrcPerDst[mergedSrc], dst) {
+			if !libs.ContainsElement(mergedSrcPerDst[mergedSrc], dst) {
 				mergedSrcPerDst[mergedSrc] = append(mergedSrcPerDst[mergedSrc], dst)
 			}
 		}
@@ -801,7 +801,7 @@ func groupingDstMergeds(label string, dsts []MergedDst) MergedDst {
 		merged.MicroserviceName = dst.MicroserviceName
 
 		for _, toport := range dst.ToPorts {
-			if !bl.ContainsElement(merged.ToPorts, toport) {
+			if !libs.ContainsElement(merged.ToPorts, toport) {
 				merged.ToPorts = append(merged.ToPorts, toport)
 			}
 		}

@@ -1,8 +1,8 @@
 package libs
 
 import (
+	"github.com/accuknox/knoxAutoPolicy/types"
 	pb "github.com/accuknox/knoxServiceFlowMgmt/src/proto"
-	"github.com/seungsoo-lee/knoxAutoPolicy/types"
 )
 
 func isSynFlagOnly(tcp *pb.TCP) bool {
