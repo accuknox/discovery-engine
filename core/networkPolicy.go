@@ -80,6 +80,11 @@ func filterLogs(originalLogs []types.NetworkLog, microName string) []types.Netwo
 			continue
 		}
 
+		// filter source is in the external
+		if log.SrcMicroserviceName == "external" {
+			continue
+		}
+
 		// filter cni network logs
 		if bl.ContainsElement([]string{"WeaveNet", "Flannel", "Calico"}, log.SrcContainerGroupName) ||
 			bl.ContainsElement([]string{"WeaveNet", "Flannel", "Calico"}, log.DstContainerGroupName) {
@@ -870,25 +875,25 @@ func GenerateNetworkPolicies(microserviceName string,
 	containerGroups []types.ContainerGroup) []types.NetworkPolicy {
 	networkLogs = filterLogs(networkLogs, microserviceName)
 
-	// step 0: update exposed ports (k8s service, docker-compose portbinding)
+	// step 1: update exposed ports (k8s service, docker-compose portbinding)
 	UpdateExposedPorts(k8sServices, containerGroups)
 
-	// step 1: {dst: [network logs (src+dst)]}
+	// step 2: {dst: [network logs (src+dst)]}
 	logsPerDst := groupingLogsPerDst(networkLogs, cidrBits)
 
-	// step 2: {dst: [network logs (src+dst)]} -> {dst: [srcs]}
+	// step 3: {dst: [network logs (src+dst)]} -> {dst: [srcs]}
 	labeledSrcPerDst := extractingSrcFromLogs(logsPerDst, containerGroups)
 
-	// step 3: {dst: [srcs]} -> {dst: [merged srcs]}
+	// step 4: {dst: [srcs]} -> {dst: [merged srcs]}
 	mergedSrcPerDst := mergingSrcByLabels(labeledSrcPerDst)
 
-	// step 4: merging protocols and ports for the same destinations
+	// step 5: merging protocols and ports for the same destinations
 	mergedSrcPerMergedProtoDst := mergingDstToPorts(mergedSrcPerDst)
 
-	// step 5: grouping dst based on labels
+	// step 6: grouping dst based on labels
 	mergedSrcPerMergedDst := mergingDstByLabels(mergedSrcPerMergedProtoDst, containerGroups)
 
-	// finalize network policies
+	// step 7: building network policies
 	networkPolicies := BuildNetworkPolicies(microserviceName, mergedSrcPerMergedDst)
 
 	return networkPolicies

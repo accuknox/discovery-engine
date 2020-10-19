@@ -3,12 +3,21 @@ package libs
 import (
 	"math/bits"
 	"math/rand"
+	"os"
 	"reflect"
 )
 
 // ============ //
 // == Common == //
 // ============ //
+
+// GetEnv Function
+func GetEnv(key, fallback string) string {
+	if value, ok := os.LookupEnv(key); ok {
+		return value
+	}
+	return fallback
+}
 
 // ContainsElement Function
 func ContainsElement(slice interface{}, element interface{}) bool {
