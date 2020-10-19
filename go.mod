@@ -1,4 +1,4 @@
-module github.com/seungsoo-lee/knoxAutoPolicy
+module github.com/accuknox/knoxAutoPolicy
 
 go 1.15
 
