@@ -1,6 +1,8 @@
 package libs
 
 import (
+	"strings"
+
 	"github.com/accuknox/knoxAutoPolicy/types"
 	pb "github.com/accuknox/knoxServiceFlowMgmt/src/proto"
 )
@@ -81,10 +83,67 @@ func TrafficToLog(flow *pb.TrafficFlow) types.NetworkLog {
 	} else if flow.Verdict == "DROPPED" {
 		log.Action = "deny"
 	} else { // default
-		log.Action = "allow"
+		log.Action = "unknown"
 	}
 
 	log.Direction = flow.TrafficDirection
 
 	return log
+}
+
+func ToCiliumNetworkPolicy(inPolicy types.KnoxNetworkPolicy) types.CiliumNetworkPolicy {
+	ciliumPolicy := types.CiliumNetworkPolicy{}
+
+	ciliumPolicy.APIVersion = "cilium.io/v2"
+	ciliumPolicy.Kind = "CiliumNetworkPolicy"
+	ciliumPolicy.Metadata = map[string]string{}
+	for k, v := range inPolicy.Metadata {
+		ciliumPolicy.Metadata[k] = v
+	}
+
+	// update selector
+	ciliumPolicy.Spec.Selector.MatchLabels = map[string]string{}
+	for k, v := range inPolicy.Spec.Selector.MatchLabels {
+		ciliumPolicy.Spec.Selector.MatchLabels[k] = v
+	}
+
+	// update egress
+	egress := types.CiliumEgress{}
+
+	if inPolicy.Spec.Egress.MatchLabels != nil {
+		matchLabels := map[string]string{}
+		for k, v := range inPolicy.Spec.Egress.MatchLabels {
+			matchLabels[k] = v
+		}
+
+		toEndpoints := []types.CiliumToEndpoints{types.CiliumToEndpoints{matchLabels}}
+		egress.ToEndpoints = toEndpoints
+	}
+
+	// update toPorts
+	for _, toPort := range inPolicy.Spec.Egress.ToPorts {
+		if egress.ToPorts == nil {
+			egress.ToPorts = []types.CiliumToPort{}
+			ciliumPort := types.CiliumToPort{}
+			ciliumPort.Ports = []types.CiliumPort{}
+			egress.ToPorts = append(egress.ToPorts, ciliumPort)
+		}
+
+		port := types.CiliumPort{Port: toPort.Ports, Protocol: strings.ToUpper(toPort.Protocol)}
+		egress.ToPorts[0].Ports = append(egress.ToPorts[0].Ports, port)
+	}
+
+	// update toCIDRs
+	for _, toCIDR := range inPolicy.Spec.Egress.ToCIDRs {
+		if egress.ToCIDRs == nil {
+			egress.ToCIDRs = []types.ToCIDR{}
+		}
+
+		egress.ToCIDRs = append(egress.ToCIDRs, toCIDR)
+	}
+
+	ciliumPolicy.Spec.Egress = []types.CiliumEgress{}
+	ciliumPolicy.Spec.Egress = append(ciliumPolicy.Spec.Egress, egress)
+
+	return ciliumPolicy
 }
