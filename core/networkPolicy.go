@@ -76,7 +76,7 @@ func filterLogs(originalLogs []types.NetworkLog, microName string) []types.Netwo
 
 	for _, log := range originalLogs {
 		// filter microservice name
-		if log.SrcMicroserviceName != microName && log.DstMicroserviceName != microName {
+		if log.SrcMicroserviceName != microName {
 			continue
 		}
 
