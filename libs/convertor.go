@@ -83,7 +83,7 @@ func TrafficToLog(flow *pb.TrafficFlow) types.NetworkLog {
 	} else if flow.Verdict == "DROPPED" {
 		log.Action = "deny"
 	} else { // default
-		log.Action = "allow"
+		log.Action = "unknown"
 	}
 
 	log.Direction = flow.TrafficDirection
@@ -124,12 +124,13 @@ func ToCiliumNetworkPolicy(inPolicy types.KnoxNetworkPolicy) types.CiliumNetwork
 	for _, toPort := range inPolicy.Spec.Egress.ToPorts {
 		if egress.ToPorts == nil {
 			egress.ToPorts = []types.CiliumToPort{}
+			ciliumPort := types.CiliumToPort{}
+			ciliumPort.Ports = []types.CiliumPort{}
+			egress.ToPorts = append(egress.ToPorts, ciliumPort)
 		}
 
 		port := types.CiliumPort{Port: toPort.Ports, Protocol: strings.ToUpper(toPort.Protocol)}
-		ciliumToPorts := types.CiliumToPort{Ports: []types.CiliumPort{port}}
-
-		egress.ToPorts = append(egress.ToPorts, ciliumToPorts)
+		egress.ToPorts[0].Ports = append(egress.ToPorts[0].Ports, port)
 	}
 
 	// update toCIDRs

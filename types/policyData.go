@@ -143,8 +143,8 @@ type CiliumToEndpoints struct {
 type CiliumEgress struct {
 	ToEndpoints []CiliumToEndpoints `json:"toEndpoints,omitempty" yaml:"toEndpoints,omitempty"`
 
-	ToCIDRs []ToCIDR       `json:"toCIDRs,omitempty" yaml:"toCIDRs,omitempty"`
 	ToPorts []CiliumToPort `json:"toPorts,omitempty" yaml:"toPorts,omitempty"`
+	ToCIDRs []ToCIDR       `json:"toCIDRs,omitempty" yaml:"toCIDRs,omitempty"`
 	ToFQDNs []ToFQDN       `json:"toFQDNs,omitempty" yaml:"toFQDNs,omitempty"`
 	ToHTTPs []ToHTTP       `json:"toHTTPs,omitempty" yaml:"toHTTPs,omitempty"`
 }
