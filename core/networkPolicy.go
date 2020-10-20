@@ -348,6 +348,7 @@ func BuildNetworkPolicies(microName string, mergedSrcPerMergedDst map[string][]M
 	for mergedSrc, mergedDsts := range mergedSrcPerMergedDst {
 		for _, dst := range mergedDsts {
 			policy := buildNewPolicy(dst.Action)
+			policy.Metadata["namespace"] = microName
 
 			// set selector labels
 			srcs := strings.Split(mergedSrc, ",")
@@ -366,8 +367,8 @@ func BuildNetworkPolicies(microName string, mergedSrcPerMergedDst map[string][]M
 			// set egress labels
 			if dst.MatchLabels != "" {
 				dsts := strings.Split(dst.MatchLabels, ",")
-				for _, dst := range dsts {
-					kv := strings.Split(dst, "=")
+				for _, dest := range dsts {
+					kv := strings.Split(dest, "=")
 					if len(kv) != 2 {
 						continue
 					}
@@ -376,6 +377,9 @@ func BuildNetworkPolicies(microName string, mergedSrcPerMergedDst map[string][]M
 					dstval := kv[1]
 
 					policy.Spec.Egress.MatchLabels[dstkey] = dstval
+					if microName != dst.MicroserviceName {
+						policy.Spec.Egress.MatchLabels["k8s:io.kubernetes.pod.namespace"] = dst.MicroserviceName
+					}
 				}
 
 				if dst.ToPorts != nil && len(dst.ToPorts) > 0 {
@@ -386,6 +390,7 @@ func BuildNetworkPolicies(microName string, mergedSrcPerMergedDst map[string][]M
 					}
 					policy.Spec.Egress.ToPorts = dst.ToPorts
 				}
+
 			} else if dst.MicroserviceName == "external" {
 				cidr := types.ToCIDR{
 					CIDR: dst.ContainerGroupName,

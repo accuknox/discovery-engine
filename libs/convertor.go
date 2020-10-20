@@ -73,6 +73,10 @@ func TrafficToLog(flow *pb.TrafficFlow) types.NetworkLog {
 		log.SynFlag = isSynFlagOnly(flow.L4.TCP)
 	}
 
+	// if log.Protocol == 17 {
+	// 	fmt.Println(log)
+	// }
+
 	log.SrcIP = flow.Ip.Source
 	log.DstIP = flow.Ip.Destination
 
