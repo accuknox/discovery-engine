@@ -32,26 +32,23 @@ import (
 )
 
 func Generate() {
-        // set target namespace
-	targetNS := "default"
+	// define target namespace
+	targetNamespace := "default"
 
-	// get network traffic from 'knoxServiceFlowMgmt'
+	// 1. get network traffic from  knox aggregation Databse
 	trafficList, _ := GetTrafficFlow()
 
-	// 1. network traffic -> network log
-	networkLogs := []types.NetworkLog{}
-	for _, traffic := range trafficList {
-		log := libs.TrafficToLog(traffic)
-		networkLogs = append(networkLogs, log)
-	}
+	// 2. convert network traffic -> network log
+	networkLogs := libs.ConvertTrafficToLogs(trafficList)
 
-	// 2. get k8s services
-	services := libs.K8s.GetServices(targetNS)
+	// 3. get k8s services
+	services := libs.K8s.GetServices(targetNamespace)
 
-	// 3. get pod information
-	pods := libs.K8s.GetConGroups(targetNS)
+	// 4. get pod information
+	pods := libs.K8s.GetConGroups(targetNamespace)
 
-	policies := core.GenerateNetworkPolicies(targetNS, 24, networkLogs, services, pods)
+	// 5. generate network policies
+	policies := core.GenerateNetworkPolicies(targetNamespace, 24, networkLogs, services, pods)
 	for _, policy := range policies {
 		// ciliumPolicy := libs.ToCiliumNetworkPolicy(policy) // if you want to convert it to Cilium policy
 		b, _ := yaml.Marshal(&policy)
