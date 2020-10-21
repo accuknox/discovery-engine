@@ -75,17 +75,16 @@ func filterLogs(originalLogs []types.NetworkLog, microName string) []types.Netwo
 	filteredLogs := []types.NetworkLog{}
 
 	for _, log := range originalLogs {
+		if log.Action != "allow" {
+			continue
+		}
+
 		// filter microservice name
-		if log.SrcMicroserviceName != microName {
+		if log.SrcMicroserviceName != microName && log.DstMicroserviceName != microName {
 			continue
 		}
 
-		// filter source is in the external
-		if log.SrcMicroserviceName == "external" {
-			continue
-		}
-
-		// filter cni network logs
+		// filter cni network logs (in the case of Bastion)
 		if libs.ContainsElement([]string{"WeaveNet", "Flannel", "Calico"}, log.SrcContainerGroupName) ||
 			libs.ContainsElement([]string{"WeaveNet", "Flannel", "Calico"}, log.DstContainerGroupName) {
 			continue
@@ -318,27 +317,71 @@ func UpdateExposedPorts(services []types.K8sService, contGroups []types.Containe
 // == Build Network Policies == //
 // ============================ //
 
-func buildNewPolicy(action string) types.KnoxNetworkPolicy {
-	policyName := "autogen-" + libs.RandSeq(10)
+func buildNewEgressPolicy(action string) types.KnoxNetworkPolicy {
+	policyName := "autogen-egress-" + libs.RandSeq(10)
 
 	return types.KnoxNetworkPolicy{
 		APIVersion: "v1",
 		Kind:       "KnoxNetworkPolicy",
-		Metadata:   map[string]string{"name": policyName},
+		Metadata: map[string]string{
+			"name": policyName},
 		Spec: types.Spec{
 			Selector: types.Selector{
-				Identities:  []string{},
-				Networks:    []types.PolicyNetwork{},
-				MatchNames:  map[string]string{},
 				MatchLabels: map[string]string{}},
-			Egress: types.Egress{
-				Identities:  []string{},
-				Networks:    []types.PolicyNetwork{},
-				MatchNames:  map[string]string{},
-				MatchLabels: map[string]string{}},
+			Egress: types.Egress{},
 			Action: action,
 		},
 	}
+}
+
+func buildNewIngressPolicy(action string) types.KnoxNetworkPolicy {
+	policyName := "autogen-ingress-" + libs.RandSeq(10)
+
+	ingress := types.KnoxNetworkPolicy{
+		APIVersion: "v1",
+		Kind:       "KnoxNetworkPolicy",
+		Metadata: map[string]string{
+			"name": policyName},
+		Spec: types.Spec{
+			Selector: types.Selector{
+				MatchLabels: map[string]string{}},
+			Ingress: types.Ingress{},
+			Action:  action,
+		},
+	}
+
+	return ingress
+}
+
+func buildNewIngressPolicyFromEgress(egress types.KnoxNetworkPolicy) types.KnoxNetworkPolicy {
+	policyName := "autogen-ingress-" + libs.RandSeq(10)
+
+	ingress := types.KnoxNetworkPolicy{
+		APIVersion: "v1",
+		Kind:       "KnoxNetworkPolicy",
+		Metadata: map[string]string{
+			"name":      policyName,
+			"namespace": egress.Metadata["namespace"]},
+		Spec: types.Spec{
+			Selector: types.Selector{
+				MatchLabels: map[string]string{}},
+			Ingress: types.Ingress{
+				MatchLabels: map[string]string{}},
+			Action: egress.Spec.Action,
+		},
+	}
+
+	// update selector labels from egress match labels
+	for k, v := range egress.Spec.Egress.MatchLabels {
+		ingress.Spec.Selector.MatchLabels[k] = v
+	}
+
+	// update ingress labels from selector match labels
+	for k, v := range egress.Spec.Selector.MatchLabels {
+		ingress.Spec.Ingress.MatchLabels[k] = v
+	}
+
+	return ingress
 }
 
 // BuildNetworkPolicies Function
@@ -347,8 +390,8 @@ func BuildNetworkPolicies(microName string, mergedSrcPerMergedDst map[string][]M
 
 	for mergedSrc, mergedDsts := range mergedSrcPerMergedDst {
 		for _, dst := range mergedDsts {
-			policy := buildNewPolicy(dst.Action)
-			policy.Metadata["namespace"] = microName
+			egress := buildNewEgressPolicy(dst.Action)
+			egress.Metadata["namespace"] = microName
 
 			// set selector labels
 			srcs := strings.Split(mergedSrc, ",")
@@ -361,11 +404,13 @@ func BuildNetworkPolicies(microName string, mergedSrcPerMergedDst map[string][]M
 				srcKey := kv[0]
 				srcVal := kv[1]
 
-				policy.Spec.Selector.MatchLabels[srcKey] = srcVal
+				egress.Spec.Selector.MatchLabels[srcKey] = srcVal
 			}
 
 			// set egress labels
 			if dst.MatchLabels != "" {
+				egress.Spec.Egress.MatchLabels = map[string]string{}
+
 				dsts := strings.Split(dst.MatchLabels, ",")
 				for _, dest := range dsts {
 					kv := strings.Split(dest, "=")
@@ -376,9 +421,9 @@ func BuildNetworkPolicies(microName string, mergedSrcPerMergedDst map[string][]M
 					dstkey := kv[0]
 					dstval := kv[1]
 
-					policy.Spec.Egress.MatchLabels[dstkey] = dstval
+					egress.Spec.Egress.MatchLabels[dstkey] = dstval
 					if microName != dst.MicroserviceName {
-						policy.Spec.Egress.MatchLabels["k8s:io.kubernetes.pod.namespace"] = dst.MicroserviceName
+						egress.Spec.Egress.MatchLabels["k8s:io.kubernetes.pod.namespace"] = dst.MicroserviceName
 					}
 				}
 
@@ -388,20 +433,47 @@ func BuildNetworkPolicies(microName string, mergedSrcPerMergedDst map[string][]M
 							dst.ToPorts[i].Ports = ""
 						}
 					}
-					policy.Spec.Egress.ToPorts = dst.ToPorts
+					egress.Spec.Egress.ToPorts = dst.ToPorts
 				}
 
-			} else if dst.MicroserviceName == "external" {
+				networkPolicies = append(networkPolicies, egress)
+
+				// add dependent ingress policy
+				ingress := buildNewIngressPolicyFromEgress(egress)
+				networkPolicies = append(networkPolicies, ingress)
+			} else if dst.MicroserviceName == "reserved:world" || dst.MicroserviceName == "external" {
 				cidr := types.ToCIDR{
 					CIDR: dst.ContainerGroupName,
 				}
 
-				policy.Spec.Egress.ToCIDRs = []types.ToCIDR{cidr}
-			} else {
+				egress.Spec.Egress.ToCIDRs = []types.ToCIDR{cidr}
+				networkPolicies = append(networkPolicies, egress)
+			} else if strings.HasPrefix(dst.MicroserviceName, "reserved:") && dst.MatchLabels == "" {
+				if dst.MicroserviceName == "reserved:host" { // host is allowed by default in Cilium
+					continue
+				}
+
+				// handle for entity policy in Cilium
+				egress.Spec.Egress.ToEndtities = []string{strings.Split(dst.MicroserviceName, ":")[1]}
+				networkPolicies = append(networkPolicies, egress)
+
+				// add ingress policy as well (TODO: reserve...)
+				ingress := buildNewIngressPolicy(dst.Action)
+				ingress.Metadata["namespace"] = microName
+				for k, v := range egress.Spec.Selector.MatchLabels {
+					ingress.Spec.Selector.MatchLabels[k] = v
+				}
+
+				reserved := strings.Split(dst.MicroserviceName, ":")[1]
+				if reserved == "remote-node" {
+					ingress.Spec.Ingress.FromEntities = []string{"world"}
+				} else {
+					ingress.Spec.Ingress.FromEntities = []string{reserved}
+				}
+
+				networkPolicies = append(networkPolicies, ingress)
 				continue
 			}
-
-			networkPolicies = append(networkPolicies, policy)
 		}
 	}
 
@@ -417,6 +489,7 @@ func getSimpleDst(log types.NetworkLog, cidrBits int) (Dst, bool) {
 	dstPort := 0
 	dstGroupName := ""
 
+	// check dst port number is exposed or not
 	if IsExposedPort(log.Protocol, log.DstPort) { // if exposed tcp, udp, or sctp
 		dstPort = log.DstPort
 	} else if log.Protocol == TCP && log.SynFlag { // if tcp + syn flag
@@ -425,12 +498,15 @@ func getSimpleDst(log types.NetworkLog, cidrBits int) (Dst, bool) {
 		if log.SrcPort != 8 { // srcport == type (8: icmp request)
 			return Dst{}, false
 		}
+	} else if strings.HasPrefix(log.DstMicroserviceName, "reserved:") {
+		// for cilium reserved entities
 	} else {
 		return Dst{}, false
 	}
 
 	// if dst is out of cluster, get cidr/bits
-	if log.DstMicroserviceName == "external" && net.ParseIP(log.DstContainerGroupName) != nil {
+	if (log.DstMicroserviceName == "reserved:world" || log.DstMicroserviceName == "external") &&
+		net.ParseIP(log.DstContainerGroupName) != nil {
 		ipNetwork := log.DstContainerGroupName + "/" + strconv.Itoa(cidrBits)
 		_, network, _ := net.ParseCIDR(ipNetwork)
 		dstGroupName = network.String()
@@ -637,7 +713,15 @@ func getMergedLabels(microName, groupName string, groups []types.ContainerGroup)
 		}
 	}
 
-	return mergedLabels
+	// if not in the container groups, it may have reserved labels in the case of the Cilium
+	// if strings.HasPrefix(microName, "reserved:") {
+	// 	kv := strings.Split(microName, ":")
+	// 	if len(kv) == 2 {
+	// 		mergedLabels = kv[0] + "=" + kv[1]
+	// 	}
+	// }
+
+	return ""
 }
 
 // extractingSrcFromLogs Function
@@ -650,6 +734,9 @@ func extractingSrcFromLogs(perDst map[Dst][]types.NetworkLog, conGroups []types.
 		for _, log := range logs {
 			// get merged matchlables: "a=b,c=d,e=f"
 			mergedLabels := getMergedLabels(log.SrcMicroserviceName, log.SrcContainerGroupName, conGroups)
+			if mergedLabels == "" {
+				continue
+			}
 
 			src := SrcSimple{
 				MicroserviceName:   log.SrcMicroserviceName,
@@ -819,13 +906,17 @@ func groupingDstMergeds(label string, dsts []MergedDst) MergedDst {
 func mergingDstByLabels(mergedSrcPerMergedProtoDst map[string][]MergedDst, conGroups []types.ContainerGroup) map[string][]MergedDst {
 	perGroupedSrcGroupedDst := map[string][]MergedDst{}
 
-	for mergedSrc, mergedProtoPort := range mergedSrcPerMergedProtoDst {
-		// dst merged label count
-		mergedProtoPort = updateDstLabels(mergedProtoPort, conGroups)
-		labelCountMap := map[string]int{}
+	for mergedSrc, mergedProtoPortDsts := range mergedSrcPerMergedProtoDst {
+		// label update
+		mergedProtoPortDsts = updateDstLabels(mergedProtoPortDsts, conGroups)
 
 		// count each dst label
-		for _, dst := range mergedProtoPort {
+		labelCountMap := map[string]int{}
+		for _, dst := range mergedProtoPortDsts {
+			if dst.MatchLabels == "" {
+				continue
+			}
+
 			countLabelByCombinations(labelCountMap, dst.MatchLabels)
 		}
 
@@ -839,10 +930,10 @@ func mergingDstByLabels(mergedSrcPerMergedProtoDst map[string][]MergedDst, conGr
 				label := labelCount.Label
 
 				groupedDsts := make([]MergedDst, 0)
-				for _, dst := range mergedProtoPort {
+				for _, dst := range mergedProtoPortDsts {
 					if containLabel(label, dst.MatchLabels) {
 						groupedDsts = append(groupedDsts, dst)
-						mergedProtoPort = removeDstMerged(mergedProtoPort, dst)
+						mergedProtoPortDsts = removeDstMerged(mergedProtoPortDsts, dst)
 					}
 				}
 
@@ -857,7 +948,7 @@ func mergingDstByLabels(mergedSrcPerMergedProtoDst map[string][]MergedDst, conGr
 		}
 
 		// not grouped dst remains, append it
-		for _, mergedDst := range mergedProtoPort {
+		for _, mergedDst := range mergedProtoPortDsts {
 			if perGroupedSrcGroupedDst[mergedSrc] == nil {
 				perGroupedSrcGroupedDst[mergedSrc] = []MergedDst{}
 			}
@@ -878,6 +969,7 @@ func GenerateNetworkPolicies(microserviceName string,
 	networkLogs []types.NetworkLog,
 	k8sServices []types.K8sService,
 	containerGroups []types.ContainerGroup) []types.KnoxNetworkPolicy {
+	// filter network logs
 	networkLogs = filterLogs(networkLogs, microserviceName)
 
 	// step 1: update exposed ports (k8s service, docker-compose portbinding)

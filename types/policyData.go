@@ -71,11 +71,9 @@ type Selector struct {
 
 // Ingress Structure
 type Ingress struct {
-	MatchNames  map[string]string `json:"matchNames,omitempty" yaml:"matchNames,omitempty"`
 	MatchLabels map[string]string `json:"matchLabels,omitempty" yaml:"matchLabels,omitempty"`
 
-	Identities []string        `json:"identities,omitempty" yaml:"identities,omitempty"`
-	Networks   []PolicyNetwork `json:"networks,omitempty" yaml:"networks,omitempty"`
+	FromEntities []string `json:"fromEntities,omitempty" yaml:"fromEntities,omitempty"`
 
 	FromCIDRs []FromCIDR `json:"fromCIDRs,omitempty" yaml:"fromCIDRs,omitempty"`
 	FromPorts []FromPort `json:"fromPorts,omitempty" yaml:"fromPorts,omitempty"`
@@ -83,12 +81,9 @@ type Ingress struct {
 
 // Egress Structure
 type Egress struct {
-	MatchNames  map[string]string `json:"matchNames,omitempty" yaml:"matchNames,omitempty"`
 	MatchLabels map[string]string `json:"matchLabels,omitempty" yaml:"matchLabels,omitempty"`
 
-	Identities []string        `json:"identities,omitempty" yaml:"identities,omitempty"`
-	Networks   []PolicyNetwork `json:"networks,omitempty" yaml:"networks,omitempty"`
-	Services   []Service       `json:"services,omitempty" yaml:"services,omitempty"`
+	ToEndtities []string `json:"toEntities,omitempty" yaml:"toEntities,omitempty"`
 
 	ToCIDRs []ToCIDR `json:"toCIDRs,omitempty" yaml:"toCIDRs,omitempty"`
 	ToPorts []ToPort `json:"toPorts,omitempty" yaml:"toPorts,omitempty"`
@@ -123,37 +118,52 @@ type KnoxNetworkPolicy struct {
 // == Cilium Network Policy == //
 // =========================== //
 
+// CiliumCIDRSet Structure
+type CiliumCIDRSet struct {
+	CIDR   string   `json:"cidr" yaml:"cidr"`
+	Except []string `json:"except,omitempty" yaml:"except,omitempty"`
+}
+
 // CiliumPort Structure
 type CiliumPort struct {
 	Port     string `json:"port,omitempty" yaml:"port,omitempty"`
 	Protocol string `json:"protocol" yaml:"protocol"`
 }
 
-// CiliumToPort Structure
-type CiliumToPort struct {
+// CiliumPortList Structure
+type CiliumPortList struct {
 	Ports []CiliumPort `json:"ports,omitempty" yaml:"ports,omitempty"`
 }
 
-// CiliumToEndpoints Structure
-type CiliumToEndpoints struct {
+// CiliumEndpoints Structure
+type CiliumEndpoints struct {
 	MatchLabels map[string]string `json:"matchLabels,omitempty" yaml:"matchLabels,omitempty"`
 }
 
 // CiliumEgress Structure
 type CiliumEgress struct {
-	ToEndpoints []CiliumToEndpoints `json:"toEndpoints,omitempty" yaml:"toEndpoints,omitempty"`
+	ToEndpoints []CiliumEndpoints `json:"toEndpoints,omitempty" yaml:"toEndpoints,omitempty"`
+	ToEndtities []string          `json:"toEntities,omitempty" yaml:"toEntities,omitempty"`
 
-	ToPorts []CiliumToPort `json:"toPorts,omitempty" yaml:"toPorts,omitempty"`
-	ToCIDRs []ToCIDR       `json:"toCIDRs,omitempty" yaml:"toCIDRs,omitempty"`
-	ToFQDNs []ToFQDN       `json:"toFQDNs,omitempty" yaml:"toFQDNs,omitempty"`
-	ToHTTPs []ToHTTP       `json:"toHTTPs,omitempty" yaml:"toHTTPs,omitempty"`
+	ToPorts []CiliumPortList `json:"toPorts,omitempty" yaml:"toPorts,omitempty"`
+	ToCIDRs []string         `json:"toCIDRs,omitempty" yaml:"toCIDRs,omitempty"`
+}
+
+// CiliumIngress Structure
+type CiliumIngress struct {
+	FromEndpoints []CiliumEndpoints `json:"fromEndpoints,omitempty" yaml:"fromEndpoints,omitempty"`
+	FromEntities  []string          `json:"fromEntities,omitempty" yaml:"fromEntities,omitempty"`
+
+	FromPorts []CiliumPortList `json:"fromPorts,omitempty" yaml:"fromPorts,omitempty"`
+	FromCIDRs []string         `json:"fromCIDRs,omitempty" yaml:"fromCIDRs,omitempty"`
 }
 
 // CiliumSpec Structure
 type CiliumSpec struct {
 	Selector Selector `json:"endpointSelector,omitempty" yaml:"endpointSelector,omitempty"`
 
-	Egress []CiliumEgress `json:"egress,omitempty" yaml:"egress,omitempty"`
+	Egress  []CiliumEgress  `json:"egress,omitempty" yaml:"egress,omitempty"`
+	Ingress []CiliumIngress `json:"ingress,omitempty" yaml:"ingress,omitempty"`
 }
 
 // CiliumNetworkPolicy Structure

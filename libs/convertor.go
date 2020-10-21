@@ -7,6 +7,10 @@ import (
 	pb "github.com/accuknox/knoxServiceFlowMgmt/src/proto"
 )
 
+// ============================ //
+// == Traffic Flow Convertor == //
+// ============================ //
+
 func isSynFlagOnly(tcp *pb.TCP) bool {
 	if tcp.Flags.SYN && !tcp.Flags.ACK {
 		return true
@@ -38,11 +42,21 @@ func getProtocol(l4 *pb.Layer4) int {
 	}
 }
 
+func getReservedLabel(labels []string) string {
+	for _, label := range labels {
+		if strings.HasPrefix(label, "reserved:") {
+			return label
+		}
+	}
+
+	return "unknown"
+}
+
 func ConvertTrafficToLog(flow *pb.TrafficFlow) types.NetworkLog {
 	log := types.NetworkLog{}
 
 	if flow.Source.Namespace == "" {
-		log.SrcMicroserviceName = "external"
+		log.SrcMicroserviceName = getReservedLabel(flow.Source.Lables)
 	} else {
 		log.SrcMicroserviceName = flow.Source.Namespace
 	}
@@ -54,7 +68,7 @@ func ConvertTrafficToLog(flow *pb.TrafficFlow) types.NetworkLog {
 	}
 
 	if flow.Destination.Namespace == "" {
-		log.DstMicroserviceName = "external"
+		log.DstMicroserviceName = getReservedLabel(flow.Destination.Lables)
 	} else {
 		log.DstMicroserviceName = flow.Destination.Namespace
 	}
@@ -91,7 +105,21 @@ func ConvertTrafficToLog(flow *pb.TrafficFlow) types.NetworkLog {
 	return log
 }
 
-func ToCiliumNetworkPolicy(inPolicy types.KnoxNetworkPolicy) types.CiliumNetworkPolicy {
+func ConvertTrafficToLogs(flows []*pb.TrafficFlow) []types.NetworkLog {
+	networkLogs := []types.NetworkLog{}
+	for _, flow := range flows {
+		log := ConvertTrafficToLog(flow)
+		networkLogs = append(networkLogs, log)
+	}
+
+	return networkLogs
+}
+
+// ===================================== //
+// == Cilium Network Policy Convertor == //
+// ===================================== //
+
+func ToCiliumEgressNetworkPolicy(inPolicy types.KnoxNetworkPolicy) types.CiliumNetworkPolicy {
 	ciliumPolicy := types.CiliumNetworkPolicy{}
 
 	ciliumPolicy.APIVersion = "cilium.io/v2"
@@ -116,15 +144,15 @@ func ToCiliumNetworkPolicy(inPolicy types.KnoxNetworkPolicy) types.CiliumNetwork
 			matchLabels[k] = v
 		}
 
-		toEndpoints := []types.CiliumToEndpoints{types.CiliumToEndpoints{matchLabels}}
+		toEndpoints := []types.CiliumEndpoints{types.CiliumEndpoints{matchLabels}}
 		egress.ToEndpoints = toEndpoints
 	}
 
 	// update toPorts
 	for _, toPort := range inPolicy.Spec.Egress.ToPorts {
 		if egress.ToPorts == nil {
-			egress.ToPorts = []types.CiliumToPort{}
-			ciliumPort := types.CiliumToPort{}
+			egress.ToPorts = []types.CiliumPortList{}
+			ciliumPort := types.CiliumPortList{}
 			ciliumPort.Ports = []types.CiliumPort{}
 			egress.ToPorts = append(egress.ToPorts, ciliumPort)
 		}
@@ -135,11 +163,15 @@ func ToCiliumNetworkPolicy(inPolicy types.KnoxNetworkPolicy) types.CiliumNetwork
 
 	// update toCIDRs
 	for _, toCIDR := range inPolicy.Spec.Egress.ToCIDRs {
-		if egress.ToCIDRs == nil {
-			egress.ToCIDRs = []types.ToCIDR{}
-		}
+		egress.ToCIDRs = append(egress.ToCIDRs, toCIDR.CIDR)
+	}
 
-		egress.ToCIDRs = append(egress.ToCIDRs, toCIDR)
+	// update toEntities
+	for _, entity := range inPolicy.Spec.Egress.ToEndtities {
+		if egress.ToEndtities == nil {
+			egress.ToEndtities = []string{}
+		}
+		egress.ToEndtities = append(egress.ToEndtities, entity)
 	}
 
 	ciliumPolicy.Spec.Egress = []types.CiliumEgress{}
@@ -148,12 +180,74 @@ func ToCiliumNetworkPolicy(inPolicy types.KnoxNetworkPolicy) types.CiliumNetwork
 	return ciliumPolicy
 }
 
-func ConvertTrafficToLogs(flows []*pb.TrafficFlow) []types.NetworkLog {
-	networkLogs := []types.NetworkLog{}
-	for _, flow := range flows {
-		log := ConvertTrafficToLog(flow)
-		networkLogs = append(networkLogs, log)
+func ToCiliumIngressNetworkPolicy(inPolicy types.KnoxNetworkPolicy) types.CiliumNetworkPolicy {
+	ciliumPolicy := types.CiliumNetworkPolicy{}
+
+	ciliumPolicy.APIVersion = "cilium.io/v2"
+	ciliumPolicy.Kind = "CiliumNetworkPolicy"
+	ciliumPolicy.Metadata = map[string]string{}
+	for k, v := range inPolicy.Metadata {
+		ciliumPolicy.Metadata[k] = v
 	}
 
-	return networkLogs
+	// update selector
+	ciliumPolicy.Spec.Selector.MatchLabels = map[string]string{}
+	for k, v := range inPolicy.Spec.Selector.MatchLabels {
+		ciliumPolicy.Spec.Selector.MatchLabels[k] = v
+	}
+
+	// update ingress
+	ingress := types.CiliumIngress{}
+
+	if inPolicy.Spec.Ingress.MatchLabels != nil {
+		matchLabels := map[string]string{}
+		for k, v := range inPolicy.Spec.Ingress.MatchLabels {
+			matchLabels[k] = v
+		}
+
+		fromEndpoints := []types.CiliumEndpoints{types.CiliumEndpoints{matchLabels}}
+		ingress.FromEndpoints = fromEndpoints
+	}
+
+	// update fromPorts
+	for _, fromPort := range inPolicy.Spec.Ingress.FromPorts {
+		if ingress.FromPorts == nil {
+			ingress.FromPorts = []types.CiliumPortList{}
+			ciliumPort := types.CiliumPortList{}
+			ciliumPort.Ports = []types.CiliumPort{}
+			ingress.FromPorts = append(ingress.FromPorts, ciliumPort)
+		}
+
+		port := types.CiliumPort{Port: fromPort.Ports, Protocol: strings.ToUpper(fromPort.Protocol)}
+		ingress.FromPorts[0].Ports = append(ingress.FromPorts[0].Ports, port)
+	}
+
+	// update fromCIDRs
+	for _, fromCIDR := range inPolicy.Spec.Ingress.FromCIDRs {
+		ingress.FromCIDRs = append(ingress.FromCIDRs, fromCIDR.CIDR)
+	}
+
+	// update fromEntities
+	for _, entity := range inPolicy.Spec.Ingress.FromEntities {
+		if ingress.FromEntities == nil {
+			ingress.FromEntities = []string{}
+		}
+		ingress.FromEntities = append(ingress.FromEntities, entity)
+	}
+
+	ciliumPolicy.Spec.Ingress = []types.CiliumIngress{}
+	ciliumPolicy.Spec.Ingress = append(ciliumPolicy.Spec.Ingress, ingress)
+
+	return ciliumPolicy
+}
+
+func ToCiliumNetworkPolicy(inPolicy types.KnoxNetworkPolicy) types.CiliumNetworkPolicy {
+	if inPolicy.Spec.Egress.MatchLabels != nil ||
+		inPolicy.Spec.Egress.ToCIDRs != nil ||
+		inPolicy.Spec.Egress.ToPorts != nil ||
+		inPolicy.Spec.Egress.ToEndtities != nil {
+		return ToCiliumEgressNetworkPolicy(inPolicy)
+	} else {
+		return ToCiliumIngressNetworkPolicy(inPolicy)
+	}
 }
