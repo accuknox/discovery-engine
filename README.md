@@ -32,7 +32,7 @@ import (
 )
 
 func Generate() {
-  // set target namespace
+        // set target namespace
 	targetNS := "default"
 
 	// get network traffic from 'knoxServiceFlowMgmt'
