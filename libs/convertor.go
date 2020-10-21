@@ -38,7 +38,7 @@ func getProtocol(l4 *pb.Layer4) int {
 	}
 }
 
-func TrafficToLog(flow *pb.TrafficFlow) types.NetworkLog {
+func ConvertTrafficToLog(flow *pb.TrafficFlow) types.NetworkLog {
 	log := types.NetworkLog{}
 
 	if flow.Source.Namespace == "" {
@@ -146,4 +146,14 @@ func ToCiliumNetworkPolicy(inPolicy types.KnoxNetworkPolicy) types.CiliumNetwork
 	ciliumPolicy.Spec.Egress = append(ciliumPolicy.Spec.Egress, egress)
 
 	return ciliumPolicy
+}
+
+func ConvertTrafficToLogs(flows []*pb.TrafficFlow) []types.NetworkLog {
+	networkLogs := []types.NetworkLog{}
+	for _, flow := range flows {
+		log := ConvertTrafficToLog(flow)
+		networkLogs = append(networkLogs, log)
+	}
+
+	return networkLogs
 }
