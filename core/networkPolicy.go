@@ -422,9 +422,7 @@ func BuildNetworkPolicies(microName string, mergedSrcPerMergedDst map[string][]M
 					dstval := kv[1]
 
 					egress.Spec.Egress.MatchLabels[dstkey] = dstval
-					if microName != dst.MicroserviceName {
-						egress.Spec.Egress.MatchLabels["k8s:io.kubernetes.pod.namespace"] = dst.MicroserviceName
-					}
+					egress.Spec.Egress.MatchLabels["k8s:io.kubernetes.pod.namespace"] = dst.MicroserviceName
 				}
 
 				if dst.ToPorts != nil && len(dst.ToPorts) > 0 {
