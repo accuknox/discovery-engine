@@ -20,7 +20,17 @@ types - Type definitions
 go get github.com/accuknox/knoxAutoPolicy
 ```
 
-# Usage
+# Usage 1: One-time process
+
+* Assuming that it runs in the master node and the mysql database has network_flows
+
+```
+$ cd knoxAutoPolicy
+$ go build
+$ NETWORKFLOW_DB_DRIVER=mysql NETWORKFLOW_DB_USER=root NETWORKFLOW_DB_PASS=password NETWORKFLOW_DB_NAME=flow_management ./knoxAutoPolicy
+```
+
+# Usage 2: Library
 
 ```
 import (
@@ -68,3 +78,4 @@ func Generate() {
 	println("done")
 }
 ```
+
