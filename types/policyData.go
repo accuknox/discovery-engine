@@ -62,11 +62,7 @@ type PolicyNetwork struct {
 
 // Selector Structure
 type Selector struct {
-	MatchNames  map[string]string `json:"matchNames,omitempty" yaml:"matchNames,omitempty"`
 	MatchLabels map[string]string `json:"matchLabels,omitempty" yaml:"matchLabels,omitempty"`
-
-	Identities []string        `json:"identities,omitempty" yaml:"identities,omitempty"`
-	Networks   []PolicyNetwork `json:"networks,omitempty" yaml:"networks,omitempty"`
 }
 
 // Ingress Structure

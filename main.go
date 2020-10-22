@@ -1,46 +1,26 @@
-# knoxAutoPolicy
-Auto Policy Generation
+package main
 
-# Overview
-![overview](http://seungsoo.net/autopolicy.png)
-
-# Directories
-
-* Source code for Knox Auto Policy
-
-```
-core - Core functions for Knox Auto Policy
-libs - Libraries used for generating network policies
-types - Type definitions
-```
-
-# Installation
-
-```
-go get github.com/accuknox/knoxAutoPolicy
-```
-
-# Usage 1: One-time process
-
-* Assuming that it runs in the master node and the mysql database has network_flows
-
-```
-$ cd knoxAutoPolicy
-$ go build
-$ NETWORKFLOW_DB_DRIVER=mysql NETWORKFLOW_DB_USER=root NETWORKFLOW_DB_PASS=password NETWORKFLOW_DB_NAME=flow_management ./knoxAutoPolicy
-```
-
-# Usage 2: Library
-
-```
 import (
-  ...
+	"fmt"
+	"os"
+
 	"github.com/accuknox/knoxAutoPolicy/core"
 	"github.com/accuknox/knoxAutoPolicy/libs"
 	"github.com/accuknox/knoxAutoPolicy/localtest"
 	"github.com/accuknox/knoxAutoPolicy/types"
-  ...
+
+	"gopkg.in/yaml.v2"
 )
+
+func PrintSimplePolicy(policy types.CiliumNetworkPolicy) {
+	fmt.Print(policy.Metadata["name"], "\t", policy.Spec.Selector, "\t")
+
+	if policy.Spec.Egress != nil && len(policy.Spec.Egress) > 0 {
+		fmt.Println(policy.Spec.Egress)
+	} else {
+		fmt.Println(policy.Spec.Ingress)
+	}
+}
 
 func Generate() {
 	f, err := os.Create("./policies.yaml")
@@ -77,5 +57,7 @@ func Generate() {
 
 	println("done")
 }
-```
 
+func main() {
+	Generate()
+}
