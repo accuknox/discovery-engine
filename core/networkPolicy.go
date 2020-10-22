@@ -448,6 +448,8 @@ func BuildNetworkPolicies(microName string, mergedSrcPerMergedDst map[string][]M
 
 				egress.Spec.Egress.ToCIDRs = []types.ToCIDR{cidr}
 				networkPolicies = append(networkPolicies, egress)
+
+				// TODO: add word ingress
 			} else if strings.HasPrefix(dst.MicroserviceName, "reserved:") && dst.MatchLabels == "" {
 				if dst.MicroserviceName == "reserved:host" { // host is allowed by default in Cilium
 					continue
