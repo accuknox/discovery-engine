@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/accuknox/knoxAutoPolicy/libs"
+	libs "github.com/accuknox/knoxAutoPolicy/libs"
 	types "github.com/accuknox/knoxAutoPolicy/types"
 )
 

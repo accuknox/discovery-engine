@@ -1,4 +1,4 @@
-package localtest
+package libs
 
 import (
 	"database/sql"
@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/accuknox/knoxAutoPolicy/libs"
+	"github.com/accuknox/knoxAutoPolicy/types"
 	"github.com/rs/zerolog/log"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -26,11 +26,11 @@ func FlowFilter() flowpb.FlowFilter {
 }
 
 func Conn() (db *sql.DB) {
-	dbDriver := libs.GetEnv("NETWORKFLOW_DB_DRIVER", "mysql")
-	dbUser := libs.GetEnv("NETWORKFLOW_DB_USER", "root")
-	dbPass := libs.GetEnv("NETWORKFLOW_DB_PASS", "password")
-	dbName := libs.GetEnv("NETWORKFLOW_DB_NAME", "flow_management")
-	// table "network_flow"
+	dbDriver := GetEnv("NETWORKFLOW_DB_DRIVER", "mysql")
+	dbUser := GetEnv("NETWORKFLOW_DB_USER", "root")
+	dbPass := GetEnv("NETWORKFLOW_DB_PASS", "password")
+	dbName := GetEnv("NETWORKFLOW_DB_NAME", "flow_management")
+	// table: "network_flow"
 
 	db, err := sql.Open(dbDriver, dbUser+":"+dbPass+"@tcp(localhost:3306)/"+dbName)
 	if err != nil {
@@ -42,7 +42,6 @@ func Conn() (db *sql.DB) {
 
 //getTrafficDirection returns traffic direction.
 func getTrafficDirection(trafficDirection int64) (string, error) {
-
 	switch trafficDirection {
 	case 0:
 		return "TRAFFIC_DIRECTION_UNKNOWN", nil
@@ -57,7 +56,6 @@ func getTrafficDirection(trafficDirection int64) (string, error) {
 
 //getverdict returns verdict.
 func getVerdict(verdict int64) (string, error) {
-
 	switch verdict {
 	case 0:
 		return "VERDICT_UNKNOWN", nil
@@ -74,7 +72,6 @@ func getVerdict(verdict int64) (string, error) {
 
 //getFlowType returns flowtype.
 func getFlowType(flowType int64) (string, error) {
-
 	switch flowType {
 	case 0:
 		return "UNKNOWN_TYPE", nil
@@ -88,10 +85,13 @@ func getFlowType(flowType int64) (string, error) {
 }
 
 //flowScanner scans the trafficflow.
-func flowScanner(results *sql.Rows) ([]*pb.TrafficFlow, error) {
-	var trafficFlows []*pb.TrafficFlow
+func flowScanner(results *sql.Rows) ([]*types.KnoxTrafficFlow, error) {
+	var trafficFlows []*types.KnoxTrafficFlow
 	var err error
+
 	for results.Next() {
+		knoxFlow := &types.KnoxTrafficFlow{}
+
 		trafficFlow := &pb.TrafficFlow{}
 		src := &pb.Endpoint{}
 		dest := &pb.Endpoint{}
@@ -101,12 +101,23 @@ func flowScanner(results *sql.Rows) ([]*pb.TrafficFlow, error) {
 		l7 := &pb.Layer7{}
 		srcService := &pb.Service{}
 		destService := &pb.Service{}
+
+		// basic info
 		var verdict, flowType, trafficDirection int64
 		var srcByte, destByte, ethByte, ipByte, l4Byte, l7Byte, srcServiceByte, destServiceByte, srcLabelsByte, destLabelsByte []byte
+
+		// additional info
+		var policyMatchType, dropReason int64
+		eventType := &types.EventType{}
+		var eventTypeByte []byte
+
 		err = results.Scan(
 			&trafficFlow.Id,
 			&trafficFlow.Time,
 			&verdict,
+			&policyMatchType,
+			&dropReason,
+			&eventTypeByte,
 			&srcByte,
 			&destByte,
 			&ethByte,
@@ -127,9 +138,15 @@ func flowScanner(results *sql.Rows) ([]*pb.TrafficFlow, error) {
 			&trafficDirection,
 			&trafficFlow.Summary,
 		)
+
 		if err != nil {
 			log.Error().Msg("Error while scanning traffic flows :" + err.Error())
 			return nil, err
+		}
+
+		// * skip, if policy match type is not 0 (none)
+		if policyMatchType != 0 {
+			continue
 		}
 
 		trafficFlow.Verdict, err = getVerdict(verdict)
@@ -239,30 +256,46 @@ func flowScanner(results *sql.Rows) ([]*pb.TrafficFlow, error) {
 			return nil, err
 		}
 
-		trafficFlows = append(trafficFlows, trafficFlow)
+		knoxFlow.TrafficFlow = trafficFlow
+		knoxFlow.PolicyMatchType = policyMatchType
+		knoxFlow.DropReason = dropReason
+
+		if eventTypeByte != nil {
+			err = json.Unmarshal([]byte(eventTypeByte), &eventType)
+			if err != nil {
+				log.Error().Msg("Error while unmarshing Event Type :" + err.Error())
+				return nil, err
+			}
+			knoxFlow.EventType = eventType
+		}
+
+		trafficFlows = append(trafficFlows, knoxFlow)
 	}
+
 	return trafficFlows, nil
 }
 
-func GetTrafficFlow() ([]*pb.TrafficFlow, error) {
+var QueryBase string = "select id,time,verdict,policy_match_type,drop_reason,event_type,source,destination,ethernet,ip,type,l4,l7,reply,source->>'$.labels',destination->>'$.labels',src_cluster_name,src_pod_name,dest_cluster_name,dest_pod_name,node_name,source_service,destination_service,traffic_direction,summary from network_flow"
+
+func GetTrafficFlowFromTime(after, before int64) ([]*types.KnoxTrafficFlow, error) {
 	db := Conn()
 	defer db.Close()
 
-	results, err := db.Query("select id,time,verdict,source,destination,ethernet,ip,type,l4,l7,reply,source->>'$.labels',destination->>'$.labels',src_cluster_name,src_pod_name,dest_cluster_name,dest_pod_name,node_name,source_service,destination_service,traffic_direction,summary from network_flow")
+	rows, err := db.Query(QueryBase+" where time >= ? and time < ?", after, before)
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
-	return flowScanner(results)
+	return flowScanner(rows)
 }
 
-func GetTrafficFlowFromTime(after, before int64) ([]*pb.TrafficFlow, error) {
+func GetTrafficFlowFromKnoxDB() ([]*types.KnoxTrafficFlow, error) {
 	db := Conn()
+	defer db.Close()
 
-	baseQuery := "select id,time,verdict,source,destination,ethernet,ip,type,l4,l7,reply,src_cluster_name,src_pod_name,dest_cluster_name,dest_pod_name,node_name,source_service,destination_service,traffic_direction,summary from network_flow"
-	rows, err := db.Query(baseQuery+" where time >= ? and time < ?", after, before)
+	rows, err := db.Query(QueryBase)
 	if err != nil {
-		fmt.Println(err)
 		return nil, err
 	}
 	defer rows.Close()

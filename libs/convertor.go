@@ -52,8 +52,10 @@ func getReservedLabel(labels []string) string {
 	return "unknown"
 }
 
-func ConvertTrafficToLog(flow *pb.TrafficFlow) types.NetworkLog {
+func ConvertKoxTrafficToLog(knoxTrafficFlow *types.KnoxTrafficFlow) types.NetworkLog {
 	log := types.NetworkLog{}
+
+	flow := knoxTrafficFlow.TrafficFlow
 
 	if flow.Source.Namespace == "" {
 		log.SrcMicroserviceName = getReservedLabel(flow.Source.Lables)
@@ -105,10 +107,10 @@ func ConvertTrafficToLog(flow *pb.TrafficFlow) types.NetworkLog {
 	return log
 }
 
-func ConvertTrafficToLogs(flows []*pb.TrafficFlow) []types.NetworkLog {
+func ConvertTrafficFlowToLogs(flows []*types.KnoxTrafficFlow) []types.NetworkLog {
 	networkLogs := []types.NetworkLog{}
 	for _, flow := range flows {
-		log := ConvertTrafficToLog(flow)
+		log := ConvertKoxTrafficToLog(flow)
 		networkLogs = append(networkLogs, log)
 	}
 
