@@ -6,7 +6,6 @@ import (
 
 	"github.com/accuknox/knoxAutoPolicy/core"
 	"github.com/accuknox/knoxAutoPolicy/libs"
-	"github.com/accuknox/knoxAutoPolicy/localtest"
 	"github.com/accuknox/knoxAutoPolicy/types"
 
 	"gopkg.in/yaml.v2"
@@ -30,13 +29,13 @@ func Generate() {
 	defer f.Close()
 
 	// define target namespace
-	targetNamespace := "default"
+	targetNamespace := "multiubuntu"
 
 	// 1. get network traffic from  knox aggregation Databse
-	trafficList, _ := localtest.GetTrafficFlow()
+	trafficList, _ := libs.GetTrafficFlowFromKnoxDB()
 
-	// 2. convert network traffic -> network log
-	networkLogs := libs.ConvertTrafficToLogs(trafficList)
+	// 2. convert network traffic -> network log, and filter traffic
+	networkLogs := libs.ConvertTrafficFlowToLogs(targetNamespace, trafficList)
 
 	// 3. get k8s services
 	services := libs.K8s.GetServices(targetNamespace)
