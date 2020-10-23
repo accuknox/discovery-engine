@@ -70,32 +70,6 @@ type LabelCount struct {
 // == Common == //
 // ============ //
 
-// filterLogs Function
-func filterLogs(originalLogs []types.NetworkLog, microName string) []types.NetworkLog {
-	filteredLogs := []types.NetworkLog{}
-
-	for _, log := range originalLogs {
-		if log.Action != "allow" {
-			continue
-		}
-
-		// filter microservice name
-		if log.SrcMicroserviceName != microName && log.DstMicroserviceName != microName {
-			continue
-		}
-
-		// filter cni network logs (in the case of Bastion)
-		if libs.ContainsElement([]string{"WeaveNet", "Flannel", "Calico"}, log.SrcContainerGroupName) ||
-			libs.ContainsElement([]string{"WeaveNet", "Flannel", "Calico"}, log.DstContainerGroupName) {
-			continue
-		}
-
-		filteredLogs = append(filteredLogs, log)
-	}
-
-	return filteredLogs
-}
-
 // countLabelByCombinations Function (combination!)
 func countLabelByCombinations(labelCount map[string]int, mergedLabels string) {
 	// split labels
@@ -969,8 +943,6 @@ func GenerateNetworkPolicies(microserviceName string,
 	networkLogs []types.NetworkLog,
 	k8sServices []types.K8sService,
 	containerGroups []types.ContainerGroup) []types.KnoxNetworkPolicy {
-	// filter network logs
-	networkLogs = filterLogs(networkLogs, microserviceName)
 
 	// step 1: update exposed ports (k8s service, docker-compose portbinding)
 	UpdateExposedPorts(k8sServices, containerGroups)

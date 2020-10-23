@@ -144,11 +144,6 @@ func flowScanner(results *sql.Rows) ([]*types.KnoxTrafficFlow, error) {
 			return nil, err
 		}
 
-		// * skip, if policy match type is not 0 (none)
-		if policyMatchType != 0 {
-			continue
-		}
-
 		trafficFlow.Verdict, err = getVerdict(verdict)
 		if err != nil {
 			return nil, err

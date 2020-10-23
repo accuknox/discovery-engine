@@ -34,8 +34,8 @@ func Generate() {
 	// 1. get network traffic from  knox aggregation Databse
 	trafficList, _ := libs.GetTrafficFlowFromKnoxDB()
 
-	// 2. convert network traffic -> network log
-	networkLogs := libs.ConvertTrafficFlowToLogs(trafficList)
+	// 2. convert network traffic -> network log, and filter traffic
+	networkLogs := libs.ConvertTrafficFlowToLogs(targetNamespace, trafficList)
 
 	// 3. get k8s services
 	services := libs.K8s.GetServices(targetNamespace)

@@ -52,7 +52,7 @@ func getReservedLabel(labels []string) string {
 	return "unknown"
 }
 
-func ConvertKoxTrafficToLog(knoxTrafficFlow *types.KnoxTrafficFlow) types.NetworkLog {
+func ConvertKoxTrafficToLog(microName string, knoxTrafficFlow *types.KnoxTrafficFlow) (types.NetworkLog, bool) {
 	log := types.NetworkLog{}
 
 	flow := knoxTrafficFlow.TrafficFlow
@@ -104,13 +104,27 @@ func ConvertKoxTrafficToLog(knoxTrafficFlow *types.KnoxTrafficFlow) types.Networ
 
 	log.Direction = flow.TrafficDirection
 
-	return log
+	// filter 1: microservice name
+	if log.SrcMicroserviceName != microName && log.DstMicroserviceName != microName {
+		return log, false
+	}
+
+	// filter 2: packet is dropped and drop reason == 181 (Policy denied by denylist)
+	if flow.Verdict == "DROPPED" && knoxTrafficFlow.DropReason == 181 {
+		return log, false
+	}
+
+	return log, true
 }
 
-func ConvertTrafficFlowToLogs(flows []*types.KnoxTrafficFlow) []types.NetworkLog {
+func ConvertTrafficFlowToLogs(microName string, flows []*types.KnoxTrafficFlow) []types.NetworkLog {
 	networkLogs := []types.NetworkLog{}
 	for _, flow := range flows {
-		log := ConvertKoxTrafficToLog(flow)
+		log, valid := ConvertKoxTrafficToLog(microName, flow)
+		if !valid {
+			continue
+		}
+
 		networkLogs = append(networkLogs, log)
 	}
 
