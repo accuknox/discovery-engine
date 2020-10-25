@@ -20,7 +20,7 @@ types - Type definitions
 go get github.com/accuknox/knoxAutoPolicy
 ```
 
-# Usage 1: One-time process
+# Usage 1: Cron job daemon
 
 * Assuming that it runs in the master node and the mysql database has network_flows
 
@@ -37,7 +37,6 @@ import (
   ...
 	"github.com/accuknox/knoxAutoPolicy/core"
 	"github.com/accuknox/knoxAutoPolicy/libs"
-	"github.com/accuknox/knoxAutoPolicy/localtest"
 	"github.com/accuknox/knoxAutoPolicy/types"
   ...
 )
@@ -52,16 +51,16 @@ func Generate() {
 	// define target namespace
 	targetNamespace := "default"
 
-	// 1. get network traffic from  knox aggregation Databse
-	trafficList, _ := localtest.GetTrafficFlow()
+	// get network traffic from  knox aggregation Databse
+	trafficList, _ := libs.GetTrafficFlow()
 
-	// 2. convert network traffic -> network log
+	// convert network traffic -> network log
 	networkLogs := libs.ConvertTrafficToLogs(trafficList)
 
-	// 3. get k8s services
+	// get k8s services
 	services := libs.K8s.GetServices(targetNamespace)
 
-	// 4. get pod information
+	// get pod information
 	pods := libs.K8s.GetConGroups(targetNamespace)
 
 	// 5. generate network policies
@@ -74,8 +73,6 @@ func Generate() {
 		f.WriteString("---\n")
 		f.Sync()
 	}
-
-	println("done")
 }
 ```
 
