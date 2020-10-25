@@ -1,15 +1,46 @@
 package libs
 
 import (
+	"fmt"
 	"math/bits"
 	"math/rand"
 	"os"
+	"os/signal"
 	"reflect"
+	"syscall"
+
+	"github.com/accuknox/knoxAutoPolicy/types"
 )
 
 // ============ //
 // == Common == //
 // ============ //
+
+// GetOSSigChannel Function
+func GetOSSigChannel() chan os.Signal {
+	c := make(chan os.Signal, 1)
+
+	signal.Notify(c,
+		syscall.SIGKILL,
+		syscall.SIGHUP,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGQUIT,
+		os.Interrupt)
+
+	return c
+}
+
+// PrintSimplePolicy Function
+func PrintSimplePolicy(policy types.CiliumNetworkPolicy) {
+	fmt.Print(policy.Metadata["name"], "\t", policy.Spec.Selector, "\t")
+
+	if policy.Spec.Egress != nil && len(policy.Spec.Egress) > 0 {
+		fmt.Println(policy.Spec.Egress)
+	} else {
+		fmt.Println(policy.Spec.Ingress)
+	}
+}
 
 // GetEnv Function
 func GetEnv(key, fallback string) string {
