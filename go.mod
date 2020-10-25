@@ -13,6 +13,7 @@ require (
 	github.com/cilium/cilium v1.8.4
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/google/go-cmp v0.5.2 // indirect
+	github.com/robfig/cron/v3 v3.0.1
 	github.com/rs/zerolog v1.20.0
 	go.mongodb.org/mongo-driver v1.3.0
 	golang.org/x/net v0.0.0-20201010224723-4f7140c49acb // indirect

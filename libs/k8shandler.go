@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"sync"
 
 	"github.com/accuknox/knoxAutoPolicy/types"
 
@@ -30,11 +29,9 @@ func init() {
 type K8sHandler struct {
 	K8sClient *kubernetes.Clientset
 
-	Namespaces    []v1.Namespace
-	NamespaceLock *sync.Mutex
-
-	Pods    []v1.Pod
-	PodLock *sync.Mutex
+	Namespaces []v1.Namespace
+	Pods       []v1.Pod
+	Services   []v1.Service
 
 	K8sToken string
 	K8sHost  string
@@ -58,10 +55,8 @@ func NewK8sHandler() *K8sHandler {
 	}
 
 	kh.Namespaces = []v1.Namespace{}
-	kh.NamespaceLock = &sync.Mutex{}
-
 	kh.Pods = []v1.Pod{}
-	kh.PodLock = &sync.Mutex{}
+	kh.Services = []v1.Service{}
 
 	return kh
 }
@@ -176,6 +171,28 @@ func (kh *K8sHandler) UpdateK8sNamespaces() error {
 	return nil
 }
 
+// GetK8sNamespaces Function
+func (kh *K8sHandler) GetK8sNamespaces() []string {
+	kh.UpdateK8sNamespaces()
+
+	skipList := []string{"kube-system", "kube-public", "kube-node-lease"}
+
+	results := []string{}
+	for _, namespace := range kh.Namespaces {
+		if ContainsElement(skipList, namespace.Name) {
+			continue
+		}
+
+		if namespace.Status.String() != "Active" {
+			continue
+		}
+
+		results = append(results, namespace.Name)
+	}
+
+	return results
+}
+
 // =========================== //
 // == Container Group (Pod) == //
 // =========================== //
@@ -230,13 +247,15 @@ func (kh *K8sHandler) GetConGroups(targetNS string) []types.ContainerGroup {
 	return conGroups
 }
 
-// GetServices Function
-func (kh *K8sHandler) GetServices(targetNS string) []types.K8sService {
+// ============== //
+// == Services == //
+// ============== //
+
+// UpdateServices Function
+func (kh *K8sHandler) UpdateServices() []types.K8sService {
 	if kh.K8sClient == nil && !kh.InitAPIClient() {
 		return nil
 	}
-
-	results := []types.K8sService{}
 
 	// get pods from k8s api client
 	svcs, err := kh.K8sClient.CoreV1().Services("").List(context.Background(), metav1.ListOptions{})
@@ -244,7 +263,22 @@ func (kh *K8sHandler) GetServices(targetNS string) []types.K8sService {
 		return nil
 	}
 
+	newServices := []v1.Service{}
 	for _, svc := range svcs.Items {
+		newServices = append(newServices, svc)
+	}
+
+	kh.Services = newServices
+
+	return nil
+}
+
+// GetServices Function
+func (kh *K8sHandler) GetServices(targetNS string) []types.K8sService {
+	kh.UpdateServices()
+
+	results := []types.K8sService{}
+	for _, svc := range kh.Services {
 		if svc.Namespace != targetNS && svc.Namespace != "kube-system" {
 			continue
 		}

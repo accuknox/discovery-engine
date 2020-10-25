@@ -272,11 +272,11 @@ func flowScanner(results *sql.Rows) ([]*types.KnoxTrafficFlow, error) {
 
 var QueryBase string = "select id,time,verdict,policy_match_type,drop_reason,event_type,source,destination,ethernet,ip,type,l4,l7,reply,source->>'$.labels',destination->>'$.labels',src_cluster_name,src_pod_name,dest_cluster_name,dest_pod_name,node_name,source_service,destination_service,traffic_direction,summary from network_flow"
 
-func GetTrafficFlowFromTime(after, before int64) ([]*types.KnoxTrafficFlow, error) {
+func GetTrafficFlowByTime(st, et int64) ([]*types.KnoxTrafficFlow, error) {
 	db := Conn()
 	defer db.Close()
 
-	rows, err := db.Query(QueryBase+" where time >= ? and time < ?", after, before)
+	rows, err := db.Query(QueryBase+" where time >= ? and time < ?", st, et)
 	if err != nil {
 		return nil, err
 	}
@@ -285,7 +285,7 @@ func GetTrafficFlowFromTime(after, before int64) ([]*types.KnoxTrafficFlow, erro
 	return flowScanner(rows)
 }
 
-func GetTrafficFlowFromKnoxDB() ([]*types.KnoxTrafficFlow, error) {
+func GetTrafficFlow() ([]*types.KnoxTrafficFlow, error) {
 	db := Conn()
 	defer db.Close()
 
