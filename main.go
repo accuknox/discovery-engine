@@ -23,7 +23,6 @@ func Generate() {
 		fmt.Println(err)
 		return
 	}
-
 	if len(trafficList) < 1 {
 		fmt.Println("Traffic flow is not exist: ",
 			time.Unix(startTime, 0).Format(libs.TimeFormSimple), " ~ ",
@@ -75,14 +74,14 @@ func Generate() {
 	}
 }
 
-func main() {
+func CronJobDaemon() {
 	// init time filter
 	endTime = time.Now().Unix()
-	startTime = endTime - 30
+	startTime = 0
 
 	// init cron job
 	c := cron.New()
-	c.AddFunc("@every 0h0m5s", Generate) // every 5s for test
+	c.AddFunc("@every 0h0m30s", Generate) // every time interval for test
 	c.Start()
 
 	sig := libs.GetOSSigChannel()
@@ -90,4 +89,9 @@ func main() {
 	println("Got a signal to terminate the auto policy discovery")
 
 	c.Stop() // Stop the scheduler (does not stop any jobs already running).
+}
+
+func main() {
+	endTime = time.Now().Unix()
+	Generate()
 }
