@@ -16,6 +16,11 @@ import (
 	pb "github.com/accuknox/knoxServiceFlowMgmt/src/proto"
 )
 
+const (
+	TableNetworkFlow      string = "network_flow"
+	TableDiscoveredPolicy string = "discovered_policy"
+)
+
 func FlowFilter() flowpb.FlowFilter {
 	filter := flowpb.FlowFilter{
 		DestinationPort: []string{"53"},
@@ -270,7 +275,7 @@ func flowScanner(results *sql.Rows) ([]*types.KnoxTrafficFlow, error) {
 	return trafficFlows, nil
 }
 
-var QueryBase string = "select id,time,verdict,policy_match_type,drop_reason,event_type,source,destination,ethernet,ip,type,l4,l7,reply,source->>'$.labels',destination->>'$.labels',src_cluster_name,src_pod_name,dest_cluster_name,dest_pod_name,node_name,source_service,destination_service,traffic_direction,summary from network_flow"
+var QueryBase string = "select id,time,verdict,policy_match_type,drop_reason,event_type,source,destination,ethernet,ip,type,l4,l7,reply,source->>'$.labels',destination->>'$.labels',src_cluster_name,src_pod_name,dest_cluster_name,dest_pod_name,node_name,source_service,destination_service,traffic_direction,summary from " + TableNetworkFlow
 
 func GetTrafficFlowByTime(st, et int64) ([]*types.KnoxTrafficFlow, error) {
 	db := Conn()
@@ -296,4 +301,8 @@ func GetTrafficFlow() ([]*types.KnoxTrafficFlow, error) {
 	defer rows.Close()
 
 	return flowScanner(rows)
+}
+
+func InsertDiscoveredPolicy(policy types.KnoxNetworkPolicy) {
+
 }

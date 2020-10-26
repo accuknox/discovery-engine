@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	libs "github.com/accuknox/knoxAutoPolicy/libs"
 	types "github.com/accuknox/knoxAutoPolicy/types"
@@ -449,6 +450,12 @@ func BuildNetworkPolicies(microName string, mergedSrcPerMergedDst map[string][]M
 				continue
 			}
 		}
+	}
+
+	// update generated time
+	genTime := time.Now().Unix()
+	for i, _ := range networkPolicies {
+		networkPolicies[i].GeneratedTime = genTime
 	}
 
 	return networkPolicies
