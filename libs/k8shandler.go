@@ -183,7 +183,7 @@ func (kh *K8sHandler) GetK8sNamespaces() []string {
 			continue
 		}
 
-		if namespace.Status.String() != "Active" {
+		if namespace.Status.Phase != "Active" {
 			continue
 		}
 

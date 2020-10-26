@@ -104,10 +104,11 @@ type Spec struct {
 
 // KnoxNetworkPolicy Structure
 type KnoxNetworkPolicy struct {
-	APIVersion string            `json:"apiVersion,omitempty" yaml:"apiVersion,omitempty"`
-	Kind       string            `json:"kind,omitempty" yaml:"kind,omitempty"`
-	Metadata   map[string]string `json:"metadata,omitempty" yaml:"metadata,omitempty"`
-	Spec       Spec              `json:"spec" yaml:"spec"`
+	APIVersion    string            `json:"apiVersion,omitempty" yaml:"apiVersion,omitempty"`
+	Kind          string            `json:"kind,omitempty" yaml:"kind,omitempty"`
+	Metadata      map[string]string `json:"metadata,omitempty" yaml:"metadata,omitempty"`
+	Spec          Spec              `json:"spec,omitempty" yaml:"spec,omitempty"`
+	GeneratedTime int64             `json:"generated_time,omitempty" yaml:"generated_time,omitempty"`
 }
 
 // =========================== //
