@@ -8,13 +8,35 @@ import (
 	"os/signal"
 	"reflect"
 	"syscall"
+	"time"
 
 	"github.com/accuknox/knoxAutoPolicy/types"
+	"gopkg.in/yaml.v2"
 )
 
 // ============ //
 // == Common == //
 // ============ //
+
+// WritePolicyFile Function
+func WritePolicyFile(policies []types.KnoxNetworkPolicy) {
+	// create policy file
+	f, err := os.Create("./policies_" + time.Now().String() + ".yaml")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	for _, policy := range policies {
+		// ciliumPolicy := ToCiliumNetworkPolicy(policy) // if you want to convert it to Cilium policy
+		b, _ := yaml.Marshal(&policy)
+		f.Write(b)
+		f.WriteString("---\n")
+		f.Sync()
+	}
+
+	f.Close()
+}
 
 // GetOSSigChannel Function
 func GetOSSigChannel() chan os.Signal {

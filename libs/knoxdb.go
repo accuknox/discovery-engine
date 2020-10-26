@@ -30,7 +30,7 @@ func FlowFilter() flowpb.FlowFilter {
 	return filter
 }
 
-func Conn() (db *sql.DB) {
+func ConnectDB() (db *sql.DB) {
 	dbDriver := GetEnv("NETWORKFLOW_DB_DRIVER", "mysql")
 	dbUser := GetEnv("NETWORKFLOW_DB_USER", "root")
 	dbPass := GetEnv("NETWORKFLOW_DB_PASS", "password")
@@ -278,7 +278,7 @@ func flowScanner(results *sql.Rows) ([]*types.KnoxTrafficFlow, error) {
 var QueryBase string = "select id,time,verdict,policy_match_type,drop_reason,event_type,source,destination,ethernet,ip,type,l4,l7,reply,source->>'$.labels',destination->>'$.labels',src_cluster_name,src_pod_name,dest_cluster_name,dest_pod_name,node_name,source_service,destination_service,traffic_direction,summary from " + TableNetworkFlow
 
 func GetTrafficFlowByTime(st, et int64) ([]*types.KnoxTrafficFlow, error) {
-	db := Conn()
+	db := ConnectDB()
 	defer db.Close()
 
 	rows, err := db.Query(QueryBase+" where time >= ? and time < ?", st, et)
@@ -291,7 +291,7 @@ func GetTrafficFlowByTime(st, et int64) ([]*types.KnoxTrafficFlow, error) {
 }
 
 func GetTrafficFlow() ([]*types.KnoxTrafficFlow, error) {
-	db := Conn()
+	db := ConnectDB()
 	defer db.Close()
 
 	rows, err := db.Query(QueryBase)
@@ -303,6 +303,29 @@ func GetTrafficFlow() ([]*types.KnoxTrafficFlow, error) {
 	return flowScanner(rows)
 }
 
-func InsertDiscoveredPolicy(policy types.KnoxNetworkPolicy) {
+func InsertDiscoveredPolicy(policy types.KnoxNetworkPolicy) error {
+	db := ConnectDB()
+	defer db.Close()
 
+	stmt, err := db.Prepare("INSERT INTO " + TableDiscoveredPolicy + "(apiVersion,kind,metadata,spec,generated_time) values(?,?,?,?,?)")
+	if err != nil {
+		return err
+	}
+
+	metadata, err := json.Marshal(policy.Metadata)
+	if err != nil {
+		return err
+	}
+
+	spec, err := json.Marshal(policy.Spec)
+	if err != nil {
+		return err
+	}
+
+	_, err = stmt.Exec(policy.APIVersion, policy.Kind, metadata, spec, policy.GeneratedTime)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
