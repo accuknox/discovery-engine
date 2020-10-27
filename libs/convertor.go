@@ -104,7 +104,7 @@ func ConvertKoxTrafficToLog(microName string, knoxTrafficFlow *types.KnoxTraffic
 
 	log.Direction = flow.TrafficDirection
 
-	// filter 1: microservice name
+	// filter 1: microservice name (namespace)
 	if log.SrcMicroserviceName != microName && log.DstMicroserviceName != microName {
 		return log, false
 	}
@@ -145,15 +145,14 @@ func ToCiliumEgressNetworkPolicy(inPolicy types.KnoxNetworkPolicy) types.CiliumN
 		ciliumPolicy.Metadata[k] = v
 	}
 
-	// update selector
+	// update selector matchLabels
 	ciliumPolicy.Spec.Selector.MatchLabels = map[string]string{}
 	for k, v := range inPolicy.Spec.Selector.MatchLabels {
 		ciliumPolicy.Spec.Selector.MatchLabels[k] = v
 	}
 
-	// update egress
+	// update egress matchLabels
 	egress := types.CiliumEgress{}
-
 	if inPolicy.Spec.Egress.MatchLabels != nil {
 		matchLabels := map[string]string{}
 		for k, v := range inPolicy.Spec.Egress.MatchLabels {
@@ -187,7 +186,24 @@ func ToCiliumEgressNetworkPolicy(inPolicy types.KnoxNetworkPolicy) types.CiliumN
 		if egress.ToEndtities == nil {
 			egress.ToEndtities = []string{}
 		}
+
 		egress.ToEndtities = append(egress.ToEndtities, entity)
+	}
+
+	// update toServices
+	for _, service := range inPolicy.Spec.Egress.ToServices {
+		if egress.ToServices == nil {
+			egress.ToServices = []types.CiliumService{}
+		}
+		ciliumService := types.CiliumService{
+			K8sService: []types.CiliumK8sService{
+				types.CiliumK8sService{
+					ServiceName: service.ServiceName,
+					Namespace:   service.Namespace,
+				},
+			},
+		}
+		egress.ToServices = append(egress.ToServices, ciliumService)
 	}
 
 	ciliumPolicy.Spec.Egress = []types.CiliumEgress{}
@@ -261,7 +277,8 @@ func ToCiliumNetworkPolicy(inPolicy types.KnoxNetworkPolicy) types.CiliumNetwork
 	if inPolicy.Spec.Egress.MatchLabels != nil ||
 		inPolicy.Spec.Egress.ToCIDRs != nil ||
 		inPolicy.Spec.Egress.ToPorts != nil ||
-		inPolicy.Spec.Egress.ToEndtities != nil {
+		inPolicy.Spec.Egress.ToEndtities != nil ||
+		inPolicy.Spec.Egress.ToServices != nil {
 		return ToCiliumEgressNetworkPolicy(inPolicy)
 	} else {
 		return ToCiliumIngressNetworkPolicy(inPolicy)
