@@ -2,7 +2,7 @@
 Auto Policy Generation
 
 # Overview
-![overview](http://seungsoo.net/autopolicy.png)
+![overview](http://seungsoo.net/autopolicy2.png)
 
 # Directories
 
