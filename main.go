@@ -14,6 +14,12 @@ import (
 var startTime int64 = 0
 var endTime int64 = 0
 
+func init() {
+	// init time filter
+	endTime = time.Now().Unix()
+	startTime = 0
+}
+
 func Generate() {
 	// get network traffic from  knox aggregation Databse
 	trafficList, err := libs.GetTrafficFlowByTime(startTime, endTime)
@@ -45,24 +51,24 @@ func Generate() {
 		// get k8s services
 		services := libs.K8s.GetServices(namespace)
 
+		// get k8s endpoints
+		endpoints := libs.K8s.GetEndpoints(namespace)
+
 		// get pod information
 		pods := libs.K8s.GetConGroups(namespace)
 
 		// generate network policies
-		policies := core.GenerateNetworkPolicies(namespace, 24, networkLogs, services, pods)
+		policies := core.GenerateNetworkPolicies(namespace, 24, networkLogs, services, endpoints, pods)
 		for _, policy := range policies {
+			// ciliumPolicy := libs.ToCiliumNetworkPolicy(policy)
 			libs.InsertDiscoveredPolicy(policy)
 		}
 
-		fmt.Println("done for namespace: ", namespace)
+		fmt.Println("done generated policies for namespace: ", namespace, " ", len(policies))
 	}
 }
 
 func CronJobDaemon() {
-	// init time filter
-	endTime = time.Now().Unix()
-	startTime = 0
-
 	// init cron job
 	c := cron.New()
 	c.AddFunc("@every 0h0m30s", Generate) // every time interval for test
@@ -76,6 +82,5 @@ func CronJobDaemon() {
 }
 
 func main() {
-	endTime = time.Now().Unix()
 	Generate()
 }

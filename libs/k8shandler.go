@@ -8,6 +8,8 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 
 	"github.com/accuknox/knoxAutoPolicy/types"
 
@@ -32,6 +34,7 @@ type K8sHandler struct {
 	Namespaces []v1.Namespace
 	Pods       []v1.Pod
 	Services   []v1.Service
+	Endpoints  []v1.Endpoints
 
 	K8sToken string
 	K8sHost  string
@@ -57,6 +60,7 @@ func NewK8sHandler() *K8sHandler {
 	kh.Namespaces = []v1.Namespace{}
 	kh.Pods = []v1.Pod{}
 	kh.Services = []v1.Service{}
+	kh.Endpoints = []v1.Endpoints{}
 
 	return kh
 }
@@ -302,6 +306,100 @@ func (kh *K8sHandler) GetServices(targetNS string) []types.K8sService {
 			k8sService.ContainerPort = port.TargetPort.IntValue()
 
 			results = append(results, k8sService)
+		}
+
+		k8sService.Selector = map[string]string{}
+		for k, v := range svc.Spec.Selector {
+			k8sService.Selector[k] = v
+		}
+	}
+
+	return results
+}
+
+// ============== //
+// == Endpoint == //
+// ============== //
+
+// UpdateEndpoints Function
+func (kh *K8sHandler) UpdateEndpoints() []types.K8sService {
+	if kh.K8sClient == nil && !kh.InitAPIClient() {
+		return nil
+	}
+
+	// get pods from k8s api client
+	endpoints, err := kh.K8sClient.CoreV1().Endpoints("").List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		return nil
+	}
+
+	endPoints := []v1.Endpoints{}
+	for _, endpoint := range endpoints.Items {
+		endPoints = append(endPoints, endpoint)
+	}
+
+	kh.Endpoints = endPoints
+
+	return nil
+}
+
+// GetEndpoints Function
+func (kh *K8sHandler) GetEndpoints(targetNS string) []types.K8sEndpoint {
+	kh.UpdateEndpoints()
+
+	results := []types.K8sEndpoint{}
+	for _, k8sEndpoint := range kh.Endpoints {
+		if k8sEndpoint.Namespace != targetNS && k8sEndpoint.Namespace != "kube-system" {
+			continue
+		}
+
+		metadata := k8sEndpoint.ObjectMeta
+		subsets := k8sEndpoint.Subsets
+
+		// if no subset, skip
+		if len(subsets) == 0 {
+			continue
+		}
+
+		for _, subset := range subsets {
+			addresses := subset.Addresses
+			ports := subset.Ports
+
+			// build endpoint
+			endPoint := types.K8sEndpoint{}
+
+			endPoint.MicroserviceName = metadata.Namespace
+			endPoint.EndpointName = metadata.Name
+
+			// get labels from metadata
+			endPoint.Labels = []string{}
+			for k, v := range metadata.Labels {
+				endPoint.Labels = append(endPoint.Labels, k+"="+v)
+			}
+			sort.Strings(endPoint.Labels)
+
+			// get network information
+			endPoint.Endpoints = []types.Endpoint{}
+			for _, address := range addresses {
+				targetRef := address.TargetRef
+				if targetRef != nil { // no selector
+					continue
+				}
+
+				for _, port := range ports {
+					mapping := types.Endpoint{}
+
+					mapping.Protocol = strings.ToLower(string(port.Protocol))
+					mapping.IP = address.IP
+					mapping.Port = int(port.Port)
+
+					endPoint.Endpoints = append(endPoint.Endpoints, mapping)
+				}
+			}
+
+			if len(endPoint.Endpoints) > 0 {
+				results = append(results, endPoint)
+			}
 		}
 	}
 

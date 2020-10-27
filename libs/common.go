@@ -53,8 +53,8 @@ func GetOSSigChannel() chan os.Signal {
 	return c
 }
 
-// PrintSimplePolicy Function
-func PrintSimplePolicy(policy types.CiliumNetworkPolicy) {
+// PrintSimplePolicyJson Function
+func PrintSimplePolicyJson(policy types.CiliumNetworkPolicy) {
 	fmt.Print(policy.Metadata["name"], "\t", policy.Spec.Selector, "\t")
 
 	if policy.Spec.Egress != nil && len(policy.Spec.Egress) > 0 {

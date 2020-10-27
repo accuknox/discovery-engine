@@ -2,7 +2,7 @@
 Auto Policy Generation
 
 # Overview
-![overview](http://seungsoo.net/autopolicy.png)
+![overview](http://seungsoo.net/autopolicy3.png)
 
 # Directories
 
@@ -42,36 +42,50 @@ import (
 )
 
 func Generate() {
-	f, err := os.Create("./policies.yaml")
+	// get network traffic from  knox aggregation Databse
+	trafficList, err := libs.GetTrafficFlowByTime(startTime, endTime)
 	if err != nil {
 		fmt.Println(err)
+		return
 	}
-	defer f.Close()
+	if len(trafficList) < 1 {
+		fmt.Println("Traffic flow is not exist: ",
+			time.Unix(startTime, 0).Format(libs.TimeFormSimple), " ~ ",
+			time.Unix(endTime, 0).Format(libs.TimeFormSimple))
 
-	// define target namespace
-	targetNamespace := "default"
+		startTime = endTime
+		endTime = time.Now().Unix()
+		return
+	}
 
-	// get network traffic from  knox aggregation Databse
-	trafficList, _ := libs.GetTrafficFlow()
+	// time filter update for next
+	startTime = trafficList[len(trafficList)-1].TrafficFlow.Time + 1
+	endTime = time.Now().Unix()
 
-	// convert network traffic -> network log
-	networkLogs := libs.ConvertTrafficToLogs(trafficList)
+	namespaces := libs.K8s.GetK8sNamespaces()
+	for _, namespace := range namespaces {
+		fmt.Println("start for namespace: ", namespace)
 
-	// get k8s services
-	services := libs.K8s.GetServices(targetNamespace)
+		// convert network traffic -> network log, and filter traffic
+		networkLogs := libs.ConvertTrafficFlowToLogs(namespace, trafficList)
 
-	// get pod information
-	pods := libs.K8s.GetConGroups(targetNamespace)
+		// get k8s services
+		services := libs.K8s.GetServices(namespace)
 
-	// 5. generate network policies
-	policies := core.GenerateNetworkPolicies(targetNamespace, 24, networkLogs, services, pods)
-	for _, policy := range policies {
-		ciliumPolicy := libs.ToCiliumNetworkPolicy(policy) // if you want to convert it to Cilium policy
-		// PrintSimplePolicy(ciliumPolicy)	// simple print in terminal
-		b, _ := yaml.Marshal(&ciliumPolicy)
-		f.Write(b)
-		f.WriteString("---\n")
-		f.Sync()
+		// get k8s endpoints
+		endpoints := libs.K8s.GetEndpoints(namespace)
+
+		// get pod information
+		pods := libs.K8s.GetConGroups(namespace)
+
+		// generate network policies
+		policies := core.GenerateNetworkPolicies(namespace, 24, networkLogs, services, endpoints, pods)
+		for _, policy := range policies {
+			// ciliumPolicy := libs.ToCiliumNetworkPolicy(policy)
+			libs.InsertDiscoveredPolicy(policy)
+		}
+
+		fmt.Println("done generated policies for namespace: ", namespace, " ", len(policies))
 	}
 }
 ```
