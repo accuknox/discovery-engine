@@ -64,7 +64,7 @@ func Generate() {
 			libs.InsertDiscoveredPolicy(policy)
 		}
 
-		fmt.Println("done for namespace: ", namespace)
+		fmt.Println("done generated policies for namespace: ", namespace, " ", len(policies))
 	}
 }
 
