@@ -27,6 +27,7 @@ func Generate() {
 		fmt.Println(err)
 		return
 	}
+
 	if len(trafficList) < 1 {
 		fmt.Println("Traffic flow is not exist: ",
 			time.Unix(startTime, 0).Format(libs.TimeFormSimple), " ~ ",
@@ -59,8 +60,9 @@ func Generate() {
 
 		// generate network policies
 		policies := core.GenerateNetworkPolicies(namespace, 24, networkLogs, services, endpoints, pods)
+		// libs.WritePolicyFile(policies)
 		for _, policy := range policies {
-			// ciliumPolicy := libs.ToCiliumNetworkPolicy(policy)
+			// cnp := libs.ToCiliumNetworkPolicy(policy)
 			libs.InsertDiscoveredPolicy(policy)
 		}
 
@@ -83,4 +85,24 @@ func CronJobDaemon() {
 
 func main() {
 	Generate()
+	// get network traffic from  knox aggregation Databse
+	// trafficList, err := libs.GetTrafficFlowByTime(startTime, endTime)
+	// if err != nil {
+	// 	fmt.Println(err)
+	// 	return
+	// }
+
+	// for _, flow := range trafficList {
+	// 	if flow.TrafficFlow.L7 != nil && flow.TrafficFlow.L7.Dns != nil {
+	// 		if flow.TrafficFlow.L7.GetType() == "REQUEST" &&
+	// 			!strings.HasSuffix(flow.TrafficFlow.L7.Dns.GetQuery(), "cluster.local.") {
+	// 			q := strings.TrimSuffix(flow.TrafficFlow.L7.Dns.GetQuery(), ".")
+	// 			print(q, " ")
+	// 			fmt.Println(flow.TrafficFlow.L7.Dns)
+
+	// 			fmt.Println(flow.TrafficFlow.Source.Namespace, "->", flow.TrafficFlow.Destination.Namespace)
+	// 			fmt.Println(flow.TrafficFlow.Source.Pod, "->", flow.TrafficFlow.Destination.Pod)
+	// 		}
+	// 	}
+	// }
 }
