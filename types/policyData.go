@@ -6,8 +6,9 @@ package types
 
 // SpecCIDR Structure
 type SpecCIDR struct {
-	CIDR   string   `json:"cidr" yaml:"cidr"`
-	Except []string `json:"except" yaml:"except"`
+	CIDRs  []string   `json:"cidr" yaml:"cidr"`
+	Except []string   `json:"except" yaml:"except"`
+	Ports  []SpecPort `json:"Ports,omitempty" yaml:"Ports,omitempty"`
 }
 
 // SpecPort Structure
@@ -24,25 +25,14 @@ type SpecService struct {
 
 // SpecFQDN Structure
 type SpecFQDN struct {
-	Name string `json:"name" yaml:"name"`
+	Matchnames []string   `json:"matchNames" yaml:"matchNames"`
+	ToPorts    []SpecPort `json:"toPorts,omitempty" yaml:"toPorts,omitempty"`
 }
 
 // SpecHTTP Structure
 type SpecHTTP struct {
 	Method string `json:"method" yaml:"method"`
 	Path   string `json:"path" yaml:"path"`
-}
-
-// PolicyNetwork Structure
-type PolicyNetwork struct {
-	HostIP string `json:"host_ip" yaml:"host_ip"`
-
-	BridgeIP  string `json:"bridge_ip" yaml:"bridge_ip"`
-	BridgeMac string `json:"bridge_mac" yaml:"bridge_mac"`
-
-	IP      string `json:"ip" yaml:"ip"`
-	Mac     string `json:"mac" yaml:"mac"`
-	VEthIdx int    `json:"veth_idx" yaml:"veth_idx"`
 }
 
 // Selector Structure
@@ -70,6 +60,7 @@ type Egress struct {
 	ToCIDRs    []SpecCIDR    `json:"toCIDRs,omitempty" yaml:"toCIDRs,omitempty"`
 	ToPorts    []SpecPort    `json:"toPorts,omitempty" yaml:"toPorts,omitempty"`
 	ToServices []SpecService `json:"toServices,omitempty" yaml:"toServices,omitempty"`
+	ToFQDNs    []SpecFQDN    `json:"toFQDNs,omitempty" yaml:"toFQDNs,omitempty"`
 }
 
 // Spec Structure
@@ -96,8 +87,13 @@ type KnoxNetworkPolicy struct {
 
 // CiliumCIDRSet Structure
 type CiliumCIDRSet struct {
-	CIDR   string   `json:"cidr" yaml:"cidr"`
-	Except []string `json:"except,omitempty" yaml:"except,omitempty"`
+	CIDR    []string         `json:"cidr" yaml:"cidr"`
+	ToPorts []CiliumPortList `json:"toPorts,omitempty" yaml:"toPorts,omitempty"`
+}
+
+// CiliumFQDNs Structure
+type CiliumFQDNs struct {
+	MatchName []string `json:"matchName" yaml:"matchName"`
 }
 
 // CiliumPort Structure
@@ -106,13 +102,16 @@ type CiliumPort struct {
 	Protocol string `json:"protocol" yaml:"protocol"`
 }
 
+type DnsRule map[string]string
+
 // CiliumPortList Structure
 type CiliumPortList struct {
-	Ports []CiliumPort `json:"ports,omitempty" yaml:"ports,omitempty"`
+	Ports []CiliumPort         `json:"ports,omitempty" yaml:"ports,omitempty"`
+	Rules map[string][]DnsRule `json:"rules,omitempty" yaml:"rules,omitempty"`
 }
 
-// CiliumEndpoints Structure
-type CiliumEndpoints struct {
+// CiliumEndpoint Structure
+type CiliumEndpoint struct {
 	MatchLabels map[string]string `json:"matchLabels,omitempty" yaml:"matchLabels,omitempty"`
 }
 
@@ -129,20 +128,24 @@ type CiliumService struct {
 
 // CiliumEgress Structure
 type CiliumEgress struct {
-	ToEndpoints []CiliumEndpoints `json:"toEndpoints,omitempty" yaml:"toEndpoints,omitempty"`
-	ToEndtities []string          `json:"toEntities,omitempty" yaml:"toEntities,omitempty"`
-	ToPorts     []CiliumPortList  `json:"toPorts,omitempty" yaml:"toPorts,omitempty"`
-	ToCIDRs     []string          `json:"toCIDRs,omitempty" yaml:"toCIDRs,omitempty"`
-	ToServices  []CiliumService   `json:"toServices,omitempty" yaml:"toServices,omitempty"`
+	ToEndpoints []CiliumEndpoint `json:"toEndpoints,omitempty" yaml:"toEndpoints,omitempty"`
+	ToEndtities []string         `json:"toEntities,omitempty" yaml:"toEntities,omitempty"`
+
+	ToCIDRs    []string            `json:"toCIDR,omitempty" yaml:"toCIDR,omitempty"`
+	ToPorts    []CiliumPortList    `json:"toPorts,omitempty" yaml:"toPorts,omitempty"`
+	ToServices []CiliumService     `json:"toServices,omitempty" yaml:"toServices,omitempty"`
+	ToFQDNs    []map[string]string `json:"toFQDNs,omitempty" yaml:"toFQDNs,omitempty"`
 }
 
 // CiliumIngress Structure
 type CiliumIngress struct {
-	FromEndpoints []CiliumEndpoints `json:"fromEndpoints,omitempty" yaml:"fromEndpoints,omitempty"`
-	FromEntities  []string          `json:"fromEntities,omitempty" yaml:"fromEntities,omitempty"`
+	FromEndpoints []CiliumEndpoint `json:"fromEndpoints,omitempty" yaml:"fromEndpoints,omitempty"`
+	FromEntities  []string         `json:"fromEntities,omitempty" yaml:"fromEntities,omitempty"`
 
-	FromPorts []CiliumPortList `json:"fromPorts,omitempty" yaml:"fromPorts,omitempty"`
-	FromCIDRs []string         `json:"fromCIDRs,omitempty" yaml:"fromCIDRs,omitempty"`
+	FromCIDRs    []string            `json:"fromCIDR,omitempty" yaml:"fromCIDR,omitempty"`
+	FromPorts    []CiliumPortList    `json:"fromPorts,omitempty" yaml:"fromPorts,omitempty"`
+	FromServices []CiliumService     `json:"fromServices,omitempty" yaml:"fromServices,omitempty"`
+	FromFQDNs    []map[string]string `json:"fromFQDNs,omitempty" yaml:"fromFQDNs,omitempty"`
 }
 
 // CiliumSpec Structure

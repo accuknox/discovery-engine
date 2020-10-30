@@ -8,7 +8,7 @@ type NetworkLog struct {
 	DstMicroserviceName   string `json:"dst_microservice_name" bson:"dst_microservice_name"`
 	DstContainerGroupName string `json:"dst_container_group_name" bson:"dst_container_group_name"`
 
-	EtherType int `json:"ether_type" bson:"ether_type"` // assume ipv4
+	EtherType int `json:"ether_type" bson:"ether_type"` // not used, we assume ipv4
 
 	SrcMac string `json:"src_mac" bson:"src_mac"`
 	DstMac string `json:"dst_mac" bson:"dst_mac"`
@@ -19,12 +19,12 @@ type NetworkLog struct {
 	SrcPort  int    `json:"src_port" bson:"src_port"`
 	DstPort  int    `json:"dst_port" bson:"dst_port"`
 
-	SynFlag bool `json:"syn_flag" bson:"syn_flag"`
+	SynFlag bool `json:"syn_flag" bson:"syn_flag"` // for tcp
+
+	DNSQuery string `json:"dns_query" bson:"dns_query"` // for L7 dns
 
 	Action    string `json:"action" bson:"action"`
 	Direction string `json:"direction" bson:"direction"` // ingress or egress
-
-	Reason string `json:"reason" bson:"reason"`
 }
 
 // SystemLog Structure

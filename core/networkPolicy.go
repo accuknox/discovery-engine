@@ -22,6 +22,7 @@ var exposedSCTPPorts = []int{}
 
 var externals = []string{"reserved:world", "external"}
 
+// protocol
 var (
 	ICMP int = 1
 	TCP  int = 6
@@ -36,33 +37,36 @@ type SrcSimple struct {
 	MatchLabels        string
 }
 
-// DstSimple Structure
-type DstSimple struct {
-	MicroserviceName   string
-	ContainerGroupName string
-	ServiceName        string
-	Action             string
-}
-
 // Dst Structure
 type Dst struct {
 	MicroserviceName   string
-	ServiceName        string
+	External           string
 	ContainerGroupName string
 	MatchLabels        string
 	Protocol           int
 	DstPort            int
-	Action             string
+
+	Action string
+}
+
+// DstSimple Structure
+type DstSimple struct {
+	MicroserviceName   string
+	ContainerGroupName string
+	Exteranl           string
+
+	Action string
 }
 
 // MergedPortDst Structure
 type MergedPortDst struct {
 	MicroserviceName   string
 	ContainerGroupName string
-	ServiceName        string
+	External           string
 	MatchLabels        string
 	ToPorts            []types.SpecPort
-	Action             string
+
+	Action string
 }
 
 // LabelCount Structure
@@ -189,7 +193,6 @@ func sortingLableCount(labelCountMap map[string]int) []LabelCount {
 func updateDstLabels(dsts []MergedPortDst, groups []types.ContainerGroup) []MergedPortDst {
 	for i, dst := range dsts {
 		matchLabels := getMergedLabels(dst.MicroserviceName, dst.ContainerGroupName, groups)
-
 		if matchLabels != "" {
 			dsts[i].MatchLabels = matchLabels
 		}
@@ -359,7 +362,7 @@ func buildNewIngressPolicyFromEgress(egress types.KnoxNetworkPolicy) types.KnoxN
 		Kind:       "KnoxNetworkPolicy",
 		Metadata: map[string]string{
 			"name":      policyName,
-			"namespace": egress.Metadata["namespace"]},
+			"namespace": egress.Spec.Egress.MatchLabels["k8s:io.kubernetes.pod.namespace"]},
 		Spec: types.Spec{
 			Selector: types.Selector{
 				MatchLabels: map[string]string{}},
@@ -371,7 +374,9 @@ func buildNewIngressPolicyFromEgress(egress types.KnoxNetworkPolicy) types.KnoxN
 
 	// update selector labels from egress match labels
 	for k, v := range egress.Spec.Egress.MatchLabels {
-		ingress.Spec.Selector.MatchLabels[k] = v
+		if k != "k8s:io.kubernetes.pod.namespace" {
+			ingress.Spec.Selector.MatchLabels[k] = v
+		}
 	}
 
 	// update ingress labels from selector match labels
@@ -420,9 +425,9 @@ func BuildNetworkPolicies(microName string, services []types.K8sService, mergedS
 					dstval := kv[1]
 
 					egressPolicy.Spec.Egress.MatchLabels[dstkey] = dstval
-					// although same namespace, speficy namespace
-					egressPolicy.Spec.Egress.MatchLabels["k8s:io.kubernetes.pod.namespace"] = dst.MicroserviceName
 				}
+				// although same namespace, speficy namespace
+				egressPolicy.Spec.Egress.MatchLabels["k8s:io.kubernetes.pod.namespace"] = dst.MicroserviceName
 
 				// if toPorts exist, add it
 				if dst.ToPorts != nil && len(dst.ToPorts) > 0 {
@@ -435,25 +440,39 @@ func BuildNetworkPolicies(microName string, services []types.K8sService, mergedS
 				}
 				networkPolicies = append(networkPolicies, egressPolicy)
 
-				// add dependent ingress policy
-				ingressPolicy := buildNewIngressPolicyFromEgress(egressPolicy)
-				networkPolicies = append(networkPolicies, ingressPolicy)
-			} else if dst.ServiceName != "" {
+				// add dependent ingress policy if not kube-system
+				if dst.MicroserviceName != "kube-system" {
+					ingressPolicy := buildNewIngressPolicyFromEgress(egressPolicy)
+					ingressPolicy.Spec.Ingress.MatchLabels["k8s:io.kubernetes.pod.namespace"] = microName
+
+					networkPolicies = append(networkPolicies, ingressPolicy)
+				}
+			} else if dst.MicroserviceName == "reserved:cidr" && dst.External != "" {
+				// cidr policy
+				cidr := types.SpecCIDR{
+					CIDRs: strings.Split(dst.External, ","),
+					Ports: dst.ToPorts,
+				}
+
+				egressPolicy.Spec.Egress.ToCIDRs = []types.SpecCIDR{cidr}
+				networkPolicies = append(networkPolicies, egressPolicy)
+			} else if dst.MicroserviceName == "reserved:dns" && dst.External != "" {
+				// dns policy
+				fqdn := types.SpecFQDN{
+					Matchnames: strings.Split(dst.External, ","),
+					ToPorts:    dst.ToPorts,
+				}
+
+				egressPolicy.Spec.Egress.ToFQDNs = []types.SpecFQDN{fqdn}
+				networkPolicies = append(networkPolicies, egressPolicy)
+			} else if dst.External != "" { // external services (not internal k8s service)
 				// service policy
 				service := types.SpecService{
-					ServiceName: dst.ServiceName,
+					ServiceName: dst.External,
 					Namespace:   dst.MicroserviceName,
 				}
 
 				egressPolicy.Spec.Egress.ToServices = []types.SpecService{service}
-				networkPolicies = append(networkPolicies, egressPolicy)
-			} else if libs.ContainsElement(externals, dst.MicroserviceName) {
-				// cidr policy
-				cidr := types.SpecCIDR{
-					CIDR: dst.ContainerGroupName,
-				}
-
-				egressPolicy.Spec.Egress.ToCIDRs = []types.SpecCIDR{cidr}
 				networkPolicies = append(networkPolicies, egressPolicy)
 			} else if strings.HasPrefix(dst.MicroserviceName, "reserved:") && dst.MatchLabels == "" {
 				// entity policy (for Cilium only)
@@ -515,41 +534,61 @@ func checkExternalService(log types.NetworkLog, endpoints []types.K8sEndpoint) (
 // getSimpleDst Function
 func getSimpleDst(log types.NetworkLog, endpoints []types.K8sEndpoint, cidrBits int) (Dst, bool) {
 	dstPort := 0
-	dstGroupName := ""
-	svcName := ""
+	external := ""
 
-	// check dst port number is exposed or not
-	if IsExposedPort(log.Protocol, log.DstPort) { // if exposed tcp, udp, or sctp
-		dstPort = log.DstPort
-	} else if log.Protocol == TCP && log.SynFlag { // if tcp + syn flag
-		dstPort = log.DstPort
-	} else if log.Protocol == ICMP { // if icmp,
-		if log.SrcPort != 8 { // src port == type (8: icmp request)
-			return Dst{}, false
+	// check if dst is L7 dns query
+	if log.DNSQuery != "" {
+		dst := Dst{
+			MicroserviceName:   "reserved:dns",
+			ContainerGroupName: log.DstContainerGroupName,
+			External:           log.DNSQuery,
+			Protocol:           log.Protocol,
+			DstPort:            log.DstPort,
+			Action:             log.Action,
 		}
-	} else if !strings.HasPrefix(log.DstMicroserviceName, "reserved:") { // if reserved external
-		return Dst{}, false
+
+		return dst, true
 	}
 
-	// if dst is out of cluster, get cidr/bits
+	// check if dst is out of cluster
 	if libs.ContainsElement(externals, log.DstMicroserviceName) && net.ParseIP(log.DstContainerGroupName) != nil {
-		// check if it is the external service
+		// check if it is the external service policy
 		if endpoint, valid := checkExternalService(log, endpoints); valid {
 			log.DstMicroserviceName = endpoint.MicroserviceName
-			svcName = endpoint.EndpointName
-		} else { // else, handle it as cidr
+			external = endpoint.EndpointName
+		} else { // else, handle it as cidr policy
+			log.DstMicroserviceName = "reserved:cidr"
 			ipNetwork := log.DstContainerGroupName + "/" + strconv.Itoa(cidrBits)
 			_, network, _ := net.ParseCIDR(ipNetwork)
-			dstGroupName = network.String()
+			external = network.String()
 		}
-	} else {
-		dstGroupName = log.DstContainerGroupName
+
+		dst := Dst{
+			MicroserviceName:   log.DstMicroserviceName,
+			ContainerGroupName: log.DstContainerGroupName,
+			External:           external,
+			Protocol:           log.Protocol,
+			DstPort:            log.DstPort,
+			Action:             log.Action,
+		}
+
+		return dst, true
+	}
+
+	// handle pod -> pod or pod -> entity as below
+	// check dst port number is exposed or not (tcp, udp, or sctp)
+	if IsExposedPort(log.Protocol, log.DstPort) {
+		dstPort = log.DstPort
+	}
+
+	// if dst port is unexposed and not reserved, it's invalid
+	if dstPort == 0 && !strings.HasPrefix(log.DstMicroserviceName, "reserved:") {
+		return Dst{}, false
 	}
 
 	dst := Dst{
 		MicroserviceName:   log.DstMicroserviceName,
-		ContainerGroupName: dstGroupName,
-		ServiceName:        svcName,
+		ContainerGroupName: log.DstContainerGroupName,
 		Protocol:           log.Protocol,
 		DstPort:            dstPort,
 		Action:             log.Action,
@@ -789,12 +828,12 @@ func mergingProtocolPorts(mergedDsts []MergedPortDst, dst Dst) []MergedPortDst {
 	for i, dstPort := range mergedDsts {
 		simple1 := DstSimple{MicroserviceName: dstPort.MicroserviceName,
 			ContainerGroupName: dstPort.ContainerGroupName,
-			ServiceName:        dstPort.ServiceName,
+			Exteranl:           dstPort.External,
 			Action:             dstPort.Action}
 
 		simple2 := DstSimple{MicroserviceName: dst.MicroserviceName,
 			ContainerGroupName: dst.ContainerGroupName,
-			ServiceName:        dst.ServiceName,
+			Exteranl:           dst.External,
 			Action:             dst.Action}
 
 		if simple1 == simple2 { // matched, append protocol+port info
@@ -814,7 +853,7 @@ func mergingProtocolPorts(mergedDsts []MergedPortDst, dst Dst) []MergedPortDst {
 	mergedDst := MergedPortDst{
 		MicroserviceName:   dst.MicroserviceName,
 		ContainerGroupName: dst.ContainerGroupName,
-		ServiceName:        dst.ServiceName,
+		External:           dst.External,
 		Action:             dst.Action,
 		ToPorts:            []types.SpecPort{port},
 	}
@@ -824,8 +863,8 @@ func mergingProtocolPorts(mergedDsts []MergedPortDst, dst Dst) []MergedPortDst {
 	return mergedDsts
 }
 
-// mergingDstToPorts Function
-func mergingDstToPorts(mergedSrcsPerDst map[Dst][]string) map[string][]MergedPortDst {
+// mergingDstSpecs Function
+func mergingDstSpecs(mergedSrcsPerDst map[Dst][]string) map[string][]MergedPortDst {
 	mergedSrcPerMergedDst := map[string][]MergedPortDst{}
 
 	// convert {dst: [srcs]} -> {src: [dsts]}
@@ -849,7 +888,7 @@ func mergingDstToPorts(mergedSrcsPerDst map[Dst][]string) map[string][]MergedPor
 		for _, dst := range dsts {
 			dstSimple := DstSimple{MicroserviceName: dst.MicroserviceName,
 				ContainerGroupName: dst.ContainerGroupName,
-				ServiceName:        dst.ServiceName,
+				Exteranl:           dst.External,
 				Action:             dst.Action}
 
 			if val, ok := dstSimpleCounts[dstSimple]; !ok {
@@ -884,7 +923,7 @@ func mergingDstToPorts(mergedSrcsPerDst map[Dst][]string) map[string][]MergedPor
 				for _, dst := range dsts {
 					simple := DstSimple{MicroserviceName: dst.MicroserviceName,
 						ContainerGroupName: dst.ContainerGroupName,
-						ServiceName:        dst.ServiceName,
+						Exteranl:           dst.External,
 						Action:             dst.Action}
 
 					if dstCount.DstSimple == simple {
@@ -905,6 +944,70 @@ func mergingDstToPorts(mergedSrcsPerDst map[Dst][]string) map[string][]MergedPor
 		for _, dst := range dsts {
 			mergedSrcPerMergedDst[mergedSrc] = mergingProtocolPorts(mergedSrcPerMergedDst[mergedSrc], dst)
 		}
+	}
+
+	// merge dns
+	for mergedSrc, dsts := range mergedSrcPerMergedDst {
+		newDsts := []MergedPortDst{}
+		mergedDns := []string{}
+		mergedDnsToPorts := []types.SpecPort{}
+
+		for _, dst := range dsts {
+			if dst.MicroserviceName == "reserved:dns" {
+				mergedDns = append(mergedDns, dst.External)
+				for _, port := range dst.ToPorts {
+					if !libs.ContainsElement(mergedDnsToPorts, port) {
+						mergedDnsToPorts = append(mergedDnsToPorts, port)
+					}
+				}
+			} else {
+				newDsts = append(newDsts, dst)
+			}
+		}
+
+		if len(mergedDns) > 0 {
+			newDns := MergedPortDst{
+				MicroserviceName: "reserved:dns",
+				External:         strings.Join(mergedDns, ","),
+				ToPorts:          mergedDnsToPorts,
+				Action:           "allow",
+			}
+			newDsts = append(newDsts, newDns)
+		}
+
+		mergedSrcPerMergedDst[mergedSrc] = newDsts
+	}
+
+	// merge cidr
+	for mergedSrc, dsts := range mergedSrcPerMergedDst {
+		newDsts := []MergedPortDst{}
+		mergedCidrs := []string{}
+		mergedCidrToPorts := []types.SpecPort{}
+
+		for _, dst := range dsts {
+			if dst.MicroserviceName == "reserved:cidr" {
+				mergedCidrs = append(mergedCidrs, dst.External)
+				for _, port := range dst.ToPorts {
+					if !libs.ContainsElement(mergedCidrToPorts, port) {
+						mergedCidrToPorts = append(mergedCidrToPorts, port)
+					}
+				}
+			} else {
+				newDsts = append(newDsts, dst)
+			}
+		}
+
+		if len(mergedCidrs) > 0 {
+			newDns := MergedPortDst{
+				MicroserviceName: "reserved:cidr",
+				External:         strings.Join(mergedCidrs, ","),
+				ToPorts:          mergedCidrToPorts,
+				Action:           "allow",
+			}
+			newDsts = append(newDsts, newDns)
+		}
+
+		mergedSrcPerMergedDst[mergedSrc] = newDsts
 	}
 
 	return mergedSrcPerMergedDst
@@ -996,7 +1099,7 @@ func mergingDstByLabels(mergedSrcPerMergedProtoDst map[string][]MergedPortDst, c
 
 // GenerateNetworkPolicies Function
 func GenerateNetworkPolicies(microserviceName string,
-	cidrBits int, // for CIDR policy, 32 bits -> per IP
+	cidrBits int, // for CIDR policy (32 bits -> per IP)
 	networkLogs []types.NetworkLog,
 	k8sServices []types.K8sService,
 	k8sEndpoints []types.K8sEndpoint,
@@ -1015,7 +1118,7 @@ func GenerateNetworkPolicies(microserviceName string,
 	mergedSrcsPerDst := mergingSrcByLabels(labeledSrcsPerDst)
 
 	// step 5: {merged_src: [dsts (merged proto/port)]} merging protocols and ports for the same destinations
-	mergedSrcPerMergedProtoDst := mergingDstToPorts(mergedSrcsPerDst)
+	mergedSrcPerMergedProtoDst := mergingDstSpecs(mergedSrcsPerDst)
 
 	// step 6: {merged_src: [dsts (merged proto/port + labeld)] grouping dst based on labels
 	mergedSrcPerMergedDst := mergingDstByLabels(mergedSrcPerMergedProtoDst, containerGroups)

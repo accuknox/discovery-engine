@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"reflect"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -21,21 +22,29 @@ import (
 // WritePolicyFile Function
 func WritePolicyFile(policies []types.KnoxNetworkPolicy) {
 	// create policy file
-	f, err := os.Create("./policies_" + time.Now().String() + ".yaml")
+	f, err := os.Create("./policies_" + strconv.Itoa(int(time.Now().Unix())) + ".yaml")
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
 	for _, policy := range policies {
-		// ciliumPolicy := ToCiliumNetworkPolicy(policy) // if you want to convert it to Cilium policy
-		b, _ := yaml.Marshal(&policy)
+		ciliumPolicy := ToCiliumNetworkPolicy(policy) // if you want to convert it to Cilium policy
+		b, _ := yaml.Marshal(&ciliumPolicy)
 		f.Write(b)
 		f.WriteString("---\n")
 		f.Sync()
 	}
 
 	f.Close()
+}
+
+// PrintPolicyYaml Function
+func PrintPolicyYaml(policy types.KnoxNetworkPolicy) {
+	ciliumPolicy := ToCiliumNetworkPolicy(policy) // if you want to convert it to Cilium policy
+	b, _ := yaml.Marshal(&ciliumPolicy)
+	print(string(b))
+	println("---")
 }
 
 // GetOSSigChannel Function
