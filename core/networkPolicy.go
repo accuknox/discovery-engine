@@ -318,14 +318,25 @@ func UpdateExposedPorts(services []types.K8sService, endpoints []types.K8sEndpoi
 // == Build Network Policies == //
 // ============================ //
 
-func buildNewEgressPolicy() types.KnoxNetworkPolicy {
-	policyName := "autogen-egress-" + libs.RandSeq(10)
+func buildNewKnoxPolicy() types.KnoxNetworkPolicy {
+	policyName := "knox-autogen-" + libs.RandSeq(10)
 
 	return types.KnoxNetworkPolicy{
 		APIVersion: "v1",
 		Kind:       "KnoxNetworkPolicy",
 		Metadata: map[string]string{
 			"name": policyName},
+		Spec: types.Spec{
+			Action: "allow",
+		},
+	}
+}
+
+func buildNewEgressPolicy() types.KnoxNetworkPolicy {
+	return types.KnoxNetworkPolicy{
+		APIVersion: "v1",
+		Kind:       "KnoxNetworkPolicy",
+		Metadata:   map[string]string{},
 		Spec: types.Spec{
 			Selector: types.Selector{
 				MatchLabels: map[string]string{}},
@@ -336,13 +347,10 @@ func buildNewEgressPolicy() types.KnoxNetworkPolicy {
 }
 
 func buildNewIngressPolicy() types.KnoxNetworkPolicy {
-	policyName := "autogen-ingress-" + libs.RandSeq(10)
-
-	ingress := types.KnoxNetworkPolicy{
+	return types.KnoxNetworkPolicy{
 		APIVersion: "v1",
 		Kind:       "KnoxNetworkPolicy",
-		Metadata: map[string]string{
-			"name": policyName},
+		Metadata:   map[string]string{},
 		Spec: types.Spec{
 			Selector: types.Selector{
 				MatchLabels: map[string]string{}},
@@ -350,18 +358,13 @@ func buildNewIngressPolicy() types.KnoxNetworkPolicy {
 			Action:  "allow",
 		},
 	}
-
-	return ingress
 }
 
 func buildNewIngressPolicyFromEgress(egress types.Egress, selector types.Selector) types.KnoxNetworkPolicy {
-	policyName := "autogen-ingress-" + libs.RandSeq(10)
-
 	ingress := types.KnoxNetworkPolicy{
 		APIVersion: "v1",
 		Kind:       "KnoxNetworkPolicy",
-		Metadata: map[string]string{
-			"name": policyName},
+		Metadata:   map[string]string{},
 		Spec: types.Spec{
 			Selector: types.Selector{
 				MatchLabels: map[string]string{}},
@@ -386,15 +389,41 @@ func buildNewIngressPolicyFromEgress(egress types.Egress, selector types.Selecto
 	return ingress
 }
 
-func getSpecSelector() {
+func removeSelectorFromPolicies(policies []types.KnoxNetworkPolicy, inSelector types.Selector) []types.KnoxNetworkPolicy {
+	cp := make([]types.KnoxNetworkPolicy, len(policies))
+	copy(cp, policies)
 
+	for i, policy := range policies {
+		selector := policy.Spec.Selector
+
+		matched := true
+		for k, _ := range inSelector.MatchLabels {
+			if _, exist := selector.MatchLabels[k]; !exist {
+				matched = false
+			}
+
+			if !matched {
+				break
+			}
+		}
+
+		if matched {
+			if i == len(policies)-1 { // if element is last
+				cp = cp[:len(policies)-1]
+			} else {
+				cp = append(cp[:i], cp[i+1:]...)
+			}
+		}
+	}
+
+	return cp
 }
 
-func getEgressIngressRules(inPolicies []types.KnoxNetworkPolicy, inSelector types.Selector) ([]types.Egress, []types.Ingress) {
+func getEgressIngressRules(policies []types.KnoxNetworkPolicy, inSelector types.Selector) ([]types.Egress, []types.Ingress) {
 	egressRules := []types.Egress{}
 	ingressRules := []types.Ingress{}
 
-	for _, policy := range inPolicies {
+	for _, policy := range policies {
 		selector := policy.Spec.Selector
 
 		matched := true
@@ -424,9 +453,20 @@ func getEgressIngressRules(inPolicies []types.KnoxNetworkPolicy, inSelector type
 func MergeEgressIngressRules(networkPolicies []types.KnoxNetworkPolicy) []types.KnoxNetworkPolicy {
 	mergedNetworkPolicies := []types.KnoxNetworkPolicy{}
 
-	// for _, networkPolicy := range networkPolicies {
-	// 	selector := networkPolicy.Spec.Selector
-	// }
+	for _, networkPolicy := range networkPolicies {
+		selector := networkPolicy.Spec.Selector
+		egress, ingress := getEgressIngressRules(networkPolicies, selector)
+		networkPolicies = removeSelectorFromPolicies(networkPolicies, selector)
+
+		new := buildNewKnoxPolicy()
+		new.Spec.Selector = selector
+		if len(egress) > 0 {
+			new.Spec.Egress = egress
+		}
+		if len(ingress) > 0 {
+			new.Spec.Ingress = ingress
+		}
+	}
 
 	return mergedNetworkPolicies
 }
@@ -456,7 +496,9 @@ func BuildNetworkPolicies(microName string, services []types.K8sService, mergedS
 
 			egressRule := types.Egress{}
 
-			// L3/L4 label-based
+			// ================= //
+			// L3/L4 label-based //
+			// ================= //
 			if dst.MatchLabels != "" {
 				egressRule.MatchLabels = map[string]string{}
 
@@ -472,6 +514,7 @@ func BuildNetworkPolicies(microName string, services []types.K8sService, mergedS
 
 					egressRule.MatchLabels[dstkey] = dstval
 				}
+
 				// although same namespace, speficy namespace
 				egressRule.MatchLabels["k8s:io.kubernetes.pod.namespace"] = dst.MicroserviceName
 
@@ -495,7 +538,9 @@ func BuildNetworkPolicies(microName string, services []types.K8sService, mergedS
 					networkPolicies = append(networkPolicies, ingressPolicy)
 				}
 			} else if dst.MicroserviceName == "reserved:cidr" && dst.External != "" {
-				// build cidr rule
+				// =============== //
+				// build CIDR rule //
+				// =============== //
 				cidr := types.SpecCIDR{
 					CIDRs: strings.Split(dst.External, ","),
 					Ports: dst.ToPorts,
@@ -505,7 +550,9 @@ func BuildNetworkPolicies(microName string, services []types.K8sService, mergedS
 				egressPolicy.Spec.Egress = append(egressPolicy.Spec.Egress, egressRule)
 				networkPolicies = append(networkPolicies, egressPolicy)
 			} else if dst.MicroserviceName == "reserved:dns" && dst.External != "" {
-				// build fqdn rule
+				// =============== //
+				// build FQDN rule //
+				// =============== //
 				fqdn := types.SpecFQDN{
 					Matchnames: strings.Split(dst.External, ","),
 					ToPorts:    dst.ToPorts,
@@ -514,8 +561,12 @@ func BuildNetworkPolicies(microName string, services []types.K8sService, mergedS
 				egressRule.ToFQDNs = []types.SpecFQDN{fqdn}
 				egressPolicy.Spec.Egress = append(egressPolicy.Spec.Egress, egressRule)
 				networkPolicies = append(networkPolicies, egressPolicy)
-			} else if dst.External != "" { // external services (not internal k8s service)
-				// build service rule
+			} else if dst.External != "" {
+				// ================== //
+				// build Service rule //
+				// ================== //
+
+				// external services (not internal k8s service)
 				service := types.SpecService{
 					ServiceName: dst.External,
 					Namespace:   dst.MicroserviceName,
@@ -525,7 +576,10 @@ func BuildNetworkPolicies(microName string, services []types.K8sService, mergedS
 				egressPolicy.Spec.Egress = append(egressPolicy.Spec.Egress, egressRule)
 				networkPolicies = append(networkPolicies, egressPolicy)
 			} else if strings.HasPrefix(dst.MicroserviceName, "reserved:") && dst.MatchLabels == "" {
-				// TODO: entity policy (for Cilium only)
+				// ================= //
+				// build Entity rule //
+				// ================= //
+
 				if dst.MicroserviceName == "reserved:host" { // host is allowed by default in Cilium
 					continue
 				}
@@ -557,13 +611,16 @@ func BuildNetworkPolicies(microName string, services []types.K8sService, mergedS
 		}
 	}
 
+	// a policy <- egress + ingress
+	mergedPolicies := MergeEgressIngressRules(networkPolicies)
+
 	// update generated time
 	genTime := time.Now().Unix()
-	for i, _ := range networkPolicies {
-		networkPolicies[i].GeneratedTime = genTime
+	for i, _ := range mergedPolicies {
+		mergedPolicies[i].GeneratedTime = genTime
 	}
 
-	return networkPolicies
+	return mergedPolicies
 }
 
 // =========================================== //
