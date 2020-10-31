@@ -66,8 +66,9 @@ type Egress struct {
 // Spec Structure
 type Spec struct {
 	Selector Selector `json:"selector,omitempty" yaml:"selector,omitempty"`
-	Ingress  Ingress  `json:"ingress,omitempty" yaml:"ingress,omitempty"`
-	Egress   Egress   `json:"egress,omitempty" yaml:"egress,omitempty"`
+
+	Ingress []Ingress `json:"ingress,omitempty" yaml:"ingress,omitempty"`
+	Egress  []Egress  `json:"egress,omitempty" yaml:"egress,omitempty"`
 
 	Action string `json:"action,omitempty" yaml:"action,omitempty"`
 }
