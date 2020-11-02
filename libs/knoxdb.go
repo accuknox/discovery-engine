@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/google/go-cmp/cmp"
+
 	"github.com/accuknox/knoxAutoPolicy/types"
 	"github.com/rs/zerolog/log"
 
@@ -303,10 +305,36 @@ func GetTrafficFlow() ([]*types.KnoxTrafficFlow, error) {
 	return flowScanner(rows)
 }
 
-func InsertDiscoveredPolicy(policy types.KnoxNetworkPolicy) error {
-	db := ConnectDB()
-	defer db.Close()
+func GetExistPolicies(db *sql.DB) []types.Spec {
+	existSpecs := []types.Spec{}
 
+	results, _ := db.Query("SELECT spec from " + TableDiscoveredPolicy + "")
+	for results.Next() {
+		existSpecSlice := []byte{}
+		existSpec := types.Spec{}
+
+		results.Scan(
+			&existSpecSlice,
+		)
+
+		json.Unmarshal(existSpecSlice, &existSpec)
+		existSpecs = append(existSpecs, existSpec)
+	}
+
+	return existSpecs
+}
+
+func IsExistPolicy(existingSpecs []types.Spec, inSpec types.Spec) bool {
+	for _, spec := range existingSpecs {
+		if cmp.Equal(&spec, &inSpec) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func InsertDiscoveredPolicy(db *sql.DB, policy types.KnoxNetworkPolicy) error {
 	stmt, err := db.Prepare("INSERT INTO " + TableDiscoveredPolicy + "(apiVersion,kind,metadata,spec,generated_time) values(?,?,?,?,?)")
 	if err != nil {
 		return err
@@ -328,4 +356,22 @@ func InsertDiscoveredPolicy(policy types.KnoxNetworkPolicy) error {
 	}
 
 	return nil
+}
+
+func InsertDiscoveredPolicies(policies []types.KnoxNetworkPolicy) {
+	db := ConnectDB()
+	defer db.Close()
+
+	existingSpecs := GetExistPolicies(db)
+
+	for _, policy := range policies {
+		if IsExistPolicy(existingSpecs, policy.Spec) {
+			fmt.Println("already exist policy, ", policy)
+			continue
+		} else {
+			if err := InsertDiscoveredPolicy(db, policy); err != nil {
+				fmt.Println(err)
+			}
+		}
+	}
 }

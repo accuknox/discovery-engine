@@ -12,7 +12,7 @@ require (
 	github.com/accuknox/knoxServiceFlowMgmt/src v0.0.0-20201021085132-ce0b55170e1c
 	github.com/cilium/cilium v1.8.4
 	github.com/go-sql-driver/mysql v1.5.0
-	github.com/google/go-cmp v0.5.2 // indirect
+	github.com/google/go-cmp v0.5.2
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/rs/zerolog v1.20.0
 	go.mongodb.org/mongo-driver v1.3.0
