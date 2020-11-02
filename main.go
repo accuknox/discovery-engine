@@ -62,8 +62,8 @@ func Generate() {
 		policies := core.GenerateNetworkPolicies(namespace, 24, networkLogs, services, endpoints, pods)
 		// libs.WritePolicyFile(policies)
 		for _, policy := range policies {
-			libs.PrintPolicyYaml(policy)
-			// libs.InsertDiscoveredPolicy(policy)
+			// libs.PrintPolicyYaml(policy)
+			libs.InsertDiscoveredPolicy(policy)
 		}
 
 		fmt.Println("done generated policies for namespace: ", namespace, " ", len(policies))
