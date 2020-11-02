@@ -61,10 +61,9 @@ func Generate() {
 		// generate network policies
 		policies := core.GenerateNetworkPolicies(namespace, 24, networkLogs, services, endpoints, pods)
 		// libs.WritePolicyFile(policies)
-		for _, policy := range policies {
-			// libs.PrintPolicyYaml(policy)
-			libs.InsertDiscoveredPolicy(policy)
-		}
+
+		// insert discovered policies to db
+		libs.InsertDiscoveredPolicies(policies)
 
 		fmt.Println("done generated policies for namespace: ", namespace, " ", len(policies))
 	}
@@ -85,24 +84,4 @@ func CronJobDaemon() {
 
 func main() {
 	Generate()
-	// get network traffic from  knox aggregation Databse
-	// trafficList, err := libs.GetTrafficFlowByTime(startTime, endTime)
-	// if err != nil {
-	// 	fmt.Println(err)
-	// 	return
-	// }
-
-	// for _, flow := range trafficList {
-	// 	if flow.TrafficFlow.L7 != nil && flow.TrafficFlow.L7.Dns != nil {
-	// 		if flow.TrafficFlow.L7.GetType() == "REQUEST" &&
-	// 			!strings.HasSuffix(flow.TrafficFlow.L7.Dns.GetQuery(), "cluster.local.") {
-	// 			q := strings.TrimSuffix(flow.TrafficFlow.L7.Dns.GetQuery(), ".")
-	// 			print(q, " ")
-	// 			fmt.Println(flow.TrafficFlow.L7.Dns)
-
-	// 			fmt.Println(flow.TrafficFlow.Source.Namespace, "->", flow.TrafficFlow.Destination.Namespace)
-	// 			fmt.Println(flow.TrafficFlow.Source.Pod, "->", flow.TrafficFlow.Destination.Pod)
-	// 		}
-	// 	}
-	// }
 }
