@@ -1,0 +1,593 @@
+apiVersion: v1
+kind: KnoxNetworkPolicy
+metadata:
+  name: knox-autogen-xvlbzgbaic
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: cartservice
+  egress:
+  - matchLabels:
+      app: redis-cart
+      k8s:io.kubernetes.pod.namespace: default
+    toPorts:
+    - ports: "6379"
+      protocol: tcp
+  action: allow
+generated_time: 1604301119
+---
+apiVersion: v1
+kind: KnoxNetworkPolicy
+metadata:
+  name: knox-autogen-mrajwwhthc
+spec:
+  selector:
+    matchLabels:
+      app: redis-cart
+  ingress:
+  - matchLabels:
+      app: cartservice
+      k8s:io.kubernetes.pod.namespace: default
+  action: allow
+generated_time: 1604301119
+---
+apiVersion: v1
+kind: KnoxNetworkPolicy
+metadata:
+  name: knox-autogen-xoeffrswxp
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: frontend
+  egress:
+  - toEntities:
+    - remote-node
+  action: allow
+generated_time: 1604301119
+---
+apiVersion: v1
+kind: KnoxNetworkPolicy
+metadata:
+  name: knox-autogen-ldnjobcsnv
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: frontend
+  ingress:
+  - fromEntities:
+    - world
+  action: allow
+generated_time: 1604301119
+---
+apiVersion: v1
+kind: KnoxNetworkPolicy
+metadata:
+  name: knox-autogen-lgtemapezq
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: frontend
+  egress:
+  - matchLabels:
+      app: productcatalogservice
+      k8s:io.kubernetes.pod.namespace: default
+    toPorts:
+    - ports: "3550"
+      protocol: tcp
+  action: allow
+generated_time: 1604301119
+---
+apiVersion: v1
+kind: KnoxNetworkPolicy
+metadata:
+  name: knox-autogen-leqyhyzryw
+spec:
+  selector:
+    matchLabels:
+      app: productcatalogservice
+  ingress:
+  - matchLabels:
+      app: frontend
+      k8s:io.kubernetes.pod.namespace: default
+  action: allow
+generated_time: 1604301119
+---
+apiVersion: v1
+kind: KnoxNetworkPolicy
+metadata:
+  name: knox-autogen-jjpjzpfrfe
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: frontend
+  egress:
+  - matchLabels:
+      app: recommendationservice
+      k8s:io.kubernetes.pod.namespace: default
+    toPorts:
+    - ports: "8080"
+      protocol: tcp
+  action: allow
+generated_time: 1604301119
+---
+apiVersion: v1
+kind: KnoxNetworkPolicy
+metadata:
+  name: knox-autogen-gmotafeths
+spec:
+  selector:
+    matchLabels:
+      app: recommendationservice
+  ingress:
+  - matchLabels:
+      app: frontend
+      k8s:io.kubernetes.pod.namespace: default
+  action: allow
+generated_time: 1604301119
+---
+apiVersion: v1
+kind: KnoxNetworkPolicy
+metadata:
+  name: knox-autogen-bzrjxawnwe
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: frontend
+  egress:
+  - matchLabels:
+      app: cartservice
+      k8s:io.kubernetes.pod.namespace: default
+    toPorts:
+    - ports: "7070"
+      protocol: tcp
+  action: allow
+generated_time: 1604301119
+---
+apiVersion: v1
+kind: KnoxNetworkPolicy
+metadata:
+  name: knox-autogen-krbemfdzdc
+spec:
+  selector:
+    matchLabels:
+      app: cartservice
+  ingress:
+  - matchLabels:
+      app: frontend
+      k8s:io.kubernetes.pod.namespace: default
+  action: allow
+generated_time: 1604301119
+---
+apiVersion: v1
+kind: KnoxNetworkPolicy
+metadata:
+  name: knox-autogen-ekxbakjqzl
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: frontend
+  egress:
+  - matchLabels:
+      app: checkoutservice
+      k8s:io.kubernetes.pod.namespace: default
+    toPorts:
+    - ports: "5050"
+      protocol: tcp
+  action: allow
+generated_time: 1604301119
+---
+apiVersion: v1
+kind: KnoxNetworkPolicy
+metadata:
+  name: knox-autogen-cttmttcoan
+spec:
+  selector:
+    matchLabels:
+      app: checkoutservice
+  ingress:
+  - matchLabels:
+      app: frontend
+      k8s:io.kubernetes.pod.namespace: default
+  action: allow
+generated_time: 1604301119
+---
+apiVersion: v1
+kind: KnoxNetworkPolicy
+metadata:
+  name: knox-autogen-atyyinkare
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: frontend
+  egress:
+  - matchLabels:
+      app: shippingservice
+      k8s:io.kubernetes.pod.namespace: default
+    toPorts:
+    - ports: "50051"
+      protocol: tcp
+  action: allow
+generated_time: 1604301119
+---
+apiVersion: v1
+kind: KnoxNetworkPolicy
+metadata:
+  name: knox-autogen-kjyixjrscc
+spec:
+  selector:
+    matchLabels:
+      app: shippingservice
+  ingress:
+  - matchLabels:
+      app: frontend
+      k8s:io.kubernetes.pod.namespace: default
+  action: allow
+generated_time: 1604301119
+---
+apiVersion: v1
+kind: KnoxNetworkPolicy
+metadata:
+  name: knox-autogen-tnswynsgru
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: frontend
+  egress:
+  - matchLabels:
+      app: adservice
+      k8s:io.kubernetes.pod.namespace: default
+    toPorts:
+    - ports: "9555"
+      protocol: tcp
+  action: allow
+generated_time: 1604301119
+---
+apiVersion: v1
+kind: KnoxNetworkPolicy
+metadata:
+  name: knox-autogen-ssvmaozfzb
+spec:
+  selector:
+    matchLabels:
+      app: adservice
+  ingress:
+  - matchLabels:
+      app: frontend
+      k8s:io.kubernetes.pod.namespace: default
+  action: allow
+generated_time: 1604301119
+---
+apiVersion: v1
+kind: KnoxNetworkPolicy
+metadata:
+  name: knox-autogen-sbojifqgzs
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: frontend
+  egress:
+  - matchLabels:
+      app: currencyservice
+      k8s:io.kubernetes.pod.namespace: default
+    toPorts:
+    - ports: "7000"
+      protocol: tcp
+  action: allow
+generated_time: 1604301119
+---
+apiVersion: v1
+kind: KnoxNetworkPolicy
+metadata:
+  name: knox-autogen-nwtksmvoig
+spec:
+  selector:
+    matchLabels:
+      app: currencyservice
+  ingress:
+  - matchLabels:
+      app: frontend
+      k8s:io.kubernetes.pod.namespace: default
+  action: allow
+generated_time: 1604301119
+---
+apiVersion: v1
+kind: KnoxNetworkPolicy
+metadata:
+  name: knox-autogen-lopbuopedk
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: checkoutservice
+  egress:
+  - matchLabels:
+      k8s-app: kube-dns
+      k8s:io.kubernetes.pod.namespace: kube-system
+    toPorts:
+    - ports: "53"
+      protocol: udp
+  action: allow
+generated_time: 1604301119
+---
+apiVersion: v1
+kind: KnoxNetworkPolicy
+metadata:
+  name: knox-autogen-updomervja
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: checkoutservice
+  egress:
+  - matchLabels:
+      app: emailservice
+      k8s:io.kubernetes.pod.namespace: default
+    toPorts:
+    - ports: "8080"
+      protocol: tcp
+  action: allow
+generated_time: 1604301119
+---
+apiVersion: v1
+kind: KnoxNetworkPolicy
+metadata:
+  name: knox-autogen-rzlntxyeuc
+spec:
+  selector:
+    matchLabels:
+      app: emailservice
+  ingress:
+  - matchLabels:
+      app: checkoutservice
+      k8s:io.kubernetes.pod.namespace: default
+  action: allow
+generated_time: 1604301119
+---
+apiVersion: v1
+kind: KnoxNetworkPolicy
+metadata:
+  name: knox-autogen-wksxbgyrao
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: checkoutservice
+  egress:
+  - matchLabels:
+      app: productcatalogservice
+      k8s:io.kubernetes.pod.namespace: default
+    toPorts:
+    - ports: "3550"
+      protocol: tcp
+  action: allow
+generated_time: 1604301119
+---
+apiVersion: v1
+kind: KnoxNetworkPolicy
+metadata:
+  name: knox-autogen-mbtvksjfjz
+spec:
+  selector:
+    matchLabels:
+      app: productcatalogservice
+  ingress:
+  - matchLabels:
+      app: checkoutservice
+      k8s:io.kubernetes.pod.namespace: default
+  action: allow
+generated_time: 1604301119
+---
+apiVersion: v1
+kind: KnoxNetworkPolicy
+metadata:
+  name: knox-autogen-albtzsymge
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: checkoutservice
+  egress:
+  - matchLabels:
+      app: cartservice
+      k8s:io.kubernetes.pod.namespace: default
+    toPorts:
+    - ports: "7070"
+      protocol: tcp
+  action: allow
+generated_time: 1604301119
+---
+apiVersion: v1
+kind: KnoxNetworkPolicy
+metadata:
+  name: knox-autogen-udtrzqmdqi
+spec:
+  selector:
+    matchLabels:
+      app: cartservice
+  ingress:
+  - matchLabels:
+      app: checkoutservice
+      k8s:io.kubernetes.pod.namespace: default
+  action: allow
+generated_time: 1604301119
+---
+apiVersion: v1
+kind: KnoxNetworkPolicy
+metadata:
+  name: knox-autogen-ycohghovgs
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: checkoutservice
+  egress:
+  - matchLabels:
+      app: shippingservice
+      k8s:io.kubernetes.pod.namespace: default
+    toPorts:
+    - ports: "50051"
+      protocol: tcp
+  action: allow
+generated_time: 1604301119
+---
+apiVersion: v1
+kind: KnoxNetworkPolicy
+metadata:
+  name: knox-autogen-eycjpjhynu
+spec:
+  selector:
+    matchLabels:
+      app: shippingservice
+  ingress:
+  - matchLabels:
+      app: checkoutservice
+      k8s:io.kubernetes.pod.namespace: default
+  action: allow
+generated_time: 1604301119
+---
+apiVersion: v1
+kind: KnoxNetworkPolicy
+metadata:
+  name: knox-autogen-fnjjhhjuvr
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: checkoutservice
+  egress:
+  - matchLabels:
+      app: paymentservice
+      k8s:io.kubernetes.pod.namespace: default
+    toPorts:
+    - ports: "50051"
+      protocol: tcp
+  action: allow
+generated_time: 1604301119
+---
+apiVersion: v1
+kind: KnoxNetworkPolicy
+metadata:
+  name: knox-autogen-usqfgqvmkp
+spec:
+  selector:
+    matchLabels:
+      app: paymentservice
+  ingress:
+  - matchLabels:
+      app: checkoutservice
+      k8s:io.kubernetes.pod.namespace: default
+  action: allow
+generated_time: 1604301119
+---
+apiVersion: v1
+kind: KnoxNetworkPolicy
+metadata:
+  name: knox-autogen-yvkurupifv
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: checkoutservice
+  egress:
+  - matchLabels:
+      app: currencyservice
+      k8s:io.kubernetes.pod.namespace: default
+    toPorts:
+    - ports: "7000"
+      protocol: tcp
+  action: allow
+generated_time: 1604301119
+---
+apiVersion: v1
+kind: KnoxNetworkPolicy
+metadata:
+  name: knox-autogen-izrgbmyark
+spec:
+  selector:
+    matchLabels:
+      app: currencyservice
+  ingress:
+  - matchLabels:
+      app: checkoutservice
+      k8s:io.kubernetes.pod.namespace: default
+  action: allow
+generated_time: 1604301119
+---
+apiVersion: v1
+kind: KnoxNetworkPolicy
+metadata:
+  name: knox-autogen-ctzkjkziva
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: loadgenerator
+  egress:
+  - matchLabels:
+      app: frontend
+      k8s:io.kubernetes.pod.namespace: default
+    toPorts:
+    - ports: "8080"
+      protocol: tcp
+  action: allow
+generated_time: 1604301119
+---
+apiVersion: v1
+kind: KnoxNetworkPolicy
+metadata:
+  name: knox-autogen-bjmkxvbwgv
+spec:
+  selector:
+    matchLabels:
+      app: frontend
+  ingress:
+  - matchLabels:
+      app: loadgenerator
+      k8s:io.kubernetes.pod.namespace: default
+  action: allow
+generated_time: 1604301119
+---
+apiVersion: v1
+kind: KnoxNetworkPolicy
+metadata:
+  name: knox-autogen-bqzgexyalb
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      app: recommendationservice
+  egress:
+  - matchLabels:
+      app: productcatalogservice
+      k8s:io.kubernetes.pod.namespace: default
+    toPorts:
+    - ports: "3550"
+      protocol: tcp
+  action: allow
+generated_time: 1604301119
+---
+apiVersion: v1
+kind: KnoxNetworkPolicy
+metadata:
+  name: knox-autogen-sdjsgpngcw
+spec:
+  selector:
+    matchLabels:
+      app: productcatalogservice
+  ingress:
+  - matchLabels:
+      app: recommendationservice
+      k8s:io.kubernetes.pod.namespace: default
+  action: allow
+generated_time: 1604301119
+---

@@ -1,0 +1,64 @@
+apiVersion: v1
+kind: KnoxNetworkPolicy
+metadata:
+  name: knox-autogen-xvlbzgbaic
+  namespace: multiubuntu
+spec:
+  selector:
+    matchLabels:
+      container: ubuntu-2
+      group: group-1
+  egress:
+  - matchLabels:
+      k8s-app: kube-dns
+      k8s:io.kubernetes.pod.namespace: kube-system
+    toPorts:
+    - ports: "53"
+      protocol: udp
+  action: allow
+generated_time: 1604299664
+---
+apiVersion: v1
+kind: KnoxNetworkPolicy
+metadata:
+  name: knox-autogen-mrajwwhthc
+  namespace: multiubuntu
+spec:
+  selector:
+    matchLabels:
+      container: ubuntu-2
+      group: group-1
+  egress:
+  - toFQDNs:
+    - matchNames:
+      - naver.com
+      - seungsoo.net
+      - google.com
+      toPorts:
+      - ports: "53"
+        protocol: udp
+  action: allow
+generated_time: 1604299664
+---
+apiVersion: v1
+kind: KnoxNetworkPolicy
+metadata:
+  name: knox-autogen-tcuaxhxkqf
+  namespace: multiubuntu
+spec:
+  selector:
+    matchLabels:
+      container: ubuntu-2
+      group: group-1
+  egress:
+  - toCIDRs:
+    - cidr:
+      - 210.89.160.0/24
+      - 143.248.36.0/24
+      - 172.217.161.0/24
+      Ports:
+      - ports: "80"
+        protocol: tcp
+  action: allow
+generated_time: 1604299664
+---

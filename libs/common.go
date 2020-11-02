@@ -41,10 +41,16 @@ func WritePolicyFile(policies []types.KnoxNetworkPolicy) {
 
 // PrintPolicyYaml Function
 func PrintPolicyYaml(policy types.KnoxNetworkPolicy) {
-	ciliumPolicy := ToCiliumNetworkPolicy(policy) // if you want to convert it to Cilium policy
+	b, _ := yaml.Marshal(&policy)
+	fmt.Print(string(b))
+	fmt.Println("---")
+}
+
+// PrintPolicyYaml Function
+func PrintCiliumPolicyYaml(ciliumPolicy types.CiliumNetworkPolicy) {
 	b, _ := yaml.Marshal(&ciliumPolicy)
-	print(string(b))
-	println("---")
+	fmt.Print(string(b))
+	fmt.Println("---")
 }
 
 // GetOSSigChannel Function

@@ -1,0 +1,589 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autogen-egress-xvlbzgbaic
+  namespace: default
+spec:
+  endpointSelector:
+    matchLabels:
+      app: cartservice
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        app: redis-cart
+        k8s:io.kubernetes.pod.namespace: default
+    toPorts:
+    - ports:
+      - port: "6379"
+        protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autogen-ingress-mrajwwhthc
+  namespace: default
+spec:
+  endpointSelector:
+    matchLabels:
+      app: redis-cart
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        app: cartservice
+        k8s:io.kubernetes.pod.namespace: default
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autogen-egress-tcuaxhxkqf
+  namespace: default
+spec:
+  endpointSelector:
+    matchLabels:
+      app: recommendationservice
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        app: productcatalogservice
+        k8s:io.kubernetes.pod.namespace: default
+    toPorts:
+    - ports:
+      - port: "3550"
+        protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autogen-ingress-dafplsjfbc
+  namespace: default
+spec:
+  endpointSelector:
+    matchLabels:
+      app: productcatalogservice
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        app: recommendationservice
+        k8s:io.kubernetes.pod.namespace: default
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autogen-egress-xoeffrswxp
+  namespace: default
+spec:
+  endpointSelector:
+    matchLabels:
+      app: loadgenerator
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        app: frontend
+        k8s:io.kubernetes.pod.namespace: default
+    toPorts:
+    - ports:
+      - port: "8080"
+        protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autogen-ingress-ldnjobcsnv
+  namespace: default
+spec:
+  endpointSelector:
+    matchLabels:
+      app: frontend
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        app: loadgenerator
+        k8s:io.kubernetes.pod.namespace: default
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autogen-egress-lgtemapezq
+  namespace: default
+spec:
+  endpointSelector:
+    matchLabels:
+      app: frontend
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        app: adservice
+        k8s:io.kubernetes.pod.namespace: default
+    toPorts:
+    - ports:
+      - port: "9555"
+        protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autogen-ingress-leqyhyzryw
+  namespace: default
+spec:
+  endpointSelector:
+    matchLabels:
+      app: adservice
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        app: frontend
+        k8s:io.kubernetes.pod.namespace: default
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autogen-egress-jjpjzpfrfe
+  namespace: default
+spec:
+  endpointSelector:
+    matchLabels:
+      app: frontend
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        app: cartservice
+        k8s:io.kubernetes.pod.namespace: default
+    toPorts:
+    - ports:
+      - port: "7070"
+        protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autogen-ingress-gmotafeths
+  namespace: default
+spec:
+  endpointSelector:
+    matchLabels:
+      app: cartservice
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        app: frontend
+        k8s:io.kubernetes.pod.namespace: default
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autogen-egress-bzrjxawnwe
+  namespace: default
+spec:
+  endpointSelector:
+    matchLabels:
+      app: frontend
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        app: shippingservice
+        k8s:io.kubernetes.pod.namespace: default
+    toPorts:
+    - ports:
+      - port: "50051"
+        protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autogen-ingress-krbemfdzdc
+  namespace: default
+spec:
+  endpointSelector:
+    matchLabels:
+      app: shippingservice
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        app: frontend
+        k8s:io.kubernetes.pod.namespace: default
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autogen-egress-cttmttcoan
+  namespace: default
+spec:
+  endpointSelector:
+    matchLabels:
+      app: frontend
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        app: productcatalogservice
+        k8s:io.kubernetes.pod.namespace: default
+    toPorts:
+    - ports:
+      - port: "3550"
+        protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autogen-ingress-atyyinkare
+  namespace: default
+spec:
+  endpointSelector:
+    matchLabels:
+      app: productcatalogservice
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        app: frontend
+        k8s:io.kubernetes.pod.namespace: default
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autogen-egress-kjyixjrscc
+  namespace: default
+spec:
+  endpointSelector:
+    matchLabels:
+      app: frontend
+  egress:
+  - toEntities:
+    - remote-node
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autogen-ingress-tnswynsgru
+  namespace: default
+spec:
+  endpointSelector:
+    matchLabels:
+      app: frontend
+  ingress:
+  - fromEntities:
+    - world
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autogen-egress-ssvmaozfzb
+  namespace: default
+spec:
+  endpointSelector:
+    matchLabels:
+      app: frontend
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        app: checkoutservice
+        k8s:io.kubernetes.pod.namespace: default
+    toPorts:
+    - ports:
+      - port: "5050"
+        protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autogen-ingress-sbojifqgzs
+  namespace: default
+spec:
+  endpointSelector:
+    matchLabels:
+      app: checkoutservice
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        app: frontend
+        k8s:io.kubernetes.pod.namespace: default
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autogen-egress-nwtksmvoig
+  namespace: default
+spec:
+  endpointSelector:
+    matchLabels:
+      app: frontend
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        app: recommendationservice
+        k8s:io.kubernetes.pod.namespace: default
+    toPorts:
+    - ports:
+      - port: "8080"
+        protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autogen-ingress-lopbuopedk
+  namespace: default
+spec:
+  endpointSelector:
+    matchLabels:
+      app: recommendationservice
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        app: frontend
+        k8s:io.kubernetes.pod.namespace: default
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autogen-egress-updomervja
+  namespace: default
+spec:
+  endpointSelector:
+    matchLabels:
+      app: frontend
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        app: currencyservice
+        k8s:io.kubernetes.pod.namespace: default
+    toPorts:
+    - ports:
+      - port: "7000"
+        protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autogen-ingress-rzlntxyeuc
+  namespace: default
+spec:
+  endpointSelector:
+    matchLabels:
+      app: currencyservice
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        app: frontend
+        k8s:io.kubernetes.pod.namespace: default
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autogen-egress-wksxbgyrao
+  namespace: default
+spec:
+  endpointSelector:
+    matchLabels:
+      app: checkoutservice
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        k8s-app: kube-dns
+        k8s:io.kubernetes.pod.namespace: kube-system
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autogen-egress-mbtvksjfjz
+  namespace: default
+spec:
+  endpointSelector:
+    matchLabels:
+      app: checkoutservice
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        app: paymentservice
+        k8s:io.kubernetes.pod.namespace: default
+    toPorts:
+    - ports:
+      - port: "50051"
+        protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autogen-ingress-albtzsymge
+  namespace: default
+spec:
+  endpointSelector:
+    matchLabels:
+      app: paymentservice
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        app: checkoutservice
+        k8s:io.kubernetes.pod.namespace: default
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autogen-egress-udtrzqmdqi
+  namespace: default
+spec:
+  endpointSelector:
+    matchLabels:
+      app: checkoutservice
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        app: cartservice
+        k8s:io.kubernetes.pod.namespace: default
+    toPorts:
+    - ports:
+      - port: "7070"
+        protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autogen-ingress-ycohghovgs
+  namespace: default
+spec:
+  endpointSelector:
+    matchLabels:
+      app: cartservice
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        app: checkoutservice
+        k8s:io.kubernetes.pod.namespace: default
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autogen-egress-eycjpjhynu
+  namespace: default
+spec:
+  endpointSelector:
+    matchLabels:
+      app: checkoutservice
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        app: shippingservice
+        k8s:io.kubernetes.pod.namespace: default
+    toPorts:
+    - ports:
+      - port: "50051"
+        protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autogen-ingress-fnjjhhjuvr
+  namespace: default
+spec:
+  endpointSelector:
+    matchLabels:
+      app: shippingservice
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        app: checkoutservice
+        k8s:io.kubernetes.pod.namespace: default
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autogen-egress-usqfgqvmkp
+  namespace: default
+spec:
+  endpointSelector:
+    matchLabels:
+      app: checkoutservice
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        app: emailservice
+        k8s:io.kubernetes.pod.namespace: default
+    toPorts:
+    - ports:
+      - port: "8080"
+        protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autogen-ingress-yvkurupifv
+  namespace: default
+spec:
+  endpointSelector:
+    matchLabels:
+      app: emailservice
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        app: checkoutservice
+        k8s:io.kubernetes.pod.namespace: default
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autogen-egress-izrgbmyark
+  namespace: default
+spec:
+  endpointSelector:
+    matchLabels:
+      app: checkoutservice
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        app: productcatalogservice
+        k8s:io.kubernetes.pod.namespace: default
+    toPorts:
+    - ports:
+      - port: "3550"
+        protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autogen-ingress-ctzkjkziva
+  namespace: default
+spec:
+  endpointSelector:
+    matchLabels:
+      app: productcatalogservice
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        app: checkoutservice
+        k8s:io.kubernetes.pod.namespace: default
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autogen-egress-bjmkxvbwgv
+  namespace: default
+spec:
+  endpointSelector:
+    matchLabels:
+      app: checkoutservice
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        app: currencyservice
+        k8s:io.kubernetes.pod.namespace: default
+    toPorts:
+    - ports:
+      - port: "7000"
+        protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autogen-ingress-bqzgexyalb
+  namespace: default
+spec:
+  endpointSelector:
+    matchLabels:
+      app: currencyservice
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        app: checkoutservice
+        k8s:io.kubernetes.pod.namespace: default
+---
