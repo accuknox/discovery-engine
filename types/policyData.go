@@ -1,38 +1,38 @@
 package types
 
-// ==================== //
-// == Network Policy == //
-// ==================== //
+// ========================= //
+// == Knox Network Policy == //
+// ========================= //
 
 // SpecCIDR Structure
 type SpecCIDR struct {
-	CIDRs  []string   `json:"cidr" yaml:"cidr"`
-	Except []string   `json:"except" yaml:"except"`
+	CIDRs  []string   `json:"cidr,omitempty" yaml:"cidr,omitempty"`
+	Except []string   `json:"except,omitempty" yaml:"except,omitempty"`
 	Ports  []SpecPort `json:"Ports,omitempty" yaml:"Ports,omitempty"`
 }
 
 // SpecPort Structure
 type SpecPort struct {
-	Ports    string `json:"ports" yaml:"ports"`
-	Protocol string `json:"protocol" yaml:"protocol"`
+	Ports    string `json:"ports,omitempty" yaml:"ports,omitempty"`
+	Protocol string `json:"protocol,omitempty" yaml:"protocol,omitempty"`
 }
 
 // SpecService Structure
 type SpecService struct {
-	ServiceName string `json:"service_name" yaml:"service_name"`
-	Namespace   string `json:"namespace" yaml:"namespace"`
+	ServiceName string `json:"service_name,omitempty" yaml:"service_name,omitempty"`
+	Namespace   string `json:"namespace,omitempty" yaml:"namespace,omitempty"`
 }
 
 // SpecFQDN Structure
 type SpecFQDN struct {
-	Matchnames []string   `json:"matchNames" yaml:"matchNames"`
+	Matchnames []string   `json:"matchNames,omitempty" yaml:"matchNames,omitempty"`
 	ToPorts    []SpecPort `json:"toPorts,omitempty" yaml:"toPorts,omitempty"`
 }
 
 // SpecHTTP Structure
 type SpecHTTP struct {
-	Method string `json:"method" yaml:"method"`
-	Path   string `json:"path" yaml:"path"`
+	Method string `json:"method,omitempty" yaml:"method,omitempty"`
+	Path   string `json:"path,omitempty" yaml:"path,omitempty"`
 }
 
 // Selector Structure

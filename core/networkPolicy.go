@@ -327,51 +327,29 @@ func buildNewKnoxPolicy() types.KnoxNetworkPolicy {
 		Metadata: map[string]string{
 			"name": policyName},
 		Spec: types.Spec{
+			Selector: types.Selector{
+				MatchLabels: map[string]string{}},
 			Action: "allow",
 		},
 	}
 }
 
-func buildNewEgressPolicy() types.KnoxNetworkPolicy {
-	return types.KnoxNetworkPolicy{
-		APIVersion: "v1",
-		Kind:       "KnoxNetworkPolicy",
-		Metadata:   map[string]string{},
-		Spec: types.Spec{
-			Selector: types.Selector{
-				MatchLabels: map[string]string{}},
-			Egress: []types.Egress{},
-			Action: "allow",
-		},
-	}
+func buildNewKnoxEgressPolicy() types.KnoxNetworkPolicy {
+	policy := buildNewKnoxPolicy()
+	policy.Spec.Egress = []types.Egress{}
+
+	return policy
 }
 
-func buildNewIngressPolicy() types.KnoxNetworkPolicy {
-	return types.KnoxNetworkPolicy{
-		APIVersion: "v1",
-		Kind:       "KnoxNetworkPolicy",
-		Metadata:   map[string]string{},
-		Spec: types.Spec{
-			Selector: types.Selector{
-				MatchLabels: map[string]string{}},
-			Ingress: []types.Ingress{},
-			Action:  "allow",
-		},
-	}
+func buildNewKnoxIngressPolicy() types.KnoxNetworkPolicy {
+	policy := buildNewKnoxPolicy()
+	policy.Spec.Ingress = []types.Ingress{}
+
+	return policy
 }
 
 func buildNewIngressPolicyFromEgress(egress types.Egress, selector types.Selector) types.KnoxNetworkPolicy {
-	ingress := types.KnoxNetworkPolicy{
-		APIVersion: "v1",
-		Kind:       "KnoxNetworkPolicy",
-		Metadata:   map[string]string{},
-		Spec: types.Spec{
-			Selector: types.Selector{
-				MatchLabels: map[string]string{}},
-			Ingress: []types.Ingress{},
-			Action:  "allow",
-		},
-	}
+	ingress := buildNewKnoxIngressPolicy()
 
 	// update selector labels from egress match labels
 	for k, v := range egress.MatchLabels {
@@ -381,7 +359,7 @@ func buildNewIngressPolicyFromEgress(egress types.Egress, selector types.Selecto
 	}
 
 	// update ingress labels from selector match labels
-	ingress.Spec.Ingress = append(ingress.Spec.Ingress, types.Ingress{})
+	ingress.Spec.Ingress = append(ingress.Spec.Ingress, types.Ingress{MatchLabels: map[string]string{}})
 	for k, v := range selector.MatchLabels {
 		ingress.Spec.Ingress[0].MatchLabels[k] = v
 	}
@@ -477,7 +455,7 @@ func BuildNetworkPolicies(microName string, services []types.K8sService, mergedS
 
 	for mergedSrc, mergedDsts := range mergedSrcPerMergedDst {
 		for _, dst := range mergedDsts {
-			egressPolicy := buildNewEgressPolicy()
+			egressPolicy := buildNewKnoxEgressPolicy()
 			egressPolicy.Metadata["namespace"] = microName
 
 			// set selector matchLabels
@@ -518,7 +496,9 @@ func BuildNetworkPolicies(microName string, services []types.K8sService, mergedS
 				// although same namespace, speficy namespace
 				egressRule.MatchLabels["k8s:io.kubernetes.pod.namespace"] = dst.MicroserviceName
 
-				// if toPorts exist, add it
+				// ===================== //
+				// build L4 toPorts rule //
+				// ===================== //
 				if dst.ToPorts != nil && len(dst.ToPorts) > 0 {
 					for i, toPort := range dst.ToPorts {
 						if toPort.Ports == "0" {
@@ -590,7 +570,7 @@ func BuildNetworkPolicies(microName string, services []types.K8sService, mergedS
 				networkPolicies = append(networkPolicies, egressPolicy)
 
 				// add ingress policy as well (TODO: reserve...)
-				ingressPolicy := buildNewIngressPolicy()
+				ingressPolicy := buildNewKnoxIngressPolicy()
 				ingressPolicy.Metadata["namespace"] = microName
 				for k, v := range egressPolicy.Spec.Selector.MatchLabels {
 					ingressPolicy.Spec.Selector.MatchLabels[k] = v
@@ -612,15 +592,15 @@ func BuildNetworkPolicies(microName string, services []types.K8sService, mergedS
 	}
 
 	// a policy <- egress + ingress
-	mergedPolicies := MergeEgressIngressRules(networkPolicies)
+	// mergedPolicies := MergeEgressIngressRules(networkPolicies)
 
 	// update generated time
 	genTime := time.Now().Unix()
-	for i, _ := range mergedPolicies {
-		mergedPolicies[i].GeneratedTime = genTime
+	for i, _ := range networkPolicies {
+		networkPolicies[i].GeneratedTime = genTime
 	}
 
-	return mergedPolicies
+	return networkPolicies
 }
 
 // =========================================== //
