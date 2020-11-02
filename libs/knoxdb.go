@@ -324,9 +324,9 @@ func GetExistPolicies(db *sql.DB) []types.Spec {
 	return existSpecs
 }
 
-func IsExistPolicy(existSpec []types.Spec, inSpec types.Spec) bool {
-	for _, rule := range existSpec {
-		if cmp.Equal(&rule, &inSpec) {
+func IsExistPolicy(existingSpecs []types.Spec, inSpec types.Spec) bool {
+	for _, spec := range existingSpecs {
+		if cmp.Equal(&spec, &inSpec) {
 			return true
 		}
 	}
@@ -362,10 +362,10 @@ func InsertDiscoveredPolicies(policies []types.KnoxNetworkPolicy) {
 	db := ConnectDB()
 	defer db.Close()
 
-	existsSpecs := GetExistPolicies(db)
+	existingSpecs := GetExistPolicies(db)
 
 	for _, policy := range policies {
-		if IsExistPolicy(existsSpecs, policy.Spec) {
+		if IsExistPolicy(existingSpecs, policy.Spec) {
 			fmt.Println("already exist policy, ", policy)
 			continue
 		} else {
