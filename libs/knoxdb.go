@@ -345,7 +345,8 @@ func InsertDiscoveredPolicy(db *sql.DB, policy types.KnoxNetworkPolicy) error {
 		return err
 	}
 
-	spec, err := json.Marshal(policy.Spec)
+	specPointer := &policy.Spec
+	spec, err := json.Marshal(specPointer)
 	if err != nil {
 		return err
 	}
