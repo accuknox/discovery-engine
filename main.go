@@ -60,10 +60,14 @@ func Generate() {
 
 		// generate network policies
 		policies := core.GenerateNetworkPolicies(namespace, 24, networkLogs, services, endpoints, pods)
-		// libs.WritePolicyFile(policies)
 
-		// insert discovered policies to db
-		libs.InsertDiscoveredPolicies(policies)
+		if len(policies) > 0 {
+			// write policy files
+			libs.WriteCiliumPolicyToFile(policies)
+
+			// insert discovered policies to db
+			libs.InsertDiscoveredPolicies(policies)
+		}
 
 		fmt.Println("done generated policies for namespace: ", namespace, " ", len(policies))
 	}
