@@ -19,10 +19,29 @@ import (
 // == Common == //
 // ============ //
 
-// WritePolicyFile Function
-func WritePolicyFile(policies []types.KnoxNetworkPolicy) {
+// WriteKnoxPolicyToFile Function
+func WriteKnoxPolicyToFile(policies []types.KnoxNetworkPolicy) {
 	// create policy file
-	f, err := os.Create("./policies_" + strconv.Itoa(int(time.Now().Unix())) + ".yaml")
+	f, err := os.Create("./knox_policies_" + strconv.Itoa(int(time.Now().Unix())) + ".yaml")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	for _, policy := range policies {
+		b, _ := yaml.Marshal(&policy)
+		f.Write(b)
+		f.WriteString("---\n")
+		f.Sync()
+	}
+
+	f.Close()
+}
+
+// WriteCiliumPolicyToFile Function
+func WriteCiliumPolicyToFile(policies []types.KnoxNetworkPolicy) {
+	// create policy file
+	f, err := os.Create("./cilium_policies_" + strconv.Itoa(int(time.Now().Unix())) + ".yaml")
 	if err != nil {
 		fmt.Println(err)
 		return
