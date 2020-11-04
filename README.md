@@ -9,9 +9,13 @@ Auto Policy Generation
 * Source code for Knox Auto Policy
 
 ```
-core - Core functions for Knox Auto Policy
-libs - Libraries used for generating network policies
-types - Type definitions
+build - build container image
+deployments - deployment file for kubenetes
+policies - example policies (.yaml)
+src - source codes
+  core - Core functions for Knox Auto Policy
+  libs - Libraries used for generating network policies
+  types - Type definitions
 ```
 
 # Installation
@@ -48,6 +52,7 @@ func Generate() {
 		fmt.Println(err)
 		return
 	}
+
 	if len(trafficList) < 1 {
 		fmt.Println("Traffic flow is not exist: ",
 			time.Unix(startTime, 0).Format(libs.TimeFormSimple), " ~ ",
@@ -80,9 +85,13 @@ func Generate() {
 
 		// generate network policies
 		policies := core.GenerateNetworkPolicies(namespace, 24, networkLogs, services, endpoints, pods)
-		for _, policy := range policies {
-			// ciliumPolicy := libs.ToCiliumNetworkPolicy(policy)
-			libs.InsertDiscoveredPolicy(policy)
+
+		if len(policies) > 0 {
+			// write policy files
+			libs.WriteCiliumPolicyToFile(policies)
+
+			// insert discovered policies to db
+			libs.InsertDiscoveredPolicies(policies)
 		}
 
 		fmt.Println("done generated policies for namespace: ", namespace, " ", len(policies))
