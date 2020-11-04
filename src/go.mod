@@ -1,4 +1,4 @@
-module github.com/accuknox/knoxAutoPolicy
+module github.com/accuknox/knoxAutoPolicy/src
 
 go 1.15
 
@@ -9,8 +9,8 @@ replace (
 )
 
 require (
-	github.com/accuknox/knoxServiceFlowMgmt/src v0.0.0-20201021085132-ce0b55170e1c
-	github.com/cilium/cilium v1.8.4
+	github.com/accuknox/knoxServiceFlowMgmt/src v0.0.0-20201102131022-2e9309906cbc
+	github.com/cilium/cilium v1.8.5
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/google/go-cmp v0.5.2
 	github.com/robfig/cron/v3 v3.0.1
@@ -21,7 +21,7 @@ require (
 	google.golang.org/genproto v0.0.0-20201009135657-4d944d34d83c // indirect
 	google.golang.org/grpc v1.33.0 // indirect
 	gopkg.in/yaml.v2 v2.3.0
-	k8s.io/api v0.18.9
-	k8s.io/apimachinery v0.18.9
-	k8s.io/client-go v0.18.9
+	k8s.io/api v0.18.10
+	k8s.io/apimachinery v0.18.10
+	k8s.io/client-go v0.18.10
 )

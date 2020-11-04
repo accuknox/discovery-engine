@@ -11,7 +11,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/accuknox/knoxAutoPolicy/types"
+	"github.com/accuknox/knoxAutoPolicy/src/types"
 	"gopkg.in/yaml.v2"
 )
 
