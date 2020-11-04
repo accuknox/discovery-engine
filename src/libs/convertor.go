@@ -3,7 +3,7 @@ package libs
 import (
 	"strings"
 
-	"github.com/accuknox/knoxAutoPolicy/types"
+	"github.com/accuknox/knoxAutoPolicy/src/types"
 	pb "github.com/accuknox/knoxServiceFlowMgmt/src/proto"
 )
 
@@ -71,7 +71,7 @@ func ConvertKoxTrafficToLog(microName string, knoxTrafficFlow *types.KnoxTraffic
 
 	// set namespace/pod
 	if flow.Source.Namespace == "" {
-		log.SrcMicroserviceName = getReservedLabelIfExist(flow.Source.Lables)
+		log.SrcMicroserviceName = getReservedLabelIfExist(flow.Source.Labels)
 	} else {
 		log.SrcMicroserviceName = flow.Source.Namespace
 	}
@@ -83,7 +83,7 @@ func ConvertKoxTrafficToLog(microName string, knoxTrafficFlow *types.KnoxTraffic
 	}
 
 	if flow.Destination.Namespace == "" {
-		log.DstMicroserviceName = getReservedLabelIfExist(flow.Destination.Lables)
+		log.DstMicroserviceName = getReservedLabelIfExist(flow.Destination.Labels)
 	} else {
 		log.DstMicroserviceName = flow.Destination.Namespace
 	}

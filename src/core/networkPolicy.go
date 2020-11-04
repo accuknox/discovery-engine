@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	libs "github.com/accuknox/knoxAutoPolicy/libs"
-	types "github.com/accuknox/knoxAutoPolicy/types"
+	libs "github.com/accuknox/knoxAutoPolicy/src/libs"
+	types "github.com/accuknox/knoxAutoPolicy/src/types"
 )
 
 var DefaultSelectorKey string = "container_group_name"

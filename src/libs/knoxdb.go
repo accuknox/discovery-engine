@@ -8,7 +8,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	"github.com/accuknox/knoxAutoPolicy/types"
+	"github.com/accuknox/knoxAutoPolicy/src/types"
 	"github.com/rs/zerolog/log"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -177,7 +177,7 @@ func flowScanner(results *sql.Rows) ([]*types.KnoxTrafficFlow, error) {
 				log.Error().Msg("Error while unmarshing source labels :" + err.Error())
 				return nil, err
 			}
-			trafficFlow.Source.Lables = srcLabelStr
+			trafficFlow.Source.Labels = srcLabelStr
 		}
 
 		if destByte != nil {
@@ -196,7 +196,7 @@ func flowScanner(results *sql.Rows) ([]*types.KnoxTrafficFlow, error) {
 				log.Error().Msg("Error while unmarshing destination labels :" + err.Error())
 				return nil, err
 			}
-			trafficFlow.Destination.Lables = destLabelStr
+			trafficFlow.Destination.Labels = destLabelStr
 		}
 
 		if ethByte != nil {

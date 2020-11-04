@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/accuknox/knoxAutoPolicy/core"
-	"github.com/accuknox/knoxAutoPolicy/libs"
+	"github.com/accuknox/knoxAutoPolicy/src/core"
+	"github.com/accuknox/knoxAutoPolicy/src/libs"
 
-	"github.com/robfig/cron/v3"
+	cron "github.com/robfig/cron/v3"
 )
 
 // network flow between [ startTime <= time < endTime ]
