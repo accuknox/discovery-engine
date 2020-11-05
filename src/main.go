@@ -20,6 +20,7 @@ func init() {
 	startTime = 0
 }
 
+// Generate function
 func Generate() {
 	// get network traffic from  knox aggregation Databse
 	trafficList, err := libs.GetTrafficFlowByTime(startTime, endTime)
@@ -73,6 +74,7 @@ func Generate() {
 	}
 }
 
+// CronJobDaemon function
 func CronJobDaemon() {
 	// init cron job
 	c := cron.New()
