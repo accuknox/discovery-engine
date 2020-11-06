@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"net"
 	"reflect"
 	"sort"
@@ -655,12 +656,12 @@ func getSimpleDst(log types.NetworkLog, endpoints []types.K8sEndpoint, cidrBits 
 		}
 
 		dst := Dst{
-			MicroserviceName:   log.DstMicroserviceName,
-			ContainerGroupName: log.DstContainerGroupName,
-			External:           external,
-			Protocol:           log.Protocol,
-			DstPort:            log.DstPort,
-			Action:             log.Action,
+			MicroserviceName: log.DstMicroserviceName,
+			// ContainerGroupName: log.DstContainerGroupName,
+			External: external,
+			Protocol: log.Protocol,
+			DstPort:  log.DstPort,
+			Action:   log.Action,
 		}
 
 		return dst, true
@@ -1204,6 +1205,12 @@ func GenerateNetworkPolicies(microserviceName string,
 
 	// step 3: {dst: [network logs (src+dst)]} -> {dst: [srcs (labeled)]}
 	labeledSrcsPerDst := extractingSrcFromLogs(logsPerDst, containerGroups)
+	for k, v := range labeledSrcsPerDst {
+		fmt.Println(k, len(v))
+		for _, dst := range v {
+			fmt.Println("\t", dst)
+		}
+	}
 
 	// step 4: {dst: [srcs (labeled)]} -> {dst: [merged srcs (labeled + merged)]}
 	mergedSrcsPerDst := mergingSrcByLabels(labeledSrcsPerDst)

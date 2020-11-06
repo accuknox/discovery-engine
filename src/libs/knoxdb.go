@@ -367,7 +367,7 @@ func InsertDiscoveredPolicies(policies []types.KnoxNetworkPolicy) {
 
 	for _, policy := range policies {
 		if IsExistPolicy(existingSpecs, policy.Spec) {
-			fmt.Println("already exist policy, ", policy)
+			// fmt.Println("already exist policy, ", policy)
 			continue
 		} else {
 			if err := InsertDiscoveredPolicy(db, policy); err != nil {

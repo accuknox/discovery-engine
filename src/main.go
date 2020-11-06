@@ -45,6 +45,10 @@ func Generate() {
 
 	namespaces := libs.K8s.GetK8sNamespaces()
 	for _, namespace := range namespaces {
+		if namespace != "default" {
+			continue
+		}
+
 		fmt.Println("start for namespace: ", namespace)
 
 		// convert network traffic -> network log, and filter traffic
@@ -64,7 +68,7 @@ func Generate() {
 
 		if len(policies) > 0 {
 			// write policy files
-			libs.WriteCiliumPolicyToFile(policies)
+			libs.WriteCiliumPolicyToFile(namespace, policies)
 
 			// insert discovered policies to db
 			libs.InsertDiscoveredPolicies(policies)

@@ -128,7 +128,7 @@ func ConvertKoxTrafficToLog(microName string, knoxTrafficFlow *types.KnoxTraffic
 
 func filterTrafficFlow(microName string, flow *types.KnoxTrafficFlow) bool {
 	// filter 1: microservice name (namespace)
-	if flow.TrafficFlow.Source.Namespace != microName {
+	if flow.TrafficFlow.Source.Namespace != microName && flow.TrafficFlow.Destination.Namespace != microName {
 		return false
 	}
 
