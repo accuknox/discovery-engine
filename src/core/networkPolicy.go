@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"net"
 	"reflect"
 	"sort"
@@ -1237,7 +1238,14 @@ func GenerateNetworkPolicies(microserviceName string,
 
 	// step 3: {dst: [network logs (src+dst)]} -> {dst: [srcs (labeled)]}
 	labeledSrcsPerDst := extractingSrcFromLogs(logsPerDst, containerGroups)
-
+	for k, v := range labeledSrcsPerDst {
+		if k.MicroserviceName == "kube-system" {
+			fmt.Println(k, len(v))
+			for _, d := range v {
+				fmt.Println("\t", d)
+			}
+		}
+	}
 	// step 4: {dst: [srcs (labeled)]} -> {dst: [merged srcs (labeled + merged)]}
 	mergedSrcsPerDst := mergingSrcByLabels(labeledSrcsPerDst)
 

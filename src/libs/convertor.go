@@ -297,10 +297,14 @@ func ToCiliumEgressNetworkPolicy(inPolicy types.KnoxNetworkPolicy) types.CiliumN
 					ciliumEgress.ToPorts[0].Ports = append(ciliumEgress.ToPorts[0].Ports, ciliumPort)
 				}
 
-				dnsRules := []types.DnsRule{}
-				for _, matchName := range fqdn.Matchnames {
-					dnsRules = append(dnsRules, map[string]string{"matchName": matchName})
-				}
+				// matchNames
+				// dnsRules := []types.DnsRule{}
+				// for _, matchName := range fqdn.Matchnames {
+				// 	dnsRules = append(dnsRules, map[string]string{"matchName": matchName})
+				// }
+
+				// matchPattern
+				dnsRules := []types.DnsRule{map[string]string{"matchPattern": "*"}}
 
 				ciliumEgress.ToPorts[0].Rules = map[string][]types.DnsRule{"dns": dnsRules}
 
