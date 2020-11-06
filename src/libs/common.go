@@ -20,9 +20,9 @@ import (
 // ============ //
 
 // WriteKnoxPolicyToFile Function
-func WriteKnoxPolicyToFile(policies []types.KnoxNetworkPolicy) {
+func WriteKnoxPolicyToFile(namespace string, policies []types.KnoxNetworkPolicy) {
 	// create policy file
-	f, err := os.Create("./knox_policies_" + strconv.Itoa(int(time.Now().Unix())) + ".yaml")
+	f, err := os.Create("./knox_policies_" + namespace + "_" + strconv.Itoa(int(time.Now().Unix())) + ".yaml")
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -39,9 +39,9 @@ func WriteKnoxPolicyToFile(policies []types.KnoxNetworkPolicy) {
 }
 
 // WriteCiliumPolicyToFile Function
-func WriteCiliumPolicyToFile(policies []types.KnoxNetworkPolicy) {
+func WriteCiliumPolicyToFile(namespace string, policies []types.KnoxNetworkPolicy) {
 	// create policy file
-	f, err := os.Create("./cilium_policies_" + strconv.Itoa(int(time.Now().Unix())) + ".yaml")
+	f, err := os.Create("./cilium_policies_" + namespace + "_" + strconv.Itoa(int(time.Now().Unix())) + ".yaml")
 	if err != nil {
 		fmt.Println(err)
 		return

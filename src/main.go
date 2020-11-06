@@ -20,6 +20,7 @@ func init() {
 	startTime = 0
 }
 
+// Generate function
 func Generate() {
 	// get network traffic from  knox aggregation Databse
 	trafficList, err := libs.GetTrafficFlowByTime(startTime, endTime)
@@ -42,9 +43,15 @@ func Generate() {
 	startTime = trafficList[len(trafficList)-1].TrafficFlow.Time + 1
 	endTime = time.Now().Unix()
 
+	fmt.Println("the total number of traffic flow from db: ", len(trafficList))
+
 	namespaces := libs.K8s.GetK8sNamespaces()
 	for _, namespace := range namespaces {
-		fmt.Println("start for namespace: ", namespace)
+		if namespace != "default" {
+			continue
+		}
+
+		fmt.Println("policy discovery started for namespace: ", namespace)
 
 		// convert network traffic -> network log, and filter traffic
 		networkLogs := libs.ConvertTrafficFlowToLogs(namespace, trafficList)
@@ -63,16 +70,17 @@ func Generate() {
 
 		if len(policies) > 0 {
 			// write policy files
-			libs.WriteCiliumPolicyToFile(policies)
+			libs.WriteCiliumPolicyToFile(namespace, policies)
 
 			// insert discovered policies to db
 			libs.InsertDiscoveredPolicies(policies)
 		}
 
-		fmt.Println("done generated policies for namespace: ", namespace, " ", len(policies))
+		fmt.Println("policy discovery done for namespace: ", namespace, " ", len(policies))
 	}
 }
 
+// CronJobDaemon function
 func CronJobDaemon() {
 	// init cron job
 	c := cron.New()

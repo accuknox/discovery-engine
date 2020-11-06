@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"net"
 	"reflect"
 	"sort"
@@ -319,13 +320,10 @@ func UpdateExposedPorts(services []types.K8sService, endpoints []types.K8sEndpoi
 // ============================ //
 
 func buildNewKnoxPolicy() types.KnoxNetworkPolicy {
-	policyName := "knox-autogen-" + libs.RandSeq(10)
-
 	return types.KnoxNetworkPolicy{
 		APIVersion: "v1",
 		Kind:       "KnoxNetworkPolicy",
-		Metadata: map[string]string{
-			"name": policyName},
+		Metadata:   map[string]string{},
 		Spec: types.Spec{
 			Selector: types.Selector{
 				MatchLabels: map[string]string{}},
@@ -336,6 +334,7 @@ func buildNewKnoxPolicy() types.KnoxNetworkPolicy {
 
 func buildNewKnoxEgressPolicy() types.KnoxNetworkPolicy {
 	policy := buildNewKnoxPolicy()
+	policy.Metadata["name"] = "egress"
 	policy.Spec.Egress = []types.Egress{}
 
 	return policy
@@ -343,6 +342,7 @@ func buildNewKnoxEgressPolicy() types.KnoxNetworkPolicy {
 
 func buildNewKnoxIngressPolicy() types.KnoxNetworkPolicy {
 	policy := buildNewKnoxPolicy()
+	policy.Metadata["name"] = "ingress"
 	policy.Spec.Ingress = []types.Ingress{}
 
 	return policy
@@ -355,6 +355,8 @@ func buildNewIngressPolicyFromEgress(egress types.Egress, selector types.Selecto
 	for k, v := range egress.MatchLabels {
 		if k != "k8s:io.kubernetes.pod.namespace" {
 			ingress.Spec.Selector.MatchLabels[k] = v
+		} else {
+			ingress.Metadata["namespace"] = v
 		}
 	}
 
@@ -594,12 +596,6 @@ func BuildNetworkPolicies(microName string, services []types.K8sService, mergedS
 	// a policy <- egress + ingress
 	// mergedPolicies := MergeEgressIngressRules(networkPolicies)
 
-	// update generated time
-	genTime := time.Now().Unix()
-	for i, _ := range networkPolicies {
-		networkPolicies[i].GeneratedTime = genTime
-	}
-
 	return networkPolicies
 }
 
@@ -655,12 +651,12 @@ func getSimpleDst(log types.NetworkLog, endpoints []types.K8sEndpoint, cidrBits 
 		}
 
 		dst := Dst{
-			MicroserviceName:   log.DstMicroserviceName,
-			ContainerGroupName: log.DstContainerGroupName,
-			External:           external,
-			Protocol:           log.Protocol,
-			DstPort:            log.DstPort,
-			Action:             log.Action,
+			MicroserviceName: log.DstMicroserviceName,
+			// ContainerGroupName: log.DstContainerGroupName,
+			External: external,
+			Protocol: log.Protocol,
+			DstPort:  log.DstPort,
+			Action:   log.Action,
 		}
 
 		return dst, true
@@ -1184,6 +1180,44 @@ func mergingDstByLabels(mergedSrcPerMergedProtoDst map[string][]MergedPortDst, c
 	return perGroupedSrcGroupedDst
 }
 
+// ====================== //
+// == Duplicatie Check == //
+// ====================== //
+
+// RemoveDuplication Function
+func RemoveDuplication(networkPolicies []types.KnoxNetworkPolicy) []types.KnoxNetworkPolicy {
+	autoPolicyNames := []string{}
+
+	newPolicies := []types.KnoxNetworkPolicy{}
+
+	for _, policy := range networkPolicies {
+		if !libs.ContainsElement(newPolicies, policy) {
+			newPolicies = append(newPolicies, policy)
+		}
+	}
+
+	// update generated time
+	genTime := time.Now().Unix()
+	for i, _ := range newPolicies {
+		newPolicies[i].GeneratedTime = genTime
+	}
+
+	// update unique policy name
+	for i, _ := range newPolicies {
+		policyType := newPolicies[i].Metadata["name"]
+
+		newName := "autogen-" + policyType + "-" + libs.RandSeq(10)
+		for libs.ContainsElement(autoPolicyNames, newName) {
+			newName = "autogen-" + policyType + "-" + libs.RandSeq(10)
+		}
+		autoPolicyNames = append(autoPolicyNames, newName)
+
+		newPolicies[i].Metadata["name"] = newName
+	}
+
+	return newPolicies
+}
+
 // =============================== //
 // == Network Policy Generation == //
 // =============================== //
@@ -1204,7 +1238,14 @@ func GenerateNetworkPolicies(microserviceName string,
 
 	// step 3: {dst: [network logs (src+dst)]} -> {dst: [srcs (labeled)]}
 	labeledSrcsPerDst := extractingSrcFromLogs(logsPerDst, containerGroups)
-
+	for k, v := range labeledSrcsPerDst {
+		if k.MicroserviceName == "kube-system" {
+			fmt.Println(k, len(v))
+			for _, d := range v {
+				fmt.Println("\t", d)
+			}
+		}
+	}
 	// step 4: {dst: [srcs (labeled)]} -> {dst: [merged srcs (labeled + merged)]}
 	mergedSrcsPerDst := mergingSrcByLabels(labeledSrcsPerDst)
 
@@ -1217,5 +1258,8 @@ func GenerateNetworkPolicies(microserviceName string,
 	// step 7: building network policies
 	networkPolicies := BuildNetworkPolicies(microserviceName, k8sServices, mergedSrcPerMergedDst)
 
-	return networkPolicies
+	// step 8: removing duplication policies
+	refinedPolicies := RemoveDuplication(networkPolicies)
+
+	return refinedPolicies
 }
