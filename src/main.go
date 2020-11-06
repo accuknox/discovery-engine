@@ -45,11 +45,7 @@ func Generate() {
 
 	namespaces := libs.K8s.GetK8sNamespaces()
 	for _, namespace := range namespaces {
-		if namespace != "default" {
-			continue
-		}
-
-		fmt.Println("start for namespace: ", namespace)
+		fmt.Println("policy discovery started for namespace: ", namespace)
 
 		// convert network traffic -> network log, and filter traffic
 		networkLogs := libs.ConvertTrafficFlowToLogs(namespace, trafficList)
@@ -74,7 +70,7 @@ func Generate() {
 			libs.InsertDiscoveredPolicies(policies)
 		}
 
-		fmt.Println("done generated policies for namespace: ", namespace, " ", len(policies))
+		fmt.Println("policy discovery done for namespace: ", namespace, " ", len(policies))
 	}
 }
 
