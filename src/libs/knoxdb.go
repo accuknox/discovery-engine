@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/google/go-cmp/cmp"
 
@@ -305,26 +306,34 @@ func GetTrafficFlow() ([]*types.KnoxTrafficFlow, error) {
 	return flowScanner(rows)
 }
 
-func GetExistPolicies(db *sql.DB) []types.Spec {
+func GetExistingPolicies(db *sql.DB) ([]string, []types.Spec) {
+	existNames := []string{}
 	existSpecs := []types.Spec{}
 
-	results, _ := db.Query("SELECT spec from " + TableDiscoveredPolicy + "")
+	results, _ := db.Query("SELECT metadata, spec from " + TableDiscoveredPolicy + "")
 	for results.Next() {
+		existMetadataSlice := []byte{}
+		existMetadata := map[string]string{}
+
 		existSpecSlice := []byte{}
 		existSpec := types.Spec{}
 
 		results.Scan(
+			&existMetadataSlice,
 			&existSpecSlice,
 		)
+
+		json.Unmarshal(existMetadataSlice, &existMetadata)
+		existNames = append(existNames, existMetadata["name"])
 
 		json.Unmarshal(existSpecSlice, &existSpec)
 		existSpecs = append(existSpecs, existSpec)
 	}
 
-	return existSpecs
+	return existNames, existSpecs
 }
 
-func IsExistPolicy(existingSpecs []types.Spec, inSpec types.Spec) bool {
+func IsExistedPolicySpec(existingSpecs []types.Spec, inSpec types.Spec) bool {
 	for _, spec := range existingSpecs {
 		if cmp.Equal(&spec, &inSpec) {
 			return true
@@ -359,17 +368,46 @@ func InsertDiscoveredPolicy(db *sql.DB, policy types.KnoxNetworkPolicy) error {
 	return nil
 }
 
+func DoubleCheckPolicyName(names []string, policy types.KnoxNetworkPolicy) types.KnoxNetworkPolicy {
+	name := policy.Metadata["name"]
+
+	if ContainsElement(names, name) { // name conflict
+		egressPrefix := "autogen-egress"
+		ingressPrefix := "autogen-ingress"
+
+		if strings.HasPrefix(name, egressPrefix) {
+			newName := egressPrefix + RandSeq(10)
+			for ContainsElement(names, newName) {
+				newName = egressPrefix + RandSeq(10)
+			}
+
+			policy.Metadata["name"] = newName
+		} else {
+			newName := ingressPrefix + RandSeq(10)
+			for ContainsElement(names, newName) {
+				newName = ingressPrefix + RandSeq(10)
+			}
+
+			policy.Metadata["name"] = newName
+		}
+	}
+
+	return policy
+}
+
 func InsertDiscoveredPolicies(policies []types.KnoxNetworkPolicy) {
 	db := ConnectDB()
 	defer db.Close()
 
-	existingSpecs := GetExistPolicies(db)
+	existingNames, existingSpecs := GetExistingPolicies(db)
 
 	for _, policy := range policies {
-		if IsExistPolicy(existingSpecs, policy.Spec) {
+		if IsExistedPolicySpec(existingSpecs, policy.Spec) {
 			// fmt.Println("already exist policy, ", policy)
 			continue
 		} else {
+			policy = DoubleCheckPolicyName(existingNames, policy)
+
 			if err := InsertDiscoveredPolicy(db, policy); err != nil {
 				fmt.Println(err)
 			}
