@@ -69,7 +69,7 @@ func Generate() {
 		policies := core.GenerateNetworkPolicies(namespace, 24, networkLogs, services, endpoints, pods)
 
 		if len(policies) > 0 {
-			// write policy files
+			// write discovered policies to files
 			libs.WriteCiliumPolicyToFile(namespace, policies)
 
 			// insert discovered policies to db
