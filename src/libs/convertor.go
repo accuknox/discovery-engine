@@ -371,7 +371,7 @@ func ToCiliumEgressNetworkPolicy(inPolicy types.KnoxNetworkPolicy) types.CiliumN
 			// ================ //
 			// build L4 toPorts //
 			// ================ //
-			for _, fromPort := range knoxIngress.FromPorts {
+			for _, fromPort := range knoxIngress.ToPorts {
 				if ciliumIngress.FromPorts == nil {
 					ciliumIngress.FromPorts = []types.CiliumPortList{}
 					ciliumPort := types.CiliumPortList{}
