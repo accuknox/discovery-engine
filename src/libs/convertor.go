@@ -1,6 +1,7 @@
 package libs
 
 import (
+	"net/url"
 	"strings"
 
 	"github.com/accuknox/knoxAutoPolicy/src/types"
@@ -52,7 +53,7 @@ func getReservedLabelIfExist(labels []string) string {
 	return ""
 }
 
-func getDnsQuery(flow *pb.TrafficFlow) string {
+func getDNS(flow *pb.TrafficFlow) string {
 	if flow.L7 != nil && flow.L7.Dns != nil {
 		if flow.L7.GetType() == "REQUEST" &&
 			!strings.HasSuffix(flow.L7.Dns.GetQuery(), "cluster.local.") {
@@ -62,6 +63,19 @@ func getDnsQuery(flow *pb.TrafficFlow) string {
 	}
 
 	return ""
+}
+
+func getHTTP(flow *pb.TrafficFlow) (string, string) {
+	if flow.L7 != nil && flow.L7.Http != nil {
+		if flow.L7.GetType() == "REQUEST" {
+			method := flow.L7.Http.GetMethod()
+			u, _ := url.Parse(flow.L7.Http.GetUrl())
+			path := u.Path
+			return method, path
+		}
+	}
+
+	return "", ""
 }
 
 func ConvertKoxTrafficToLog(microName string, knoxTrafficFlow *types.KnoxTrafficFlow) types.NetworkLog {
@@ -121,7 +135,8 @@ func ConvertKoxTrafficToLog(microName string, knoxTrafficFlow *types.KnoxTraffic
 	}
 
 	// get L7
-	log.DNSQuery = getDnsQuery(flow)
+	log.DNSQuery = getDNS(flow)
+	log.HTTPMethod, log.HTTPPath = getHTTP(flow)
 
 	return log
 }
@@ -192,9 +207,9 @@ func ToCiliumEgressNetworkPolicy(inPolicy types.KnoxNetworkPolicy) types.CiliumN
 		for _, knoxEgress := range inPolicy.Spec.Egress {
 			ciliumEgress := types.CiliumEgress{}
 
-			// ================= //
-			// build label-based //
-			// ================= //
+			// ====================== //
+			// build label-based rule //
+			// ====================== //
 			if knoxEgress.MatchLabels != nil {
 				ciliumEgress.ToEndpoints = []types.CiliumEndpoint{types.CiliumEndpoint{knoxEgress.MatchLabels}}
 			}
@@ -212,6 +227,21 @@ func ToCiliumEgressNetworkPolicy(inPolicy types.KnoxNetworkPolicy) types.CiliumN
 					ciliumPort := types.CiliumPortList{}
 					ciliumPort.Ports = []types.CiliumPort{}
 					ciliumEgress.ToPorts = append(ciliumEgress.ToPorts, ciliumPort)
+
+					// =============== //
+					// build HTTP rule //
+					// =============== //
+					if len(knoxEgress.ToHTTPs) > 0 {
+						ciliumEgress.ToPorts[0].Rules = map[string][]types.SubRule{}
+
+						httpRules := []types.SubRule{}
+						for _, http := range knoxEgress.ToHTTPs {
+							// matchPattern
+							httpRules = append(httpRules, map[string]string{"method": http.Method,
+								"path": http.Path})
+						}
+						ciliumEgress.ToPorts[0].Rules = map[string][]types.SubRule{"http": httpRules}
+					}
 				}
 
 				port := types.CiliumPort{Port: toPort.Ports, Protocol: strings.ToUpper(toPort.Protocol)}
@@ -297,16 +327,15 @@ func ToCiliumEgressNetworkPolicy(inPolicy types.KnoxNetworkPolicy) types.CiliumN
 					ciliumEgress.ToPorts[0].Ports = append(ciliumEgress.ToPorts[0].Ports, ciliumPort)
 				}
 
-				// matchNames
+				// matchNames (TODO)
 				// dnsRules := []types.DnsRule{}
 				// for _, matchName := range fqdn.Matchnames {
 				// 	dnsRules = append(dnsRules, map[string]string{"matchName": matchName})
 				// }
 
 				// matchPattern
-				dnsRules := []types.DnsRule{map[string]string{"matchPattern": "*"}}
-
-				ciliumEgress.ToPorts[0].Rules = map[string][]types.DnsRule{"dns": dnsRules}
+				dnsRules := []types.SubRule{map[string]string{"matchPattern": "*"}}
+				ciliumEgress.ToPorts[0].Rules = map[string][]types.SubRule{"dns": dnsRules}
 
 				if egressFqdn.ToFQDNs == nil {
 					egressFqdn.ToFQDNs = []map[string]string{}

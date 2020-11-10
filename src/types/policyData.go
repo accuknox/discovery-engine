@@ -49,6 +49,7 @@ type Ingress struct {
 	FromCIDRs    []SpecCIDR    `json:"fromCIDRs,omitempty" yaml:"fromCIDRs,omitempty"`
 	FromPorts    []SpecPort    `json:"fromPorts,omitempty" yaml:"fromPorts,omitempty"`
 	FromServices []SpecService `json:"fromServices,omitempty" yaml:"fromServices,omitempty"`
+	FromFQDNs    []SpecFQDN    `json:"fromFQDNs,omitempty" yaml:"toFQDNs,omitempty"`
 }
 
 // Egress Structure
@@ -61,6 +62,8 @@ type Egress struct {
 	ToPorts    []SpecPort    `json:"toPorts,omitempty" yaml:"toPorts,omitempty"`
 	ToServices []SpecService `json:"toServices,omitempty" yaml:"toServices,omitempty"`
 	ToFQDNs    []SpecFQDN    `json:"toFQDNs,omitempty" yaml:"toFQDNs,omitempty"`
+
+	ToHTTPs []SpecHTTP `json:"toHTTPs,omitempty" yaml:"toHTTPs,omitempty"`
 }
 
 // Spec Structure
@@ -103,12 +106,12 @@ type CiliumPort struct {
 	Protocol string `json:"protocol" yaml:"protocol"`
 }
 
-type DnsRule map[string]string
+type SubRule map[string]string
 
 // CiliumPortList Structure
 type CiliumPortList struct {
 	Ports []CiliumPort         `json:"ports,omitempty" yaml:"ports,omitempty"`
-	Rules map[string][]DnsRule `json:"rules,omitempty" yaml:"rules,omitempty"`
+	Rules map[string][]SubRule `json:"rules,omitempty" yaml:"rules,omitempty"`
 }
 
 // CiliumEndpoint Structure
