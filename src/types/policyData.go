@@ -44,26 +44,22 @@ type Selector struct {
 type Ingress struct {
 	MatchLabels map[string]string `json:"matchLabels,omitempty" yaml:"matchLabels,omitempty"`
 
-	FromEntities []string `json:"fromEntities,omitempty" yaml:"fromEntities,omitempty"`
+	FromEntities []string   `json:"fromEntities,omitempty" yaml:"fromEntities,omitempty"`
+	FromCIDRs    []SpecCIDR `json:"fromCIDRs,omitempty" yaml:"fromCIDRs,omitempty"`
 
-	FromCIDRs    []SpecCIDR    `json:"fromCIDRs,omitempty" yaml:"fromCIDRs,omitempty"`
-	FromPorts    []SpecPort    `json:"fromPorts,omitempty" yaml:"fromPorts,omitempty"`
-	FromServices []SpecService `json:"fromServices,omitempty" yaml:"fromServices,omitempty"`
-	FromFQDNs    []SpecFQDN    `json:"fromFQDNs,omitempty" yaml:"toFQDNs,omitempty"`
+	ToPorts []SpecPort `json:"toPorts,omitempty" yaml:"toPorts,omitempty"`
 }
 
 // Egress Structure
 type Egress struct {
 	MatchLabels map[string]string `json:"matchLabels,omitempty" yaml:"matchLabels,omitempty"`
 
-	ToEndtities []string `json:"toEntities,omitempty" yaml:"toEntities,omitempty"`
-
-	ToCIDRs    []SpecCIDR    `json:"toCIDRs,omitempty" yaml:"toCIDRs,omitempty"`
-	ToPorts    []SpecPort    `json:"toPorts,omitempty" yaml:"toPorts,omitempty"`
-	ToServices []SpecService `json:"toServices,omitempty" yaml:"toServices,omitempty"`
-	ToFQDNs    []SpecFQDN    `json:"toFQDNs,omitempty" yaml:"toFQDNs,omitempty"`
-
-	ToHTTPs []SpecHTTP `json:"toHTTPs,omitempty" yaml:"toHTTPs,omitempty"`
+	ToEndtities []string      `json:"toEntities,omitempty" yaml:"toEntities,omitempty"`
+	ToCIDRs     []SpecCIDR    `json:"toCIDRs,omitempty" yaml:"toCIDRs,omitempty"`
+	ToPorts     []SpecPort    `json:"toPorts,omitempty" yaml:"toPorts,omitempty"`
+	ToServices  []SpecService `json:"toServices,omitempty" yaml:"toServices,omitempty"`
+	ToFQDNs     []SpecFQDN    `json:"toFQDNs,omitempty" yaml:"toFQDNs,omitempty"`
+	ToHTTPs     []SpecHTTP    `json:"toHTTPs,omitempty" yaml:"toHTTPs,omitempty"`
 }
 
 // Spec Structure
