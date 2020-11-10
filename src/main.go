@@ -39,18 +39,15 @@ func Generate() {
 		return
 	}
 
-	// time filter update for next
+	// time filter update for next interval
 	startTime = trafficList[len(trafficList)-1].TrafficFlow.Time + 1
 	endTime = time.Now().Unix()
 
 	fmt.Println("the total number of traffic flow from db: ", len(trafficList))
 
+	// get all the namespaces from k8s
 	namespaces := libs.K8s.GetK8sNamespaces()
 	for _, namespace := range namespaces {
-		if namespace != "default" {
-			continue
-		}
-
 		fmt.Println("policy discovery started for namespace: ", namespace)
 
 		// convert network traffic -> network log, and filter traffic

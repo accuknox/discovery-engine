@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 
@@ -40,9 +41,11 @@ func ConnectDB() (db *sql.DB) {
 	dbName := GetEnv("NETWORKFLOW_DB_NAME", "flow_management")
 	// table: "network_flow"
 
-	db, err := sql.Open(dbDriver, dbUser+":"+dbPass+"@tcp(localhost:3306)/"+dbName)
-	if err != nil {
-		panic(err.Error())
+	db, err := sql.Open(dbDriver, dbUser+":"+dbPass+"@tcp(127.0.0.1:3306)/"+dbName)
+	for err != nil {
+		fmt.Println("connection error :", err.Error())
+		time.Sleep(time.Second * 1)
+		db, err = sql.Open(dbDriver, dbUser+":"+dbPass+"@tcp(127.0.0.1:3306)/"+dbName)
 	}
 
 	return db

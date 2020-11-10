@@ -23,8 +23,11 @@ type NetworkLog struct {
 
 	DNSQuery string `json:"dns_query" bson:"dns_query"` // for L7 dns
 
-	Action    string `json:"action" bson:"action"`
+	HTTPMethod string `json:"http_method" bson:"http_method"` // for L7 http
+	HTTPPath   string `json:"http_path" bson:"http_path"`     // for L7 http
+
 	Direction string `json:"direction" bson:"direction"` // ingress or egress
+	Action    string `json:"action" bson:"action"`
 }
 
 // SystemLog Structure
@@ -67,25 +70,4 @@ type SystemLog struct {
 	SockAddr     map[string]string `json:"sock_addr,omitempty" bson:"sock_addr,omitempty"`
 
 	Data string `json:"data" bson:"data"`
-}
-
-// RuntimeLog Structure
-type RuntimeLog struct {
-	// host and container
-	HostName      string `json:"host_name" bson:"host_name"`
-	ContainerName string `json:"container_name" bson:"container_name"`
-
-	Type    string `json:"type" bson:"type"`
-	Message string `json:"message" bson:"message"`
-
-	UpdatedTime string `json:"updated_time" bson:"updated_time"`
-}
-
-// SuricataLog Structure
-type SuricataLog struct {
-	Source   string `json:"source" bson:"source"`
-	SourceIP string `json:"source_ip" bson:"source_ip"`
-
-	Type    string `json:"type" bson:"type"`
-	RawData string `json:"raw_data" bson:"raw_data"`
 }
