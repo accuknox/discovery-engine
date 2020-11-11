@@ -1,6 +1,7 @@
 package libs
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/bits"
 	"math/rand"
@@ -19,8 +20,8 @@ import (
 // == Common == //
 // ============ //
 
-// WriteKnoxPolicyToFile Function
-func WriteKnoxPolicyToFile(namespace string, policies []types.KnoxNetworkPolicy) {
+// WriteKnoxPolicyToYamlFile Function
+func WriteKnoxPolicyToYamlFile(namespace string, policies []types.KnoxNetworkPolicy) {
 	// create policy file
 	f, err := os.Create("./knox_policies_" + namespace + "_" + strconv.Itoa(int(time.Now().Unix())) + ".yaml")
 	if err != nil {
@@ -52,6 +53,25 @@ func WriteCiliumPolicyToFile(namespace string, policies []types.KnoxNetworkPolic
 		b, _ := yaml.Marshal(&ciliumPolicy)
 		f.Write(b)
 		f.WriteString("---\n")
+		f.Sync()
+	}
+
+	f.Close()
+}
+
+// WriteKnoxPolicyToJSONFile Function
+func WriteKnoxPolicyToJSONFile(namespace string, policies []types.KnoxNetworkPolicy) {
+	// create policy file
+	f, err := os.Create("./knox_policies_" + namespace + "_" + strconv.Itoa(int(time.Now().Unix())) + ".json")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	for _, policy := range policies {
+		b, _ := json.MarshalIndent(policy, "", "    ")
+		f.Write(b)
+		f.WriteString("\n")
 		f.Sync()
 	}
 
