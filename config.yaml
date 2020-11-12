@@ -1,0 +1,18 @@
+# Database
+knox_database:
+  db_driver: "mysql"
+  db_user: "root"
+  db_pass: "password"
+  db_name: "flow_management"
+  db_table_network_flow: "network_flow"
+  db_table_discovered_policy: "discovered_policy"
+
+# Plug-in
+plugin:
+  input: "knox_database"
+  output: "knox_policy" # 'knox_policy' or 'cilium policy'
+
+# Policy
+policy:
+  cidr_bits: 24
+  namespace: "default"

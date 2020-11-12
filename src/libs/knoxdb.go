@@ -15,31 +15,22 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 
-	flowpb "github.com/cilium/cilium/api/v1/flow"
-
 	pb "github.com/accuknox/knoxServiceFlowMgmt/src/proto"
 )
 
-const (
+var (
 	TableNetworkFlow      string = "network_flow"
 	TableDiscoveredPolicy string = "discovered_policy"
 )
 
-func FlowFilter() flowpb.FlowFilter {
-	filter := flowpb.FlowFilter{
-		DestinationPort: []string{"53"},
-		SourceLabel:     []string{"k8s:io.kubernetes.pod.namespace=multiubuntu"},
-		// Verdict:     []flowpb.Verdict{flowbp.Verdict_FORWARDED},
-	}
-	return filter
-}
+func ConnectDB(cfg types.Config) (db *sql.DB) {
+	dbDriver := cfg.Database.Driver
+	dbUser := cfg.Database.User
+	dbPass := cfg.Database.Password
+	dbName := cfg.Database.Name
 
-func ConnectDB() (db *sql.DB) {
-	dbDriver := GetEnv("NETWORKFLOW_DB_DRIVER", "mysql")
-	dbUser := GetEnv("NETWORKFLOW_DB_USER", "root")
-	dbPass := GetEnv("NETWORKFLOW_DB_PASS", "password")
-	dbName := GetEnv("NETWORKFLOW_DB_NAME", "flow_management")
-	// table: "network_flow"
+	TableNetworkFlow = cfg.Database.TableNetworkFlow
+	TableDiscoveredPolicy = cfg.Database.TableDiscoveredPolicy
 
 	db, err := sql.Open(dbDriver, dbUser+":"+dbPass+"@tcp(127.0.0.1:3306)/"+dbName)
 	for err != nil {
@@ -283,8 +274,8 @@ func flowScanner(results *sql.Rows) ([]*types.KnoxTrafficFlow, error) {
 
 var QueryBase string = "select id,time,verdict,policy_match_type,drop_reason,event_type,source,destination,ethernet,ip,type,l4,l7,reply,source->>'$.labels',destination->>'$.labels',src_cluster_name,src_pod_name,dest_cluster_name,dest_pod_name,node_name,source_service,destination_service,traffic_direction,summary from " + TableNetworkFlow
 
-func GetTrafficFlowByTime(st, et int64) ([]*types.KnoxTrafficFlow, error) {
-	db := ConnectDB()
+func GetTrafficFlowByTime(cfg types.Config, st, et int64) ([]*types.KnoxTrafficFlow, error) {
+	db := ConnectDB(cfg)
 	defer db.Close()
 
 	rows, err := db.Query(QueryBase+" where time >= ? and time < ?", st, et)
@@ -296,8 +287,8 @@ func GetTrafficFlowByTime(st, et int64) ([]*types.KnoxTrafficFlow, error) {
 	return flowScanner(rows)
 }
 
-func GetTrafficFlow() ([]*types.KnoxTrafficFlow, error) {
-	db := ConnectDB()
+func GetTrafficFlow(cfg types.Config) ([]*types.KnoxTrafficFlow, error) {
+	db := ConnectDB(cfg)
 	defer db.Close()
 
 	rows, err := db.Query(QueryBase)
@@ -398,8 +389,8 @@ func DoubleCheckPolicyName(names []string, policy types.KnoxNetworkPolicy) types
 	return policy
 }
 
-func InsertDiscoveredPolicies(policies []types.KnoxNetworkPolicy) {
-	db := ConnectDB()
+func InsertDiscoveredPolicies(cfg types.Config, policies []types.KnoxNetworkPolicy) {
+	db := ConnectDB(cfg)
 	defer db.Close()
 
 	existingNames, existingSpecs := GetExistingPolicies(db)
