@@ -24,17 +24,36 @@ src - source codes
 go get github.com/accuknox/knoxAutoPolicy
 ```
 
-# Usage 1: Cron job daemon
-
-* Assuming that it runs in the master node and the mysql database has network_flows
-
+# Configuration
 ```
-$ cd knoxAutoPolicy
-$ go build
-$ NETWORKFLOW_DB_DRIVER=mysql NETWORKFLOW_DB_USER=root NETWORKFLOW_DB_PASS=password NETWORKFLOW_DB_NAME=flow_management ./knoxAutoPolicy
+# Database
+knox_database:
+  db_driver: "mysql"
+  db_user: "root"
+  db_pass: "password"
+  db_name: "flow_management"
+  db_table_network_flow: "network_flow"
+  db_table_discovered_policy: "discovered_policy"
+
+# Plug-in
+plugin:
+  input: "knox_database"
+  output: "knox_policy" # 'knox_policy' or 'cilium policy'
+
+# Policy
+policy:
+  cidr_bits: 24
+  namespace: "default"
 ```
 
-# Usage 2: Library
+# Run 
+```
+# cd knoxAutoPolicy/src
+# make
+# ./knoxAutoPolicy -config=../config.yaml
+```
+
+# Main Code 
 
 ```
 import (
@@ -46,8 +65,10 @@ import (
 )
 
 func Generate() {
+	cfg := loadConfiguration()
+
 	// get network traffic from  knox aggregation Databse
-	trafficList, err := libs.GetTrafficFlowByTime(startTime, endTime)
+	trafficList, err := libs.GetTrafficFlowByTime(cfg, startTime, endTime)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -63,13 +84,20 @@ func Generate() {
 		return
 	}
 
-	// time filter update for next
+	// time filter update for next interval
 	startTime = trafficList[len(trafficList)-1].TrafficFlow.Time + 1
 	endTime = time.Now().Unix()
 
+	fmt.Println("the total number of traffic flow from db: ", len(trafficList))
+
+	// get all the namespaces from k8s
 	namespaces := libs.K8s.GetK8sNamespaces()
 	for _, namespace := range namespaces {
-		fmt.Println("start for namespace: ", namespace)
+		if cfg.Policy.Namespace != namespace {
+			continue
+		}
+
+		fmt.Println("policy discovery started for namespace: ", namespace)
 
 		// convert network traffic -> network log, and filter traffic
 		networkLogs := libs.ConvertTrafficFlowToLogs(namespace, trafficList)
@@ -84,17 +112,17 @@ func Generate() {
 		pods := libs.K8s.GetConGroups(namespace)
 
 		// generate network policies
-		policies := core.GenerateNetworkPolicies(namespace, 24, networkLogs, services, endpoints, pods)
+		policies := core.GenerateNetworkPolicies(namespace, cfg.Policy.CidrBits, networkLogs, services, endpoints, pods)
 
 		if len(policies) > 0 {
-			// write policy files
-			libs.WriteCiliumPolicyToFile(policies)
+			// write discovered policies to files
+			libs.WriteCiliumPolicyToFile(namespace, policies)
 
 			// insert discovered policies to db
-			libs.InsertDiscoveredPolicies(policies)
+			libs.InsertDiscoveredPolicies(cfg, policies)
 		}
 
-		fmt.Println("done generated policies for namespace: ", namespace, " ", len(policies))
+		fmt.Println("policy discovery done for namespace: ", namespace, " ", len(policies))
 	}
 }
 ```
