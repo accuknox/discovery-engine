@@ -9,7 +9,9 @@ Auto Policy Generation
 * Source code for Knox Auto Policy
 
 ```
+bin - shell script to start program with environment variables
 build - build container image
+database - mongodb container
 deployments - deployment file for kubenetes
 policies - example policies (.yaml)
 src - source codes
@@ -24,33 +26,28 @@ src - source codes
 go get github.com/accuknox/knoxAutoPolicy
 ```
 
-# Configuration
+# Start script
 ```
-# Database
-knox_database:
-  db_driver: "mysql"
-  db_user: "root"
-  db_pass: "password"
-  db_name: "flow_management"
-  db_table_network_flow: "network_flow"
-  db_table_discovered_policy: "discovered_policy"
+#!/bin/bash
 
-# Plug-in
-plugin:
-  input: "knox_database"
-  output: "knox_policy" # 'knox_policy' or 'cilium policy'
+KNOX_AUTO_HOME=`dirname $(realpath "$0")`/..
 
-# Policy
-policy:
-  cidr_bits: 24
-  namespace: "default"
+DB_DRIVER=mysql
+DB_PORT=27017
+DB_USER=root
+DB_PASS=password
+DB_NAME=flow_management
+
+COL_NETWORK_FLOW=network_flow
+COL_DISCOVERED_POLICY=discovered_policy
+
+$KNOX_AUTO_HOME/src/knoxAutoPolicy
 ```
 
 # Run 
 ```
-# cd knoxAutoPolicy/src
-# make
-# ./knoxAutoPolicy -config=../config.yaml
+$ cd knoxAutoPolicy
+$ ./bin/startKnoxAutoPolicy.sh
 ```
 
 # Main Code 
@@ -65,10 +62,8 @@ import (
 )
 
 func Generate() {
-	cfg := loadConfiguration()
-
 	// get network traffic from  knox aggregation Databse
-	trafficList, err := libs.GetTrafficFlowByTime(cfg, startTime, endTime)
+	trafficList, err := libs.GetTrafficFlowByTime(startTime, endTime)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -93,7 +88,7 @@ func Generate() {
 	// get all the namespaces from k8s
 	namespaces := libs.K8s.GetK8sNamespaces()
 	for _, namespace := range namespaces {
-		if cfg.Policy.Namespace != namespace {
+		if namespace != targetNamespace {
 			continue
 		}
 
@@ -112,14 +107,14 @@ func Generate() {
 		pods := libs.K8s.GetConGroups(namespace)
 
 		// generate network policies
-		policies := core.GenerateNetworkPolicies(namespace, cfg.Policy.CidrBits, networkLogs, services, endpoints, pods)
+		policies := core.GenerateNetworkPolicies(namespace, cidrBits, networkLogs, services, endpoints, pods)
 
 		if len(policies) > 0 {
 			// write discovered policies to files
 			libs.WriteCiliumPolicyToFile(namespace, policies)
 
 			// insert discovered policies to db
-			libs.InsertDiscoveredPolicies(cfg, policies)
+			libs.InsertDiscoveredPoliciesToMongoDB(policies)
 		}
 
 		fmt.Println("policy discovery done for namespace: ", namespace, " ", len(policies))
