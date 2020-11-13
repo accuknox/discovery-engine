@@ -152,7 +152,7 @@ func PrintPolicyYaml(policy types.KnoxNetworkPolicy) {
 	fmt.Println("---")
 }
 
-// PrintPolicyYaml Function
+// PrintCiliumPolicyYaml Function
 func PrintCiliumPolicyYaml(ciliumPolicy types.CiliumNetworkPolicy) {
 	b, _ := yaml.Marshal(&ciliumPolicy)
 	fmt.Print(string(b))
@@ -174,8 +174,8 @@ func GetOSSigChannel() chan os.Signal {
 	return c
 }
 
-// PrintSimplePolicyJson Function
-func PrintSimplePolicyJson(policy types.CiliumNetworkPolicy) {
+// PrintSimplePolicyJSON Function
+func PrintSimplePolicyJSON(policy types.CiliumNetworkPolicy) {
 	fmt.Print(policy.Metadata["name"], "\t", policy.Spec.Selector, "\t")
 
 	if policy.Spec.Egress != nil && len(policy.Spec.Egress) > 0 {
@@ -242,14 +242,14 @@ func Combinations(set []string, n int) (subsets [][]string) {
 }
 
 var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-var LowerLetters = []rune("abcdefghijklmnopqrstuvwxyz")
+var lowerLetters = []rune("abcdefghijklmnopqrstuvwxyz")
 
 // RandSeq Function
 func RandSeq(n int) string {
 	b := make([]rune, n)
 
 	for i := range b {
-		b[i] = letters[rand.Intn(len(LowerLetters))]
+		b[i] = letters[rand.Intn(len(lowerLetters))]
 	}
 
 	return string(b)

@@ -12,6 +12,7 @@ import (
 // == Traffic Flow Convertor == //
 // ============================ //
 
+// isSynFlagOnly function
 func isSynFlagOnly(tcp *pb.TCP) bool {
 	if tcp.Flags != nil && tcp.Flags.SYN && !tcp.Flags.ACK {
 		return true
@@ -19,6 +20,7 @@ func isSynFlagOnly(tcp *pb.TCP) bool {
 	return false
 }
 
+// getL4Ports function
 func getL4Ports(l4 *pb.Layer4) (int, int) {
 	if l4.TCP != nil {
 		return int(l4.TCP.SourcePort), int(l4.TCP.DestinationPort)
@@ -31,6 +33,7 @@ func getL4Ports(l4 *pb.Layer4) (int, int) {
 	}
 }
 
+// getProtocol function
 func getProtocol(l4 *pb.Layer4) int {
 	if l4.TCP != nil {
 		return 6
@@ -43,6 +46,7 @@ func getProtocol(l4 *pb.Layer4) int {
 	}
 }
 
+// getReservedLabelIfExist function
 func getReservedLabelIfExist(labels []string) string {
 	for _, label := range labels {
 		if strings.HasPrefix(label, "reserved:") {
@@ -53,6 +57,7 @@ func getReservedLabelIfExist(labels []string) string {
 	return ""
 }
 
+// getDNS function
 func getDNS(flow *pb.TrafficFlow) string {
 	if flow.L7 != nil && flow.L7.Dns != nil {
 		if flow.L7.GetType() == "REQUEST" &&
@@ -65,6 +70,7 @@ func getDNS(flow *pb.TrafficFlow) string {
 	return ""
 }
 
+// getHTTP function
 func getHTTP(flow *pb.TrafficFlow) (string, string) {
 	if flow.L7 != nil && flow.L7.Http != nil {
 		if flow.L7.GetType() == "REQUEST" {
@@ -78,6 +84,7 @@ func getHTTP(flow *pb.TrafficFlow) (string, string) {
 	return "", ""
 }
 
+// ConvertKoxTrafficToLog function
 func ConvertKoxTrafficToLog(microName string, knoxTrafficFlow *types.KnoxTrafficFlow) types.NetworkLog {
 	flow := knoxTrafficFlow.TrafficFlow
 
@@ -141,6 +148,7 @@ func ConvertKoxTrafficToLog(microName string, knoxTrafficFlow *types.KnoxTraffic
 	return log
 }
 
+// filterTrafficFlow function
 func filterTrafficFlow(microName string, flow *types.KnoxTrafficFlow) bool {
 	// filter 1: microservice name (namespace)
 	if flow.TrafficFlow.Source.Namespace != microName && flow.TrafficFlow.Destination.Namespace != microName {
@@ -155,6 +163,7 @@ func filterTrafficFlow(microName string, flow *types.KnoxTrafficFlow) bool {
 	return true
 }
 
+// ConvertTrafficFlowToLogs function
 func ConvertTrafficFlowToLogs(microName string, flows []*types.KnoxTrafficFlow) []types.NetworkLog {
 	networkLogs := []types.NetworkLog{}
 	for _, flow := range flows {
@@ -171,6 +180,7 @@ func ConvertTrafficFlowToLogs(microName string, flows []*types.KnoxTrafficFlow) 
 // == Cilium Network Policy Convertor == //
 // ===================================== //
 
+// buildNewCiliumNetworkPolicy function
 func buildNewCiliumNetworkPolicy(inPolicy types.KnoxNetworkPolicy) types.CiliumNetworkPolicy {
 	ciliumPolicy := types.CiliumNetworkPolicy{}
 
@@ -185,7 +195,8 @@ func buildNewCiliumNetworkPolicy(inPolicy types.KnoxNetworkPolicy) types.CiliumN
 }
 
 // TODO: search core-dns? or statically return dns pod
-func getCoreDnsEndpoint() []types.CiliumEndpoint {
+// getCoreDNSEndpoint function
+func getCoreDNSEndpoint() []types.CiliumEndpoint {
 	matchLabel := map[string]string{
 		"k8s:io.kubernetes.pod.namespace": "kube-system",
 		"k8s-app":                         "kube-dns",
@@ -195,6 +206,7 @@ func getCoreDnsEndpoint() []types.CiliumEndpoint {
 	return coreDns
 }
 
+// ToCiliumEgressNetworkPolicy function
 func ToCiliumEgressNetworkPolicy(inPolicy types.KnoxNetworkPolicy) types.CiliumNetworkPolicy {
 	ciliumPolicy := buildNewCiliumNetworkPolicy(inPolicy)
 
@@ -313,7 +325,7 @@ func ToCiliumEgressNetworkPolicy(inPolicy types.KnoxNetworkPolicy) types.CiliumN
 			for _, fqdn := range knoxEgress.ToFQDNs {
 				egressFqdn := types.CiliumEgress{}
 				// TODO: static core-dns
-				ciliumEgress.ToEndpoints = getCoreDnsEndpoint()
+				ciliumEgress.ToEndpoints = getCoreDNSEndpoint()
 
 				if ciliumEgress.ToPorts == nil {
 					ciliumEgress.ToPorts = []types.CiliumPortList{}
@@ -427,6 +439,7 @@ func ToCiliumEgressNetworkPolicy(inPolicy types.KnoxNetworkPolicy) types.CiliumN
 	return ciliumPolicy
 }
 
+// ToCiliumNetworkPolicy function
 func ToCiliumNetworkPolicy(inPolicy types.KnoxNetworkPolicy) types.CiliumNetworkPolicy {
 	return ToCiliumEgressNetworkPolicy(inPolicy)
 }

@@ -90,6 +90,7 @@ type LabelCount struct {
 // == Common == //
 // ============ //
 
+// checkHTTP Function
 func checkHTTP(additionalInfo string) bool {
 	isHTTP := false
 	for _, m := range httpMethods {
@@ -328,6 +329,7 @@ func UpdateExposedPorts(services []types.K8sService, endpoints []types.K8sEndpoi
 // == Build Network Policies == //
 // ============================ //
 
+// buildNewKnoxPolicy Function
 func buildNewKnoxPolicy() types.KnoxNetworkPolicy {
 	return types.KnoxNetworkPolicy{
 		APIVersion: "v1",
@@ -341,6 +343,7 @@ func buildNewKnoxPolicy() types.KnoxNetworkPolicy {
 	}
 }
 
+// buildNewKnoxEgressPolicy Function
 func buildNewKnoxEgressPolicy() types.KnoxNetworkPolicy {
 	policy := buildNewKnoxPolicy()
 	policy.Metadata["name"] = "egress"
@@ -349,6 +352,7 @@ func buildNewKnoxEgressPolicy() types.KnoxNetworkPolicy {
 	return policy
 }
 
+// buildNewKnoxIngressPolicy Function
 func buildNewKnoxIngressPolicy() types.KnoxNetworkPolicy {
 	policy := buildNewKnoxPolicy()
 	policy.Metadata["name"] = "ingress"
@@ -357,6 +361,7 @@ func buildNewKnoxIngressPolicy() types.KnoxNetworkPolicy {
 	return policy
 }
 
+// buildNewIngressPolicyFromEgress Function
 func buildNewIngressPolicyFromEgress(egress types.Egress, selector types.Selector) types.KnoxNetworkPolicy {
 	ingress := buildNewKnoxIngressPolicy()
 
@@ -378,6 +383,7 @@ func buildNewIngressPolicyFromEgress(egress types.Egress, selector types.Selecto
 	return ingress
 }
 
+// removeSelectorFromPolicies Function
 func removeSelectorFromPolicies(policies []types.KnoxNetworkPolicy, inSelector types.Selector) []types.KnoxNetworkPolicy {
 	cp := make([]types.KnoxNetworkPolicy, len(policies))
 	copy(cp, policies)
@@ -408,6 +414,7 @@ func removeSelectorFromPolicies(policies []types.KnoxNetworkPolicy, inSelector t
 	return cp
 }
 
+// getEgressIngressRules Function
 func getEgressIngressRules(policies []types.KnoxNetworkPolicy, inSelector types.Selector) ([]types.Egress, []types.Ingress) {
 	egressRules := []types.Egress{}
 	ingressRules := []types.Ingress{}
@@ -439,6 +446,7 @@ func getEgressIngressRules(policies []types.KnoxNetworkPolicy, inSelector types.
 	return egressRules, ingressRules
 }
 
+// MergeEgressIngressRules Function
 func MergeEgressIngressRules(networkPolicies []types.KnoxNetworkPolicy) []types.KnoxNetworkPolicy {
 	mergedNetworkPolicies := []types.KnoxNetworkPolicy{}
 
