@@ -9,7 +9,9 @@ Auto Policy Generation
 * Source code for Knox Auto Policy
 
 ```
+bin - shell script to start program with environment variables
 build - build container image
+database - mongodb container
 deployments - deployment file for kubenetes
 policies - example policies (.yaml)
 src - source codes
