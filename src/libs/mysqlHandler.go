@@ -18,25 +18,21 @@ import (
 	pb "github.com/accuknox/knoxServiceFlowMgmt/src/proto"
 )
 
-var (
-	TableNetworkFlow      string = "network_flow"
-	TableDiscoveredPolicy string = "discovered_policy"
-)
+// ConnectMySQL function
+func ConnectMySQL() (db *sql.DB) {
+	DBDriver := GetEnv("DB_DRIVER", "mysql")
+	DBUser = GetEnv("DB_USER", "root")
+	DBPass = GetEnv("DB_PASS", "password")
+	DBName = GetEnv("DB_NAME", "flow_management")
 
-func ConnectDB(cfg types.Config) (db *sql.DB) {
-	dbDriver := cfg.Database.Driver
-	dbUser := cfg.Database.User
-	dbPass := cfg.Database.Password
-	dbName := cfg.Database.Name
+	ColNetworkFlow = GetEnv("COL_NETWORK_FLOW", "network_flow")
+	ColDiscoveredPolicy = GetEnv("COL_DISCOVERED_POLICY", "discovered_policy")
 
-	TableNetworkFlow = cfg.Database.TableNetworkFlow
-	TableDiscoveredPolicy = cfg.Database.TableDiscoveredPolicy
-
-	db, err := sql.Open(dbDriver, dbUser+":"+dbPass+"@tcp(127.0.0.1:3306)/"+dbName)
+	db, err := sql.Open(DBDriver, DBUser+":"+DBPass+"@tcp(127.0.0.1:3306)/"+DBName)
 	for err != nil {
 		fmt.Println("connection error :", err.Error())
 		time.Sleep(time.Second * 1)
-		db, err = sql.Open(dbDriver, dbUser+":"+dbPass+"@tcp(127.0.0.1:3306)/"+dbName)
+		db, err = sql.Open(DBDriver, DBUser+":"+DBPass+"@tcp(127.0.0.1:3306)/"+DBName)
 	}
 
 	return db
@@ -272,13 +268,17 @@ func flowScanner(results *sql.Rows) ([]*types.KnoxTrafficFlow, error) {
 	return trafficFlows, nil
 }
 
-var QueryBase string = "select id,time,verdict,policy_match_type,drop_reason,event_type,source,destination,ethernet,ip,type,l4,l7,reply,source->>'$.labels',destination->>'$.labels',src_cluster_name,src_pod_name,dest_cluster_name,dest_pod_name,node_name,source_service,destination_service,traffic_direction,summary from " + TableNetworkFlow
+// QueryBase function
+var QueryBase string = "select id,time,verdict,policy_match_type,drop_reason,event_type,source,destination,ethernet,ip,type,l4,l7,reply,source->>'$.labels',destination->>'$.labels',src_cluster_name,src_pod_name,dest_cluster_name,dest_pod_name,node_name,source_service,destination_service,traffic_direction,summary from "
 
-func GetTrafficFlowByTime(cfg types.Config, st, et int64) ([]*types.KnoxTrafficFlow, error) {
-	db := ConnectDB(cfg)
+// GetTrafficFlowByTime function
+func GetTrafficFlowByTime(st, et int64) ([]*types.KnoxTrafficFlow, error) {
+	db := ConnectMySQL()
 	defer db.Close()
 
-	rows, err := db.Query(QueryBase+" where time >= ? and time < ?", st, et)
+	QueryBase = QueryBase + ColNetworkFlow
+
+	rows, err := db.Query(QueryBase+" where time >= ? and time < ? ", st, et)
 	if err != nil {
 		return nil, err
 	}
@@ -287,8 +287,9 @@ func GetTrafficFlowByTime(cfg types.Config, st, et int64) ([]*types.KnoxTrafficF
 	return flowScanner(rows)
 }
 
-func GetTrafficFlow(cfg types.Config) ([]*types.KnoxTrafficFlow, error) {
-	db := ConnectDB(cfg)
+// GetTrafficFlow function
+func GetTrafficFlow() ([]*types.KnoxTrafficFlow, error) {
+	db := ConnectMySQL()
 	defer db.Close()
 
 	rows, err := db.Query(QueryBase)
@@ -300,11 +301,12 @@ func GetTrafficFlow(cfg types.Config) ([]*types.KnoxTrafficFlow, error) {
 	return flowScanner(rows)
 }
 
-func GetExistingPolicies(db *sql.DB) ([]string, []types.Spec) {
+// GetExistingPoliciesFromMySQL function
+func GetExistingPoliciesFromMySQL(db *sql.DB) ([]string, []types.Spec) {
 	existNames := []string{}
 	existSpecs := []types.Spec{}
 
-	results, _ := db.Query("SELECT metadata, spec from " + TableDiscoveredPolicy + "")
+	results, _ := db.Query("SELECT metadata, spec from " + ColDiscoveredPolicy + "")
 	for results.Next() {
 		existMetadataSlice := []byte{}
 		existMetadata := map[string]string{}
@@ -327,6 +329,7 @@ func GetExistingPolicies(db *sql.DB) ([]string, []types.Spec) {
 	return existNames, existSpecs
 }
 
+// IsExistedPolicySpec function
 func IsExistedPolicySpec(existingSpecs []types.Spec, inSpec types.Spec) bool {
 	for _, spec := range existingSpecs {
 		if cmp.Equal(&spec, &inSpec) {
@@ -337,8 +340,9 @@ func IsExistedPolicySpec(existingSpecs []types.Spec, inSpec types.Spec) bool {
 	return false
 }
 
-func InsertDiscoveredPolicy(db *sql.DB, policy types.KnoxNetworkPolicy) error {
-	stmt, err := db.Prepare("INSERT INTO " + TableDiscoveredPolicy + "(apiVersion,kind,metadata,spec,generated_time) values(?,?,?,?,?)")
+// InsertDiscoveredPolicyMySQL function
+func InsertDiscoveredPolicyMySQL(db *sql.DB, policy types.KnoxNetworkPolicy) error {
+	stmt, err := db.Prepare("INSERT INTO " + ColDiscoveredPolicy + "(apiVersion,kind,metadata,spec,generated_time) values(?,?,?,?,?)")
 	if err != nil {
 		return err
 	}
@@ -362,6 +366,7 @@ func InsertDiscoveredPolicy(db *sql.DB, policy types.KnoxNetworkPolicy) error {
 	return nil
 }
 
+// DoubleCheckPolicyName function
 func DoubleCheckPolicyName(names []string, policy types.KnoxNetworkPolicy) types.KnoxNetworkPolicy {
 	name := policy.Metadata["name"]
 
@@ -389,11 +394,12 @@ func DoubleCheckPolicyName(names []string, policy types.KnoxNetworkPolicy) types
 	return policy
 }
 
-func InsertDiscoveredPolicies(cfg types.Config, policies []types.KnoxNetworkPolicy) {
-	db := ConnectDB(cfg)
+// InsertDiscoveredPoliciesToMySQL function
+func InsertDiscoveredPoliciesToMySQL(cfg types.Config, policies []types.KnoxNetworkPolicy) {
+	db := ConnectMySQL()
 	defer db.Close()
 
-	existingNames, existingSpecs := GetExistingPolicies(db)
+	existingNames, existingSpecs := GetExistingPoliciesFromMySQL(db)
 
 	for _, policy := range policies {
 		if IsExistedPolicySpec(existingSpecs, policy.Spec) {
@@ -402,7 +408,7 @@ func InsertDiscoveredPolicies(cfg types.Config, policies []types.KnoxNetworkPoli
 		} else {
 			policy = DoubleCheckPolicyName(existingNames, policy)
 
-			if err := InsertDiscoveredPolicy(db, policy); err != nil {
+			if err := InsertDiscoveredPolicyMySQL(db, policy); err != nil {
 				fmt.Println(err)
 			}
 		}

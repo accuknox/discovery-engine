@@ -1,16 +1,11 @@
 package main
 
 import (
-	"flag"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/accuknox/knoxAutoPolicy/src/core"
 	"github.com/accuknox/knoxAutoPolicy/src/libs"
-	"github.com/accuknox/knoxAutoPolicy/src/types"
-
-	"gopkg.in/yaml.v2"
 
 	cron "github.com/robfig/cron/v3"
 )
@@ -19,34 +14,10 @@ import (
 var startTime int64 = 0
 var endTime int64 = 0
 
-var configFile string
-
-func loadConfiguration() types.Config {
-	f, err := os.Open(configFile)
-	if err != nil {
-		fmt.Println(err)
-	}
-	defer f.Close()
-
-	var cfg types.Config
-	decoder := yaml.NewDecoder(f)
-	err = decoder.Decode(&cfg)
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	return cfg
-}
+var targetNamespace string = "default"
+var cidrBits int = 24
 
 func init() {
-	if len(os.Args) < 2 {
-		fmt.Println("Usage: ./knoxAutoPolicy -config=[configfile]")
-		os.Exit(1)
-	}
-
-	flag.StringVar(&configFile, "config", "config.yaml", "Config file")
-	flag.Parse()
-
 	// init time filter
 	endTime = time.Now().Unix()
 	startTime = 0
@@ -54,10 +25,8 @@ func init() {
 
 // Generate function
 func Generate() {
-	cfg := loadConfiguration()
-
 	// get network traffic from  knox aggregation Databse
-	trafficList, err := libs.GetTrafficFlowByTime(cfg, startTime, endTime)
+	trafficList, err := libs.GetTrafficFlowByTime(startTime, endTime)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -82,7 +51,7 @@ func Generate() {
 	// get all the namespaces from k8s
 	namespaces := libs.K8s.GetK8sNamespaces()
 	for _, namespace := range namespaces {
-		if cfg.Policy.Namespace != namespace {
+		if namespace != targetNamespace {
 			continue
 		}
 
@@ -101,14 +70,14 @@ func Generate() {
 		pods := libs.K8s.GetConGroups(namespace)
 
 		// generate network policies
-		policies := core.GenerateNetworkPolicies(namespace, cfg.Policy.CidrBits, networkLogs, services, endpoints, pods)
+		policies := core.GenerateNetworkPolicies(namespace, cidrBits, networkLogs, services, endpoints, pods)
 
 		if len(policies) > 0 {
 			// write discovered policies to files
 			libs.WriteCiliumPolicyToFile(namespace, policies)
 
 			// insert discovered policies to db
-			libs.InsertDiscoveredPolicies(cfg, policies)
+			libs.InsertDiscoveredPoliciesToMongoDB(policies)
 		}
 
 		fmt.Println("policy discovery done for namespace: ", namespace, " ", len(policies))

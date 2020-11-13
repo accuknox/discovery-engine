@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"math/bits"
 	"math/rand"
+	"net"
 	"os"
 	"os/signal"
 	"reflect"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -19,6 +21,71 @@ import (
 // ============ //
 // == Common == //
 // ============ //
+
+// GetIPAddr Function
+func GetIPAddr(ifname string) string {
+	if interfaces, err := net.Interfaces(); err == nil {
+		for _, iface := range interfaces {
+			if iface.Name == ifname {
+				addrs, err := iface.Addrs()
+				if err != nil {
+					panic(err)
+				}
+				ipaddr := strings.Split(addrs[0].String(), "/")[0]
+				return ipaddr
+			}
+		}
+	}
+
+	return ""
+}
+
+// GetExternalInterface Function
+func GetExternalInterface() string {
+	route := GetCommandOutput("ip", []string{"route", "get", "8.8.8.8"})
+	routeData := strings.Split(strings.Split(route, "\n")[0], " ")
+
+	for idx, word := range routeData {
+		if word == "dev" {
+			return routeData[idx+1]
+		}
+	}
+
+	return ""
+}
+
+// GetExternalIPAddr Function
+func GetExternalIPAddr() string {
+	iface := GetExternalInterface()
+	return GetIPAddr(iface)
+}
+
+// Exists Function
+func Exists(path string) (bool, error) {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true, nil
+	}
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	return true, err
+}
+
+// IsK8sEnv Function
+func IsK8sEnv() bool {
+	k8sConfig := os.Getenv("HOME") + "./kube"
+
+	if _, ok := os.LookupEnv("KUBERNETES_PORT"); ok {
+		return true
+	}
+
+	if exist, _ := Exists(k8sConfig); exist {
+		return true
+	}
+
+	return false
+}
 
 // WriteKnoxPolicyToYamlFile Function
 func WriteKnoxPolicyToYamlFile(namespace string, policies []types.KnoxNetworkPolicy) {
