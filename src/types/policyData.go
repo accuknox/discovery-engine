@@ -6,79 +6,79 @@ package types
 
 // SpecCIDR Structure
 type SpecCIDR struct {
-	CIDRs  []string   `json:"cidr,omitempty" yaml:"cidr,omitempty"`
-	Except []string   `json:"except,omitempty" yaml:"except,omitempty"`
-	Ports  []SpecPort `json:"Ports,omitempty" yaml:"Ports,omitempty"`
+	CIDRs  []string   `json:"cidr,omitempty" yaml:"cidr,omitempty" bson:"cidr,omitempty"`
+	Except []string   `json:"except,omitempty" yaml:"except,omitempty" bson:"except,omitempty"`
+	Ports  []SpecPort `json:"Ports,omitempty" yaml:"Ports,omitempty" bson:"Ports,omitempty"`
 }
 
 // SpecPort Structure
 type SpecPort struct {
-	Ports    string `json:"ports,omitempty" yaml:"ports,omitempty"`
-	Protocol string `json:"protocol,omitempty" yaml:"protocol,omitempty"`
+	Ports    string `json:"ports,omitempty" yaml:"ports,omitempty" bson:"ports,omitempty"`
+	Protocol string `json:"protocol,omitempty" yaml:"protocol,omitempty" bson:"protocol,omitempty"`
 }
 
 // SpecService Structure
 type SpecService struct {
-	ServiceName string `json:"service_name,omitempty" yaml:"service_name,omitempty"`
-	Namespace   string `json:"namespace,omitempty" yaml:"namespace,omitempty"`
+	ServiceName string `json:"service_name,omitempty" yaml:"service_name,omitempty" bson:"service_name,omitempty"`
+	Namespace   string `json:"namespace,omitempty" yaml:"namespace,omitempty" bson:"namespace,omitempty"`
 }
 
 // SpecFQDN Structure
 type SpecFQDN struct {
-	Matchnames []string   `json:"matchNames,omitempty" yaml:"matchNames,omitempty"`
-	ToPorts    []SpecPort `json:"toPorts,omitempty" yaml:"toPorts,omitempty"`
+	Matchnames []string   `json:"matchNames,omitempty" yaml:"matchNames,omitempty" bson:"matchNames,omitempty"`
+	ToPorts    []SpecPort `json:"toPorts,omitempty" yaml:"toPorts,omitempty" bson:"toPorts,omitempty"`
 }
 
 // SpecHTTP Structure
 type SpecHTTP struct {
-	Method string `json:"method,omitempty" yaml:"method,omitempty"`
-	Path   string `json:"path,omitempty" yaml:"path,omitempty"`
+	Method string `json:"method,omitempty" yaml:"method,omitempty" bson:"method,omitempty"`
+	Path   string `json:"path,omitempty" yaml:"path,omitempty" bson:"path,omitempty"`
 }
 
 // Selector Structure
 type Selector struct {
-	MatchLabels map[string]string `json:"matchLabels,omitempty" yaml:"matchLabels,omitempty"`
+	MatchLabels map[string]string `json:"matchLabels,omitempty" yaml:"matchLabels,omitempty" bson:"matchLabels,omitempty"`
 }
 
 // Ingress Structure
 type Ingress struct {
-	MatchLabels map[string]string `json:"matchLabels,omitempty" yaml:"matchLabels,omitempty"`
+	MatchLabels map[string]string `json:"matchLabels,omitempty" yaml:"matchLabels,omitempty" bson:"matchLabels,omitempty"`
 
-	FromEntities []string   `json:"fromEntities,omitempty" yaml:"fromEntities,omitempty"`
-	FromCIDRs    []SpecCIDR `json:"fromCIDRs,omitempty" yaml:"fromCIDRs,omitempty"`
+	FromEntities []string   `json:"fromEntities,omitempty" yaml:"fromEntities,omitempty" bson:"fromEntities,omitempty"`
+	FromCIDRs    []SpecCIDR `json:"fromCIDRs,omitempty" yaml:"fromCIDRs,omitempty" bson:"fromCIDRs,omitempty"`
 
-	ToPorts []SpecPort `json:"toPorts,omitempty" yaml:"toPorts,omitempty"`
+	ToPorts []SpecPort `json:"toPorts,omitempty" yaml:"toPorts,omitempty" bson:"toPorts,omitempty"`
 }
 
 // Egress Structure
 type Egress struct {
-	MatchLabels map[string]string `json:"matchLabels,omitempty" yaml:"matchLabels,omitempty"`
+	MatchLabels map[string]string `json:"matchLabels,omitempty" yaml:"matchLabels,omitempty" bson:"matchLabels,omitempty"`
 
-	ToEndtities []string      `json:"toEntities,omitempty" yaml:"toEntities,omitempty"`
-	ToCIDRs     []SpecCIDR    `json:"toCIDRs,omitempty" yaml:"toCIDRs,omitempty"`
-	ToPorts     []SpecPort    `json:"toPorts,omitempty" yaml:"toPorts,omitempty"`
-	ToServices  []SpecService `json:"toServices,omitempty" yaml:"toServices,omitempty"`
-	ToFQDNs     []SpecFQDN    `json:"toFQDNs,omitempty" yaml:"toFQDNs,omitempty"`
-	ToHTTPs     []SpecHTTP    `json:"toHTTPs,omitempty" yaml:"toHTTPs,omitempty"`
+	ToEndtities []string      `json:"toEntities,omitempty" yaml:"toEntities,omitempty" bson:"toEntities,omitempty"`
+	ToCIDRs     []SpecCIDR    `json:"toCIDRs,omitempty" yaml:"toCIDRs,omitempty" bson:"toCIDRs,omitempty"`
+	ToPorts     []SpecPort    `json:"toPorts,omitempty" yaml:"toPorts,omitempty" bson:"toPorts,omitempty"`
+	ToServices  []SpecService `json:"toServices,omitempty" yaml:"toServices,omitempty" bson:"toServices,omitempty"`
+	ToFQDNs     []SpecFQDN    `json:"toFQDNs,omitempty" yaml:"toFQDNs,omitempty" bson:"toFQDNs,omitempty"`
+	ToHTTPs     []SpecHTTP    `json:"toHTTPs,omitempty" yaml:"toHTTPs,omitempty" bson:"toHTTPs,omitempty"`
 }
 
 // Spec Structure
 type Spec struct {
-	Selector Selector `json:"selector,omitempty" yaml:"selector,omitempty"`
+	Selector Selector `json:"selector,omitempty" yaml:"selector,omitempty" bson:"selector,omitempty"`
 
-	Ingress []Ingress `json:"ingress,omitempty" yaml:"ingress,omitempty"`
-	Egress  []Egress  `json:"egress,omitempty" yaml:"egress,omitempty"`
+	Ingress []Ingress `json:"ingress,omitempty" yaml:"ingress,omitempty" bson:"ingress,omitempty"`
+	Egress  []Egress  `json:"egress,omitempty" yaml:"egress,omitempty" bson:"egress,omitempty"`
 
-	Action string `json:"action,omitempty" yaml:"action,omitempty"`
+	Action string `json:"action,omitempty" yaml:"action,omitempty" bson:"action,omitempty"`
 }
 
 // KnoxNetworkPolicy Structure
 type KnoxNetworkPolicy struct {
-	APIVersion    string            `json:"apiVersion,omitempty" yaml:"apiVersion,omitempty"`
-	Kind          string            `json:"kind,omitempty" yaml:"kind,omitempty"`
-	Metadata      map[string]string `json:"metadata,omitempty" yaml:"metadata,omitempty"`
-	Spec          Spec              `json:"spec,omitempty" yaml:"spec,omitempty"`
-	GeneratedTime int64             `json:"generated_time,omitempty" yaml:"generated_time,omitempty"`
+	APIVersion    string            `json:"apiVersion,omitempty" yaml:"apiVersion,omitempty" bson:"apiVersion,omitempty"`
+	Kind          string            `json:"kind,omitempty" yaml:"kind,omitempty" bson:"kind,omitempty"`
+	Metadata      map[string]string `json:"metadata,omitempty" yaml:"metadata,omitempty" bson:"metadata,omitempty"`
+	Spec          Spec              `json:"spec,omitempty" yaml:"spec,omitempty" bson:"spec,omitempty"`
+	GeneratedTime int64             `json:"generated_time,omitempty" yaml:"generated_time,omitempty" bson:"generated_time,omitempty"`
 }
 
 // =========================== //
