@@ -1,10 +1,7 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"strconv"
 	"time"
 
 	"github.com/accuknox/knoxAutoPolicy/src/core"
@@ -68,32 +65,15 @@ func Generate() {
 
 		// convert network traffic -> network log, and filter traffic
 		networkLogs := plugin.ConvertCiliumFlowsToKnoxLogs(namespace, docs)
-		for _, log := range networkLogs {
-			logb, _ := json.Marshal(log)
-			ioutil.WriteFile("./log", logb, 0644)
-			break
-		}
 
 		// get k8s services
 		services := libs.GetServices(namespace)
-		for i, svc := range services {
-			if svc.ContainerPort == 8080 {
-				svcb, _ := json.Marshal(svc)
-				ioutil.WriteFile("./svc_"+strconv.Itoa(i), svcb, 0644)
-			}
-		}
 
 		// get k8s endpoints
 		endpoints := libs.GetEndpoints(namespace)
 
 		// get pod information
 		pods := libs.GetConGroups(namespace)
-		for i, pod := range pods {
-			if pod.ContainerGroupName == "ubuntu-1-deployment-5ff5974cd4-dfdgt" || pod.ContainerGroupName == "ubuntu-4-deployment-5bbd4f6c69-frhlk" {
-				podb, _ := json.Marshal(pod)
-				ioutil.WriteFile("./pod_"+strconv.Itoa(i), podb, 0644)
-			}
-		}
 
 		// generate network policies
 		policies := core.GenerateNetworkPolicies(namespace, cidrBits, networkLogs, services, endpoints, pods)

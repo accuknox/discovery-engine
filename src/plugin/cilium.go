@@ -123,7 +123,7 @@ func ConvertCiliumFlowToKnoxLog(flow *flow.Flow) types.NetworkLog {
 	}
 
 	// get egress / ingress
-	log.Direction = flow.TrafficDirection.String()
+	log.Direction = flow.GetTrafficDirection().String()
 
 	// get L3
 	if flow.IP != nil {
