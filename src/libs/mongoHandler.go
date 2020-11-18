@@ -73,8 +73,8 @@ func ConnectMongoDB() (*mongo.Client, *mongo.Database) {
 	return client, client.Database(DBName)
 }
 
-// InsertDiscoveredPoliciesToMongoDB function
-func InsertDiscoveredPoliciesToMongoDB(policies []types.KnoxNetworkPolicy) error {
+// InsertPoliciesToMongoDB function
+func InsertPoliciesToMongoDB(policies []types.KnoxNetworkPolicy) error {
 	client, db := ConnectMongoDB()
 	defer client.Disconnect(context.Background())
 
@@ -87,7 +87,6 @@ func InsertDiscoveredPoliciesToMongoDB(policies []types.KnoxNetworkPolicy) error
 
 	for _, policy := range policies {
 		if IsExistedPolicy(existingPolicies, policy) {
-			// fmt.Println("already exist policy, ", policy)
 			continue
 		} else {
 			policy = replaceDuplcatedName(col, policy)

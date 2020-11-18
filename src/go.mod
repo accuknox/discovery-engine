@@ -11,16 +11,16 @@ replace (
 
 require (
 	github.com/cilium/cilium v1.9.0
-	github.com/go-playground/assert v1.2.1
 	github.com/google/go-cmp v0.5.3
-	github.com/robfig/cron/v3 v3.0.1
+	github.com/robfig/cron v1.2.0
+	github.com/rs/zerolog v1.20.0
 	github.com/stretchr/testify v1.6.1
 	go.mongodb.org/mongo-driver v1.4.3
 	golang.org/x/net v0.0.0-20201110031124-69a78807bb2b // indirect
 	golang.org/x/oauth2 v0.0.0-20201109201403-9fd604954f58 // indirect
 	golang.org/x/sys v0.0.0-20201117222635-ba5294a509c7 // indirect
 	gopkg.in/yaml.v2 v2.3.0
-	k8s.io/api v0.19.4
+	k8s.io/api v0.19.4 // indirect
 	k8s.io/apimachinery v0.19.4
 	k8s.io/client-go v11.0.0+incompatible
 )

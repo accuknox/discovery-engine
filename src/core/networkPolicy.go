@@ -10,7 +10,11 @@ import (
 	"time"
 
 	libs "github.com/accuknox/knoxAutoPolicy/src/libs"
+	"github.com/accuknox/knoxAutoPolicy/src/plugin"
 	types "github.com/accuknox/knoxAutoPolicy/src/types"
+	"github.com/robfig/cron"
+	"github.com/rs/zerolog/log"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 var httpMethods = []string{
@@ -1203,8 +1207,30 @@ func removeDuplication(networkPolicies []types.KnoxNetworkPolicy) []types.KnoxNe
 // == Network Policy Generation == //
 // =============================== //
 
-// GenerateNetworkPolicies Function
-func GenerateNetworkPolicies(microserviceName string,
+// network flow between [ startTime <= time < endTime ]
+var startTime int64 = 0
+var endTime int64 = 0
+
+var cidrBits int = 24
+var skipNamespaces []string
+
+func init() {
+	// init time filter
+	endTime = time.Now().Unix()
+	startTime = 0
+	skipNamespaces = []string{"kube-system", "kube-public", "kube-node-lease"}
+}
+
+// updateTimeInterval function
+func updateTimeInterval(lastDoc map[string]interface{}) {
+	// time filter update for next interval
+	ts := lastDoc["timestamp"].(primitive.DateTime)
+	startTime = ts.Time().Unix() + 1
+	endTime = time.Now().Unix()
+}
+
+// DiscoverNetworkPolicies Function
+func DiscoverNetworkPolicies(microserviceName string,
 	cidrBits int, // for CIDR policy (32 bits -> per IP)
 	networkLogs []types.NetworkLog,
 	services []types.K8sService,
@@ -1236,4 +1262,77 @@ func GenerateNetworkPolicies(microserviceName string,
 	refinedPolicies := removeDuplication(networkPolicies)
 
 	return refinedPolicies
+}
+
+// CronJobDaemon function
+func CronJobDaemon() {
+	// init cron job
+	c := cron.New()
+	c.AddFunc("@every 0h0m30s", StartToDiscoverNetworkPolicies) // every time interval for test
+	c.Start()
+
+	sig := libs.GetOSSigChannel()
+	<-sig
+	log.Info().Msg("Got a signal to terminate the auto policy discovery")
+
+	c.Stop() // Stop the scheduler (does not stop any jobs already running).
+}
+
+// StartToDiscoverNetworkPolicies function
+func StartToDiscoverNetworkPolicies() {
+	// get network traffic from  knox aggregation Databse
+	docs, err := libs.GetTrafficFlowFromMongo(startTime, endTime)
+	if err != nil {
+		log.Err(err)
+		return
+	}
+
+	if len(docs) < 1 {
+		log.Info().Msgf("Traffic flow is not exist: %s ~ %s",
+			time.Unix(startTime, 0).Format(libs.TimeFormSimple),
+			time.Unix(endTime, 0).Format(libs.TimeFormSimple))
+
+		startTime = endTime
+		endTime = time.Now().Unix()
+		return
+	}
+
+	log.Info().Msgf("the total number of traffic flow from db: %d", len(docs))
+
+	updateTimeInterval(docs[len(docs)-1])
+
+	// get k8s services
+	services := libs.GetServices()
+
+	// get k8s endpoints
+	endpoints := libs.GetEndpoints()
+
+	// get all the namespaces from k8s
+	namespaces := libs.GetK8sNamespaces()
+	for _, namespace := range namespaces {
+		if libs.ContainsElement(skipNamespaces, namespace) {
+			continue
+		}
+
+		log.Info().Msgf("policy discovery started for namespace: %s", namespace)
+
+		// convert network traffic -> network log, and filter traffic
+		networkLogs := plugin.ConvertCiliumFlowsToKnoxLogs(namespace, docs)
+
+		// get pod information
+		pods := libs.GetConGroups(namespace)
+
+		// generate network policies
+		policies := DiscoverNetworkPolicies(namespace, cidrBits, networkLogs, services, endpoints, pods)
+
+		if len(policies) > 0 {
+			// write discovered policies to files
+			libs.WriteCiliumPolicyToYamlFile(namespace, policies)
+
+			// insert discovered policies to db
+			libs.InsertPoliciesToMongoDB(policies)
+		}
+
+		log.Info().Msgf("policy discovery done for namespace: %s %d ", namespace, len(policies))
+	}
 }

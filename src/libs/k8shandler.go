@@ -3,7 +3,6 @@ package libs
 import (
 	"context"
 	"flag"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -11,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/accuknox/knoxAutoPolicy/src/types"
+	"github.com/rs/zerolog/log"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	rest "k8s.io/client-go/rest"
@@ -81,14 +81,14 @@ func ConnectLocalAPIClient() *kubernetes.Clientset {
 	// use the current context in kubeconfig
 	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
 	if err != nil {
-		fmt.Println(err)
+		log.Err(err)
 		return nil
 	}
 
 	// creates the clientset
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		fmt.Println(err)
+		log.Err(err)
 		return nil
 	}
 
@@ -115,7 +115,7 @@ func ConnectInClusterAPIClient() *kubernetes.Clientset {
 
 	read, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/token")
 	if err != nil {
-		fmt.Printf("%v", err)
+		log.Err(err)
 		return nil
 	}
 
@@ -131,7 +131,7 @@ func ConnectInClusterAPIClient() *kubernetes.Clientset {
 	}
 
 	if client, err := kubernetes.NewForConfig(kubeConfig); err != nil {
-		fmt.Printf("%v", err)
+		log.Err(err)
 		return nil
 	} else {
 		return client
@@ -152,7 +152,7 @@ func GetK8sNamespaces() []string {
 	// get namespaces from k8s api client
 	namespaces, err := client.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{})
 	if err != nil {
-		fmt.Println(err)
+		log.Err(err)
 		return nil
 	}
 
@@ -182,7 +182,7 @@ func GetConGroups(targetNS string) []types.ContainerGroup {
 	// get pods from k8s api client
 	pods, err := client.CoreV1().Pods("").List(context.Background(), metav1.ListOptions{})
 	if err != nil {
-		fmt.Println(err)
+		log.Err(err)
 		return nil
 	}
 
@@ -215,7 +215,7 @@ func GetConGroups(targetNS string) []types.ContainerGroup {
 // ============== //
 
 // GetServices Function
-func GetServices(targetNS string) []types.K8sService {
+func GetServices() []types.K8sService {
 	client := ConnectK8sClient()
 	if client == nil {
 		return nil
@@ -224,16 +224,12 @@ func GetServices(targetNS string) []types.K8sService {
 	// get pods from k8s api client
 	svcs, err := client.CoreV1().Services("").List(context.Background(), metav1.ListOptions{})
 	if err != nil {
-		fmt.Println(err)
+		log.Err(err)
 		return nil
 	}
 
 	results := []types.K8sService{}
 	for _, svc := range svcs.Items {
-		if svc.Namespace != targetNS && svc.Namespace != "kube-system" {
-			continue
-		}
-
 		k8sService := types.K8sService{}
 
 		k8sService.MicroserviceName = svc.Namespace
@@ -269,7 +265,7 @@ func GetServices(targetNS string) []types.K8sService {
 // ============== //
 
 // GetEndpoints Function
-func GetEndpoints(targetNS string) []types.K8sEndpoint {
+func GetEndpoints() []types.K8sEndpoint {
 	client := ConnectK8sClient()
 	if client == nil {
 		return nil
@@ -278,16 +274,12 @@ func GetEndpoints(targetNS string) []types.K8sEndpoint {
 	// get pods from k8s api client
 	endpoints, err := client.CoreV1().Endpoints("").List(context.Background(), metav1.ListOptions{})
 	if err != nil {
-		fmt.Println(err)
+		log.Err(err)
 		return nil
 	}
 
 	results := []types.K8sEndpoint{}
 	for _, k8sEndpoint := range endpoints.Items {
-		if k8sEndpoint.Namespace != targetNS && k8sEndpoint.Namespace != "kube-system" {
-			continue
-		}
-
 		metadata := k8sEndpoint.ObjectMeta
 		subsets := k8sEndpoint.Subsets
 

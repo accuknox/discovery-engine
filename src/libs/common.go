@@ -218,8 +218,8 @@ func WriteKnoxPolicyToYamlFile(namespace string, policies []types.KnoxNetworkPol
 	f.Close()
 }
 
-// WriteCiliumPolicyToFile Function
-func WriteCiliumPolicyToFile(namespace string, policies []types.KnoxNetworkPolicy) {
+// WriteCiliumPolicyToYamlFile Function
+func WriteCiliumPolicyToYamlFile(namespace string, policies []types.KnoxNetworkPolicy) {
 	// create policy file
 	f, err := os.Create("./cilium_policies_" + namespace + "_" + strconv.Itoa(int(time.Now().Unix())) + ".yaml")
 	if err != nil {

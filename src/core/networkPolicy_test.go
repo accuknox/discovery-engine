@@ -149,7 +149,7 @@ func TestGenerateNetworkPolicies(t *testing.T) {
 	expectedSpec2b := []byte("{\"selector\":{\"matchLabels\":{\"container\":\"ubuntu-4\",\"group\":\"group-2\"}},\"ingress\":[{\"matchLabels\":{\"container\":\"ubuntu-1\",\"group\":\"group-1\",\"k8s:io.kubernetes.pod.namespace\":\"multiubuntu\"}}],\"action\":\"allow\"}")
 	json.Unmarshal(expectedSpec2b, &spec2)
 
-	policies := GenerateNetworkPolicies("multiubuntu", 24, logs, svcs, nil, pods)
+	policies := DiscoverNetworkPolicies("multiubuntu", 24, logs, svcs, nil, pods)
 	for i, policy := range policies {
 		if i == 0 && cmp.Equal(spec1, policy.Spec) {
 			assert.Equal(t, spec1, policy.Spec, "they should be equal")
