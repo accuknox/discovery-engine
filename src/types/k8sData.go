@@ -24,12 +24,11 @@ type K8sService struct {
 
 	Labels []string `json:"labels,omitempty" bson:"labels,omitempty"`
 
-	Type string `json:"type,omitempty" bson:"type,omitempty"`
+	Type      string `json:"type,omitempty" bson:"type,omitempty"`
+	Protocol  string `json:"protocol,omitempty" bson:"protocol,omitempty"`
+	ClusterIP string `json:"cluster_ip,omitempty" bson:"cluster_ip,omitempty"`
 
-	Protocol    string `json:"protocol,omitempty" bson:"protocol,omitempty"`
-	ClusterIP   string `json:"cluster_ip,omitempty" bson:"cluster_ip,omitempty"`
-	ServicePort int    `json:"service_port" bson:"service_port"`
-
+	ServicePort   int `json:"service_port" bson:"service_port"`
 	NodePort      int `json:"node_port" bson:"node_port"`
 	ContainerPort int `json:"container_port" bson:"container_port"`
 

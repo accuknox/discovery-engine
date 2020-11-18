@@ -90,6 +90,7 @@ type LabelCount struct {
 // == Common == //
 // ============ //
 
+// checkHTTP Function
 func checkHTTP(additionalInfo string) bool {
 	isHTTP := false
 	for _, m := range httpMethods {
@@ -266,8 +267,8 @@ func IsExposedPort(protocol int, port int) bool {
 	return false
 }
 
-// UpdateExposedPorts Function
-func UpdateExposedPorts(services []types.K8sService, endpoints []types.K8sEndpoint, contGroups []types.ContainerGroup) {
+// updateExposedPorts Function
+func updateExposedPorts(services []types.K8sService, endpoints []types.K8sEndpoint, contGroups []types.ContainerGroup) {
 	// step 1: (k8s) service port update
 	for _, service := range services {
 		if strings.ToLower(service.Protocol) == "tcp" { // TCP
@@ -328,6 +329,7 @@ func UpdateExposedPorts(services []types.K8sService, endpoints []types.K8sEndpoi
 // == Build Network Policies == //
 // ============================ //
 
+// buildNewKnoxPolicy Function
 func buildNewKnoxPolicy() types.KnoxNetworkPolicy {
 	return types.KnoxNetworkPolicy{
 		APIVersion: "v1",
@@ -341,6 +343,7 @@ func buildNewKnoxPolicy() types.KnoxNetworkPolicy {
 	}
 }
 
+// buildNewKnoxEgressPolicy Function
 func buildNewKnoxEgressPolicy() types.KnoxNetworkPolicy {
 	policy := buildNewKnoxPolicy()
 	policy.Metadata["name"] = "egress"
@@ -349,6 +352,7 @@ func buildNewKnoxEgressPolicy() types.KnoxNetworkPolicy {
 	return policy
 }
 
+// buildNewKnoxIngressPolicy Function
 func buildNewKnoxIngressPolicy() types.KnoxNetworkPolicy {
 	policy := buildNewKnoxPolicy()
 	policy.Metadata["name"] = "ingress"
@@ -357,6 +361,7 @@ func buildNewKnoxIngressPolicy() types.KnoxNetworkPolicy {
 	return policy
 }
 
+// buildNewIngressPolicyFromEgress Function
 func buildNewIngressPolicyFromEgress(egress types.Egress, selector types.Selector) types.KnoxNetworkPolicy {
 	ingress := buildNewKnoxIngressPolicy()
 
@@ -378,6 +383,7 @@ func buildNewIngressPolicyFromEgress(egress types.Egress, selector types.Selecto
 	return ingress
 }
 
+// removeSelectorFromPolicies Function
 func removeSelectorFromPolicies(policies []types.KnoxNetworkPolicy, inSelector types.Selector) []types.KnoxNetworkPolicy {
 	cp := make([]types.KnoxNetworkPolicy, len(policies))
 	copy(cp, policies)
@@ -408,6 +414,7 @@ func removeSelectorFromPolicies(policies []types.KnoxNetworkPolicy, inSelector t
 	return cp
 }
 
+// getEgressIngressRules Function
 func getEgressIngressRules(policies []types.KnoxNetworkPolicy, inSelector types.Selector) ([]types.Egress, []types.Ingress) {
 	egressRules := []types.Egress{}
 	ingressRules := []types.Ingress{}
@@ -439,6 +446,7 @@ func getEgressIngressRules(policies []types.KnoxNetworkPolicy, inSelector types.
 	return egressRules, ingressRules
 }
 
+// MergeEgressIngressRules Function
 func MergeEgressIngressRules(networkPolicies []types.KnoxNetworkPolicy) []types.KnoxNetworkPolicy {
 	mergedNetworkPolicies := []types.KnoxNetworkPolicy{}
 
@@ -460,8 +468,8 @@ func MergeEgressIngressRules(networkPolicies []types.KnoxNetworkPolicy) []types.
 	return mergedNetworkPolicies
 }
 
-// BuildNetworkPolicies Function
-func BuildNetworkPolicies(microName string, services []types.K8sService, mergedSrcPerMergedDst map[string][]MergedPortDst) []types.KnoxNetworkPolicy {
+// buildNetworkPolicies Function
+func buildNetworkPolicies(microName string, services []types.K8sService, mergedSrcPerMergedDst map[string][]MergedPortDst) []types.KnoxNetworkPolicy {
 	networkPolicies := []types.KnoxNetworkPolicy{}
 
 	for mergedSrc, mergedDsts := range mergedSrcPerMergedDst {
@@ -1157,8 +1165,8 @@ func mergingDstByLabels(mergedSrcPerMergedProtoDst map[string][]MergedPortDst, c
 // == Duplicatie Check == //
 // ====================== //
 
-// RemoveDuplication Function
-func RemoveDuplication(networkPolicies []types.KnoxNetworkPolicy) []types.KnoxNetworkPolicy {
+// removeDuplication Function
+func removeDuplication(networkPolicies []types.KnoxNetworkPolicy) []types.KnoxNetworkPolicy {
 	autoPolicyNames := []string{}
 
 	newPolicies := []types.KnoxNetworkPolicy{}
@@ -1204,7 +1212,7 @@ func GenerateNetworkPolicies(microserviceName string,
 	containerGroups []types.ContainerGroup) []types.KnoxNetworkPolicy {
 
 	// step 1: update exposed ports (k8s service, docker-compose portbinding)
-	UpdateExposedPorts(services, endpoints, containerGroups)
+	updateExposedPorts(services, endpoints, containerGroups)
 
 	// step 2: [network logs] -> {dst: [network logs (src+dst)]}
 	logsPerDst := groupingLogsPerDst(networkLogs, endpoints, cidrBits)
@@ -1222,10 +1230,10 @@ func GenerateNetworkPolicies(microserviceName string,
 	mergedSrcPerMergedDst := mergingDstByLabels(mergedSrcPerMergedProtoDst, containerGroups)
 
 	// step 7: building network policies
-	networkPolicies := BuildNetworkPolicies(microserviceName, services, mergedSrcPerMergedDst)
+	networkPolicies := buildNetworkPolicies(microserviceName, services, mergedSrcPerMergedDst)
 
 	// step 8: removing duplication policies
-	refinedPolicies := RemoveDuplication(networkPolicies)
+	refinedPolicies := removeDuplication(networkPolicies)
 
 	return refinedPolicies
 }

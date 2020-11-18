@@ -15,6 +15,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+// static values, but it will be deprecated
 var (
 	ColNetworkFlow      string
 	ColDiscoveredPolicy string
@@ -70,6 +71,33 @@ func ConnectMongoDB() (*mongo.Client, *mongo.Database) {
 	}
 
 	return client, client.Database(DBName)
+}
+
+// InsertDiscoveredPoliciesToMongoDB function
+func InsertDiscoveredPoliciesToMongoDB(policies []types.KnoxNetworkPolicy) error {
+	client, db := ConnectMongoDB()
+	defer client.Disconnect(context.Background())
+
+	col := db.Collection(ColDiscoveredPolicy)
+
+	existingPolicies, err := GetNetworkPolicies(col)
+	if err != nil {
+		return err
+	}
+
+	for _, policy := range policies {
+		if IsExistedPolicy(existingPolicies, policy) {
+			// fmt.Println("already exist policy, ", policy)
+			continue
+		} else {
+			policy = replaceDuplcatedName(col, policy)
+			if _, err := col.InsertOne(context.Background(), policy); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 // GetDocsByFilter Function
@@ -133,8 +161,8 @@ func CountPoliciesByName(col *mongo.Collection, name string) int {
 	return int(count)
 }
 
-// ReplaceDuplcatedName function
-func ReplaceDuplcatedName(col *mongo.Collection, policy types.KnoxNetworkPolicy) types.KnoxNetworkPolicy {
+// replaceDuplcatedName function
+func replaceDuplcatedName(col *mongo.Collection, policy types.KnoxNetworkPolicy) types.KnoxNetworkPolicy {
 	name := policy.Metadata["name"]
 
 	if CountPoliciesByName(col, name) > 0 { // name conflict
@@ -161,28 +189,28 @@ func ReplaceDuplcatedName(col *mongo.Collection, policy types.KnoxNetworkPolicy)
 	return policy
 }
 
-// InsertDiscoveredPoliciesToMongoDB function
-func InsertDiscoveredPoliciesToMongoDB(policies []types.KnoxNetworkPolicy) error {
+// updateTimeFilters function
+func updateTimeFilters(filter primitive.M, tsStart, tsEnd int64) {
+	// update filter by start and end times
+	startTime := ConvertUnixTSToDateTime(tsStart)
+	endTime := ConvertUnixTSToDateTime(tsEnd)
+
+	filter["timestamp"] = bson.M{"$gte": startTime, "$lt": endTime}
+}
+
+// GetTrafficFlowFromMongo function
+func GetTrafficFlowFromMongo(startTime, endTime int64) ([]map[string]interface{}, error) {
 	client, db := ConnectMongoDB()
 	defer client.Disconnect(context.Background())
-	col := db.Collection(ColDiscoveredPolicy)
+	col := db.Collection(ColNetworkFlow)
 
-	existingPolicies, err := GetNetworkPolicies(col)
+	filter := bson.M{}
+	updateTimeFilters(filter, startTime, endTime)
+
+	docs, err := GetDocsByFilter(col, filter)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	for _, policy := range policies {
-		if IsExistedPolicy(existingPolicies, policy) {
-			// fmt.Println("already exist policy, ", policy)
-			continue
-		} else {
-			policy = ReplaceDuplcatedName(col, policy)
-			if _, err := col.InsertOne(context.Background(), policy); err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
+	return docs, nil
 }

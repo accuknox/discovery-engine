@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"net"
 	"os"
+	"os/exec"
 	"os/signal"
 	"reflect"
 	"strconv"
@@ -14,16 +15,18 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/accuknox/knoxAutoPolicy/src/plugin"
 	"github.com/accuknox/knoxAutoPolicy/src/types"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"gopkg.in/yaml.v2"
 )
 
-// ============ //
-// == Common == //
-// ============ //
+// ============= //
+// == Network == //
+// ============= //
 
-// GetIPAddr Function
-func GetIPAddr(ifname string) string {
+// getIPAddr Function
+func getIPAddr(ifname string) string {
 	if interfaces, err := net.Interfaces(); err == nil {
 		for _, iface := range interfaces {
 			if iface.Name == ifname {
@@ -37,11 +40,11 @@ func GetIPAddr(ifname string) string {
 		}
 	}
 
-	return ""
+	return "None"
 }
 
-// GetExternalInterface Function
-func GetExternalInterface() string {
+// getExternalInterface Function
+func getExternalInterface() string {
 	route := GetCommandOutput("ip", []string{"route", "get", "8.8.8.8"})
 	routeData := strings.Split(strings.Split(route, "\n")[0], " ")
 
@@ -51,17 +54,37 @@ func GetExternalInterface() string {
 		}
 	}
 
-	return ""
+	return "None"
 }
 
 // GetExternalIPAddr Function
 func GetExternalIPAddr() string {
-	iface := GetExternalInterface()
-	return GetIPAddr(iface)
+	iface := getExternalInterface()
+	if iface != "None" {
+		return getIPAddr(iface)
+	}
+
+	return "None"
 }
 
-// Exists Function
-func Exists(path string) (bool, error) {
+// GetProtocol Function
+func GetProtocol(protocol int) string {
+	protocolMap := map[int]string{
+		1:   "icmp",
+		6:   "tcp",
+		17:  "udp",
+		132: "stcp",
+	}
+
+	return protocolMap[protocol]
+}
+
+// ============ //
+// == Common == //
+// ============ //
+
+// exists Function
+func exists(path string) (bool, error) {
 	_, err := os.Stat(path)
 	if err == nil {
 		return true, nil
@@ -74,89 +97,16 @@ func Exists(path string) (bool, error) {
 
 // IsK8sEnv Function
 func IsK8sEnv() bool {
-	k8sConfig := os.Getenv("HOME") + "./kube"
-
 	if _, ok := os.LookupEnv("KUBERNETES_PORT"); ok {
 		return true
 	}
 
-	if exist, _ := Exists(k8sConfig); exist {
+	k8sConfig := os.Getenv("HOME") + "./kube"
+	if exist, _ := exists(k8sConfig); exist {
 		return true
 	}
 
 	return false
-}
-
-// WriteKnoxPolicyToYamlFile Function
-func WriteKnoxPolicyToYamlFile(namespace string, policies []types.KnoxNetworkPolicy) {
-	// create policy file
-	f, err := os.Create("./knox_policies_" + namespace + "_" + strconv.Itoa(int(time.Now().Unix())) + ".yaml")
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	for _, policy := range policies {
-		b, _ := yaml.Marshal(&policy)
-		f.Write(b)
-		f.WriteString("---\n")
-		f.Sync()
-	}
-
-	f.Close()
-}
-
-// WriteCiliumPolicyToFile Function
-func WriteCiliumPolicyToFile(namespace string, policies []types.KnoxNetworkPolicy) {
-	// create policy file
-	f, err := os.Create("./cilium_policies_" + namespace + "_" + strconv.Itoa(int(time.Now().Unix())) + ".yaml")
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	for _, policy := range policies {
-		ciliumPolicy := ToCiliumNetworkPolicy(policy) // if you want to convert it to Cilium policy
-		b, _ := yaml.Marshal(&ciliumPolicy)
-		f.Write(b)
-		f.WriteString("---\n")
-		f.Sync()
-	}
-
-	f.Close()
-}
-
-// WriteKnoxPolicyToJSONFile Function
-func WriteKnoxPolicyToJSONFile(namespace string, policies []types.KnoxNetworkPolicy) {
-	// create policy file
-	f, err := os.Create("./knox_policies_" + namespace + "_" + strconv.Itoa(int(time.Now().Unix())) + ".json")
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	for _, policy := range policies {
-		b, _ := json.MarshalIndent(policy, "", "    ")
-		f.Write(b)
-		f.WriteString("\n")
-		f.Sync()
-	}
-
-	f.Close()
-}
-
-// PrintPolicyYaml Function
-func PrintPolicyYaml(policy types.KnoxNetworkPolicy) {
-	b, _ := yaml.Marshal(&policy)
-	fmt.Print(string(b))
-	fmt.Println("---")
-}
-
-// PrintPolicyYaml Function
-func PrintCiliumPolicyYaml(ciliumPolicy types.CiliumNetworkPolicy) {
-	b, _ := yaml.Marshal(&ciliumPolicy)
-	fmt.Print(string(b))
-	fmt.Println("---")
 }
 
 // GetOSSigChannel Function
@@ -174,22 +124,12 @@ func GetOSSigChannel() chan os.Signal {
 	return c
 }
 
-// PrintSimplePolicyJson Function
-func PrintSimplePolicyJson(policy types.CiliumNetworkPolicy) {
-	fmt.Print(policy.Metadata["name"], "\t", policy.Spec.Selector, "\t")
-
-	if policy.Spec.Egress != nil && len(policy.Spec.Egress) > 0 {
-		fmt.Println(policy.Spec.Egress)
-	} else {
-		fmt.Println(policy.Spec.Ingress)
-	}
-}
-
 // GetEnv Function
 func GetEnv(key, fallback string) string {
 	if value, ok := os.LookupEnv(key); ok {
 		return value
 	}
+
 	return fallback
 }
 
@@ -238,31 +178,115 @@ func Combinations(set []string, n int) (subsets [][]string) {
 		// add subset to subsets
 		subsets = append(subsets, subset)
 	}
+
 	return subsets
 }
 
-var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-var LowerLetters = []rune("abcdefghijklmnopqrstuvwxyz")
-
 // RandSeq Function
 func RandSeq(n int) string {
+	var lowerLetters = []rune("abcdefghijklmnopqrstuvwxyz")
+
 	b := make([]rune, n)
 
 	for i := range b {
-		b[i] = letters[rand.Intn(len(LowerLetters))]
+		b[i] = lowerLetters[rand.Intn(len(lowerLetters))]
 	}
 
 	return string(b)
 }
 
-// GetProtocol Function
-func GetProtocol(protocol int) string {
-	protocolMap := map[int]string{
-		1:   "icmp",
-		6:   "tcp",
-		17:  "udp",
-		132: "stcp",
+// ============== //
+// == File I/O == //
+// ============== //
+
+// WriteKnoxPolicyToYamlFile Function
+func WriteKnoxPolicyToYamlFile(namespace string, policies []types.KnoxNetworkPolicy) {
+	// create policy file
+	f, err := os.Create("./knox_policies_" + namespace + "_" + strconv.Itoa(int(time.Now().Unix())) + ".yaml")
+	if err != nil {
+		fmt.Println(err)
+		return
 	}
 
-	return protocolMap[protocol]
+	for _, policy := range policies {
+		b, _ := yaml.Marshal(&policy)
+		f.Write(b)
+		f.WriteString("---\n")
+		f.Sync()
+	}
+
+	f.Close()
+}
+
+// WriteCiliumPolicyToFile Function
+func WriteCiliumPolicyToFile(namespace string, policies []types.KnoxNetworkPolicy) {
+	// create policy file
+	f, err := os.Create("./cilium_policies_" + namespace + "_" + strconv.Itoa(int(time.Now().Unix())) + ".yaml")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	for _, policy := range policies {
+		ciliumPolicy := plugin.ConvertKnoxPolicyToCiliumPolicy(policy) // if you want to convert it to Cilium policy
+		b, _ := yaml.Marshal(&ciliumPolicy)
+		f.Write(b)
+		f.WriteString("---\n")
+		f.Sync()
+	}
+
+	f.Close()
+}
+
+// WriteKnoxPolicyToJSONFile Function
+func WriteKnoxPolicyToJSONFile(namespace string, policies []types.KnoxNetworkPolicy) {
+	// create policy file
+	f, err := os.Create("./knox_policies_" + namespace + "_" + strconv.Itoa(int(time.Now().Unix())) + ".json")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	for _, policy := range policies {
+		b, _ := json.MarshalIndent(policy, "", "    ")
+		f.Write(b)
+		f.WriteString("\n")
+		f.Sync()
+	}
+
+	f.Close()
+}
+
+// ======================= //
+// == Command Execution == //
+// ======================= //
+
+// GetCommandOutput Function
+func GetCommandOutput(cmd string, args []string) string {
+	res := exec.Command(cmd, args...)
+	out, err := res.Output()
+	if err != nil {
+		return ""
+	}
+	return string(out)
+}
+
+// ========== //
+// == Time == //
+// ========== //
+
+// Time Format
+const (
+	TimeForm       string = "2006-01-02T15:04:05.000000"
+	TimeFormSimple string = "2006-01-02_15:04:05"
+	TimeFormUTC    string = "2006-01-02T15:04:05.000000Z"
+	TimeFormHuman  string = "2006-01-02 15:04:05.000000"
+	TimeCilium     string = "2006-01-02T15:04:05.000000000Z"
+)
+
+// ConvertUnixTSToDateTime Function
+func ConvertUnixTSToDateTime(ts int64) primitive.DateTime {
+	t := time.Unix(ts, 0)
+	dateTime := primitive.NewDateTimeFromTime(t)
+	return dateTime
 }
