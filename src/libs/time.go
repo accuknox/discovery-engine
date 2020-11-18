@@ -19,6 +19,7 @@ const (
 	TimeFormSimple string = "2006-01-02_15:04:05"
 	TimeFormUTC    string = "2006-01-02T15:04:05.000000Z"
 	TimeFormHuman  string = "2006-01-02 15:04:05.000000"
+	TimeCilium     string = "2006-01-02T15:04:05.000000000Z"
 )
 
 // GetDateTimeNow Function
@@ -72,6 +73,13 @@ func ConvertDateTimeToStr(givenTime primitive.DateTime) string {
 func ConvertStrToDateTime(givenTime string) primitive.DateTime {
 	t, _ := time.Parse(TimeFormUTC, givenTime)
 	t = t.UTC()
+	dateTime := primitive.NewDateTimeFromTime(t)
+	return dateTime
+}
+
+// ConvertUnixTSToDateTime Function
+func ConvertUnixTSToDateTime(ts int64) primitive.DateTime {
+	t := time.Unix(ts, 0)
 	dateTime := primitive.NewDateTimeFromTime(t)
 	return dateTime
 }

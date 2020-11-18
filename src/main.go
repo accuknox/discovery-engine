@@ -6,6 +6,8 @@ import (
 
 	"github.com/accuknox/knoxAutoPolicy/src/core"
 	"github.com/accuknox/knoxAutoPolicy/src/libs"
+	"github.com/accuknox/knoxAutoPolicy/src/plugin"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 
 	cron "github.com/robfig/cron/v3"
 )
@@ -23,16 +25,23 @@ func init() {
 	startTime = 0
 }
 
+func updateTimeInterval(lastDoc map[string]interface{}) {
+	// time filter update for next interval
+	ts := lastDoc["timestamp"].(primitive.DateTime)
+	startTime = ts.Time().Unix() + 1
+	endTime = time.Now().Unix()
+}
+
 // Generate function
 func Generate() {
 	// get network traffic from  knox aggregation Databse
-	trafficList, err := libs.GetTrafficFlowByTime(startTime, endTime)
+	docs, err := libs.GetTrafficFlowFromMongo(startTime, endTime)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	if len(trafficList) < 1 {
+	if len(docs) < 1 {
 		fmt.Println("Traffic flow is not exist: ",
 			time.Unix(startTime, 0).Format(libs.TimeFormSimple), " ~ ",
 			time.Unix(endTime, 0).Format(libs.TimeFormSimple))
@@ -42,11 +51,9 @@ func Generate() {
 		return
 	}
 
-	// time filter update for next interval
-	startTime = trafficList[len(trafficList)-1].TrafficFlow.Time + 1
-	endTime = time.Now().Unix()
+	updateTimeInterval(docs[len(docs)-1])
 
-	fmt.Println("the total number of traffic flow from db: ", len(trafficList))
+	fmt.Println("the total number of traffic flow from db: ", len(docs))
 
 	// get all the namespaces from k8s
 	namespaces := libs.K8s.GetK8sNamespaces()
@@ -58,7 +65,7 @@ func Generate() {
 		fmt.Println("policy discovery started for namespace: ", namespace)
 
 		// convert network traffic -> network log, and filter traffic
-		networkLogs := libs.ConvertTrafficFlowToLogs(namespace, trafficList)
+		networkLogs := plugin.ConvertCiliumFlowsToKnoxLogs(namespace, docs)
 
 		// get k8s services
 		services := libs.K8s.GetServices(namespace)
@@ -96,6 +103,12 @@ func CronJobDaemon() {
 	println("Got a signal to terminate the auto policy discovery")
 
 	c.Stop() // Stop the scheduler (does not stop any jobs already running).
+}
+
+// Test function
+func Test() {
+	traffic, _ := libs.GetTrafficFlowFromMongo(0, time.Now().Unix())
+	println(len(traffic))
 }
 
 func main() {

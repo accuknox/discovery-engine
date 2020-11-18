@@ -267,8 +267,8 @@ func IsExposedPort(protocol int, port int) bool {
 	return false
 }
 
-// UpdateExposedPorts Function
-func UpdateExposedPorts(services []types.K8sService, endpoints []types.K8sEndpoint, contGroups []types.ContainerGroup) {
+// updateExposedPorts Function
+func updateExposedPorts(services []types.K8sService, endpoints []types.K8sEndpoint, contGroups []types.ContainerGroup) {
 	// step 1: (k8s) service port update
 	for _, service := range services {
 		if strings.ToLower(service.Protocol) == "tcp" { // TCP
@@ -468,8 +468,8 @@ func MergeEgressIngressRules(networkPolicies []types.KnoxNetworkPolicy) []types.
 	return mergedNetworkPolicies
 }
 
-// BuildNetworkPolicies Function
-func BuildNetworkPolicies(microName string, services []types.K8sService, mergedSrcPerMergedDst map[string][]MergedPortDst) []types.KnoxNetworkPolicy {
+// buildNetworkPolicies Function
+func buildNetworkPolicies(microName string, services []types.K8sService, mergedSrcPerMergedDst map[string][]MergedPortDst) []types.KnoxNetworkPolicy {
 	networkPolicies := []types.KnoxNetworkPolicy{}
 
 	for mergedSrc, mergedDsts := range mergedSrcPerMergedDst {
@@ -1212,7 +1212,7 @@ func GenerateNetworkPolicies(microserviceName string,
 	containerGroups []types.ContainerGroup) []types.KnoxNetworkPolicy {
 
 	// step 1: update exposed ports (k8s service, docker-compose portbinding)
-	UpdateExposedPorts(services, endpoints, containerGroups)
+	updateExposedPorts(services, endpoints, containerGroups)
 
 	// step 2: [network logs] -> {dst: [network logs (src+dst)]}
 	logsPerDst := groupingLogsPerDst(networkLogs, endpoints, cidrBits)
@@ -1230,7 +1230,7 @@ func GenerateNetworkPolicies(microserviceName string,
 	mergedSrcPerMergedDst := mergingDstByLabels(mergedSrcPerMergedProtoDst, containerGroups)
 
 	// step 7: building network policies
-	networkPolicies := BuildNetworkPolicies(microserviceName, services, mergedSrcPerMergedDst)
+	networkPolicies := buildNetworkPolicies(microserviceName, services, mergedSrcPerMergedDst)
 
 	// step 8: removing duplication policies
 	refinedPolicies := RemoveDuplication(networkPolicies)

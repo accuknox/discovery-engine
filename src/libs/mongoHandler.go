@@ -186,3 +186,29 @@ func InsertDiscoveredPoliciesToMongoDB(policies []types.KnoxNetworkPolicy) error
 
 	return nil
 }
+
+// UpdateTimeFilters function
+func UpdateTimeFilters(filter primitive.M, tsStart, tsEnd int64) {
+	// update filter by start and end times
+	startTime := ConvertUnixTSToDateTime(tsStart)
+	endTime := ConvertUnixTSToDateTime(tsEnd)
+
+	filter["timestamp"] = bson.M{"$gte": startTime, "$lt": endTime}
+}
+
+// GetTrafficFlowFromMongo function
+func GetTrafficFlowFromMongo(startTime, endTime int64) ([]map[string]interface{}, error) {
+	client, db := ConnectMongoDB()
+	defer client.Disconnect(context.Background())
+	col := db.Collection(ColNetworkFlow)
+
+	filter := bson.M{}
+	UpdateTimeFilters(filter, startTime, endTime)
+
+	docs, err := GetDocsByFilter(col, filter)
+	if err != nil {
+		return nil, err
+	}
+
+	return docs, nil
+}

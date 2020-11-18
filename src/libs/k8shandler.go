@@ -306,12 +306,12 @@ func (kh *K8sHandler) GetServices(targetNS string) []types.K8sService {
 			k8sService.ServicePort = int(port.Port)
 			k8sService.ContainerPort = port.TargetPort.IntValue()
 
-			results = append(results, k8sService)
-		}
+			k8sService.Selector = map[string]string{}
+			for k, v := range svc.Spec.Selector {
+				k8sService.Selector[k] = v
+			}
 
-		k8sService.Selector = map[string]string{}
-		for k, v := range svc.Spec.Selector {
-			k8sService.Selector[k] = v
+			results = append(results, k8sService)
 		}
 	}
 
