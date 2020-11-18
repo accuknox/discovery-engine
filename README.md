@@ -11,12 +11,13 @@ Auto Policy Generation
 ```
 bin - shell script to start program with environment variables
 build - build container image
-database - mongodb container
+database - mongodb container for local test
 deployments - deployment file for kubenetes
 policies - example policies (.yaml)
 src - source codes
   core - Core functions for Knox Auto Policy
   libs - Libraries used for generating network policies
+  plugin - Plug-ins used for supporting various CNIs (currently, Cilium)
   types - Type definitions
 ```
 
