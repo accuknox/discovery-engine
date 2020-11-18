@@ -1,7 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"strconv"
 	"time"
 
 	"github.com/accuknox/knoxAutoPolicy/src/core"
@@ -16,7 +19,6 @@ import (
 var startTime int64 = 0
 var endTime int64 = 0
 
-var targetNamespace string = "default"
 var cidrBits int = 24
 
 func init() {
@@ -50,15 +52,15 @@ func Generate() {
 		endTime = time.Now().Unix()
 		return
 	}
+	fmt.Println("the total number of traffic flow from db: ", len(docs))
 
 	updateTimeInterval(docs[len(docs)-1])
 
-	fmt.Println("the total number of traffic flow from db: ", len(docs))
-
 	// get all the namespaces from k8s
-	namespaces := libs.K8s.GetK8sNamespaces()
+	namespaces := libs.GetK8sNamespaces()
+	skipNamespaces := []string{"kube-system", "kube-public", "kube-node-lease"}
 	for _, namespace := range namespaces {
-		if namespace != targetNamespace {
+		if libs.ContainsElement(skipNamespaces, namespace) {
 			continue
 		}
 
@@ -66,15 +68,32 @@ func Generate() {
 
 		// convert network traffic -> network log, and filter traffic
 		networkLogs := plugin.ConvertCiliumFlowsToKnoxLogs(namespace, docs)
+		for _, log := range networkLogs {
+			logb, _ := json.Marshal(log)
+			ioutil.WriteFile("./log", logb, 0644)
+			break
+		}
 
 		// get k8s services
-		services := libs.K8s.GetServices(namespace)
+		services := libs.GetServices(namespace)
+		for i, svc := range services {
+			if svc.ContainerPort == 8080 {
+				svcb, _ := json.Marshal(svc)
+				ioutil.WriteFile("./svc_"+strconv.Itoa(i), svcb, 0644)
+			}
+		}
 
 		// get k8s endpoints
-		endpoints := libs.K8s.GetEndpoints(namespace)
+		endpoints := libs.GetEndpoints(namespace)
 
 		// get pod information
-		pods := libs.K8s.GetConGroups(namespace)
+		pods := libs.GetConGroups(namespace)
+		for i, pod := range pods {
+			if pod.ContainerGroupName == "ubuntu-1-deployment-5ff5974cd4-dfdgt" || pod.ContainerGroupName == "ubuntu-4-deployment-5bbd4f6c69-frhlk" {
+				podb, _ := json.Marshal(pod)
+				ioutil.WriteFile("./pod_"+strconv.Itoa(i), podb, 0644)
+			}
+		}
 
 		// generate network policies
 		policies := core.GenerateNetworkPolicies(namespace, cidrBits, networkLogs, services, endpoints, pods)
@@ -103,12 +122,6 @@ func CronJobDaemon() {
 	println("Got a signal to terminate the auto policy discovery")
 
 	c.Stop() // Stop the scheduler (does not stop any jobs already running).
-}
-
-// Test function
-func Test() {
-	traffic, _ := libs.GetTrafficFlowFromMongo(0, time.Now().Unix())
-	println(len(traffic))
 }
 
 func main() {

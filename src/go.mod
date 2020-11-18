@@ -11,6 +11,7 @@ replace (
 
 require (
 	github.com/cilium/cilium v1.9.0
+	github.com/go-playground/assert v1.2.1
 	github.com/google/go-cmp v0.5.3
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/stretchr/testify v1.6.1

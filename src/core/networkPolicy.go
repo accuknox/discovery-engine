@@ -1165,8 +1165,8 @@ func mergingDstByLabels(mergedSrcPerMergedProtoDst map[string][]MergedPortDst, c
 // == Duplicatie Check == //
 // ====================== //
 
-// RemoveDuplication Function
-func RemoveDuplication(networkPolicies []types.KnoxNetworkPolicy) []types.KnoxNetworkPolicy {
+// removeDuplication Function
+func removeDuplication(networkPolicies []types.KnoxNetworkPolicy) []types.KnoxNetworkPolicy {
 	autoPolicyNames := []string{}
 
 	newPolicies := []types.KnoxNetworkPolicy{}
@@ -1233,7 +1233,7 @@ func GenerateNetworkPolicies(microserviceName string,
 	networkPolicies := buildNetworkPolicies(microserviceName, services, mergedSrcPerMergedDst)
 
 	// step 8: removing duplication policies
-	refinedPolicies := RemoveDuplication(networkPolicies)
+	refinedPolicies := removeDuplication(networkPolicies)
 
 	return refinedPolicies
 }

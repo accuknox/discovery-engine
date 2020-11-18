@@ -151,6 +151,7 @@ func ConvertCiliumFlowToKnoxLog(flow *flow.Flow) types.NetworkLog {
 // filterTrafficFlow function
 func filterTrafficFlow(microName string, flow *flow.Flow) bool {
 	// filter 1: microservice name (namespace)
+	// skipList := []string{"kube-system", "kube-public", "kube-node-lease"}
 	if flow.Source.Namespace != microName && flow.Destination.Namespace != microName {
 		return false
 	}
@@ -169,8 +170,8 @@ func ConvertCiliumFlowsToKnoxLogs(microName string, docs []map[string]interface{
 
 	for _, doc := range docs {
 		flow := &flow.Flow{}
-		jsonString, _ := json.Marshal(doc)
-		json.Unmarshal(jsonString, flow)
+		flowByte, _ := json.Marshal(doc)
+		json.Unmarshal(flowByte, flow)
 
 		if filterTrafficFlow(microName, flow) {
 			log := ConvertCiliumFlowToKnoxLog(flow)
@@ -211,8 +212,8 @@ func getCoreDNSEndpoint() []types.CiliumEndpoint {
 	return coreDns
 }
 
-// ToCiliumNetworkPolicy function
-func ToCiliumNetworkPolicy(inPolicy types.KnoxNetworkPolicy) types.CiliumNetworkPolicy {
+// ConvertKnoxPolicyToCiliumPolicy function
+func ConvertKnoxPolicyToCiliumPolicy(inPolicy types.KnoxNetworkPolicy) types.CiliumNetworkPolicy {
 	ciliumPolicy := buildNewCiliumNetworkPolicy(inPolicy)
 
 	// ====== //

@@ -17,6 +17,7 @@ import (
 
 	"github.com/accuknox/knoxAutoPolicy/src/plugin"
 	"github.com/accuknox/knoxAutoPolicy/src/types"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"gopkg.in/yaml.v2"
 )
 
@@ -227,7 +228,7 @@ func WriteCiliumPolicyToFile(namespace string, policies []types.KnoxNetworkPolic
 	}
 
 	for _, policy := range policies {
-		ciliumPolicy := plugin.ToCiliumNetworkPolicy(policy) // if you want to convert it to Cilium policy
+		ciliumPolicy := plugin.ConvertKnoxPolicyToCiliumPolicy(policy) // if you want to convert it to Cilium policy
 		b, _ := yaml.Marshal(&ciliumPolicy)
 		f.Write(b)
 		f.WriteString("---\n")
@@ -268,4 +269,24 @@ func GetCommandOutput(cmd string, args []string) string {
 		return ""
 	}
 	return string(out)
+}
+
+// ========== //
+// == Time == //
+// ========== //
+
+// Time Format
+const (
+	TimeForm       string = "2006-01-02T15:04:05.000000"
+	TimeFormSimple string = "2006-01-02_15:04:05"
+	TimeFormUTC    string = "2006-01-02T15:04:05.000000Z"
+	TimeFormHuman  string = "2006-01-02 15:04:05.000000"
+	TimeCilium     string = "2006-01-02T15:04:05.000000000Z"
+)
+
+// ConvertUnixTSToDateTime Function
+func ConvertUnixTSToDateTime(ts int64) primitive.DateTime {
+	t := time.Unix(ts, 0)
+	dateTime := primitive.NewDateTimeFromTime(t)
+	return dateTime
 }
