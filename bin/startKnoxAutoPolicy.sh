@@ -2,7 +2,7 @@
 
 KNOX_AUTO_HOME=`dirname $(realpath "$0")`/..
 
-DB_DRIVER=mysql
+DB_DRIVER=mongodb
 DB_PORT=27017
 DB_USER=root
 DB_PASS=password
