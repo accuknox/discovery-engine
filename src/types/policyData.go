@@ -123,7 +123,7 @@ type CiliumK8sService struct {
 
 // CiliumService Structure
 type CiliumService struct {
-	K8sService []CiliumK8sService `json:"k8sService,omitempty" yaml:"k8sService,omitempty"`
+	K8sService CiliumK8sService `json:"k8sService,omitempty" yaml:"k8sService,omitempty"`
 }
 
 // CiliumEgress Structure

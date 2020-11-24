@@ -280,13 +280,31 @@ func updateExposedPorts(services []types.K8sService, endpoints []types.K8sEndpoi
 			if !libs.ContainsElement(exposedTCPPorts, service.ServicePort) {
 				exposedTCPPorts = append(exposedTCPPorts, service.ServicePort)
 			}
+			if !libs.ContainsElement(exposedTCPPorts, service.NodePort) {
+				exposedTCPPorts = append(exposedTCPPorts, service.NodePort)
+			}
+			if !libs.ContainsElement(exposedTCPPorts, service.ContainerPort) {
+				exposedTCPPorts = append(exposedTCPPorts, service.ContainerPort)
+			}
 		} else if strings.ToLower(service.Protocol) == "udp" { // UDP
 			if !libs.ContainsElement(exposedUDPPorts, service.ServicePort) {
 				exposedUDPPorts = append(exposedUDPPorts, service.ServicePort)
 			}
+			if !libs.ContainsElement(exposedUDPPorts, service.NodePort) {
+				exposedUDPPorts = append(exposedUDPPorts, service.NodePort)
+			}
+			if !libs.ContainsElement(exposedUDPPorts, service.ContainerPort) {
+				exposedUDPPorts = append(exposedUDPPorts, service.ContainerPort)
+			}
 		} else if strings.ToLower(service.Protocol) == "sctp" { // SCTP
 			if !libs.ContainsElement(exposedSCTPPorts, service.ServicePort) {
 				exposedSCTPPorts = append(exposedSCTPPorts, service.ServicePort)
+			}
+			if !libs.ContainsElement(exposedSCTPPorts, service.NodePort) {
+				exposedSCTPPorts = append(exposedSCTPPorts, service.NodePort)
+			}
+			if !libs.ContainsElement(exposedSCTPPorts, service.ContainerPort) {
+				exposedSCTPPorts = append(exposedSCTPPorts, service.ContainerPort)
 			}
 		}
 	}
@@ -1269,7 +1287,7 @@ func DiscoverNetworkPolicies(microserviceName string,
 func CronJobDaemon() {
 	// init cron job
 	c := cron.New()
-	c.AddFunc("@every 0h0m30s", StartToDiscoverNetworkPolicies) // every time interval for test
+	c.AddFunc("@every 0h1m0s", StartToDiscoverNetworkPolicies) // time interval
 	c.Start()
 
 	sig := libs.GetOSSigChannel()
@@ -1311,14 +1329,18 @@ func StartToDiscoverNetworkPolicies() {
 	// get all the namespaces from k8s
 	namespaces := libs.GetK8sNamespaces()
 	for _, namespace := range namespaces {
-		if libs.ContainsElement(skipNamespaces, namespace) {
+		if namespace != "cilium" {
+			continue
+		}
+
+		// convert network traffic -> network log, and filter traffic
+		networkLogs := plugin.ConvertCiliumFlowsToKnoxLogs(namespace, docs)
+
+		if len(networkLogs) == 0 {
 			continue
 		}
 
 		log.Info().Msgf("policy discovery started for namespace: %s", namespace)
-
-		// convert network traffic -> network log, and filter traffic
-		networkLogs := plugin.ConvertCiliumFlowsToKnoxLogs(namespace, docs)
 
 		// get pod information
 		pods := libs.GetConGroups(namespace)
@@ -1334,6 +1356,6 @@ func StartToDiscoverNetworkPolicies() {
 			libs.InsertPoliciesToMongoDB(policies)
 		}
 
-		log.Info().Msgf("policy discovery done for namespace: %s %d ", namespace, len(policies))
+		log.Info().Msgf("policy discovery done    for namespace: %s, %d policies generated", namespace, len(policies))
 	}
 }

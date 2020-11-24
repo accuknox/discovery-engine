@@ -230,6 +230,7 @@ func GetServices() []types.K8sService {
 
 	results := []types.K8sService{}
 	for _, svc := range svcs.Items {
+
 		k8sService := types.K8sService{}
 
 		k8sService.MicroserviceName = svc.Namespace
@@ -245,7 +246,9 @@ func GetServices() []types.K8sService {
 		for _, port := range svc.Spec.Ports {
 			k8sService.ClusterIP = string(svc.Spec.ClusterIP)
 			k8sService.Protocol = string(port.Protocol)
+
 			k8sService.ServicePort = int(port.Port)
+			k8sService.NodePort = int(port.NodePort)
 			k8sService.ContainerPort = port.TargetPort.IntValue()
 
 			k8sService.Selector = map[string]string{}

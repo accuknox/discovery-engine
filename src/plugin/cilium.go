@@ -314,11 +314,9 @@ func ConvertKnoxPolicyToCiliumPolicy(inPolicy types.KnoxNetworkPolicy) types.Cil
 				}
 
 				ciliumService := types.CiliumService{
-					K8sService: []types.CiliumK8sService{
-						types.CiliumK8sService{
-							ServiceName: service.ServiceName,
-							Namespace:   service.Namespace,
-						},
+					K8sService: types.CiliumK8sService{
+						ServiceName: service.ServiceName,
+						Namespace:   service.Namespace,
 					},
 				}
 
