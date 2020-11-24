@@ -623,9 +623,9 @@ func buildNetworkPolicies(microName string, services []types.K8sService, mergedS
 				// build Entity rule //
 				// ================= //
 
-				if dst.MicroserviceName == "reserved:host" { // host is allowed by default in Cilium
-					continue
-				}
+				// if dst.MicroserviceName == "reserved:host" { // host is allowed by default in Cilium
+				// 	continue
+				// }
 
 				// handle for entity policy in Cilium
 				egressRule.ToEndtities = []string{strings.Split(dst.MicroserviceName, ":")[1]}
@@ -653,9 +653,6 @@ func buildNetworkPolicies(microName string, services []types.K8sService, mergedS
 			}
 		}
 	}
-
-	// a policy <- egress + ingress
-	// mergedPolicies := MergeEgressIngressRules(networkPolicies)
 
 	return networkPolicies
 }
