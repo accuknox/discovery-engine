@@ -201,8 +201,10 @@ func RandSeq(n int) string {
 
 // WriteKnoxPolicyToYamlFile Function
 func WriteKnoxPolicyToYamlFile(namespace string, policies []types.KnoxNetworkPolicy) {
+	outdir := GetEnv("OUT_DIR", "./")
+
 	// create policy file
-	f, err := os.Create("./knox_policies_" + namespace + "_" + strconv.Itoa(int(time.Now().Unix())) + ".yaml")
+	f, err := os.Create(outdir + "knox_policies_" + namespace + "_" + strconv.Itoa(int(time.Now().Unix())) + ".yaml")
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -218,10 +220,12 @@ func WriteKnoxPolicyToYamlFile(namespace string, policies []types.KnoxNetworkPol
 	f.Close()
 }
 
-// WriteCiliumPolicyToFile Function
-func WriteCiliumPolicyToFile(namespace string, policies []types.KnoxNetworkPolicy) {
+// WriteCiliumPolicyToYamlFile Function
+func WriteCiliumPolicyToYamlFile(namespace string, policies []types.KnoxNetworkPolicy) {
 	// create policy file
-	f, err := os.Create("./cilium_policies_" + namespace + "_" + strconv.Itoa(int(time.Now().Unix())) + ".yaml")
+	outdir := GetEnv("OUT_DIR", "./")
+
+	f, err := os.Create(outdir + "cilium_policies_" + namespace + "_" + strconv.Itoa(int(time.Now().Unix())) + ".yaml")
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -240,8 +244,10 @@ func WriteCiliumPolicyToFile(namespace string, policies []types.KnoxNetworkPolic
 
 // WriteKnoxPolicyToJSONFile Function
 func WriteKnoxPolicyToJSONFile(namespace string, policies []types.KnoxNetworkPolicy) {
+	outdir := GetEnv("OUT_DIR", "./")
+
 	// create policy file
-	f, err := os.Create("./knox_policies_" + namespace + "_" + strconv.Itoa(int(time.Now().Unix())) + ".json")
+	f, err := os.Create(outdir + "knox_policies_" + namespace + "_" + strconv.Itoa(int(time.Now().Unix())) + ".json")
 	if err != nil {
 		fmt.Println(err)
 		return

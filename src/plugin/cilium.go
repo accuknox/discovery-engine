@@ -26,8 +26,8 @@ func isSynFlagOnly(tcp *flow.TCP) bool {
 func getL4Ports(l4 *flow.Layer4) (int, int) {
 	if l4.GetTCP() != nil {
 		return int(l4.GetTCP().SourcePort), int(l4.GetTCP().DestinationPort)
-	} else if l4.GetTCP() != nil {
-		return int(l4.GetUDP().SourcePort), int(l4.GetTCP().DestinationPort)
+	} else if l4.GetUDP() != nil {
+		return int(l4.GetUDP().SourcePort), int(l4.GetUDP().DestinationPort)
 	} else if l4.GetICMPv4() != nil {
 		return int(l4.GetICMPv4().Type), int(l4.GetICMPv4().Code)
 	} else {
@@ -87,32 +87,32 @@ func getHTTP(flow *flow.Flow) (string, string) {
 }
 
 // ConvertCiliumFlowToKnoxLog function
-func ConvertCiliumFlowToKnoxLog(flow *flow.Flow) types.NetworkLog {
-	log := types.NetworkLog{}
+func ConvertCiliumFlowToKnoxLog(flow *flow.Flow) types.KnoxNetworkLog {
+	log := types.KnoxNetworkLog{}
 
 	// set namespace/pod
 	if flow.Source.Namespace == "" {
-		log.SrcMicroserviceName = getReservedLabelIfExist(flow.Source.Labels)
+		log.SrcNamespace = getReservedLabelIfExist(flow.Source.Labels)
 	} else {
-		log.SrcMicroserviceName = flow.Source.Namespace
+		log.SrcNamespace = flow.Source.Namespace
 	}
 
 	if flow.Source.PodName == "" {
-		log.SrcContainerGroupName = flow.IP.Source
+		log.SrcPodName = flow.IP.Source
 	} else {
-		log.SrcContainerGroupName = flow.Source.GetPodName()
+		log.SrcPodName = flow.Source.GetPodName()
 	}
 
 	if flow.Destination.Namespace == "" {
-		log.DstMicroserviceName = getReservedLabelIfExist(flow.Destination.Labels)
+		log.DstNamespace = getReservedLabelIfExist(flow.Destination.Labels)
 	} else {
-		log.DstMicroserviceName = flow.Destination.Namespace
+		log.DstNamespace = flow.Destination.Namespace
 	}
 
 	if flow.Destination.PodName == "" {
-		log.DstContainerGroupName = flow.IP.Destination
+		log.DstPodName = flow.IP.Destination
 	} else {
-		log.DstContainerGroupName = flow.Destination.GetPodName()
+		log.DstPodName = flow.Destination.GetPodName()
 	}
 
 	// get action
@@ -148,35 +148,28 @@ func ConvertCiliumFlowToKnoxLog(flow *flow.Flow) types.NetworkLog {
 	return log
 }
 
-// filterTrafficFlow function
-func filterTrafficFlow(microName string, flow *flow.Flow) bool {
-	// filter 1: microservice name (namespace)
-	// skipList := []string{"kube-system", "kube-public", "kube-node-lease"}
-	if flow.Source.Namespace != microName && flow.Destination.Namespace != microName {
-		return false
-	}
-
-	// filter 2: packet is dropped (flow.Verdict == 2) and drop reason == 181 (Policy denied by denylist)
-	if flow.Verdict == 2 && flow.DropReason == 181 {
-		return false
-	}
-
-	return true
-}
-
 // ConvertCiliumFlowsToKnoxLogs function
-func ConvertCiliumFlowsToKnoxLogs(microName string, docs []map[string]interface{}) []types.NetworkLog {
-	networkLogs := []types.NetworkLog{}
+func ConvertCiliumFlowsToKnoxLogs(targetNamespace string, docs []map[string]interface{}) []types.KnoxNetworkLog {
+	networkLogs := []types.KnoxNetworkLog{}
 
 	for _, doc := range docs {
 		flow := &flow.Flow{}
 		flowByte, _ := json.Marshal(doc)
 		json.Unmarshal(flowByte, flow)
 
-		if filterTrafficFlow(microName, flow) {
-			log := ConvertCiliumFlowToKnoxLog(flow)
-			networkLogs = append(networkLogs, log)
+		if flow.Source.Namespace != targetNamespace && flow.Destination.Namespace != targetNamespace {
+			continue
 		}
+
+		/*
+			// packet is dropped (flow.Verdict == 2) and drop reason == 181 (Policy denied by denylist) ?
+			if flow.Verdict == 2 && flow.DropReason == 181 {
+				continue
+			}
+		*/
+
+		log := ConvertCiliumFlowToKnoxLog(flow)
+		networkLogs = append(networkLogs, log)
 	}
 
 	return networkLogs
@@ -314,11 +307,9 @@ func ConvertKnoxPolicyToCiliumPolicy(inPolicy types.KnoxNetworkPolicy) types.Cil
 				}
 
 				ciliumService := types.CiliumService{
-					K8sService: []types.CiliumK8sService{
-						types.CiliumK8sService{
-							ServiceName: service.ServiceName,
-							Namespace:   service.Namespace,
-						},
+					K8sService: types.CiliumK8sService{
+						ServiceName: service.ServiceName,
+						Namespace:   service.Namespace,
 					},
 				}
 

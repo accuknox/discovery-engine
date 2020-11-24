@@ -25,7 +25,7 @@ func TestInsertDiscoveredPoliciesToMongoDB(t *testing.T) {
 		},
 	}
 
-	err := InsertDiscoveredPoliciesToMongoDB(policies)
+	err := InsertPoliciesToMongoDB(policies)
 
 	require.NoError(t, err)
 }
@@ -57,7 +57,7 @@ func TestCountPoliciesByName(t *testing.T) {
 		},
 	}
 
-	err := InsertDiscoveredPoliciesToMongoDB(policies)
+	err := InsertPoliciesToMongoDB(policies)
 	require.NoError(t, err)
 
 	_, actualDB := ConnectMongoDB()

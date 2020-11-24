@@ -26,9 +26,9 @@ func TestGenerateNetworkPolicies(t *testing.T) {
 		}
 	*/
 	logB := []byte("{\"src_microservice_name\":\"multiubuntu\",\"src_container_group_name\":\"ubuntu-1-deployment-5ff5974cd4-dfdgt\",\"dst_microservice_name\":\"multiubuntu\",\"dst_container_group_name\":\"ubuntu-4-deployment-5bbd4f6c69-frhlk\",\"protocol\":6,\"src_ip\":\"10.0.2.74\",\"dst_ip\":\"10.0.1.55\",\"src_port\":58404,\"dst_port\":8080,\"direction\":\"EGRESS\",\"action\":\"allow\"}")
-	log := types.NetworkLog{}
+	log := types.KnoxNetworkLog{}
 	json.Unmarshal(logB, &log)
-	logs := []types.NetworkLog{log}
+	logs := []types.KnoxNetworkLog{log}
 
 	/*
 		{
@@ -149,7 +149,7 @@ func TestGenerateNetworkPolicies(t *testing.T) {
 	expectedSpec2b := []byte("{\"selector\":{\"matchLabels\":{\"container\":\"ubuntu-4\",\"group\":\"group-2\"}},\"ingress\":[{\"matchLabels\":{\"container\":\"ubuntu-1\",\"group\":\"group-1\",\"k8s:io.kubernetes.pod.namespace\":\"multiubuntu\"}}],\"action\":\"allow\"}")
 	json.Unmarshal(expectedSpec2b, &spec2)
 
-	policies := GenerateNetworkPolicies("multiubuntu", 24, logs, svcs, nil, pods)
+	policies := DiscoverNetworkPolicies("multiubuntu", 24, logs, svcs, nil, pods)
 	for i, policy := range policies {
 		if i == 0 && cmp.Equal(spec1, policy.Spec) {
 			assert.Equal(t, spec1, policy.Spec, "they should be equal")
