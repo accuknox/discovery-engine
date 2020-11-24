@@ -9,6 +9,7 @@ import (
 
 	"github.com/accuknox/knoxAutoPolicy/src/types"
 	"github.com/google/go-cmp/cmp"
+	"github.com/rs/zerolog/log"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -74,7 +75,9 @@ func ConnectMongoDB() (*mongo.Client, *mongo.Database) {
 }
 
 // InsertPoliciesToMongoDB function
-func InsertPoliciesToMongoDB(policies []types.KnoxNetworkPolicy) error {
+func InsertPoliciesToMongoDB(policies []types.KnoxNetworkPolicy) []types.KnoxNetworkPolicy {
+	newPolicies := []types.KnoxNetworkPolicy{}
+
 	client, db := ConnectMongoDB()
 	defer client.Disconnect(context.Background())
 
@@ -82,7 +85,8 @@ func InsertPoliciesToMongoDB(policies []types.KnoxNetworkPolicy) error {
 
 	existingPolicies, err := GetNetworkPolicies(col)
 	if err != nil {
-		return err
+		log.Logger.Err(err)
+		return nil
 	}
 
 	for _, policy := range policies {
@@ -91,12 +95,14 @@ func InsertPoliciesToMongoDB(policies []types.KnoxNetworkPolicy) error {
 		} else {
 			policy = replaceDuplcatedName(col, policy)
 			if _, err := col.InsertOne(context.Background(), policy); err != nil {
-				return err
+				log.Logger.Err(err)
+				continue
 			}
+			newPolicies = append(newPolicies, policy)
 		}
 	}
 
-	return nil
+	return newPolicies
 }
 
 // GetDocsByFilter Function

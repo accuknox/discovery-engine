@@ -85,7 +85,7 @@ func TestConvertCiliumFlowToKnoxLog(t *testing.T) {
 	flow := &flow.Flow{}
 	json.Unmarshal(flowBytes, flow)
 
-	expected := &types.NetworkLog{}
+	expected := &types.KnoxNetworkLog{}
 	json.Unmarshal(logBytes, expected)
 
 	actual := ConvertCiliumFlowToKnoxLog(flow)

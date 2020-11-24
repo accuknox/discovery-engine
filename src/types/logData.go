@@ -1,14 +1,14 @@
 package types
 
-// NetworkLog Structure
-type NetworkLog struct {
-	SrcMicroserviceName   string `json:"src_microservice_name,omitempty" bson:"src_microservice_name"`
-	SrcContainerGroupName string `json:"src_container_group_name,omitempty" bson:"src_container_group_name"`
+// KnoxNetworkLog Structure
+type KnoxNetworkLog struct {
+	SrcNamespace string `json:"src_namespace,omitempty" bson:"src_namespace"`
+	SrcPodName   string `json:"src_pod_name,omitempty" bson:"src_pod_name"`
 
-	DstMicroserviceName   string `json:"dst_microservice_name,omitempty" bson:"dst_microservice_name"`
-	DstContainerGroupName string `json:"dst_container_group_name,omitempty" bson:"dst_container_group_name"`
+	DstNamespace string `json:"dst_namespace,omitempty" bson:"dst_namespace"`
+	DstPodName   string `json:"dst_pod_name,omitempty" bson:"dst_pod_name"`
 
-	EtherType int `json:"ether_type,omitempty" bson:"ether_type"` // not used, we assume ipv4
+	EtherType int `json:"ether_type,omitempty" bson:"ether_type"` // not used, we assume all the ipv4
 
 	SrcMac string `json:"src_mac,omitempty" bson:"src_mac"`
 	DstMac string `json:"dst_mac,omitempty" bson:"dst_mac"`
@@ -27,5 +27,6 @@ type NetworkLog struct {
 	HTTPPath   string `json:"http_path,omitempty" bson:"http_path"`     // for L7 http
 
 	Direction string `json:"direction,omitempty" bson:"direction"` // ingress or egress
-	Action    string `json:"action,omitempty" bson:"action"`
+
+	Action string `json:"action,omitempty" bson:"action"`
 }
