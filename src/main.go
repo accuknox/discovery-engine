@@ -5,5 +5,5 @@ import (
 )
 
 func main() {
-	core.StartToDiscoverNetworkPolicies()
+	core.CronJob()
 }

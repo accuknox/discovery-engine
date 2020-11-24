@@ -643,7 +643,7 @@ func buildNetworkPolicies(microName string, services []types.K8sService, mergedS
 
 				reserved := strings.Split(dst.MicroserviceName, ":")[1]
 				if reserved == "remote-node" {
-					ingressRule.FromEntities = []string{"world"}
+					ingressRule.FromEntities = []string{"world", "remote-node"}
 				} else {
 					ingressRule.FromEntities = []string{reserved}
 				}
@@ -1282,11 +1282,15 @@ func DiscoverNetworkPolicies(microserviceName string,
 	return deduplicatedName
 }
 
-// CronJobDaemon function
-func CronJobDaemon() {
+// CronJob function
+func CronJob() {
+	log.Info().Msg("auto discovery cron job started")
+
+	StartToDiscoverNetworkPolicies()
+
 	// init cron job
 	c := cron.New()
-	c.AddFunc("@every 0h1m0s", StartToDiscoverNetworkPolicies) // time interval
+	c.AddFunc("@every 0h0m5s", StartToDiscoverNetworkPolicies) // time interval
 	c.Start()
 
 	sig := libs.GetOSSigChannel()
@@ -1310,7 +1314,6 @@ func StartToDiscoverNetworkPolicies() {
 			time.Unix(startTime, 0).Format(libs.TimeFormSimple),
 			time.Unix(endTime, 0).Format(libs.TimeFormSimple))
 
-		startTime = endTime
 		endTime = time.Now().Unix()
 		return
 	}
@@ -1347,16 +1350,23 @@ func StartToDiscoverNetworkPolicies() {
 
 		// generate network policies
 		policies := DiscoverNetworkPolicies(namespace, cidrBits, networkLogs, services, endpoints, pods)
-		deduplication := []types.KnoxNetworkPolicy{}
 
 		if len(policies) > 0 {
+			deduplication := []types.KnoxNetworkPolicy{}
+
 			// insert discovered policies to db
 			deduplication = libs.InsertPoliciesToMongoDB(policies)
 
-			// write discovered policies to files
-			libs.WriteCiliumPolicyToYamlFile(namespace, deduplication)
-		}
+			if len(deduplication) > 0 {
+				// write discovered policies to files
+				libs.WriteCiliumPolicyToYamlFile(namespace, deduplication)
 
-		log.Info().Msgf("policy discovery done    for namespace: %s, %d policies generated", namespace, len(deduplication))
+				log.Info().Msgf("policy discovery done    for namespace: %s, %d policies generated", namespace, len(deduplication))
+			} else {
+				log.Info().Msgf("policy discovery done    for namespace: %s, no policy generated", namespace)
+			}
+		} else {
+			log.Info().Msgf("policy discovery done    for namespace: %s, no policy generated", namespace)
+		}
 	}
 }

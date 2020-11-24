@@ -110,7 +110,7 @@ func GetDocsByFilter(col *mongo.Collection, filter primitive.M) ([]map[string]in
 	matchedDocs := []map[string]interface{}{}
 
 	// find documents by the filter
-	options := options.Find().SetSort(bson.D{{"_id", -1}})
+	options := options.Find().SetSort(bson.D{{"timestamp", 1}})
 	cur, err := col.Find(context.Background(), filter, options)
 	if err != nil {
 		return matchedDocs, err
