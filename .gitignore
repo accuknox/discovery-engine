@@ -1,3 +1,3 @@
 .vscode/
 knoxAutoPolicy
-output/*.yaml
+*.yaml
