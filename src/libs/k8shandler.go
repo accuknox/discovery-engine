@@ -142,8 +142,8 @@ func ConnectInClusterAPIClient() *kubernetes.Clientset {
 // == Microservice (Namespace) == //
 // ============================== //
 
-// GetK8sNamespaces Function
-func GetK8sNamespaces() []string {
+// GetNamespaces Function
+func GetNamespaces() []string {
 	client := ConnectK8sClient()
 	if client == nil {
 		return nil
@@ -172,8 +172,8 @@ func GetK8sNamespaces() []string {
 // == Container Group (Pod) == //
 // =========================== //
 
-// GetConGroups Function
-func GetConGroups(targetNS string) []types.ContainerGroup {
+// GetPods Function
+func GetPods(targetNS string) []types.Pod {
 	client := ConnectK8sClient()
 	if client == nil {
 		return nil
@@ -186,18 +186,18 @@ func GetConGroups(targetNS string) []types.ContainerGroup {
 		return nil
 	}
 
-	conGroups := []types.ContainerGroup{}
+	conGroups := []types.Pod{}
 
 	for _, pod := range pods.Items {
 		if pod.Namespace != targetNS && pod.Namespace != "kube-system" {
 			continue
 		}
 
-		group := types.ContainerGroup{
-			MicroserviceName:   pod.Namespace,
-			ContainerGroupUID:  string(pod.UID),
-			ContainerGroupName: pod.Name,
-			Labels:             []string{},
+		group := types.Pod{
+			Namespace: pod.Namespace,
+			PodUID:    string(pod.UID),
+			PodName:   pod.Name,
+			Labels:    []string{},
 		}
 
 		for k, v := range pod.Labels {
@@ -215,7 +215,7 @@ func GetConGroups(targetNS string) []types.ContainerGroup {
 // ============== //
 
 // GetServices Function
-func GetServices() []types.K8sService {
+func GetServices() []types.Service {
 	client := ConnectK8sClient()
 	if client == nil {
 		return nil
@@ -228,12 +228,12 @@ func GetServices() []types.K8sService {
 		return nil
 	}
 
-	results := []types.K8sService{}
+	results := []types.Service{}
 	for _, svc := range svcs.Items {
 
-		k8sService := types.K8sService{}
+		k8sService := types.Service{}
 
-		k8sService.MicroserviceName = svc.Namespace
+		k8sService.Namespace = svc.Namespace
 		k8sService.ServiceName = svc.Name
 		k8sService.Labels = []string{}
 
@@ -249,7 +249,7 @@ func GetServices() []types.K8sService {
 
 			k8sService.ServicePort = int(port.Port)
 			k8sService.NodePort = int(port.NodePort)
-			k8sService.ContainerPort = port.TargetPort.IntValue()
+			k8sService.TargetPort = port.TargetPort.IntValue()
 
 			k8sService.Selector = map[string]string{}
 			for k, v := range svc.Spec.Selector {
@@ -268,7 +268,7 @@ func GetServices() []types.K8sService {
 // ============== //
 
 // GetEndpoints Function
-func GetEndpoints() []types.K8sEndpoint {
+func GetEndpoints() []types.Endpoint {
 	client := ConnectK8sClient()
 	if client == nil {
 		return nil
@@ -281,7 +281,7 @@ func GetEndpoints() []types.K8sEndpoint {
 		return nil
 	}
 
-	results := []types.K8sEndpoint{}
+	results := []types.Endpoint{}
 	for _, k8sEndpoint := range endpoints.Items {
 		metadata := k8sEndpoint.ObjectMeta
 		subsets := k8sEndpoint.Subsets
@@ -296,9 +296,9 @@ func GetEndpoints() []types.K8sEndpoint {
 			ports := subset.Ports
 
 			// build endpoint
-			endPoint := types.K8sEndpoint{}
+			endPoint := types.Endpoint{}
 
-			endPoint.MicroserviceName = metadata.Namespace
+			endPoint.Namespace = metadata.Namespace
 			endPoint.EndpointName = metadata.Name
 
 			// get labels from metadata
@@ -309,7 +309,7 @@ func GetEndpoints() []types.K8sEndpoint {
 			sort.Strings(endPoint.Labels)
 
 			// get network information
-			endPoint.Endpoints = []types.Endpoint{}
+			endPoint.Endpoints = []types.Mapping{}
 			for _, address := range addresses {
 				targetRef := address.TargetRef
 				if targetRef != nil { // no selector
@@ -317,7 +317,7 @@ func GetEndpoints() []types.K8sEndpoint {
 				}
 
 				for _, port := range ports {
-					mapping := types.Endpoint{}
+					mapping := types.Mapping{}
 
 					mapping.Protocol = strings.ToLower(string(port.Protocol))
 					mapping.IP = address.IP
