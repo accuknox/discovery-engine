@@ -2,18 +2,18 @@
 Auto Policy Generation
 
 # Overview
-![overview](http://seungsoo.net/autopolicy3.png)
+![overview](http://seungsoo.net/autopolicy4.png)
 
 # Directories
 
 * Source code for Knox Auto Policy
 
 ```
-bin - shell script to start program with environment variables
 build - build container image
 database - mongodb container for local test
 deployments - deployment file for kubenetes
-policies - example policies (.yaml)
+policies - discovered policies (.yaml)
+scripts - shell script to start program with environment variables
 src - source codes
   core - Core functions for Knox Auto Policy
   libs - Libraries used for generating network policies
@@ -42,81 +42,87 @@ DB_NAME=flow_management
 COL_NETWORK_FLOW=network_flow
 COL_DISCOVERED_POLICY=discovered_policy
 
-$KNOX_AUTO_HOME/src/knoxAutoPolicy
+OUT_DIR=$KNOX_AUTO_HOME/policies/
+
+DB_DRIVER=$DB_DRIVER DB_PORT=$DB_PORT DB_USER=$DB_USER DB_PASS=$DB_PASS DB_NAME=$DB_NAME COL_NETWORK_FLOW=$COL_NETWORK_FLOW COL_DISCOVERED_POLICY=$COL_DISCOVERED_POLICY OUT_DIR=$OUT_DIR $KNOX_AUTO_HOME/src/knoxAutoPolicy
 ```
 
 # Run 
 ```
 $ cd knoxAutoPolicy
-$ ./bin/startKnoxAutoPolicy.sh
+$ ./scripts/startKnoxAutoPolicy.sh
 ```
 
 # Main Code 
 
 ```
-import (
-  ...
-	"github.com/accuknox/knoxAutoPolicy/core"
-	"github.com/accuknox/knoxAutoPolicy/libs"
-	"github.com/accuknox/knoxAutoPolicy/types"
-  ...
-)
-
-func Generate() {
+func StartToDiscoverNetworkPolicies() {
 	// get network traffic from  knox aggregation Databse
 	docs, err := libs.GetTrafficFlowFromMongo(startTime, endTime)
 	if err != nil {
-		fmt.Println(err)
+		log.Err(err)
 		return
 	}
 
 	if len(docs) < 1 {
-		fmt.Println("Traffic flow is not exist: ",
-			time.Unix(startTime, 0).Format(libs.TimeFormSimple), " ~ ",
+		log.Info().Msgf("Traffic flow is not exist: %s ~ %s",
+			time.Unix(startTime, 0).Format(libs.TimeFormSimple),
 			time.Unix(endTime, 0).Format(libs.TimeFormSimple))
 
-		startTime = endTime
 		endTime = time.Now().Unix()
 		return
 	}
-	fmt.Println("the total number of traffic flow from db: ", len(docs))
+
+	log.Info().Msgf("the total number of traffic flow from db: [%d]", len(docs))
 
 	updateTimeInterval(docs[len(docs)-1])
 
+	// get k8s services
+	services := libs.GetServices()
+
+	// get k8s endpoints
+	endpoints := libs.GetEndpoints()
+
 	// get all the namespaces from k8s
-	namespaces := libs.GetK8sNamespaces()
-	skipNamespaces := []string{"kube-system", "kube-public", "kube-node-lease"}
+	namespaces := libs.GetNamespaces()
+
+	// iterate each namespace
 	for _, namespace := range namespaces {
-		if libs.ContainsElement(skipNamespaces, namespace) {
+		if namespace == "kube-system" {
 			continue
 		}
 
-		fmt.Println("policy discovery started for namespace: ", namespace)
-
-		// convert network traffic -> network log, and filter traffic
+		// convert cilium network traffic -> network log, and filter traffic
 		networkLogs := plugin.ConvertCiliumFlowsToKnoxLogs(namespace, docs)
-
-		// get k8s services
-		services := libs.GetServices(namespace)
-
-		// get k8s endpoints
-		endpoints := libs.GetEndpoints(namespace)
-
-		// get pod information
-		pods := libs.GetConGroups(namespace)
-
-		// generate network policies
-		policies := core.GenerateNetworkPolicies(namespace, cidrBits, networkLogs, services, endpoints, pods)
-
-		if len(policies) > 0 {
-			// write discovered policies to files
-			libs.WriteCiliumPolicyToFile(namespace, policies)
-
-			// insert discovered policies to db
-			libs.InsertDiscoveredPoliciesToMongoDB(policies)
+		if len(networkLogs) == 0 {
+			continue
 		}
 
-		fmt.Println("policy discovery done for namespace: ", namespace, " ", len(policies))
+		log.Info().Msgf("policy discovery started for namespace: [%s]", namespace)
+
+		// get pod information
+		pods := libs.GetPods(namespace)
+
+		// discover network policies
+		discoveredPolicies := DiscoverNetworkPolicies(namespace, cidrBits, networkLogs, services, endpoints, pods)
+
+		// get existing policies in db
+		existingPolicies, _ := libs.GetNetworkPolicies()
+
+		// remove duplication
+		newPolicies := DeduplicatePolicies(existingPolicies, discoveredPolicies)
+
+		if len(newPolicies) > 0 {
+			// insert discovered policies to db
+			libs.InsertPoliciesToMongoDB(newPolicies)
+
+			// write discovered policies to files
+			libs.WriteCiliumPolicyToYamlFile(namespace, newPolicies)
+
+			log.Info().Msgf("policy discovery done for namespace: [%s], [%d] policies discovered", namespace, len(newPolicies))
+		} else {
+			log.Info().Msgf("policy discovery done for namespace: [%s], no policy discovered", namespace)
+		}
 	}
 }
 ```
