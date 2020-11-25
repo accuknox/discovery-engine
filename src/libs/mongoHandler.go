@@ -4,11 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"net"
-	"strings"
 	"time"
 
 	"github.com/accuknox/knoxAutoPolicy/src/types"
-	"github.com/google/go-cmp/cmp"
 	"github.com/rs/zerolog/log"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -75,34 +73,18 @@ func ConnectMongoDB() (*mongo.Client, *mongo.Database) {
 }
 
 // InsertPoliciesToMongoDB function
-func InsertPoliciesToMongoDB(policies []types.KnoxNetworkPolicy) []types.KnoxNetworkPolicy {
-	newPolicies := []types.KnoxNetworkPolicy{}
-
+func InsertPoliciesToMongoDB(policies []types.KnoxNetworkPolicy) {
 	client, db := ConnectMongoDB()
 	defer client.Disconnect(context.Background())
 
 	col := db.Collection(ColDiscoveredPolicy)
 
-	existingPolicies, err := GetNetworkPolicies(col)
-	if err != nil {
-		log.Logger.Err(err)
-		return nil
-	}
-
 	for _, policy := range policies {
-		if IsExistedPolicy(existingPolicies, policy) {
+		if _, err := col.InsertOne(context.Background(), policy); err != nil {
+			log.Logger.Err(err)
 			continue
-		} else {
-			policy = replaceDuplcatedName(col, policy)
-			if _, err := col.InsertOne(context.Background(), policy); err != nil {
-				log.Logger.Err(err)
-				continue
-			}
-			newPolicies = append(newPolicies, policy)
 		}
 	}
-
-	return newPolicies
 }
 
 // GetDocsByFilter Function
@@ -110,7 +92,7 @@ func GetDocsByFilter(col *mongo.Collection, filter primitive.M) ([]map[string]in
 	matchedDocs := []map[string]interface{}{}
 
 	// find documents by the filter
-	options := options.Find().SetSort(bson.D{{"_id", -1}})
+	options := options.Find().SetSort(bson.D{{"timestamp", 1}})
 	cur, err := col.Find(context.Background(), filter, options)
 	if err != nil {
 		return matchedDocs, err
@@ -129,19 +111,13 @@ func GetDocsByFilter(col *mongo.Collection, filter primitive.M) ([]map[string]in
 	return matchedDocs, nil
 }
 
-// IsExistedPolicy function
-func IsExistedPolicy(existingPolicies []types.KnoxNetworkPolicy, inPolicy types.KnoxNetworkPolicy) bool {
-	for _, policy := range existingPolicies {
-		if cmp.Equal(&policy.Spec, &inPolicy.Spec) {
-			return true
-		}
-	}
-
-	return false
-}
-
 // GetNetworkPolicies Function
-func GetNetworkPolicies(col *mongo.Collection) ([]types.KnoxNetworkPolicy, error) {
+func GetNetworkPolicies() ([]types.KnoxNetworkPolicy, error) {
+	client, db := ConnectMongoDB()
+	defer client.Disconnect(context.Background())
+
+	col := db.Collection(ColDiscoveredPolicy)
+
 	docs, _ := GetDocsByFilter(col, bson.M{})
 	if len(docs) == 0 { // if no policy, return error
 		return []types.KnoxNetworkPolicy{}, nil
@@ -164,34 +140,6 @@ func CountPoliciesByName(col *mongo.Collection, name string) int {
 	count, _ := col.CountDocuments(context.Background(), filter)
 
 	return int(count)
-}
-
-// replaceDuplcatedName function
-func replaceDuplcatedName(col *mongo.Collection, policy types.KnoxNetworkPolicy) types.KnoxNetworkPolicy {
-	name := policy.Metadata["name"]
-
-	if CountPoliciesByName(col, name) > 0 { // name conflict
-		egressPrefix := "autogen-egress"
-		ingressPrefix := "autogen-ingress"
-
-		if strings.HasPrefix(name, egressPrefix) {
-			newName := egressPrefix + RandSeq(10)
-			for CountPoliciesByName(col, newName) > 0 {
-				newName = egressPrefix + RandSeq(10)
-			}
-
-			policy.Metadata["name"] = newName
-		} else {
-			newName := ingressPrefix + RandSeq(10)
-			for CountPoliciesByName(col, newName) > 0 {
-				newName = ingressPrefix + RandSeq(10)
-			}
-
-			policy.Metadata["name"] = newName
-		}
-	}
-
-	return policy
 }
 
 // updateTimeFilters function

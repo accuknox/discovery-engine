@@ -206,7 +206,7 @@ func descendingLabelCountMap(labelCountMap map[string]int) []LabelCount {
 }
 
 // updateDstLabels Function
-func updateDstLabels(dsts []MergedPortDst, groups []types.ContainerGroup) []MergedPortDst {
+func updateDstLabels(dsts []MergedPortDst, groups []types.Pod) []MergedPortDst {
 	for i, dst := range dsts {
 		matchLabels := getMergedLabels(dst.MicroserviceName, dst.ContainerGroupName, groups)
 		if matchLabels != "" {
@@ -273,7 +273,7 @@ func IsExposedPort(protocol int, port int) bool {
 }
 
 // updateExposedPorts Function
-func updateExposedPorts(services []types.K8sService, endpoints []types.K8sEndpoint, contGroups []types.ContainerGroup) {
+func updateExposedPorts(services []types.Service, endpoints []types.Endpoint, contGroups []types.Pod) {
 	// step 1: (k8s) service port update
 	for _, service := range services {
 		if strings.ToLower(service.Protocol) == "tcp" { // TCP
@@ -283,8 +283,8 @@ func updateExposedPorts(services []types.K8sService, endpoints []types.K8sEndpoi
 			if !libs.ContainsElement(exposedTCPPorts, service.NodePort) {
 				exposedTCPPorts = append(exposedTCPPorts, service.NodePort)
 			}
-			if !libs.ContainsElement(exposedTCPPorts, service.ContainerPort) {
-				exposedTCPPorts = append(exposedTCPPorts, service.ContainerPort)
+			if !libs.ContainsElement(exposedTCPPorts, service.TargetPort) {
+				exposedTCPPorts = append(exposedTCPPorts, service.TargetPort)
 			}
 		} else if strings.ToLower(service.Protocol) == "udp" { // UDP
 			if !libs.ContainsElement(exposedUDPPorts, service.ServicePort) {
@@ -293,8 +293,8 @@ func updateExposedPorts(services []types.K8sService, endpoints []types.K8sEndpoi
 			if !libs.ContainsElement(exposedUDPPorts, service.NodePort) {
 				exposedUDPPorts = append(exposedUDPPorts, service.NodePort)
 			}
-			if !libs.ContainsElement(exposedUDPPorts, service.ContainerPort) {
-				exposedUDPPorts = append(exposedUDPPorts, service.ContainerPort)
+			if !libs.ContainsElement(exposedUDPPorts, service.TargetPort) {
+				exposedUDPPorts = append(exposedUDPPorts, service.TargetPort)
 			}
 		} else if strings.ToLower(service.Protocol) == "sctp" { // SCTP
 			if !libs.ContainsElement(exposedSCTPPorts, service.ServicePort) {
@@ -303,8 +303,8 @@ func updateExposedPorts(services []types.K8sService, endpoints []types.K8sEndpoi
 			if !libs.ContainsElement(exposedSCTPPorts, service.NodePort) {
 				exposedSCTPPorts = append(exposedSCTPPorts, service.NodePort)
 			}
-			if !libs.ContainsElement(exposedSCTPPorts, service.ContainerPort) {
-				exposedSCTPPorts = append(exposedSCTPPorts, service.ContainerPort)
+			if !libs.ContainsElement(exposedSCTPPorts, service.TargetPort) {
+				exposedSCTPPorts = append(exposedSCTPPorts, service.TargetPort)
 			}
 		}
 	}
@@ -492,7 +492,7 @@ func MergeEgressIngressRules(networkPolicies []types.KnoxNetworkPolicy) []types.
 }
 
 // buildNetworkPolicies Function
-func buildNetworkPolicies(microName string, services []types.K8sService, mergedSrcPerMergedDst map[string][]MergedPortDst) []types.KnoxNetworkPolicy {
+func buildNetworkPolicies(microName string, services []types.Service, mergedSrcPerMergedDst map[string][]MergedPortDst) []types.KnoxNetworkPolicy {
 	networkPolicies := []types.KnoxNetworkPolicy{}
 
 	for mergedSrc, mergedDsts := range mergedSrcPerMergedDst {
@@ -596,8 +596,10 @@ func buildNetworkPolicies(microName string, services []types.K8sService, mergedS
 				// =============== //
 				// build FQDN rule //
 				// =============== //
+				fqdnSlice := strings.Split(dst.Additional, ",")
+				sort.Strings(fqdnSlice)
 				fqdn := types.SpecFQDN{
-					Matchnames: strings.Split(dst.Additional, ","),
+					Matchnames: fqdnSlice,
 					ToPorts:    dst.ToPorts,
 				}
 
@@ -609,7 +611,7 @@ func buildNetworkPolicies(microName string, services []types.K8sService, mergedS
 				// build Service rule //
 				// ================== //
 
-				// external services (not internal k8s service)
+				// external services (NOT internal k8s service)
 				service := types.SpecService{
 					ServiceName: dst.Additional,
 					Namespace:   dst.MicroserviceName,
@@ -622,10 +624,6 @@ func buildNetworkPolicies(microName string, services []types.K8sService, mergedS
 				// ================= //
 				// build Entity rule //
 				// ================= //
-
-				// if dst.MicroserviceName == "reserved:host" { // host is allowed by default in Cilium
-				// 	continue
-				// }
 
 				// handle for entity policy in Cilium
 				egressRule.ToEndtities = []string{strings.Split(dst.MicroserviceName, ":")[1]}
@@ -643,7 +641,7 @@ func buildNetworkPolicies(microName string, services []types.K8sService, mergedS
 
 				reserved := strings.Split(dst.MicroserviceName, ":")[1]
 				if reserved == "remote-node" {
-					ingressRule.FromEntities = []string{"world"}
+					ingressRule.FromEntities = []string{"world", "remote-node"}
 				} else {
 					ingressRule.FromEntities = []string{reserved}
 				}
@@ -662,7 +660,7 @@ func buildNetworkPolicies(microName string, services []types.K8sService, mergedS
 // =========================================== //
 
 // checkExternalService Function
-func checkExternalService(log types.KnoxNetworkLog, endpoints []types.K8sEndpoint) (types.K8sEndpoint, bool) {
+func checkExternalService(log types.KnoxNetworkLog, endpoints []types.Endpoint) (types.Endpoint, bool) {
 	for _, endpoint := range endpoints {
 		for _, port := range endpoint.Endpoints {
 			if (libs.GetProtocol(log.Protocol) == strings.ToLower(port.Protocol)) &&
@@ -673,11 +671,11 @@ func checkExternalService(log types.KnoxNetworkLog, endpoints []types.K8sEndpoin
 		}
 	}
 
-	return types.K8sEndpoint{}, false
+	return types.Endpoint{}, false
 }
 
 // getSimpleDst Function
-func getSimpleDst(log types.KnoxNetworkLog, endpoints []types.K8sEndpoint, cidrBits int) (Dst, bool) {
+func getSimpleDst(log types.KnoxNetworkLog, endpoints []types.Endpoint, cidrBits int) (Dst, bool) {
 	dstPort := 0
 	externalInfo := ""
 
@@ -699,7 +697,7 @@ func getSimpleDst(log types.KnoxNetworkLog, endpoints []types.K8sEndpoint, cidrB
 	if libs.ContainsElement(externals, log.DstNamespace) && net.ParseIP(log.DstPodName) != nil {
 		// check if it is the external service policy
 		if endpoint, valid := checkExternalService(log, endpoints); valid {
-			log.DstNamespace = endpoint.MicroserviceName
+			log.DstNamespace = endpoint.Namespace
 			externalInfo = endpoint.EndpointName
 		} else { // else, handle it as cidr policy
 			log.DstNamespace = "reserved:cidr"
@@ -752,7 +750,7 @@ func getSimpleDst(log types.KnoxNetworkLog, endpoints []types.K8sEndpoint, cidrB
 }
 
 // groupingLogsPerDst Function
-func groupingLogsPerDst(networkLogs []types.KnoxNetworkLog, endpoints []types.K8sEndpoint, cidrBits int) map[Dst][]types.KnoxNetworkLog {
+func groupingLogsPerDst(networkLogs []types.KnoxNetworkLog, endpoints []types.Endpoint, cidrBits int) map[Dst][]types.KnoxNetworkLog {
 	perDst := map[Dst][]types.KnoxNetworkLog{}
 
 	for _, log := range networkLogs {
@@ -842,12 +840,12 @@ func mergingSrcByLabels(perDstSrcLabel map[Dst][]SrcSimple) map[Dst][]string {
 // ====================================== //
 
 // getMergedLabels Function
-func getMergedLabels(microName, groupName string, groups []types.ContainerGroup) string {
+func getMergedLabels(microName, groupName string, groups []types.Pod) string {
 	mergedLabels := ""
 
 	for _, group := range groups {
 		// find the container group of src
-		if microName == group.MicroserviceName && groupName == group.ContainerGroupName {
+		if microName == group.Namespace && groupName == group.PodName {
 			// remove common name identities
 			labels := []string{}
 
@@ -870,7 +868,7 @@ func getMergedLabels(microName, groupName string, groups []types.ContainerGroup)
 }
 
 // extractingSrcFromLogs Function
-func extractingSrcFromLogs(perDst map[Dst][]types.KnoxNetworkLog, conGroups []types.ContainerGroup) map[Dst][]SrcSimple {
+func extractingSrcFromLogs(perDst map[Dst][]types.KnoxNetworkLog, conGroups []types.Pod) map[Dst][]SrcSimple {
 	perDstSrcLabel := map[Dst][]SrcSimple{}
 
 	for dst, logs := range perDst {
@@ -1125,7 +1123,7 @@ func groupingDstMergeds(label string, dsts []MergedPortDst) MergedPortDst {
 }
 
 // mergingDstByLabels Function
-func mergingDstByLabels(mergedSrcPerMergedProtoDst map[string][]MergedPortDst, conGroups []types.ContainerGroup) map[string][]MergedPortDst {
+func mergingDstByLabels(mergedSrcPerMergedProtoDst map[string][]MergedPortDst, conGroups []types.Pod) map[string][]MergedPortDst {
 	perGroupedSrcGroupedDst := map[string][]MergedPortDst{}
 
 	for mergedSrc, mergedProtoPortDsts := range mergedSrcPerMergedProtoDst {
@@ -1183,12 +1181,12 @@ func mergingDstByLabels(mergedSrcPerMergedProtoDst map[string][]MergedPortDst, c
 	return perGroupedSrcGroupedDst
 }
 
-// ====================== //
-// == Duplicatie Check == //
-// ====================== //
+// ======================= //
+// == Policy Name Check == //
+// ======================= //
 
-// removeDuplicatedName Function
-func removeDuplicatedName(networkPolicies []types.KnoxNetworkPolicy) []types.KnoxNetworkPolicy {
+// generatePolicyName Function
+func generatePolicyName(networkPolicies []types.KnoxNetworkPolicy) []types.KnoxNetworkPolicy {
 	autoPolicyNames := []string{}
 
 	newPolicies := []types.KnoxNetworkPolicy{}
@@ -1205,7 +1203,7 @@ func removeDuplicatedName(networkPolicies []types.KnoxNetworkPolicy) []types.Kno
 		newPolicies[i].GeneratedTime = genTime
 	}
 
-	// update unique policy name
+	// update policy name
 	for i := range newPolicies {
 		policyType := newPolicies[i].Metadata["name"]
 
@@ -1230,13 +1228,11 @@ var startTime int64 = 0
 var endTime int64 = 0
 
 var cidrBits int = 24
-var skipNamespaces []string
 
 func init() {
 	// init time filter
 	endTime = time.Now().Unix()
 	startTime = 0
-	skipNamespaces = []string{"kube-system", "kube-public", "kube-node-lease"}
 }
 
 // updateTimeInterval function
@@ -1249,20 +1245,20 @@ func updateTimeInterval(lastDoc map[string]interface{}) {
 
 // DiscoverNetworkPolicies Function
 func DiscoverNetworkPolicies(microserviceName string,
-	cidrBits int, // for CIDR policy (32 bits -> per IP)
+	cidrBits int, // for CIDR policy (24bits in default, 32 bits -> per IP)
 	networkLogs []types.KnoxNetworkLog,
-	services []types.K8sService,
-	endpoints []types.K8sEndpoint,
-	containerGroups []types.ContainerGroup) []types.KnoxNetworkPolicy {
+	services []types.Service,
+	endpoints []types.Endpoint,
+	pods []types.Pod) []types.KnoxNetworkPolicy {
 
 	// step 1: update exposed ports (k8s service, docker-compose portbinding)
-	updateExposedPorts(services, endpoints, containerGroups)
+	updateExposedPorts(services, endpoints, pods)
 
 	// step 2: [network logs] -> {dst: [network logs (src+dst)]}
 	logsPerDst := groupingLogsPerDst(networkLogs, endpoints, cidrBits)
 
 	// step 3: {dst: [network logs (src+dst)]} -> {dst: [srcs (labeled)]}
-	labeledSrcsPerDst := extractingSrcFromLogs(logsPerDst, containerGroups)
+	labeledSrcsPerDst := extractingSrcFromLogs(logsPerDst, pods)
 
 	// step 4: {dst: [srcs (labeled)]} -> {dst: [merged srcs (labeled + merged)]}
 	mergedSrcsPerDst := mergingSrcByLabels(labeledSrcsPerDst)
@@ -1271,29 +1267,15 @@ func DiscoverNetworkPolicies(microserviceName string,
 	mergedSrcPerMergedProtoDst := mergingDstSpecs(mergedSrcsPerDst)
 
 	// step 6: {merged_src: [dsts (merged proto/port + labeld)] grouping dst based on labels
-	mergedSrcPerMergedDst := mergingDstByLabels(mergedSrcPerMergedProtoDst, containerGroups)
+	mergedSrcPerMergedDst := mergingDstByLabels(mergedSrcPerMergedProtoDst, pods)
 
 	// step 7: building network policies
 	networkPolicies := buildNetworkPolicies(microserviceName, services, mergedSrcPerMergedDst)
 
 	// step 8: removing duplication policies
-	deduplicatedName := removeDuplicatedName(networkPolicies)
+	namedPolicies := generatePolicyName(networkPolicies)
 
-	return deduplicatedName
-}
-
-// CronJobDaemon function
-func CronJobDaemon() {
-	// init cron job
-	c := cron.New()
-	c.AddFunc("@every 0h1m0s", StartToDiscoverNetworkPolicies) // time interval
-	c.Start()
-
-	sig := libs.GetOSSigChannel()
-	<-sig
-	log.Info().Msg("Got a signal to terminate the auto policy discovery")
-
-	c.Stop() // Stop the scheduler (does not stop any jobs already running).
+	return namedPolicies
 }
 
 // StartToDiscoverNetworkPolicies function
@@ -1310,12 +1292,11 @@ func StartToDiscoverNetworkPolicies() {
 			time.Unix(startTime, 0).Format(libs.TimeFormSimple),
 			time.Unix(endTime, 0).Format(libs.TimeFormSimple))
 
-		startTime = endTime
 		endTime = time.Now().Unix()
 		return
 	}
 
-	log.Info().Msgf("the total number of traffic flow from db: %d", len(docs))
+	log.Info().Msgf("the total number of traffic flow from db: [%d]", len(docs))
 
 	updateTimeInterval(docs[len(docs)-1])
 
@@ -1326,7 +1307,7 @@ func StartToDiscoverNetworkPolicies() {
 	endpoints := libs.GetEndpoints()
 
 	// get all the namespaces from k8s
-	namespaces := libs.GetK8sNamespaces()
+	namespaces := libs.GetNamespaces()
 
 	// iterate each namespace
 	for _, namespace := range namespaces {
@@ -1340,23 +1321,48 @@ func StartToDiscoverNetworkPolicies() {
 			continue
 		}
 
-		log.Info().Msgf("policy discovery started for namespace: %s", namespace)
+		log.Info().Msgf("policy discovery started for namespace: [%s]", namespace)
 
 		// get pod information
-		pods := libs.GetConGroups(namespace)
+		pods := libs.GetPods(namespace)
 
-		// generate network policies
-		policies := DiscoverNetworkPolicies(namespace, cidrBits, networkLogs, services, endpoints, pods)
-		deduplication := []types.KnoxNetworkPolicy{}
+		// discover network policies
+		discoveredPolicies := DiscoverNetworkPolicies(namespace, cidrBits, networkLogs, services, endpoints, pods)
 
-		if len(policies) > 0 {
+		// get existing policies in db
+		existingPolicies, _ := libs.GetNetworkPolicies()
+
+		// remove duplication
+		newPolicies := DeduplicatePolicies(existingPolicies, discoveredPolicies)
+
+		if len(newPolicies) > 0 {
 			// insert discovered policies to db
-			deduplication = libs.InsertPoliciesToMongoDB(policies)
+			libs.InsertPoliciesToMongoDB(newPolicies)
 
 			// write discovered policies to files
-			libs.WriteCiliumPolicyToYamlFile(namespace, deduplication)
-		}
+			libs.WriteCiliumPolicyToYamlFile(namespace, newPolicies)
 
-		log.Info().Msgf("policy discovery done    for namespace: %s, %d policies generated", namespace, len(deduplication))
+			log.Info().Msgf("policy discovery done for namespace: [%s], [%d] policies discovered", namespace, len(newPolicies))
+		} else {
+			log.Info().Msgf("policy discovery done for namespace: [%s], no policy discovered", namespace)
+		}
 	}
+}
+
+// CronJob function
+func CronJob() {
+	log.Info().Msg("auto discovery cron job started")
+
+	StartToDiscoverNetworkPolicies()
+
+	// init cron job
+	c := cron.New()
+	c.AddFunc("@every 0h0m5s", StartToDiscoverNetworkPolicies) // time interval
+	c.Start()
+
+	sig := libs.GetOSSigChannel()
+	<-sig
+	log.Info().Msg("Got a signal to terminate the auto policy discovery")
+
+	c.Stop() // Stop the scheduler (does not stop any jobs already running).
 }

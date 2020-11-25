@@ -10,9 +10,6 @@ type KnoxNetworkLog struct {
 
 	EtherType int `json:"ether_type,omitempty" bson:"ether_type"` // not used, we assume all the ipv4
 
-	SrcMac string `json:"src_mac,omitempty" bson:"src_mac"`
-	DstMac string `json:"dst_mac,omitempty" bson:"dst_mac"`
-
 	Protocol int    `json:"protocol,omitempty" bson:"protocol"`
 	SrcIP    string `json:"src_ip,omitempty" bson:"src_ip"`
 	DstIP    string `json:"dst_ip,omitempty" bson:"dst_ip"`
