@@ -65,14 +65,14 @@ func GetExistingDNS(existingPolicies []types.KnoxNetworkPolicy, inPorts []types.
 					}
 
 					if portIncluded {
-						for _, dns := range toFQDN.Matchnames {
+						for _, dns := range toFQDN.MatchNames {
 							if !libs.ContainsElement(dnsNames, dns) {
 								dnsNames = append(dnsNames, dns)
 							}
 						}
 					}
 				} else if len(inPorts) == 0 && len(toFQDN.ToPorts) == 0 { // no toPorts exist
-					for _, dns := range toFQDN.Matchnames {
+					for _, dns := range toFQDN.MatchNames {
 						if !libs.ContainsElement(dnsNames, dns) {
 							dnsNames = append(dnsNames, dns)
 						}
@@ -119,7 +119,7 @@ func RefinePolicy(existingPolicies []types.KnoxNetworkPolicy, policy types.KnoxN
 				existingDNSes := GetExistingDNS(existingPolicies, toFQDN.ToPorts)
 
 				newDNS := []string{}
-				for _, dns := range toFQDN.Matchnames {
+				for _, dns := range toFQDN.MatchNames {
 					if !libs.ContainsElement(existingDNSes, dns) {
 						newDNS = append(newDNS, dns)
 					}
@@ -130,7 +130,7 @@ func RefinePolicy(existingPolicies []types.KnoxNetworkPolicy, policy types.KnoxN
 					return types.KnoxNetworkPolicy{}, false
 				}
 
-				policy.Spec.Egress[i].ToFQDNs[j].Matchnames = newDNS
+				policy.Spec.Egress[i].ToFQDNs[j].MatchNames = newDNS
 			}
 		}
 	}

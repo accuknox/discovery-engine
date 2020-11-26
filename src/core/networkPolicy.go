@@ -37,7 +37,7 @@ var exposedTCPPorts = []int{}
 var exposedUDPPorts = []int{}
 var exposedSCTPPorts = []int{}
 
-var kubeDNSSvc types.Service
+var kubeDNSSvc []types.Service
 
 // protocol
 const (
@@ -330,18 +330,12 @@ func updateServiceEndpoint(services []types.Service, endpoints []types.Endpoint,
 	}
 
 	// step 3: save kube-dns to the global variable
-	kubeDNSSvcTCP := types.Service{}
 	for _, svc := range services {
 		if svc.Namespace == "kube-system" && svc.ServiceName == "kube-dns" && svc.Protocol == "UDP" {
-			kubeDNSSvc = svc
+			kubeDNSSvc = append(kubeDNSSvc, svc)
 		} else if svc.Namespace == "kube-system" && svc.ServiceName == "kube-dns" && svc.Protocol == "TCP" {
-			kubeDNSSvcTCP = svc
+			kubeDNSSvc = append(kubeDNSSvc, svc)
 		}
-	}
-
-	// if not udp, set tcp service
-	if kubeDNSSvc.ServiceName == "" {
-		kubeDNSSvc = kubeDNSSvcTCP
 	}
 }
 
@@ -488,6 +482,32 @@ func MergeEgressIngressRules(networkPolicies []types.KnoxNetworkPolicy) []types.
 	return mergedNetworkPolicies
 }
 
+// removeKubeDNSPort
+func removeKubeDNSPort(toPorts []types.SpecPort) []types.SpecPort {
+	filtered := []types.SpecPort{}
+
+	for _, toPort := range toPorts {
+		isDNS := false
+		for _, dnsSvc := range kubeDNSSvc {
+			if toPort.Ports == strconv.Itoa(dnsSvc.ServicePort) &&
+				toPort.Protocol == strings.ToLower(dnsSvc.Protocol) {
+				isDNS = true
+				break
+			}
+		}
+
+		if !isDNS {
+			filtered = append(filtered, toPort)
+		}
+	}
+
+	if len(filtered) == 0 {
+		return nil
+	}
+
+	return filtered
+}
+
 // buildNetworkPolicies Function
 func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcPerMergedDst map[string][]MergedPortDst) []types.KnoxNetworkPolicy {
 	networkPolicies := []types.KnoxNetworkPolicy{}
@@ -593,11 +613,13 @@ func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcP
 				// =============== //
 				// build FQDN rule //
 				// =============== //
+				dst.ToPorts = removeKubeDNSPort(dst.ToPorts)
+
 				fqdnSlice := strings.Split(dst.Additional, ",")
 				sort.Strings(fqdnSlice)
 				fqdn := types.SpecFQDN{
-					Matchnames: fqdnSlice,
-					ToPorts:    dst.ToPorts,
+					MatchNames: fqdnSlice,
+					// ToPorts:    dst.ToPorts // TODO: if FQDN != CIDR..
 				}
 
 				egressRule.ToFQDNs = []types.SpecFQDN{fqdn}
@@ -703,8 +725,8 @@ func getSimpleDst(log types.KnoxNetworkLog, endpoints []types.Endpoint, cidrBits
 				Namespace: "reserved:dns",
 				// ContainerGroupName: log.DstPodName,
 				Additional: dnsname,
-				Protocol:   libs.GetProtocolInt(kubeDNSSvc.Protocol),
-				DstPort:    kubeDNSSvc.ServicePort,
+				Protocol:   log.Protocol,
+				DstPort:    log.DstPort,
 				Action:     log.Action,
 			}
 
