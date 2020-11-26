@@ -641,7 +641,7 @@ func buildNetworkPolicies(microName string, services []types.Service, mergedSrcP
 
 				reserved := strings.Split(dst.MicroserviceName, ":")[1]
 				if reserved == "remote-node" {
-					ingressRule.FromEntities = []string{"world", "remote-node"}
+					ingressRule.FromEntities = []string{"remote-node"}
 				} else {
 					ingressRule.FromEntities = []string{reserved}
 				}
@@ -1281,14 +1281,15 @@ func DiscoverNetworkPolicies(microserviceName string,
 // StartToDiscoverNetworkPolicies function
 func StartToDiscoverNetworkPolicies() {
 	// get network traffic from  knox aggregation Databse
+	log.Info().Msg("try to get network traffic from the database")
 	docs, err := libs.GetTrafficFlowFromMongo(startTime, endTime)
 	if err != nil {
-		log.Err(err)
+		log.Info().Msg(err.Error())
 		return
 	}
 
 	if len(docs) < 1 {
-		log.Info().Msgf("Traffic flow is not exist: %s ~ %s",
+		log.Info().Msgf("traffic flow not exist: %s ~ %s",
 			time.Unix(startTime, 0).Format(libs.TimeFormSimple),
 			time.Unix(endTime, 0).Format(libs.TimeFormSimple))
 
@@ -1296,7 +1297,7 @@ func StartToDiscoverNetworkPolicies() {
 		return
 	}
 
-	log.Info().Msgf("the total number of traffic flow from db: [%d]", len(docs))
+	log.Info().Msgf("the total number of traffic flow from database: [%d]", len(docs))
 
 	updateTimeInterval(docs[len(docs)-1])
 

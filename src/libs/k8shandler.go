@@ -22,24 +22,6 @@ import (
 var kubeconfig *string
 var parsed bool = false
 
-func init() {
-	// if !isInCluster() {
-	// 	homeDir := ""
-	// 	if h := os.Getenv("HOME"); h != "" {
-	// 		homeDir = h
-	// 	} else {
-	// 		homeDir = os.Getenv("USERPROFILE") // windows
-	// 	}
-
-	// 	if home := homeDir; home != "" {
-	// 		kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
-	// 	} else {
-	// 		kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
-	// 	}
-	// 	flag.Parse()
-	// }
-}
-
 // isInCluster Function
 func isInCluster() bool {
 	if _, ok := os.LookupEnv("KUBERNETES_PORT"); ok {
@@ -208,6 +190,26 @@ func GetPods(targetNS string) []types.Pod {
 	}
 
 	return conGroups
+}
+
+// SetAnnotations Function
+func SetAnnotations(namespace string, annotation map[string]string) error {
+	client := ConnectK8sClient()
+	if client == nil {
+		return nil
+	}
+
+	// get pods from k8s api client
+	pods, err := client.CoreV1().Pods(namespace).List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+
+	for _, pod := range pods.Items {
+		pod.SetAnnotations(annotation)
+	}
+
+	return nil
 }
 
 // ============== //
