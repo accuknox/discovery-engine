@@ -35,14 +35,6 @@ type Service struct {
 	Selector map[string]string `json:"selector" bson:"selector"`
 }
 
-// PortBinding Structure
-type PortBinding struct {
-	Protocol string `json:"protocol" bson:"protocol"`
-	Port     int    `json:"port" bson:"port"`
-	HostIP   string `json:"host_ip" bson:"host_ip"`
-	HostPort int    `json:"host_port" bson:"host_port"`
-}
-
 // Pod Structure
 type Pod struct {
 	Namespace string `json:"namespace" bson:"namespace"`
@@ -55,8 +47,6 @@ type Pod struct {
 	HostIP   string `json:"host_ip" bson:"host_ip"`
 
 	Labels []string `json:"labels" bson:"labels"`
-
-	PortBindings []PortBinding `json:"port_bindings" bson:"port_bindings"`
 }
 
 // Namespace Structure

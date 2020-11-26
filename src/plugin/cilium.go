@@ -3,6 +3,7 @@ package plugin
 import (
 	"encoding/json"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/accuknox/knoxAutoPolicy/src/types"
@@ -195,18 +196,35 @@ func buildNewCiliumNetworkPolicy(inPolicy types.KnoxNetworkPolicy) types.CiliumN
 
 // TODO: search core-dns? or statically return dns pod
 // getCoreDNSEndpoint function
-func getCoreDNSEndpoint() []types.CiliumEndpoint {
+func getCoreDNSEndpoint(services []types.Service) ([]types.CiliumEndpoint, []types.CiliumPortList) {
 	matchLabel := map[string]string{
 		"k8s:io.kubernetes.pod.namespace": "kube-system",
 		"k8s-app":                         "kube-dns",
 	}
 
-	coreDns := []types.CiliumEndpoint{types.CiliumEndpoint{matchLabel}}
-	return coreDns
+	coreDNS := []types.CiliumEndpoint{types.CiliumEndpoint{matchLabel}}
+
+	ciliumPort := types.CiliumPortList{}
+	ciliumPort.Ports = []types.CiliumPort{}
+	for _, svc := range services {
+		if svc.Namespace == "kube-system" && svc.ServiceName == "kube-dns" {
+			ciliumPort.Ports = append(ciliumPort.Ports, types.CiliumPort{
+				Port: strconv.Itoa(svc.ServicePort), Protocol: strings.ToUpper(svc.Protocol)},
+			)
+		}
+	}
+
+	toPorts := []types.CiliumPortList{ciliumPort}
+
+	// matchPattern
+	dnsRules := []types.SubRule{map[string]string{"matchPattern": "*"}}
+	toPorts[0].Rules = map[string][]types.SubRule{"dns": dnsRules}
+
+	return coreDNS, toPorts
 }
 
 // ConvertKnoxPolicyToCiliumPolicy function
-func ConvertKnoxPolicyToCiliumPolicy(inPolicy types.KnoxNetworkPolicy) types.CiliumNetworkPolicy {
+func ConvertKnoxPolicyToCiliumPolicy(services []types.Service, inPolicy types.KnoxNetworkPolicy) types.CiliumNetworkPolicy {
 	ciliumPolicy := buildNewCiliumNetworkPolicy(inPolicy)
 
 	// ====== //
@@ -320,38 +338,30 @@ func ConvertKnoxPolicyToCiliumPolicy(inPolicy types.KnoxNetworkPolicy) types.Cil
 			// build FQDN rule //
 			// =============== //
 			for _, fqdn := range knoxEgress.ToFQDNs {
-				egressFqdn := types.CiliumEgress{}
 				// TODO: static core-dns
-				ciliumEgress.ToEndpoints = getCoreDNSEndpoint()
+				ciliumEgress.ToEndpoints, ciliumEgress.ToPorts = getCoreDNSEndpoint(services)
 
-				if ciliumEgress.ToPorts == nil {
-					ciliumEgress.ToPorts = []types.CiliumPortList{}
-					ciliumPort := types.CiliumPortList{}
-					ciliumPort.Ports = []types.CiliumPort{}
-					ciliumEgress.ToPorts = append(ciliumEgress.ToPorts, ciliumPort)
+				egressFqdn := types.CiliumEgress{}
+
+				if egressFqdn.ToFQDNs == nil {
+					egressFqdn.ToFQDNs = []types.CiliumFQDN{}
+				}
+
+				// FQDN (+ToPorts)
+				for _, matchName := range fqdn.MatchNames {
+					egressFqdn.ToFQDNs = append(egressFqdn.ToFQDNs, map[string]string{"matchName": matchName})
 				}
 
 				for _, port := range fqdn.ToPorts {
+					if egressFqdn.ToPorts == nil {
+						egressFqdn.ToPorts = []types.CiliumPortList{}
+						ciliumPort := types.CiliumPortList{}
+						ciliumPort.Ports = []types.CiliumPort{}
+						egressFqdn.ToPorts = append(egressFqdn.ToPorts, ciliumPort)
+					}
+
 					ciliumPort := types.CiliumPort{Port: port.Ports, Protocol: strings.ToUpper(port.Protocol)}
-					ciliumEgress.ToPorts[0].Ports = append(ciliumEgress.ToPorts[0].Ports, ciliumPort)
-				}
-
-				// matchNames (TODO)
-				// dnsRules := []types.DnsRule{}
-				// for _, matchName := range fqdn.Matchnames {
-				// 	dnsRules = append(dnsRules, map[string]string{"matchName": matchName})
-				// }
-
-				// matchPattern
-				dnsRules := []types.SubRule{map[string]string{"matchPattern": "*"}}
-				ciliumEgress.ToPorts[0].Rules = map[string][]types.SubRule{"dns": dnsRules}
-
-				if egressFqdn.ToFQDNs == nil {
-					egressFqdn.ToFQDNs = []map[string]string{}
-				}
-
-				for _, matchName := range fqdn.Matchnames {
-					egressFqdn.ToFQDNs = append(egressFqdn.ToFQDNs, map[string]string{"matchName": matchName})
+					egressFqdn.ToPorts[0].Ports = append(egressFqdn.ToPorts[0].Ports, ciliumPort)
 				}
 
 				ciliumPolicy.Spec.Egress = append(ciliumPolicy.Spec.Egress, egressFqdn)

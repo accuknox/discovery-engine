@@ -79,6 +79,19 @@ func GetProtocol(protocol int) string {
 	return protocolMap[protocol]
 }
 
+// GetProtocolInt Function
+func GetProtocolInt(protocol string) int {
+	protocol = strings.ToLower(protocol)
+	protocolMap := map[string]int{
+		"icmp": 1,
+		"tcp":  6,
+		"udp":  17,
+		"stcp": 132,
+	}
+
+	return protocolMap[protocol]
+}
+
 // ============ //
 // == Common == //
 // ============ //
@@ -221,7 +234,7 @@ func WriteKnoxPolicyToYamlFile(namespace string, policies []types.KnoxNetworkPol
 }
 
 // WriteCiliumPolicyToYamlFile Function
-func WriteCiliumPolicyToYamlFile(namespace string, policies []types.KnoxNetworkPolicy) {
+func WriteCiliumPolicyToYamlFile(namespace string, services []types.Service, policies []types.KnoxNetworkPolicy) {
 	// create policy file
 	outdir := GetEnv("OUT_DIR", "./")
 
@@ -232,7 +245,7 @@ func WriteCiliumPolicyToYamlFile(namespace string, policies []types.KnoxNetworkP
 	}
 
 	for _, policy := range policies {
-		ciliumPolicy := plugin.ConvertKnoxPolicyToCiliumPolicy(policy) // if you want to convert it to Cilium policy
+		ciliumPolicy := plugin.ConvertKnoxPolicyToCiliumPolicy(services, policy) // if you want to convert it to Cilium policy
 		b, _ := yaml.Marshal(&ciliumPolicy)
 		f.Write(b)
 		f.WriteString("---\n")
