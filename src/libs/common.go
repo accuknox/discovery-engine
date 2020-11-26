@@ -79,6 +79,19 @@ func GetProtocol(protocol int) string {
 	return protocolMap[protocol]
 }
 
+// GetProtocolInt Function
+func GetProtocolInt(protocol string) int {
+	protocol = strings.ToLower(protocol)
+	protocolMap := map[string]int{
+		"icmp": 1,
+		"tcp":  6,
+		"udp":  17,
+		"stcp": 132,
+	}
+
+	return protocolMap[protocol]
+}
+
 // ============ //
 // == Common == //
 // ============ //

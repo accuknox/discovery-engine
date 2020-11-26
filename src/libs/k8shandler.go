@@ -155,7 +155,7 @@ func GetNamespaces() []string {
 // =========================== //
 
 // GetPods Function
-func GetPods(targetNS string) []types.Pod {
+func GetPods() []types.Pod {
 	client := ConnectK8sClient()
 	if client == nil {
 		return nil
@@ -171,10 +171,6 @@ func GetPods(targetNS string) []types.Pod {
 	conGroups := []types.Pod{}
 
 	for _, pod := range pods.Items {
-		if pod.Namespace != targetNS && pod.Namespace != "kube-system" {
-			continue
-		}
-
 		group := types.Pod{
 			Namespace: pod.Namespace,
 			PodUID:    string(pod.UID),

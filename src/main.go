@@ -1,9 +1,7 @@
 package main
 
-import (
-	"github.com/accuknox/knoxAutoPolicy/src/core"
-)
+import "github.com/accuknox/knoxAutoPolicy/src/core"
 
 func main() {
-	core.CronJob()
+	core.StartToDiscover()
 }
