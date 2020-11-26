@@ -1373,7 +1373,7 @@ func StartToDiscoverNetworkPolicies() {
 			libs.InsertPoliciesToMongoDB(newPolicies)
 
 			// write discovered policies to files
-			libs.WriteCiliumPolicyToYamlFile(namespace, newPolicies)
+			libs.WriteCiliumPolicyToYamlFile(namespace, services, newPolicies)
 
 			log.Info().Msgf("policy discovery done for namespace: [%s], [%d] policies discovered", namespace, len(newPolicies))
 		} else {

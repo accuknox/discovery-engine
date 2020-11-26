@@ -3,6 +3,7 @@ package plugin
 import (
 	"encoding/json"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/accuknox/knoxAutoPolicy/src/types"
@@ -195,7 +196,7 @@ func buildNewCiliumNetworkPolicy(inPolicy types.KnoxNetworkPolicy) types.CiliumN
 
 // TODO: search core-dns? or statically return dns pod
 // getCoreDNSEndpoint function
-func getCoreDNSEndpoint() ([]types.CiliumEndpoint, []types.CiliumPortList) {
+func getCoreDNSEndpoint(services []types.Service) ([]types.CiliumEndpoint, []types.CiliumPortList) {
 	matchLabel := map[string]string{
 		"k8s:io.kubernetes.pod.namespace": "kube-system",
 		"k8s-app":                         "kube-dns",
@@ -204,9 +205,15 @@ func getCoreDNSEndpoint() ([]types.CiliumEndpoint, []types.CiliumPortList) {
 	coreDNS := []types.CiliumEndpoint{types.CiliumEndpoint{matchLabel}}
 
 	ciliumPort := types.CiliumPortList{}
-	ciliumPort.Ports = []types.CiliumPort{
-		types.CiliumPort{Port: "53", Protocol: "UDP"},
+	ciliumPort.Ports = []types.CiliumPort{}
+	for _, svc := range services {
+		if svc.Namespace == "kube-system" && svc.ServiceName == "kube-dns" {
+			ciliumPort.Ports = append(ciliumPort.Ports, types.CiliumPort{
+				Port: strconv.Itoa(svc.ServicePort), Protocol: strings.ToUpper(svc.Protocol)},
+			)
+		}
 	}
+
 	toPorts := []types.CiliumPortList{ciliumPort}
 
 	// matchPattern
@@ -217,7 +224,7 @@ func getCoreDNSEndpoint() ([]types.CiliumEndpoint, []types.CiliumPortList) {
 }
 
 // ConvertKnoxPolicyToCiliumPolicy function
-func ConvertKnoxPolicyToCiliumPolicy(inPolicy types.KnoxNetworkPolicy) types.CiliumNetworkPolicy {
+func ConvertKnoxPolicyToCiliumPolicy(services []types.Service, inPolicy types.KnoxNetworkPolicy) types.CiliumNetworkPolicy {
 	ciliumPolicy := buildNewCiliumNetworkPolicy(inPolicy)
 
 	// ====== //
@@ -332,7 +339,7 @@ func ConvertKnoxPolicyToCiliumPolicy(inPolicy types.KnoxNetworkPolicy) types.Cil
 			// =============== //
 			for _, fqdn := range knoxEgress.ToFQDNs {
 				// TODO: static core-dns
-				ciliumEgress.ToEndpoints, ciliumEgress.ToPorts = getCoreDNSEndpoint()
+				ciliumEgress.ToEndpoints, ciliumEgress.ToPorts = getCoreDNSEndpoint(services)
 
 				egressFqdn := types.CiliumEgress{}
 
