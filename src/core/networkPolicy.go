@@ -1259,7 +1259,7 @@ func generatePolicyName(networkPolicies []types.KnoxNetworkPolicy) []types.KnoxN
 var startTime int64 = 0
 var endTime int64 = 0
 
-var cidrBits int = 24
+var cidrBits int = 32
 
 func init() {
 	// init time filter
@@ -1388,7 +1388,7 @@ func CronJob() {
 
 	// init cron job
 	c := cron.New()
-	c.AddFunc("@every 0h0m30s", StartToDiscoverNetworkPolicies) // time interval
+	c.AddFunc("@every 0h1m0s", StartToDiscoverNetworkPolicies) // time interval
 	c.Start()
 
 	sig := libs.GetOSSigChannel()
