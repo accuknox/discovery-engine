@@ -202,7 +202,7 @@ func getCoreDNSEndpoint(services []types.Service) ([]types.CiliumEndpoint, []typ
 		"k8s-app":                         "kube-dns",
 	}
 
-	coreDNS := []types.CiliumEndpoint{types.CiliumEndpoint{matchLabel}}
+	coreDNS := []types.CiliumEndpoint{{matchLabel}}
 
 	ciliumPort := types.CiliumPortList{}
 	ciliumPort.Ports = []types.CiliumPort{}
@@ -240,7 +240,7 @@ func ConvertKnoxPolicyToCiliumPolicy(services []types.Service, inPolicy types.Kn
 			// build label-based rule //
 			// ====================== //
 			if knoxEgress.MatchLabels != nil {
-				ciliumEgress.ToEndpoints = []types.CiliumEndpoint{types.CiliumEndpoint{knoxEgress.MatchLabels}}
+				ciliumEgress.ToEndpoints = []types.CiliumEndpoint{{knoxEgress.MatchLabels}}
 			}
 
 			// ================ //
@@ -384,7 +384,7 @@ func ConvertKnoxPolicyToCiliumPolicy(services []types.Service, inPolicy types.Kn
 			// build label-based //
 			// ================= //
 			if knoxIngress.MatchLabels != nil {
-				ciliumIngress.FromEndpoints = []types.CiliumEndpoint{types.CiliumEndpoint{knoxIngress.MatchLabels}}
+				ciliumIngress.FromEndpoints = []types.CiliumEndpoint{{knoxIngress.MatchLabels}}
 			}
 
 			// ================ //
