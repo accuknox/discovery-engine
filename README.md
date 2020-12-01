@@ -21,6 +21,14 @@ src - source codes
   types - Type definitions
 ```
 
+# Setup Instructions
+```
+git clone https://github.com/accuknox/knoxServicePolicy.git
+cd knoxAutoPolicy
+git submodule update --init --recursive
+make -C common
+```
+
 # Installation
 
 ```
