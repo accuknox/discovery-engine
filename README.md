@@ -25,7 +25,7 @@ tools - unit test scripts
 
 # Setup Instructions
 ```
-git clone https://github.com/accuknox/knoxServicePolicy.git
+git clone https://github.com/accuknox/knoxAutoPolicy.git
 cd knoxAutoPolicy
 git submodule update --init --recursive
 make -C common
