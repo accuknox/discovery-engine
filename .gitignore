@@ -1,4 +1,5 @@
 .vscode/
 knoxAutoPolicy
 *.yaml
+bin/
 !policies/.keep
