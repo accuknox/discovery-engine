@@ -9,7 +9,7 @@ Auto Policy Generation
 * Source code for Knox Auto Policy
 
 ```
-build - build container image
+common - common sub modules
 database - mongodb container for local test
 deployments - deployment file for kubenetes
 policies - discovered policies (.yaml)
@@ -19,6 +19,7 @@ src - source codes
   libs - Libraries used for generating network policies
   plugin - Plug-ins used for supporting various CNIs (currently, Cilium)
   types - Type definitions
+tools - unit test scripts
 ```
 
 # Setup Instructions
@@ -30,7 +31,6 @@ make -C common
 ```
 
 # Installation
-
 ```
 go get github.com/accuknox/knoxAutoPolicy
 ```
@@ -58,7 +58,7 @@ DB_DRIVER=$DB_DRIVER DB_PORT=$DB_PORT DB_USER=$DB_USER DB_PASS=$DB_PASS DB_NAME=
 # Run 
 ```
 $ cd knoxAutoPolicy
-$ ./scripts/startKnoxAutoPolicy.sh
+$ ./scripts/startService.sh
 ```
 
 # Main Code 
