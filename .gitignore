@@ -2,4 +2,5 @@
 knoxAutoPolicy
 *.yaml
 bin/
+src/go.sum
 !policies/.keep
