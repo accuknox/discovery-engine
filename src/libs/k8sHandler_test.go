@@ -13,31 +13,31 @@ func TestGetK8sNamespaces(t *testing.T) {
 }
 
 func TestGetConGroups(t *testing.T) {
-	actual := GetPods("kube-system")
+	actual := GetPods()
 
-	for _, group := range actual {
-		if group.Namespace != "kube-system" {
-			t.Errorf("it should have %s namespace", "kube-system")
+	for _, pod := range actual {
+		if pod.PodName == "" {
+			t.Errorf("it should have a pod name")
 		}
 	}
 }
 
 func TestGetServices(t *testing.T) {
-	actual := GetServices("kube-system")
+	actual := GetServices()
 
 	for _, svc := range actual {
-		if svc.Namespace != "kube-system" {
-			t.Errorf("it should have %s namespace", "kube-system")
+		if svc.ServiceName == "" {
+			t.Errorf("it should have a service name")
 		}
 	}
 }
 
 func TestGetEndpoints(t *testing.T) {
-	actual := GetEndpoints("kube-system")
+	actual := GetEndpoints()
 
 	for _, endpoint := range actual {
-		if endpoint.Namespace != "kube-system" {
-			t.Errorf("it should have %s namespace", "kube-system")
+		if endpoint.EndpointName == "" {
+			t.Errorf("it should have a endpoint name")
 		}
 	}
 }
