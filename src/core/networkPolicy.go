@@ -406,7 +406,7 @@ func removeSelectorFromPolicies(policies []types.KnoxNetworkPolicy, inSelector t
 		selector := policy.Spec.Selector
 
 		matched := true
-		for k, _ := range inSelector.MatchLabels {
+		for k := range inSelector.MatchLabels {
 			if _, exist := selector.MatchLabels[k]; !exist {
 				matched = false
 			}
@@ -437,7 +437,7 @@ func getEgressIngressRules(policies []types.KnoxNetworkPolicy, inSelector types.
 		selector := policy.Spec.Selector
 
 		matched := true
-		for k, _ := range inSelector.MatchLabels {
+		for k := range inSelector.MatchLabels {
 			if _, exist := selector.MatchLabels[k]; !exist {
 				matched = false
 			}
