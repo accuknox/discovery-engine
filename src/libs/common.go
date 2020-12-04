@@ -6,10 +6,12 @@ import (
 	"math/bits"
 	"math/rand"
 	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"os/signal"
 	"reflect"
+	"sort"
 	"strings"
 	"syscall"
 	"time"
@@ -23,8 +25,8 @@ import (
 // == Network == //
 // ============= //
 
-// getIPAddr Function
-func getIPAddr(ifname string) string {
+// GetIPAddr Function
+func GetIPAddr(ifname string) string {
 	if interfaces, err := net.Interfaces(); err == nil {
 		for _, iface := range interfaces {
 			if iface.Name == ifname {
@@ -41,8 +43,8 @@ func getIPAddr(ifname string) string {
 	return "None"
 }
 
-// getExternalInterface Function
-func getExternalInterface() string {
+// GetExternalInterface Function
+func GetExternalInterface() string {
 	route := GetCommandOutput("ip", []string{"route", "get", "8.8.8.8"})
 	routeData := strings.Split(strings.Split(route, "\n")[0], " ")
 
@@ -57,9 +59,9 @@ func getExternalInterface() string {
 
 // GetExternalIPAddr Function
 func GetExternalIPAddr() string {
-	iface := getExternalInterface()
+	iface := GetExternalInterface()
 	if iface != "None" {
-		return getIPAddr(iface)
+		return GetIPAddr(iface)
 	}
 
 	return "None"
@@ -88,6 +90,128 @@ func GetProtocolInt(protocol string) int {
 	}
 
 	return protocolMap[protocol]
+}
+
+var httpMethods = []string{
+	http.MethodGet,
+	http.MethodHead,
+	http.MethodPost,
+	http.MethodPut,
+	http.MethodPatch,
+	http.MethodDelete,
+	http.MethodConnect,
+	http.MethodOptions,
+	http.MethodTrace,
+}
+
+// CheckHTTPMethod Function
+func CheckHTTPMethod(method string) bool {
+	for _, m := range httpMethods {
+		if strings.Contains(method, m) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// =========== //
+// == Label == //
+// =========== //
+
+// ContainLabel Function
+func ContainLabel(label, targetLabel string) bool {
+	labels := strings.Split(label, ",")
+	targetLabels := strings.Split(targetLabel, ",")
+
+	if len(labels) == 1 { // single label
+		for _, target := range targetLabels {
+			if label == target {
+				return true
+			}
+		}
+	} else {
+		for i := 2; i <= len(targetLabels); i++ {
+			results := Combinations(targetLabels, i)
+			for _, comb := range results {
+				combineLabel := strings.Join(comb, ",")
+				if label == combineLabel {
+					return true
+				}
+			}
+		}
+	}
+
+	return false
+}
+
+// Combinations Function
+func Combinations(set []string, n int) (subsets [][]string) {
+	length := uint(len(set))
+
+	if n > len(set) {
+		n = len(set)
+	}
+
+	// Go through all possible combinations of objects
+	// from 1 (only first object in subset) to 2^length (all objects in subset)
+	for subsetBits := 1; subsetBits < (1 << length); subsetBits++ {
+		if n > 0 && bits.OnesCount(uint(subsetBits)) != n {
+			continue
+		}
+
+		var subset []string
+
+		for object := uint(0); object < length; object++ {
+			// checks if object is contained in subset
+			// by checking if bit 'object' is set in subsetBits
+			if (subsetBits>>object)&1 == 1 {
+				// add object to subset
+				subset = append(subset, set[object])
+			}
+		}
+		// add subset to subsets
+		subsets = append(subsets, subset)
+	}
+
+	return subsets
+}
+
+// CountLabelByCombinations Function (combination!)
+func CountLabelByCombinations(labelCount map[string]int, mergedLabels string) {
+	// split labels
+	labels := strings.Split(mergedLabels, ",")
+
+	// sorting string first: a -> b -> c -> ...
+	sort.Slice(labels, func(i, j int) bool {
+		return labels[i] > labels[j]
+	})
+
+	// step 1: count single label
+	for _, label := range labels {
+		if val, ok := labelCount[label]; ok {
+			labelCount[label] = val + 1
+		} else {
+			labelCount[label] = 1
+		}
+	}
+
+	if len(labels) < 2 {
+		return
+	}
+
+	// step 2: count multiple labels (at least, it should be 2)
+	for i := 2; i <= len(labels); i++ {
+		results := Combinations(labels, i)
+		for _, comb := range results {
+			combineLabel := strings.Join(comb, ",")
+			if val, ok := labelCount[combineLabel]; ok {
+				labelCount[combineLabel] = val + 1
+			} else {
+				labelCount[combineLabel] = 1
+			}
+		}
+	}
 }
 
 // ============ //
@@ -159,38 +283,6 @@ func ContainsElement(slice interface{}, element interface{}) bool {
 	}
 
 	return false
-}
-
-// Combinations Function
-func Combinations(set []string, n int) (subsets [][]string) {
-	length := uint(len(set))
-
-	if n > len(set) {
-		n = len(set)
-	}
-
-	// Go through all possible combinations of objects
-	// from 1 (only first object in subset) to 2^length (all objects in subset)
-	for subsetBits := 1; subsetBits < (1 << length); subsetBits++ {
-		if n > 0 && bits.OnesCount(uint(subsetBits)) != n {
-			continue
-		}
-
-		var subset []string
-
-		for object := uint(0); object < length; object++ {
-			// checks if object is contained in subset
-			// by checking if bit 'object' is set in subsetBits
-			if (subsetBits>>object)&1 == 1 {
-				// add object to subset
-				subset = append(subset, set[object])
-			}
-		}
-		// add subset to subsets
-		subsets = append(subsets, subset)
-	}
-
-	return subsets
 }
 
 // RandSeq Function
