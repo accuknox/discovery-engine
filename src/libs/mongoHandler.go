@@ -190,14 +190,14 @@ func GetTrafficFlowFromMongo(startTime, endTime int64) ([]map[string]interface{}
 	}
 
 	if len(docs) == 0 {
-		log.Info().Msgf("traffic flow not exist: from %s ~ to %s",
+		log.Info().Msgf("Traffic flow not exist: from %s ~ to %s",
 			time.Unix(startTime, 0).Format(TimeFormSimple),
 			time.Unix(endTime, 0).Format(TimeFormSimple))
 
 		return nil, false
 	}
 
-	log.Info().Msgf("the total number of traffic flow: [%d] from %s ~ to %s", len(docs),
+	log.Info().Msgf("The total number of traffic flow: [%d] from %s ~ to %s", len(docs),
 		time.Unix(startTime, 0).Format(TimeFormSimple),
 		time.Unix(endTime, 0).Format(TimeFormSimple))
 
