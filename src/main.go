@@ -1,11 +1,7 @@
 package main
 
-import (
-	"github.com/accuknox/knoxAutoPolicy/src/libs"
-)
+import "github.com/accuknox/knoxAutoPolicy/src/core"
 
 func main() {
-	// core.StartToDiscover()
-
-	libs.SetAnnotations("default", map[string]string{"io.cilium.proxy-visibility": "dd"})
+	core.StartToDiscover()
 }
