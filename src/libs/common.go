@@ -10,12 +10,10 @@ import (
 	"os/exec"
 	"os/signal"
 	"reflect"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
-	"github.com/accuknox/knoxAutoPolicy/src/plugin"
 	"github.com/accuknox/knoxAutoPolicy/src/types"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"gopkg.in/yaml.v2"
@@ -217,7 +215,7 @@ func WriteKnoxPolicyToYamlFile(namespace string, policies []types.KnoxNetworkPol
 	outdir := GetEnv("OUT_DIR", "./")
 
 	// create policy file
-	f, err := os.Create(outdir + "knox_policies_" + namespace + "_" + strconv.Itoa(int(time.Now().Unix())) + ".yaml")
+	f, err := os.OpenFile(outdir+"knox_policies_"+namespace+".yaml", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -234,19 +232,18 @@ func WriteKnoxPolicyToYamlFile(namespace string, policies []types.KnoxNetworkPol
 }
 
 // WriteCiliumPolicyToYamlFile Function
-func WriteCiliumPolicyToYamlFile(namespace string, services []types.Service, policies []types.KnoxNetworkPolicy) {
+func WriteCiliumPolicyToYamlFile(namespace string, services []types.Service, policies []types.CiliumNetworkPolicy) {
 	// create policy file
 	outdir := GetEnv("OUT_DIR", "./")
 
-	f, err := os.Create(outdir + "cilium_policies_" + namespace + "_" + strconv.Itoa(int(time.Now().Unix())) + ".yaml")
+	f, err := os.OpenFile(outdir+"cilium_policies_"+namespace+".yaml", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
 	for _, policy := range policies {
-		ciliumPolicy := plugin.ConvertKnoxPolicyToCiliumPolicy(services, policy) // if you want to convert it to Cilium policy
-		b, _ := yaml.Marshal(&ciliumPolicy)
+		b, _ := yaml.Marshal(&policy)
 		f.Write(b)
 		f.WriteString("---\n")
 		f.Sync()
@@ -260,7 +257,7 @@ func WriteKnoxPolicyToJSONFile(namespace string, policies []types.KnoxNetworkPol
 	outdir := GetEnv("OUT_DIR", "./")
 
 	// create policy file
-	f, err := os.Create(outdir + "knox_policies_" + namespace + "_" + strconv.Itoa(int(time.Now().Unix())) + ".json")
+	f, err := os.OpenFile(outdir+"knox_policies_"+namespace+".json", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		fmt.Println(err)
 		return

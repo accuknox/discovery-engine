@@ -2,163 +2,59 @@ apiVersion: v1
 kind: Namespace
 metadata:
   name: knox-auto-policy
-  labels:
-    istio-injection: disabled
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: knox-auto-policy-manager
+  name: knox-auto-policy-daemon
   namespace: knox-auto-policy
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: knox-auto-policy-manager
+  name: knox-auto-policy-daemon
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: cluster-admin
 subjects:
 - kind: ServiceAccount
-  name: knox-auto-policy-manager
+  name: knox-auto-policy-daemon
   namespace: knox-auto-policy
----
-apiVersion: v1
-type: kubernetes.io/dockerconfigjson
-kind: Secret
-metadata:
-  name: knox-auto-policy-registry
-  namespace: knox-auto-policy
-data:
-  .dockerconfigjson: eyJhdXRocyI6eyJpbWFnZS4weDAxMC5jb20iOnsidXNlcm5hbWUiOiJiYXN0aW9uIiwicGFzc3dvcmQiOiJiYXN0aW9uX3Bhc3N3ZCIsImVtYWlsIjoiYmFzdGlvbkAweDAxMC5jb20iLCJhdXRoIjoiWW1GemRHbHZianBpWVhOMGFXOXVYM0JoYzNOM1pBPT0ifX19
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: knox-auto-policy-mongodb
-  namespace: knox-auto-policy
-type: Opaque
-data:
-  database: YmFzdGlvbg== # knox-auto-policy
-  root_id: cm9vdA== # root
-  root_pw: cGFzc3dk # passwd
-  user_id: YmFzdGlvbl91c2Vy # knox-auto-policy-user
-  user_pw: YmFzdGlvbl9wYXNzd2Q= # knox-auto-policy-passwd
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: knox-auto-policy-token
-  namespace: knox-auto-policy
-type: Opaque
-data:
-  daemon: YmFzdGlvbl9zZXJ2aWNl # knox-auto-policy_service
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: database
-  namespace: knox-auto-policy
-  labels:
-    service: database
-spec:
-  ports:
-  - port: 27017
-    targetPort: 27017
-    protocol: TCP
-  selector:
-    container: database
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: database
+  name: knox-auto-policy-daemon
   namespace: knox-auto-policy
   labels:
-    deployment: database
+    deployment: knox-auto-policy-daemon
 spec:
   selector:
     matchLabels:
-      container: database
+      container: knox-auto-policy-daemon
   template:
     metadata:
       labels:
-        container: database
+        container: knox-auto-policy-daemon
     spec:
+      serviceAccountName: knox-auto-policy-daemon
       containers:
-      - image: image.0x010.com/knox-auto-policy-database:latest
-        name: database
-        ports:
-        - containerPort: 27017
+      - image: accuknox/knoxautopolicy:latest
+        name: knox-auto-policy-daemon
         env:
-        - name: MONGO_INITDB_DATABASE
-          valueFrom:
-            secretKeyRef:
-              name: knox-auto-policy-mongodb
-              key: database
-        - name: MONGO_INITDB_ROOT_USERNAME
-          valueFrom:
-            secretKeyRef:
-              name: knox-auto-policy-mongodb
-              key: root_id
-        - name: MONGO_INITDB_ROOT_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: knox-auto-policy-mongodb
-              key: root_pw
-      imagePullSecrets:
-      - name: knox-auto-policy-registry
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: manager
-  namespace: knox-auto-policy
-  labels:
-    service: manager
-spec:
-  type: NodePort
-  ports:
-  - port: 30520
-    nodePort: 30520
-    protocol: TCP
-  selector:
-    container: manager
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: manager
-  namespace: knox-auto-policy
-  labels:
-    deployment: manager
-spec:
-  selector:
-    matchLabels:
-      container: manager
-  template:
-    metadata:
-      labels:
-        container: manager
-    spec:
-      serviceAccountName: knox-auto-policy-manager
-      containers:
-      - image: image.0x010.com/knox-auto-policy-manager:latest
-        name: manager
-        ports:
-        - containerPort: 30520
-        env:
-        - name: DB_ID
-          valueFrom:
-            secretKeyRef:
-              name: knox-auto-policy-mongodb
-              key: user_id
-        - name: DB_PW
-          valueFrom:
-            secretKeyRef:
-              name: knox-auto-policy-mongodb
-              key: user_pw
-      imagePullSecrets:
-      - name: knox-auto-policy-registry
+        - name: DB_DRIVER
+          value: "mongodb"
+        - name: DB_PORT
+          value: "27017"
+        - name: DB_USER
+          value: "root"
+        - name: DB_PASS
+          value: "password"
+        - name: DB_NAME
+          value: "flow_management"
+        - name: COL_NETWORK_FLOW
+          value: "network_flow"
+        - name: COL_DISCOVERED_POLICY
+          value: "discovered_policy"
 ---

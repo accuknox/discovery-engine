@@ -78,6 +78,7 @@ type KnoxNetworkPolicy struct {
 	APIVersion    string            `json:"apiVersion,omitempty" yaml:"apiVersion,omitempty" bson:"apiVersion,omitempty"`
 	Kind          string            `json:"kind,omitempty" yaml:"kind,omitempty" bson:"kind,omitempty"`
 	Metadata      map[string]string `json:"metadata,omitempty" yaml:"metadata,omitempty" bson:"metadata,omitempty"`
+	Overlapped    []string          `json:"overlapped,omitempty" yaml:"overlapped,omitempty" bson:"overlapped,omitempty"`
 	Spec          Spec              `json:"spec,omitempty" yaml:"spec,omitempty" bson:"spec,omitempty"`
 	GeneratedTime int64             `json:"generated_time,omitempty" yaml:"generated_time,omitempty" bson:"generated_time,omitempty"`
 }
