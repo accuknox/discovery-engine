@@ -193,8 +193,8 @@ func GetPods() []types.Pod {
 	return conGroups
 }
 
-// SetAnnotations Function
-func SetAnnotations(namespace string, annotation map[string]string) error {
+// SetAnnotationsToPodsInNamespace Function
+func SetAnnotationsToPodsInNamespace(namespace string, annotation map[string]string) error {
 	client := ConnectK8sClient()
 	if client == nil {
 		return errors.New("no client")
@@ -207,8 +207,39 @@ func SetAnnotations(namespace string, annotation map[string]string) error {
 	}
 
 	for _, pod := range pods.Items {
-		p, _ := client.CoreV1().Pods(namespace).Get(context.Background(), pod.GetName(), metav1.GetOptions{})
-		p.GetObjectMeta().SetAnnotations(annotation)
+		copied := pod.DeepCopy()
+		copied.SetAnnotations(annotation)
+		_, err := client.CoreV1().Pods(copied.ObjectMeta.Namespace).Update(context.Background(), copied, metav1.UpdateOptions{})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// SetAnnotationsToPod Function
+func SetAnnotationsToPod(podName string, annotation map[string]string) error {
+	client := ConnectK8sClient()
+	if client == nil {
+		return errors.New("no client")
+	}
+
+	// get pods from k8s api client
+	pods, err := client.CoreV1().Pods("").List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+
+	for _, pod := range pods.Items {
+		if pod.Name == podName {
+			copied := pod.DeepCopy()
+			copied.SetAnnotations(annotation)
+			_, err := client.CoreV1().Pods(copied.ObjectMeta.Namespace).Update(context.Background(), copied, metav1.UpdateOptions{})
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	return nil
