@@ -1,16 +1,23 @@
 package plugin
 
 import (
+	"context"
 	"encoding/json"
+	"io"
 	"net"
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/accuknox/knoxAutoPolicy/src/libs"
 	"github.com/accuknox/knoxAutoPolicy/src/types"
+	"github.com/rs/zerolog/log"
+	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	flow "github.com/cilium/cilium/api/v1/flow"
+	"github.com/cilium/cilium/api/v1/observer"
 )
 
 // cidrEanbeld config
@@ -200,15 +207,26 @@ func ConvertCiliumFlowToKnoxLog(flow *flow.Flow, dnsToIPs map[string][]string) (
 	return log, true
 }
 
-// ConvertCiliumFlowsToKnoxLogs function
-func ConvertCiliumFlowsToKnoxLogs(targetNamespace string, docs []map[string]interface{}, dnsToIPs map[string][]string) []types.KnoxNetworkLog {
-	networkLogs := []types.KnoxNetworkLog{}
+// ConvertMongoDocsToCiliumFlows function
+func ConvertMongoDocsToCiliumFlows(docs []map[string]interface{}) []*flow.Flow {
+	flows := []*flow.Flow{}
 
 	for _, doc := range docs {
 		flow := &flow.Flow{}
 		flowByte, _ := json.Marshal(doc)
 		json.Unmarshal(flowByte, flow)
 
+		flows = append(flows, flow)
+	}
+
+	return flows
+}
+
+// ConvertCiliumFlowsToKnoxLogs function
+func ConvertCiliumFlowsToKnoxLogs(targetNamespace string, flows []*flow.Flow, dnsToIPs map[string][]string) []types.KnoxNetworkLog {
+	networkLogs := []types.KnoxNetworkLog{}
+
+	for _, flow := range flows {
 		if flow.Source.Namespace != targetNamespace && flow.Destination.Namespace != targetNamespace {
 			continue
 		}
@@ -513,4 +531,90 @@ func ConvertKnoxPoliciesToCiliumPolicies(services []types.Service, policies []ty
 	}
 
 	return ciliumPolicies
+}
+
+// ========================= //
+// == Cilium Hubble Relay == //
+// ========================= //
+
+// CiliumFlows list
+var CiliumFlows []*flow.Flow
+
+// CiliumFlowsMutex mutext
+var CiliumFlowsMutex *sync.Mutex
+
+// ConnectHubbleRelay function.
+func ConnectHubbleRelay() *grpc.ClientConn {
+	url := libs.GetEnv("HUBBLE_URL", "127.0.0.1")
+	port := libs.GetEnv("HUBBLE_PORT", "4245")
+	addr := url + ":" + port
+
+	conn, err := grpc.Dial(addr, grpc.WithInsecure())
+	if err != nil {
+		log.Error().Err(err)
+		return nil
+	}
+
+	log.Info().Msg("connected to Hubble Relay")
+	return conn
+}
+
+// GetCiliumFlowsFromHubble function
+func GetCiliumFlowsFromHubble() []*flow.Flow {
+	CiliumFlowsMutex.Lock()
+	result := CiliumFlows
+	CiliumFlows = []*flow.Flow{} // reset
+	CiliumFlowsMutex.Unlock()
+
+	return result
+}
+
+// StartHubbleRelay function
+func StartHubbleRelay(StopChan chan struct{}, wg *sync.WaitGroup) {
+	conn := ConnectHubbleRelay()
+	defer conn.Close()
+	defer wg.Done()
+
+	client := observer.NewObserverClient(conn)
+
+	req := &observer.GetFlowsRequest{
+		Follow:    true,
+		Whitelist: nil,
+		Blacklist: nil,
+		Since:     timestamppb.Now(),
+		Until:     nil,
+	}
+
+	// init mutex
+	CiliumFlowsMutex = &sync.Mutex{}
+
+	if stream, err := client.GetFlows(context.Background(), req); err == nil {
+		for {
+			select {
+			case <-StopChan:
+				return
+
+			default:
+				res, err := stream.Recv()
+				if err == io.EOF {
+					log.Info().Msg("end of file: " + err.Error())
+				}
+
+				if err != nil {
+					log.Error().Msg("network flow stream stopped: " + err.Error())
+				}
+
+				switch r := res.ResponseTypes.(type) {
+				case *observer.GetFlowsResponse_Flow:
+					flow := r.Flow
+
+					CiliumFlowsMutex.Lock()
+					CiliumFlows = append(CiliumFlows, flow)
+					CiliumFlowsMutex.Unlock()
+				}
+			}
+		}
+	} else {
+		log.Error().Msg("unable to stream network flow: " + err.Error())
+	}
 }

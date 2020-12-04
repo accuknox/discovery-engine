@@ -1,13 +1,13 @@
 package core
 
 import (
-	"encoding/json"
 	"net"
 	"net/http"
 	"reflect"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	libs "github.com/accuknox/knoxAutoPolicy/src/libs"
@@ -19,16 +19,6 @@ import (
 	"github.com/rs/zerolog/log"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
-
-// network flow between [ startTime <= time < endTime ]
-var startTime int64 = 0
-var endTime int64 = 0
-var cidrBits int = 32
-var dnsToIPs map[string][]string
-
-func init() {
-	dnsToIPs = map[string][]string{}
-}
 
 var httpMethods = []string{
 	http.MethodGet,
@@ -1223,12 +1213,8 @@ func updateTimeInterval(lastDoc map[string]interface{}) {
 }
 
 // updateDNSToIPs function
-func updateDNSToIPs(docs []map[string]interface{}, dnsToIPs map[string][]string) {
-	for _, doc := range docs {
-		flow := &flow.Flow{}
-		flowByte, _ := json.Marshal(doc)
-		json.Unmarshal(flowByte, flow)
-
+func updateDNSToIPs(flows []*flow.Flow, dnsToIPs map[string][]string) {
+	for _, flow := range flows {
 		if flow.GetL7() != nil && flow.L7.GetDns() != nil {
 			// if DSN response includes IPs
 			if flow.L7.GetType() == 2 && len(flow.L7.GetDns().Ips) > 0 {
@@ -1332,8 +1318,8 @@ func StartToDiscoverNetworkPolicies() {
 	if !valid {
 		return
 	}
-
 	updateTimeInterval(docs[len(docs)-1])
+	ciliumFlows := plugin.ConvertMongoDocsToCiliumFlows(docs)
 
 	// get k8s services
 	services := libs.GetServices()
@@ -1354,12 +1340,12 @@ func StartToDiscoverNetworkPolicies() {
 	updateServiceEndpoint(services, endpoints, pods)
 
 	// update DNS to IPs
-	updateDNSToIPs(docs, dnsToIPs)
+	updateDNSToIPs(ciliumFlows, DNSToIPs)
 
 	// iterate each namespace
 	for _, namespace := range namespaces {
 		// convert cilium network traffic -> network log, and filter traffic
-		networkLogs := plugin.ConvertCiliumFlowsToKnoxLogs(namespace, docs, dnsToIPs)
+		networkLogs := plugin.ConvertCiliumFlowsToKnoxLogs(namespace, ciliumFlows, DNSToIPs)
 		if len(networkLogs) == 0 {
 			continue
 		}
@@ -1370,7 +1356,7 @@ func StartToDiscoverNetworkPolicies() {
 		discoveredPolicies := DiscoverNetworkPolicies(namespace, cidrBits, networkLogs, services, endpoints, pods)
 
 		// remove duplication
-		newPolicies := DeduplicatePolicies(existingPolicies, discoveredPolicies, dnsToIPs)
+		newPolicies := DeduplicatePolicies(existingPolicies, discoveredPolicies, DNSToIPs)
 
 		if len(newPolicies) > 0 {
 			// insert discovered policies to db
@@ -1387,6 +1373,27 @@ func StartToDiscoverNetworkPolicies() {
 			log.Info().Msgf("policy discovery done    for namespace: [%s], no policy discovered", namespace)
 		}
 	}
+}
+
+// WaitG Handler
+var WaitG sync.WaitGroup
+
+// StopChan Channel
+var StopChan chan struct{}
+
+// DNSToIPs map
+var DNSToIPs map[string][]string
+
+// network flow between [ startTime <= time < endTime ]
+var startTime int64 = 0
+var endTime int64 = 0
+var cidrBits int = 32
+
+// init Function
+func init() {
+	StopChan = make(chan struct{})
+	WaitG = sync.WaitGroup{}
+	DNSToIPs = map[string][]string{}
 }
 
 // CronJob function
