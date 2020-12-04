@@ -2,6 +2,7 @@ package libs
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"io/ioutil"
 	"os"
@@ -144,6 +145,10 @@ func GetNamespaces() []string {
 			continue
 		}
 
+		if namespace.Name == "kube-system" {
+			continue
+		}
+
 		results = append(results, namespace.Name)
 	}
 
@@ -192,7 +197,7 @@ func GetPods() []types.Pod {
 func SetAnnotations(namespace string, annotation map[string]string) error {
 	client := ConnectK8sClient()
 	if client == nil {
-		return nil
+		return errors.New("no client")
 	}
 
 	// get pods from k8s api client
@@ -202,7 +207,8 @@ func SetAnnotations(namespace string, annotation map[string]string) error {
 	}
 
 	for _, pod := range pods.Items {
-		pod.SetAnnotations(annotation)
+		p, _ := client.CoreV1().Pods(namespace).Get(context.Background(), pod.GetName(), metav1.GetOptions{})
+		p.GetObjectMeta().SetAnnotations(annotation)
 	}
 
 	return nil

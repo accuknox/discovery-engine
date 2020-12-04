@@ -2,14 +2,28 @@ package plugin
 
 import (
 	"encoding/json"
+	"net"
 	"net/url"
 	"strconv"
 	"strings"
 
+	"github.com/accuknox/knoxAutoPolicy/src/libs"
 	"github.com/accuknox/knoxAutoPolicy/src/types"
 
 	flow "github.com/cilium/cilium/api/v1/flow"
 )
+
+// cidrEanbeld config
+var cidrEanbeld bool
+
+func init() {
+	env := libs.GetEnv("CIDR_ENABLED", "true")
+	if env == "false" {
+		cidrEanbeld = false
+	} else {
+		cidrEanbeld = true
+	}
+}
 
 // ============================ //
 // == Traffic Flow Convertor == //
@@ -60,19 +74,6 @@ func getReservedLabelIfExist(labels []string) string {
 	return ""
 }
 
-// getDNS function
-func getDNS(flow *flow.Flow) string {
-	if flow.L7 != nil && flow.L7.GetDns() != nil {
-		if flow.L7.GetType() == 1 && // REQUEST only
-			!strings.HasSuffix(flow.L7.GetDns().Query, "cluster.local.") {
-			q := strings.TrimSuffix(flow.L7.GetDns().Query, ".")
-			return q
-		}
-	}
-
-	return ""
-}
-
 // getHTTP function
 func getHTTP(flow *flow.Flow) (string, string) {
 	if flow.L7 != nil && flow.L7.GetHttp() != nil {
@@ -87,21 +88,35 @@ func getHTTP(flow *flow.Flow) (string, string) {
 	return "", ""
 }
 
+func isFromDNSQuery(log types.KnoxNetworkLog, dnsToIPs map[string][]string) bool {
+	for _, v := range dnsToIPs {
+		if libs.ContainsElement(v, log.DstPodName) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // ConvertCiliumFlowToKnoxLog function
-func ConvertCiliumFlowToKnoxLog(flow *flow.Flow) types.KnoxNetworkLog {
+func ConvertCiliumFlowToKnoxLog(flow *flow.Flow, dnsToIPs map[string][]string) (types.KnoxNetworkLog, bool) {
 	log := types.KnoxNetworkLog{}
 
-	// set namespace/pod
+	// set action
+	if flow.Verdict == 2 {
+		log.Action = "deny"
+	} else {
+		log.Action = "allow"
+	}
+
+	// set egress / ingress
+	log.Direction = flow.GetTrafficDirection().String()
+
+	// set namespace
 	if flow.Source.Namespace == "" {
 		log.SrcNamespace = getReservedLabelIfExist(flow.Source.Labels)
 	} else {
 		log.SrcNamespace = flow.Source.Namespace
-	}
-
-	if flow.Source.PodName == "" {
-		log.SrcPodName = flow.IP.Source
-	} else {
-		log.SrcPodName = flow.Source.GetPodName()
 	}
 
 	if flow.Destination.Namespace == "" {
@@ -110,26 +125,25 @@ func ConvertCiliumFlowToKnoxLog(flow *flow.Flow) types.KnoxNetworkLog {
 		log.DstNamespace = flow.Destination.Namespace
 	}
 
+	// set pod
+	if flow.Source.PodName == "" {
+		log.SrcPodName = flow.IP.Source
+	} else {
+		log.SrcPodName = flow.Source.GetPodName()
+	}
+
 	if flow.Destination.PodName == "" {
 		log.DstPodName = flow.IP.Destination
 	} else {
 		log.DstPodName = flow.Destination.GetPodName()
 	}
 
-	// get action
-	if flow.Verdict == 2 {
-		log.Action = "deny"
-	} else {
-		log.Action = "allow"
-	}
-
-	// get egress / ingress
-	log.Direction = flow.GetTrafficDirection().String()
-
 	// get L3
 	if flow.IP != nil {
 		log.SrcIP = flow.IP.Source
 		log.DstIP = flow.IP.Destination
+	} else {
+		return log, false
 	}
 
 	// get L4
@@ -140,17 +154,54 @@ func ConvertCiliumFlowToKnoxLog(flow *flow.Flow) types.KnoxNetworkLog {
 		}
 
 		log.SrcPort, log.DstPort = getL4Ports(flow.L4)
+	} else {
+		return log, false
 	}
 
-	// get L7
-	log.DNSQuery = getDNS(flow)
-	log.HTTPMethod, log.HTTPPath = getHTTP(flow)
+	// traffic go to the outside of the cluster,
+	if log.DstNamespace == "reserved:world" {
+		// filter if the ip is from the DNS query
+		if isFromDNSQuery(log, dnsToIPs) {
+			return log, false
+		}
 
-	return log
+		// if it can be reversed to the domain name,
+		if names, err := net.LookupAddr(log.DstPodName); err == nil {
+			dnsname := strings.TrimSuffix(names[0], ".")
+			log.DNSQuery = dnsname
+
+			return log, true
+		}
+	}
+
+	// get L7 DNS
+	if flow.GetL7() != nil && flow.L7.GetDns() != nil {
+		if flow.L7.GetType() == 1 { // if DNS REQUEST,
+			query := strings.TrimSuffix(flow.L7.GetDns().GetQuery(), ".")
+
+			// if query is in the map,
+			if _, ok := dnsToIPs[query]; ok {
+				log.DNSQuery = query
+				return log, true
+			}
+		}
+
+		return log, false
+	}
+
+	// get L7 HTTP
+	if flow.GetL7() != nil && flow.L7.GetHttp() != nil {
+		log.HTTPMethod, log.HTTPPath = getHTTP(flow)
+		if log.HTTPMethod == "" && log.HTTPPath == "" {
+			return log, false
+		}
+	}
+
+	return log, true
 }
 
 // ConvertCiliumFlowsToKnoxLogs function
-func ConvertCiliumFlowsToKnoxLogs(targetNamespace string, docs []map[string]interface{}) []types.KnoxNetworkLog {
+func ConvertCiliumFlowsToKnoxLogs(targetNamespace string, docs []map[string]interface{}, dnsToIPs map[string][]string) []types.KnoxNetworkLog {
 	networkLogs := []types.KnoxNetworkLog{}
 
 	for _, doc := range docs {
@@ -169,8 +220,9 @@ func ConvertCiliumFlowsToKnoxLogs(targetNamespace string, docs []map[string]inte
 			}
 		*/
 
-		log := ConvertCiliumFlowToKnoxLog(flow)
-		networkLogs = append(networkLogs, log)
+		if log, valid := ConvertCiliumFlowToKnoxLog(flow, dnsToIPs); valid {
+			networkLogs = append(networkLogs, log)
+		}
 	}
 
 	return networkLogs
@@ -186,7 +238,12 @@ func buildNewCiliumNetworkPolicy(inPolicy types.KnoxNetworkPolicy) types.CiliumN
 
 	ciliumPolicy.APIVersion = "cilium.io/v2"
 	ciliumPolicy.Kind = "CiliumNetworkPolicy"
-	ciliumPolicy.Metadata = inPolicy.Metadata
+	ciliumPolicy.Metadata = map[string]string{}
+	for k, v := range inPolicy.Metadata {
+		if k == "name" || k == "namespace" {
+			ciliumPolicy.Metadata[k] = v
+		}
+	}
 
 	// update selector matchLabels
 	ciliumPolicy.Spec.Selector.MatchLabels = inPolicy.Spec.Selector.MatchLabels
@@ -444,4 +501,16 @@ func ConvertKnoxPolicyToCiliumPolicy(services []types.Service, inPolicy types.Kn
 	}
 
 	return ciliumPolicy
+}
+
+// ConvertKnoxPoliciesToCiliumPolicies function
+func ConvertKnoxPoliciesToCiliumPolicies(services []types.Service, policies []types.KnoxNetworkPolicy) []types.CiliumNetworkPolicy {
+	ciliumPolicies := []types.CiliumNetworkPolicy{}
+
+	for _, policy := range policies {
+		ciliumPolicy := ConvertKnoxPolicyToCiliumPolicy(services, policy)
+		ciliumPolicies = append(ciliumPolicies, ciliumPolicy)
+	}
+
+	return ciliumPolicies
 }

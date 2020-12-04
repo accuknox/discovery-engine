@@ -170,8 +170,8 @@ func IsExistedPolicy(existingPolicies []types.KnoxNetworkPolicy, inPolicy types.
 
 // ReplaceDuplcatedName function
 func ReplaceDuplcatedName(existingPolicies []types.KnoxNetworkPolicy, policy types.KnoxNetworkPolicy) types.KnoxNetworkPolicy {
-	egressPrefix := "autogen-egress"
-	ingressPrefix := "autogen-ingress"
+	egressPrefix := "autopol-egress"
+	ingressPrefix := "autopol-ingress"
 
 	existNames := []string{}
 	for _, exist := range existingPolicies {
@@ -194,8 +194,87 @@ func ReplaceDuplcatedName(existingPolicies []types.KnoxNetworkPolicy, policy typ
 	return policy
 }
 
+// getNewFQDNs function
+func getNewFQDNs(policy types.KnoxNetworkPolicy, newPolicies []types.KnoxNetworkPolicy) []types.KnoxNetworkPolicy {
+	toFQDNs := []types.KnoxNetworkPolicy{}
+
+	for _, newPolicy := range newPolicies {
+		if cmp.Equal(&policy.Spec.Selector, &newPolicy.Spec.Selector) {
+			for _, egress := range newPolicy.Spec.Egress {
+				if len(egress.ToFQDNs) > 0 && !libs.ContainsElement(toFQDNs, newPolicy) {
+					toFQDNs = append(toFQDNs, newPolicy)
+				}
+			}
+		}
+	}
+
+	return toFQDNs
+}
+
+// getDomainNameFromMap function
+func getDomainNameFromMap(inIP string, dnsToIPs map[string][]string) string {
+	for domain, ips := range dnsToIPs {
+		for _, ip := range ips {
+			if inIP == ip {
+				return domain
+			}
+		}
+	}
+
+	return ""
+}
+
+// existDomainNameInFQDN function
+func existDomainNameInFQDN(domainName string, fqdnPolicies []types.KnoxNetworkPolicy) (string, bool) {
+	for _, policy := range fqdnPolicies {
+		for _, egress := range policy.Spec.Egress {
+			for _, fqdn := range egress.ToFQDNs {
+				if libs.ContainsElement(fqdn.MatchNames, domainName) {
+					return policy.Metadata["name"], true
+				}
+			}
+		}
+	}
+
+	return "", false
+}
+
+// annotateOverlappedCIDRPolicies function
+func annotateOverlappedCIDRPolicies(existingPolicies []types.KnoxNetworkPolicy, newPolicies []types.KnoxNetworkPolicy, dnsToIPs map[string][]string) {
+	for _, cidrPolicy := range existingPolicies {
+		for _, egress := range cidrPolicy.Spec.Egress {
+			for _, toCidr := range egress.ToCIDRs {
+				updated := false
+
+				overlapped := []string{}
+				if cidrPolicy.Overlapped != nil {
+					overlapped = cidrPolicy.Overlapped
+				}
+
+				toFQDNs := getNewFQDNs(cidrPolicy, newPolicies)
+
+				// if not, match first
+				for _, cidr := range toCidr.CIDRs {
+					ip := strings.Split(cidr, "/")[0]
+					domainName := getDomainNameFromMap(ip, dnsToIPs)
+					if fqdnPolicyName, ok := existDomainNameInFQDN(domainName, toFQDNs); ok {
+						if !libs.ContainsElement(overlapped, fqdnPolicyName) {
+							updated = true
+							overlapped = append(overlapped, fqdnPolicyName)
+						}
+					}
+				}
+
+				if updated {
+					libs.AnnotateOverlapped(cidrPolicy.Metadata["name"], overlapped)
+				}
+			}
+		}
+	}
+}
+
 // DeduplicatePolicies function
-func DeduplicatePolicies(existingPolicies []types.KnoxNetworkPolicy, discoveredPolicies []types.KnoxNetworkPolicy) []types.KnoxNetworkPolicy {
+func DeduplicatePolicies(existingPolicies []types.KnoxNetworkPolicy, discoveredPolicies []types.KnoxNetworkPolicy, dnsToIPs map[string][]string) []types.KnoxNetworkPolicy {
 	newPolicies := []types.KnoxNetworkPolicy{}
 
 	for _, policy := range discoveredPolicies {
@@ -216,6 +295,8 @@ func DeduplicatePolicies(existingPolicies []types.KnoxNetworkPolicy, discoveredP
 
 		newPolicies = append(newPolicies, namedPolicy)
 	}
+
+	annotateOverlappedCIDRPolicies(existingPolicies, newPolicies, dnsToIPs)
 
 	return newPolicies
 }

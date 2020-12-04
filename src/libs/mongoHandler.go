@@ -3,6 +3,7 @@ package libs
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net"
 	"time"
 
@@ -115,7 +116,6 @@ func GetDocsByFilter(col *mongo.Collection, filter primitive.M) ([]map[string]in
 func GetNetworkPolicies() ([]types.KnoxNetworkPolicy, error) {
 	client, db := ConnectMongoDB()
 	defer client.Disconnect(context.Background())
-
 	col := db.Collection(ColDiscoveredPolicy)
 
 	docs, _ := GetDocsByFilter(col, bson.M{})
@@ -142,8 +142,8 @@ func CountPoliciesByName(col *mongo.Collection, name string) int {
 	return int(count)
 }
 
-// updateTimeFilters function
-func updateTimeFilters(filter primitive.M, tsStart, tsEnd int64) {
+// UpdateTimeFilters function
+func UpdateTimeFilters(filter primitive.M, tsStart, tsEnd int64) {
 	// update filter by start and end times
 	startTime := ConvertUnixTSToDateTime(tsStart)
 	endTime := ConvertUnixTSToDateTime(tsEnd)
@@ -151,19 +151,55 @@ func updateTimeFilters(filter primitive.M, tsStart, tsEnd int64) {
 	filter["timestamp"] = bson.M{"$gte": startTime, "$lt": endTime}
 }
 
+// AnnotateOverlapped function
+func AnnotateOverlapped(cidrPolicyName string, fqdnPolicyNames []string) {
+	client, db := ConnectMongoDB()
+	defer client.Disconnect(context.Background())
+	col := db.Collection(ColDiscoveredPolicy)
+
+	filter := bson.M{}
+	filter["metadata.name"] = cidrPolicyName
+
+	matchedDoc := map[string]interface{}{}
+	err := col.FindOne(context.Background(), filter).Decode(&matchedDoc)
+	if err == nil {
+		fields := bson.M{}
+		fields["overlapped"] = fqdnPolicyNames
+		update := bson.M{"$set": fields}
+
+		_, err = col.UpdateOne(context.Background(), filter, update)
+		if err != nil {
+			fmt.Println(err)
+		}
+	}
+}
+
 // GetTrafficFlowFromMongo function
-func GetTrafficFlowFromMongo(startTime, endTime int64) ([]map[string]interface{}, error) {
+func GetTrafficFlowFromMongo(startTime, endTime int64) ([]map[string]interface{}, bool) {
 	client, db := ConnectMongoDB()
 	defer client.Disconnect(context.Background())
 	col := db.Collection(ColNetworkFlow)
 
 	filter := bson.M{}
-	updateTimeFilters(filter, startTime, endTime)
+	UpdateTimeFilters(filter, startTime, endTime)
 
 	docs, err := GetDocsByFilter(col, filter)
 	if err != nil {
-		return nil, err
+		log.Info().Msg(err.Error())
+		return nil, false
 	}
 
-	return docs, nil
+	if len(docs) == 0 {
+		log.Info().Msgf("traffic flow not exist: from %s ~ to %s",
+			time.Unix(startTime, 0).Format(TimeFormSimple),
+			time.Unix(endTime, 0).Format(TimeFormSimple))
+
+		return nil, false
+	}
+
+	log.Info().Msgf("the total number of traffic flow: [%d] from %s ~ to %s", len(docs),
+		time.Unix(startTime, 0).Format(TimeFormSimple),
+		time.Unix(endTime, 0).Format(TimeFormSimple))
+
+	return docs, true
 }
