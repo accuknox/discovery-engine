@@ -3,7 +3,7 @@ KnoxAutoPolicy is a policy recommendation system that suggests network policies 
 
 Basically, KnoxAutoPolicy operates as plug-ins because each CNI employs its own scheme for the network log and network policy. Thus, KnoxAutoPolicy can convert each scheme to Knox General Scheme (network log/policy) and vice versa. From these functionalities, we can minimize its dependency on each CNI.
 
-KnoxAutoPolicy is designed for Kubernetes environments; it focuses on pod/services, and its fundamental principle is to produce a minimal policy set covering maximum flows. To do this, we actively use the label information assigned from the Kubernetes workloads/resources.
+KnoxAutoPolicy is designed for Kubernetes environments; it focuses on pod/services, and its fundamental principle is to produce a minimal network policy set covering maximum flows. To do this, we actively use the label information assigned from the Kubernetes workloads/resources.
 
 Currently, KnoxAutoPolicy can discover egress/ingress network policy for Pod-to -Pod, -(External)Service, -Entity, -CIDR, -FQDN, -HTTP. Further detail is available here.
 
