@@ -208,7 +208,14 @@ func SetAnnotationsToPodsInNamespace(namespace string, annotation map[string]str
 
 	for _, pod := range pods.Items {
 		copied := pod.DeepCopy()
-		copied.SetAnnotations(annotation)
+		ann := copied.ObjectMeta.Annotations
+		if ann == nil {
+			ann = make(map[string]string)
+		}
+		for k, v := range annotation {
+			ann[k] = v
+		}
+		copied.SetAnnotations(ann)
 		_, err := client.CoreV1().Pods(copied.ObjectMeta.Namespace).Update(context.Background(), copied, metav1.UpdateOptions{})
 		if err != nil {
 			return err
@@ -234,7 +241,14 @@ func SetAnnotationsToPod(podName string, annotation map[string]string) error {
 	for _, pod := range pods.Items {
 		if pod.Name == podName {
 			copied := pod.DeepCopy()
-			copied.SetAnnotations(annotation)
+			ann := copied.ObjectMeta.Annotations
+			if ann == nil {
+				ann = make(map[string]string)
+			}
+			for k, v := range annotation {
+				ann[k] = v
+			}
+			copied.SetAnnotations(ann)
 			_, err := client.CoreV1().Pods(copied.ObjectMeta.Namespace).Update(context.Background(), copied, metav1.UpdateOptions{})
 			if err != nil {
 				return err

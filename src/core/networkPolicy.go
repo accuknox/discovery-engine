@@ -47,11 +47,22 @@ var StopChan chan struct{}
 // DNSToIPs map
 var DNSToIPs map[string][]string
 
+const (
+	Egress        = 1
+	Ingress       = 2
+	EgressIngress = 3
+)
+
+// DiscoveryMode int
+var DiscoveryMode int
+
 // init Function
 func init() {
 	StopChan = make(chan struct{})
 	waitG = sync.WaitGroup{}
 	DNSToIPs = map[string][]string{}
+
+	DiscoveryMode = libs.GetEnvInt("DISCOVERY_MODE", 3)
 }
 
 // ====================== //
@@ -459,8 +470,8 @@ func buildNewKnoxIngressPolicy() types.KnoxNetworkPolicy {
 	return policy
 }
 
-// buildNewIngressPolicyFromEgress Function
-func buildNewIngressPolicyFromEgress(egress types.Egress, selector types.Selector) types.KnoxNetworkPolicy {
+// buildNewIngressPolicyFromEgressPolicy Function
+func buildNewIngressPolicyFromEgressPolicy(egress types.Egress, selector types.Selector) types.KnoxNetworkPolicy {
 	ingress := buildNewKnoxIngressPolicy()
 
 	// update selector labels from egress match labels
@@ -478,6 +489,24 @@ func buildNewIngressPolicyFromEgress(egress types.Egress, selector types.Selecto
 		ingress.Spec.Ingress[0].MatchLabels[k] = v
 	}
 
+	// if there is toPorts, move it
+	if len(egress.ToPorts) > 0 {
+		cpy := make([]types.SpecPort, len(egress.ToPorts))
+		copy(cpy, egress.ToPorts)
+		ingress.Spec.Ingress[0].ToPorts = cpy
+	}
+
+	return ingress
+}
+
+// buildNewIngressPolicyFromSameSelector Function
+func buildNewIngressPolicyFromSameSelector(namespace string, selector types.Selector) types.KnoxNetworkPolicy {
+	ingress := buildNewKnoxIngressPolicy()
+	ingress.Metadata["namespace"] = namespace
+	for k, v := range selector.MatchLabels {
+		ingress.Spec.Selector.MatchLabels[k] = v
+	}
+
 	return ingress
 }
 
@@ -490,7 +519,9 @@ func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcP
 			egressPolicy := buildNewKnoxEgressPolicy()
 			egressPolicy.Metadata["namespace"] = namespace
 
-			// set selector matchLabels
+			// ======== //
+			// Selector //
+			// ======== //
 			srcs := strings.Split(mergedSrc, ",")
 			for _, src := range srcs {
 				kv := strings.Split(src, "=")
@@ -525,7 +556,7 @@ func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcP
 					egressRule.MatchLabels[dstkey] = dstval
 				}
 
-				// although same namespace, speficy namespace
+				// although they have same namespace, speficy namespace for clarity
 				egressRule.MatchLabels["k8s:io.kubernetes.pod.namespace"] = dst.Namespace
 
 				// ===================== //
@@ -559,11 +590,13 @@ func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcP
 				}
 
 				egressPolicy.Spec.Egress = append(egressPolicy.Spec.Egress, egressRule)
-				networkPolicies = append(networkPolicies, egressPolicy)
 
-				// add dependent ingress policy if not kube-system
-				if dst.Namespace != "kube-system" {
-					ingressPolicy := buildNewIngressPolicyFromEgress(egressRule, egressPolicy.Spec.Selector)
+				if DiscoveryMode&Egress > 0 {
+					networkPolicies = append(networkPolicies, egressPolicy)
+				}
+
+				if DiscoveryMode&Ingress > 0 && dst.Namespace != "kube-system" {
+					ingressPolicy := buildNewIngressPolicyFromEgressPolicy(egressRule, egressPolicy.Spec.Selector)
 					ingressPolicy.Spec.Ingress[0].MatchLabels["k8s:io.kubernetes.pod.namespace"] = namespace
 
 					networkPolicies = append(networkPolicies, ingressPolicy)
@@ -581,69 +614,83 @@ func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcP
 
 				egressRule.ToCIDRs = []types.SpecCIDR{cidr}
 				egressPolicy.Spec.Egress = append(egressPolicy.Spec.Egress, egressRule)
-				networkPolicies = append(networkPolicies, egressPolicy)
+
+				if DiscoveryMode&Egress > 0 {
+					networkPolicies = append(networkPolicies, egressPolicy)
+				}
+
+				if DiscoveryMode&Ingress > 0 {
+					// add ingress policy
+					ingressPolicy := buildNewIngressPolicyFromSameSelector(namespace, egressPolicy.Spec.Selector)
+					ingressRule := types.Ingress{}
+
+					fromcidr := types.SpecCIDR{
+						CIDRs: cidrSlice,
+					}
+
+					ingressRule.FromCIDRs = []types.SpecCIDR{fromcidr}
+					ingressPolicy.Spec.Ingress = append(ingressPolicy.Spec.Ingress, ingressRule)
+					networkPolicies = append(networkPolicies, ingressPolicy)
+				}
 			} else if dst.Namespace == "reserved:dns" && dst.Additional != "" {
 				// =============== //
 				// build FQDN rule //
 				// =============== //
-				dst.ToPorts = removeKubeDNSPort(dst.ToPorts)
+				if DiscoveryMode&Egress > 0 {
+					networkPolicies = append(networkPolicies, egressPolicy)
+					dst.ToPorts = removeKubeDNSPort(dst.ToPorts)
 
-				fqdnSlice := strings.Split(dst.Additional, ",")
-				sort.Strings(fqdnSlice)
-				fqdn := types.SpecFQDN{
-					MatchNames: fqdnSlice,
-					// ToPorts:    dst.ToPorts // TODO: if FQDN != CIDR..
+					fqdnSlice := strings.Split(dst.Additional, ",")
+					sort.Strings(fqdnSlice)
+					fqdn := types.SpecFQDN{
+						MatchNames: fqdnSlice,
+					}
+
+					egressRule.ToFQDNs = []types.SpecFQDN{fqdn}
+					egressPolicy.Spec.Egress = append(egressPolicy.Spec.Egress, egressRule)
+					networkPolicies = append(networkPolicies, egressPolicy)
 				}
-
-				egressRule.ToFQDNs = []types.SpecFQDN{fqdn}
-				egressPolicy.Spec.Egress = append(egressPolicy.Spec.Egress, egressRule)
-				networkPolicies = append(networkPolicies, egressPolicy)
-			} else if dst.Additional != "" {
-				// ================== //
-				// build Service rule //
-				// ================== //
-
-				// external services (NOT internal k8s service)
-				service := types.SpecService{
-					ServiceName: dst.Additional,
-					Namespace:   dst.Namespace,
-				}
-
-				egressRule.ToServices = []types.SpecService{service}
-				egressPolicy.Spec.Egress = append(egressPolicy.Spec.Egress, egressRule)
-				networkPolicies = append(networkPolicies, egressPolicy)
 			} else if strings.HasPrefix(dst.Namespace, "reserved:") && dst.MatchLabels == "" {
 				// ================= //
 				// build Entity rule //
 				// ================= //
 				entity := strings.Split(dst.Namespace, ":")[1]
-				if entity == "host" {
+				if entity == "host" { // host is allowed by default
 					continue
 				}
 
 				// handle for entity policy in Cilium
 				egressRule.ToEndtities = []string{entity}
 				egressPolicy.Spec.Egress = append(egressPolicy.Spec.Egress, egressRule)
-				networkPolicies = append(networkPolicies, egressPolicy)
 
-				// add ingress policy as well (TODO: reserve...)
-				ingressPolicy := buildNewKnoxIngressPolicy()
-				ingressPolicy.Metadata["namespace"] = namespace
-				for k, v := range egressPolicy.Spec.Selector.MatchLabels {
-					ingressPolicy.Spec.Selector.MatchLabels[k] = v
+				if DiscoveryMode&Egress > 0 {
+					networkPolicies = append(networkPolicies, egressPolicy)
 				}
 
-				ingressRule := types.Ingress{}
-
-				reserved := entity
-				if reserved == "remote-node" {
-					ingressRule.FromEntities = []string{"remote-node"}
-				} else {
-					ingressRule.FromEntities = []string{reserved}
+				// add ingress policy
+				if DiscoveryMode&Ingress > 0 {
+					ingressPolicy := buildNewIngressPolicyFromSameSelector(namespace, egressPolicy.Spec.Selector)
+					ingressRule := types.Ingress{}
+					ingressRule.FromEntities = []string{entity}
+					ingressPolicy.Spec.Ingress = append(ingressPolicy.Spec.Ingress, ingressRule)
+					networkPolicies = append(networkPolicies, ingressPolicy)
 				}
+			} else if dst.Additional != "" {
+				// ================== //
+				// build Service rule //
+				// ================== //
+				if DiscoveryMode&Egress > 0 {
+					// to external services (NOT internal k8s service)
+					// to affect this policy, we need a service, an endpoint respectively
+					service := types.SpecService{
+						ServiceName: dst.Additional,
+						Namespace:   dst.Namespace,
+					}
 
-				ingressPolicy.Spec.Ingress = append(ingressPolicy.Spec.Ingress, ingressRule)
-				networkPolicies = append(networkPolicies, ingressPolicy)
+					egressRule.ToServices = []types.SpecService{service}
+					egressPolicy.Spec.Egress = append(egressPolicy.Spec.Egress, egressRule)
+					networkPolicies = append(networkPolicies, egressPolicy)
+				}
 			}
 		}
 	}
@@ -694,13 +741,19 @@ func getSimpleDst(log types.KnoxNetworkLog, endpoints []types.Endpoint, cidrBits
 		externalInfo = log.HTTPMethod + "|" + log.HTTPPath
 	}
 
-	// check CIDR (outofcluster)
+	// check CIDR (out of cluster)
 	if libs.ContainsElement(externals, log.DstNamespace) && net.ParseIP(log.DstPodName) != nil {
-		// check if it is the external service policy
 		if endpoint, valid := checkExternalService(log, endpoints); valid {
+			// 1. check if it is the external service policy
 			log.DstNamespace = endpoint.Namespace
 			externalInfo = endpoint.EndpointName
-		} else { // else, handle it as cidr policy
+		} else if names, err := net.LookupAddr(log.DstPodName); err == nil {
+			// 2. check if it can be reversed to the domain name,
+			log.DstNamespace = "reserved:dns"
+			dnsname := strings.TrimSuffix(names[0], ".")
+			externalInfo = dnsname
+		} else {
+			// 3. else, handle it as cidr policy
 			log.DstNamespace = "reserved:cidr"
 			ipNetwork := log.DstPodName + "/" + strconv.Itoa(cidrBits)
 			_, network, _ := net.ParseCIDR(ipNetwork)

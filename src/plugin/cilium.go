@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"net"
 	"net/url"
 	"strconv"
 	"strings"
@@ -171,14 +170,6 @@ func ConvertCiliumFlowToKnoxLog(flow *flow.Flow, dnsToIPs map[string][]string) (
 		if isFromDNSQuery(log, dnsToIPs) {
 			return log, false
 		}
-
-		// if it can be reversed to the domain name,
-		if names, err := net.LookupAddr(log.DstPodName); err == nil {
-			dnsname := strings.TrimSuffix(names[0], ".")
-			log.DNSQuery = dnsname
-
-			return log, true
-		}
 	}
 
 	// get L7 DNS
@@ -189,6 +180,7 @@ func ConvertCiliumFlowToKnoxLog(flow *flow.Flow, dnsToIPs map[string][]string) (
 			// if query is in the map,
 			if _, ok := dnsToIPs[query]; ok {
 				log.DNSQuery = query
+
 				return log, true
 			}
 		}
@@ -466,15 +458,15 @@ func ConvertKnoxPolicyToCiliumPolicy(services []types.Service, inPolicy types.Kn
 			// build L4 toPorts //
 			// ================ //
 			for _, fromPort := range knoxIngress.ToPorts {
-				if ciliumIngress.FromPorts == nil {
-					ciliumIngress.FromPorts = []types.CiliumPortList{}
+				if ciliumIngress.ToPorts == nil {
+					ciliumIngress.ToPorts = []types.CiliumPortList{}
 					ciliumPort := types.CiliumPortList{}
 					ciliumPort.Ports = []types.CiliumPort{}
-					ciliumIngress.FromPorts = append(ciliumIngress.FromPorts, ciliumPort)
+					ciliumIngress.ToPorts = append(ciliumIngress.ToPorts, ciliumPort)
 				}
 
 				port := types.CiliumPort{Port: fromPort.Ports, Protocol: strings.ToUpper(fromPort.Protocol)}
-				ciliumIngress.FromPorts[0].Ports = append(ciliumIngress.FromPorts[0].Ports, port)
+				ciliumIngress.ToPorts[0].Ports = append(ciliumIngress.ToPorts[0].Ports, port)
 			}
 
 			// =============== //
@@ -491,15 +483,15 @@ func ConvertKnoxPolicyToCiliumPolicy(services []types.Service, inPolicy types.Kn
 						continue
 					}
 
-					if ciliumIngress.FromPorts == nil {
-						ciliumIngress.FromPorts = []types.CiliumPortList{}
+					if ciliumIngress.ToPorts == nil {
+						ciliumIngress.ToPorts = []types.CiliumPortList{}
 						ciliumPort := types.CiliumPortList{}
 						ciliumPort.Ports = []types.CiliumPort{}
-						ciliumIngress.FromPorts = append(ciliumIngress.FromPorts, ciliumPort)
+						ciliumIngress.ToPorts = append(ciliumIngress.ToPorts, ciliumPort)
 					}
 
 					port := types.CiliumPort{Port: fromPort.Ports, Protocol: strings.ToUpper(fromPort.Protocol)}
-					ciliumIngress.FromPorts[0].Ports = append(ciliumIngress.FromPorts[0].Ports, port)
+					ciliumIngress.ToPorts[0].Ports = append(ciliumIngress.ToPorts[0].Ports, port)
 				}
 			}
 
