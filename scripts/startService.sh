@@ -1,16 +1,18 @@
 #!/bin/bash
 
-KNOX_AUTO_HOME=`dirname $(realpath "$0")`/..
+export KNOX_AUTO_HOME=`dirname $(realpath "$0")`/..
 
-DB_DRIVER=mongodb
-DB_PORT=27017
-DB_USER=root
-DB_PASS=password
-DB_NAME=flow_management
+export DB_DRIVER=mongodb
+export DB_PORT=27017
+export DB_USER=root
+export DB_PASS=password
+export DB_NAME=flow_management
 
-COL_NETWORK_FLOW=network_flow
-COL_DISCOVERED_POLICY=discovered_policy
+export COL_NETWORK_FLOW=network_flow
+export COL_DISCOVERED_POLICY=discovered_policy
 
-OUT_DIR=$KNOX_AUTO_HOME/policies/
+export OUT_DIR=$KNOX_AUTO_HOME/policies/
 
-DB_DRIVER=$DB_DRIVER DB_PORT=$DB_PORT DB_USER=$DB_USER DB_PASS=$DB_PASS DB_NAME=$DB_NAME COL_NETWORK_FLOW=$COL_NETWORK_FLOW COL_DISCOVERED_POLICY=$COL_DISCOVERED_POLICY OUT_DIR=$OUT_DIR $KNOX_AUTO_HOME/src/knoxAutoPolicy
+export DISCOVERY_MODE=Ingress
+
+$KNOX_AUTO_HOME/src/knoxAutoPolicy

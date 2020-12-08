@@ -268,6 +268,21 @@ func GetEnv(key, fallback string) string {
 	return fallback
 }
 
+// GetEnvInt Function
+func GetEnvInt(key string, fallback int) int {
+	if value, ok := os.LookupEnv(key); ok {
+		if strings.ToLower(value) == "egress" {
+			return 1
+		} else if strings.ToLower(value) == "ingress" {
+			return 2
+		} else {
+			return 3
+		}
+	}
+
+	return fallback
+}
+
 // ContainsElement Function
 func ContainsElement(slice interface{}, element interface{}) bool {
 	switch reflect.TypeOf(slice).Kind() {

@@ -10,7 +10,9 @@ replace (
 )
 
 require (
+	github.com/accuknox/knoxServiceFlowMgmt/src v0.0.0-20201102131022-2e9309906cbc
 	github.com/cilium/cilium v1.9.0
+	github.com/go-sql-driver/mysql v1.5.0
 	github.com/google/go-cmp v0.5.3
 	github.com/robfig/cron v1.2.0
 	github.com/rs/zerolog v1.20.0
@@ -19,7 +21,7 @@ require (
 	golang.org/x/net v0.0.0-20201110031124-69a78807bb2b // indirect
 	golang.org/x/oauth2 v0.0.0-20201109201403-9fd604954f58 // indirect
 	golang.org/x/sys v0.0.0-20201117222635-ba5294a509c7 // indirect
-	google.golang.org/grpc v1.31.0
+	google.golang.org/grpc v1.32.0
 	google.golang.org/protobuf v1.25.0
 	gopkg.in/yaml.v2 v2.3.0
 	k8s.io/api v0.19.4 // indirect
