@@ -20,7 +20,7 @@ spec:
         [keyN]: [valueN]
         
       toPorts:
-      - ports: [port number]
+      - port: [port number]
         protocol: [protocol]
         
       toCIDRs:
@@ -50,7 +50,7 @@ spec:
         [keyN]: [valueN]
         
       toPorts:
-      - ports: [port number]
+      - port: [port number]
         protocol: [protocol]
         
       fromCIDRs:
