@@ -308,55 +308,12 @@ func ConvertKnoxPolicyToCiliumPolicy(services []types.Service, inPolicy types.Kn
 			// ====================== //
 			if knoxEgress.MatchLabels != nil {
 				ciliumEgress.ToEndpoints = []types.CiliumEndpoint{{knoxEgress.MatchLabels}}
-			}
 
-			// ================ //
-			// build L4 toPorts //
-			// ================ //
-			for _, toPort := range knoxEgress.ToPorts {
-				if toPort.Ports == "" { // if port number is none, skip
-					continue
-				}
-
-				if ciliumEgress.ToPorts == nil {
-					ciliumEgress.ToPorts = []types.CiliumPortList{}
-					ciliumPort := types.CiliumPortList{}
-					ciliumPort.Ports = []types.CiliumPort{}
-					ciliumEgress.ToPorts = append(ciliumEgress.ToPorts, ciliumPort)
-
-					// =============== //
-					// build HTTP rule //
-					// =============== //
-					if len(knoxEgress.ToHTTPs) > 0 {
-						ciliumEgress.ToPorts[0].Rules = map[string][]types.SubRule{}
-
-						httpRules := []types.SubRule{}
-						for _, http := range knoxEgress.ToHTTPs {
-							// matchPattern
-							httpRules = append(httpRules, map[string]string{"method": http.Method,
-								"path": http.Path})
-						}
-						ciliumEgress.ToPorts[0].Rules = map[string][]types.SubRule{"http": httpRules}
-					}
-				}
-
-				port := types.CiliumPort{Port: toPort.Ports, Protocol: strings.ToUpper(toPort.Protocol)}
-				ciliumEgress.ToPorts[0].Ports = append(ciliumEgress.ToPorts[0].Ports, port)
-			}
-
-			// =============== //
-			// build CIDR rule //
-			// =============== //
-			for _, toCIDR := range knoxEgress.ToCIDRs {
-				cidrs := []string{}
-				for _, cidr := range toCIDR.CIDRs {
-					cidrs = append(cidrs, cidr)
-				}
-				ciliumEgress.ToCIDRs = cidrs
-
-				// update toPorts if exist
-				for _, toPort := range toCIDR.Ports {
-					if toPort.Ports == "" { // if port number is none, skip
+				// ================ //
+				// build L4 toPorts //
+				// ================ //
+				for _, toPort := range knoxEgress.ToPorts {
+					if toPort.Port == "" { // if port number is none, skip
 						continue
 					}
 
@@ -365,73 +322,116 @@ func ConvertKnoxPolicyToCiliumPolicy(services []types.Service, inPolicy types.Kn
 						ciliumPort := types.CiliumPortList{}
 						ciliumPort.Ports = []types.CiliumPort{}
 						ciliumEgress.ToPorts = append(ciliumEgress.ToPorts, ciliumPort)
+
+						// =============== //
+						// build HTTP rule //
+						// =============== //
+						if len(knoxEgress.ToHTTPs) > 0 {
+							ciliumEgress.ToPorts[0].Rules = map[string][]types.SubRule{}
+
+							httpRules := []types.SubRule{}
+							for _, http := range knoxEgress.ToHTTPs {
+								// matchPattern
+								httpRules = append(httpRules, map[string]string{"method": http.Method,
+									"path": http.Path})
+							}
+							ciliumEgress.ToPorts[0].Rules = map[string][]types.SubRule{"http": httpRules}
+						}
 					}
 
-					port := types.CiliumPort{Port: toPort.Ports, Protocol: strings.ToUpper(toPort.Protocol)}
+					port := types.CiliumPort{Port: toPort.Port, Protocol: strings.ToUpper(toPort.Protocol)}
 					ciliumEgress.ToPorts[0].Ports = append(ciliumEgress.ToPorts[0].Ports, port)
 				}
-			}
+			} else if len(knoxEgress.ToCIDRs) > 0 {
+				// =============== //
+				// build CIDR rule //
+				// =============== //
+				for _, toCIDR := range knoxEgress.ToCIDRs {
+					cidrs := []string{}
+					for _, cidr := range toCIDR.CIDRs {
+						cidrs = append(cidrs, cidr)
+					}
+					ciliumEgress.ToCIDRs = cidrs
 
-			// ================= //
-			// build Entity rule //
-			// ================= //
-			for _, entity := range knoxEgress.ToEndtities {
-				if ciliumEgress.ToEndtities == nil {
-					ciliumEgress.ToEndtities = []string{}
+					// update toPorts if exist
+					for _, toPort := range knoxEgress.ToPorts {
+						if toPort.Port == "" { // if port number is none, skip
+							continue
+						}
+
+						if ciliumEgress.ToPorts == nil {
+							ciliumEgress.ToPorts = []types.CiliumPortList{}
+							ciliumPort := types.CiliumPortList{}
+							ciliumPort.Ports = []types.CiliumPort{}
+							ciliumEgress.ToPorts = append(ciliumEgress.ToPorts, ciliumPort)
+						}
+
+						port := types.CiliumPort{Port: toPort.Port, Protocol: strings.ToUpper(toPort.Protocol)}
+						ciliumEgress.ToPorts[0].Ports = append(ciliumEgress.ToPorts[0].Ports, port)
+					}
 				}
-
-				ciliumEgress.ToEndtities = append(ciliumEgress.ToEndtities, entity)
-			}
-
-			// ================== //
-			// build Service rule //
-			// ================== //
-			for _, service := range knoxEgress.ToServices {
-				if ciliumEgress.ToServices == nil {
-					ciliumEgress.ToServices = []types.CiliumService{}
-				}
-
-				ciliumService := types.CiliumService{
-					K8sService: types.CiliumK8sService{
-						ServiceName: service.ServiceName,
-						Namespace:   service.Namespace,
-					},
-				}
-
-				ciliumEgress.ToServices = append(ciliumEgress.ToServices, ciliumService)
-			}
-
-			// =============== //
-			// build FQDN rule //
-			// =============== //
-			for _, fqdn := range knoxEgress.ToFQDNs {
-				// TODO: static core-dns
-				ciliumEgress.ToEndpoints, ciliumEgress.ToPorts = getCoreDNSEndpoint(services)
-
-				egressFqdn := types.CiliumEgress{}
-
-				if egressFqdn.ToFQDNs == nil {
-					egressFqdn.ToFQDNs = []types.CiliumFQDN{}
-				}
-
-				// FQDN (+ToPorts)
-				for _, matchName := range fqdn.MatchNames {
-					egressFqdn.ToFQDNs = append(egressFqdn.ToFQDNs, map[string]string{"matchName": matchName})
-				}
-
-				for _, port := range fqdn.ToPorts {
-					if egressFqdn.ToPorts == nil {
-						egressFqdn.ToPorts = []types.CiliumPortList{}
-						ciliumPort := types.CiliumPortList{}
-						ciliumPort.Ports = []types.CiliumPort{}
-						egressFqdn.ToPorts = append(egressFqdn.ToPorts, ciliumPort)
+			} else if len(knoxEgress.ToEndtities) > 0 {
+				// ================= //
+				// build Entity rule //
+				// ================= //
+				for _, entity := range knoxEgress.ToEndtities {
+					if ciliumEgress.ToEndtities == nil {
+						ciliumEgress.ToEndtities = []string{}
 					}
 
-					ciliumPort := types.CiliumPort{Port: port.Ports, Protocol: strings.ToUpper(port.Protocol)}
-					egressFqdn.ToPorts[0].Ports = append(egressFqdn.ToPorts[0].Ports, ciliumPort)
+					ciliumEgress.ToEndtities = append(ciliumEgress.ToEndtities, entity)
 				}
+			} else if len(knoxEgress.ToServices) > 0 {
+				// ================== //
+				// build Service rule //
+				// ================== //
+				for _, service := range knoxEgress.ToServices {
+					if ciliumEgress.ToServices == nil {
+						ciliumEgress.ToServices = []types.CiliumService{}
+					}
 
-				ciliumPolicy.Spec.Egress = append(ciliumPolicy.Spec.Egress, egressFqdn)
+					ciliumService := types.CiliumService{
+						K8sService: types.CiliumK8sService{
+							ServiceName: service.ServiceName,
+							Namespace:   service.Namespace,
+						},
+					}
+
+					ciliumEgress.ToServices = append(ciliumEgress.ToServices, ciliumService)
+				}
+			} else if len(knoxEgress.ToFQDNs) > 0 {
+				// =============== //
+				// build FQDN rule //
+				// =============== //
+				for _, fqdn := range knoxEgress.ToFQDNs {
+					// TODO: static core-dns
+					ciliumEgress.ToEndpoints, ciliumEgress.ToPorts = getCoreDNSEndpoint(services)
+
+					egressFqdn := types.CiliumEgress{}
+
+					if egressFqdn.ToFQDNs == nil {
+						egressFqdn.ToFQDNs = []types.CiliumFQDN{}
+					}
+
+					// FQDN (+ToPorts)
+					for _, matchName := range fqdn.MatchNames {
+						egressFqdn.ToFQDNs = append(egressFqdn.ToFQDNs, map[string]string{"matchName": matchName})
+					}
+
+					for _, port := range knoxEgress.ToPorts {
+						if egressFqdn.ToPorts == nil {
+							egressFqdn.ToPorts = []types.CiliumPortList{}
+							ciliumPort := types.CiliumPortList{}
+							ciliumPort.Ports = []types.CiliumPort{}
+							egressFqdn.ToPorts = append(egressFqdn.ToPorts, ciliumPort)
+						}
+
+						ciliumPort := types.CiliumPort{Port: port.Port, Protocol: strings.ToUpper(port.Protocol)}
+						egressFqdn.ToPorts[0].Ports = append(egressFqdn.ToPorts[0].Ports, ciliumPort)
+					}
+
+					ciliumPolicy.Spec.Egress = append(ciliumPolicy.Spec.Egress, egressFqdn)
+				}
 			}
 
 			ciliumPolicy.Spec.Egress = append(ciliumPolicy.Spec.Egress, ciliumEgress)
@@ -440,7 +440,7 @@ func ConvertKnoxPolicyToCiliumPolicy(services []types.Service, inPolicy types.Kn
 
 	// ======= //
 	// Ingress //
-	// ===-=== //
+	// ======= //
 	if len(inPolicy.Spec.Ingress) > 0 {
 		ciliumPolicy.Spec.Ingress = []types.CiliumIngress{}
 
@@ -452,21 +452,21 @@ func ConvertKnoxPolicyToCiliumPolicy(services []types.Service, inPolicy types.Kn
 			// ================= //
 			if knoxIngress.MatchLabels != nil {
 				ciliumIngress.FromEndpoints = []types.CiliumEndpoint{{knoxIngress.MatchLabels}}
-			}
 
-			// ================ //
-			// build L4 toPorts //
-			// ================ //
-			for _, fromPort := range knoxIngress.ToPorts {
-				if ciliumIngress.ToPorts == nil {
-					ciliumIngress.ToPorts = []types.CiliumPortList{}
-					ciliumPort := types.CiliumPortList{}
-					ciliumPort.Ports = []types.CiliumPort{}
-					ciliumIngress.ToPorts = append(ciliumIngress.ToPorts, ciliumPort)
+				// ================ //
+				// build L4 toPorts //
+				// ================ //
+				for _, fromPort := range knoxIngress.ToPorts {
+					if ciliumIngress.ToPorts == nil {
+						ciliumIngress.ToPorts = []types.CiliumPortList{}
+						ciliumPort := types.CiliumPortList{}
+						ciliumPort.Ports = []types.CiliumPort{}
+						ciliumIngress.ToPorts = append(ciliumIngress.ToPorts, ciliumPort)
+					}
+
+					port := types.CiliumPort{Port: fromPort.Port, Protocol: strings.ToUpper(fromPort.Protocol)}
+					ciliumIngress.ToPorts[0].Ports = append(ciliumIngress.ToPorts[0].Ports, port)
 				}
-
-				port := types.CiliumPort{Port: fromPort.Ports, Protocol: strings.ToUpper(fromPort.Protocol)}
-				ciliumIngress.ToPorts[0].Ports = append(ciliumIngress.ToPorts[0].Ports, port)
 			}
 
 			// =============== //
@@ -475,23 +475,6 @@ func ConvertKnoxPolicyToCiliumPolicy(services []types.Service, inPolicy types.Kn
 			for _, fromCIDR := range knoxIngress.FromCIDRs {
 				for _, cidr := range fromCIDR.CIDRs {
 					ciliumIngress.FromCIDRs = append(ciliumIngress.FromCIDRs, cidr)
-				}
-
-				// update toPorts if exist
-				for _, fromPort := range fromCIDR.Ports {
-					if fromPort.Ports == "" { // if port number is none, skip
-						continue
-					}
-
-					if ciliumIngress.ToPorts == nil {
-						ciliumIngress.ToPorts = []types.CiliumPortList{}
-						ciliumPort := types.CiliumPortList{}
-						ciliumPort.Ports = []types.CiliumPort{}
-						ciliumIngress.ToPorts = append(ciliumIngress.ToPorts, ciliumPort)
-					}
-
-					port := types.CiliumPort{Port: fromPort.Ports, Protocol: strings.ToUpper(fromPort.Protocol)}
-					ciliumIngress.ToPorts[0].Ports = append(ciliumIngress.ToPorts[0].Ports, port)
 				}
 			}
 

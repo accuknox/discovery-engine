@@ -312,7 +312,7 @@ func removeKubeDNSPort(toPorts []types.SpecPort) []types.SpecPort {
 	for _, toPort := range toPorts {
 		isDNS := false
 		for _, dnsSvc := range kubeDNSSvc {
-			if toPort.Ports == strconv.Itoa(dnsSvc.ServicePort) &&
+			if toPort.Port == strconv.Itoa(dnsSvc.ServicePort) &&
 				toPort.Protocol == strings.ToLower(dnsSvc.Protocol) {
 				isDNS = true
 				break
@@ -446,7 +446,9 @@ func buildNewKnoxPolicy() types.KnoxNetworkPolicy {
 		Metadata:   map[string]string{},
 		Spec: types.Spec{
 			Selector: types.Selector{
-				MatchLabels: map[string]string{}},
+				MatchLabels: map[string]string{
+					"status": "latest",
+				}},
 			Action: "allow",
 		},
 	}
@@ -473,12 +475,13 @@ func buildNewKnoxIngressPolicy() types.KnoxNetworkPolicy {
 // buildNewIngressPolicyFromEgressPolicy Function
 func buildNewIngressPolicyFromEgressPolicy(egress types.Egress, selector types.Selector) types.KnoxNetworkPolicy {
 	ingress := buildNewKnoxIngressPolicy()
+	ingress.Metadata["rule"] = "matchLabels"
 
 	// update selector labels from egress match labels
 	for k, v := range egress.MatchLabels {
 		if k != "k8s:io.kubernetes.pod.namespace" {
 			ingress.Spec.Selector.MatchLabels[k] = v
-		} else {
+		} else if k == "k8s:io.kubernetes.pod.namespace" {
 			ingress.Metadata["namespace"] = v
 		}
 	}
@@ -491,6 +494,8 @@ func buildNewIngressPolicyFromEgressPolicy(egress types.Egress, selector types.S
 
 	// if there is toPorts, move it
 	if len(egress.ToPorts) > 0 {
+		ingress.Metadata["rule"] = ingress.Metadata["rule"] + "+toPorts"
+
 		cpy := make([]types.SpecPort, len(egress.ToPorts))
 		copy(cpy, egress.ToPorts)
 		ingress.Spec.Ingress[0].ToPorts = cpy
@@ -541,6 +546,8 @@ func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcP
 			// L3/L4 label-based //
 			// ================= //
 			if dst.MatchLabels != "" {
+				egressPolicy.Metadata["rule"] = "matchLabels"
+
 				egressRule.MatchLabels = map[string]string{}
 
 				dsts := strings.Split(dst.MatchLabels, ",")
@@ -564,8 +571,8 @@ func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcP
 				// ===================== //
 				if dst.ToPorts != nil && len(dst.ToPorts) > 0 {
 					for i, toPort := range dst.ToPorts {
-						if toPort.Ports == "0" {
-							dst.ToPorts[i].Ports = ""
+						if toPort.Port == "0" {
+							dst.ToPorts[i].Port = ""
 						}
 
 						// =============== //
@@ -581,11 +588,14 @@ func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcP
 									Method: method,
 									Path:   path,
 								}
+
+								egressPolicy.Metadata["rule"] = egressPolicy.Metadata["rule"] + "+toHTTPs"
 								egressRule.ToHTTPs = append(egressRule.ToHTTPs, httpRule)
 							}
 						}
 					}
 
+					egressPolicy.Metadata["rule"] = egressPolicy.Metadata["rule"] + "+toPorts"
 					egressRule.ToPorts = dst.ToPorts
 				}
 
@@ -602,6 +612,8 @@ func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcP
 					networkPolicies = append(networkPolicies, ingressPolicy)
 				}
 			} else if dst.Namespace == "reserved:cidr" && dst.Additional != "" {
+				egressPolicy.Metadata["rule"] = "toCIDRs"
+
 				// =============== //
 				// build CIDR rule //
 				// =============== //
@@ -609,10 +621,14 @@ func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcP
 				sort.Strings(cidrSlice)
 				cidr := types.SpecCIDR{
 					CIDRs: cidrSlice,
-					Ports: dst.ToPorts,
+				}
+				egressRule.ToCIDRs = []types.SpecCIDR{cidr}
+
+				if len(dst.ToPorts) > 0 {
+					egressPolicy.Metadata["rule"] = egressPolicy.Metadata["rule"] + "+toPorts"
+					egressRule.ToPorts = dst.ToPorts
 				}
 
-				egressRule.ToCIDRs = []types.SpecCIDR{cidr}
 				egressPolicy.Spec.Egress = append(egressPolicy.Spec.Egress, egressRule)
 
 				if DiscoveryMode&Egress > 0 {
@@ -622,6 +638,8 @@ func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcP
 				if DiscoveryMode&Ingress > 0 {
 					// add ingress policy
 					ingressPolicy := buildNewIngressPolicyFromSameSelector(namespace, egressPolicy.Spec.Selector)
+					ingressPolicy.Metadata["rule"] = "toCIDRs"
+
 					ingressRule := types.Ingress{}
 
 					fromcidr := types.SpecCIDR{
@@ -633,17 +651,23 @@ func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcP
 					networkPolicies = append(networkPolicies, ingressPolicy)
 				}
 			} else if dst.Namespace == "reserved:dns" && dst.Additional != "" {
+				egressPolicy.Metadata["rule"] = "toFQDNs"
+
 				// =============== //
 				// build FQDN rule //
 				// =============== //
 				if DiscoveryMode&Egress > 0 {
-					networkPolicies = append(networkPolicies, egressPolicy)
-					dst.ToPorts = removeKubeDNSPort(dst.ToPorts)
-
 					fqdnSlice := strings.Split(dst.Additional, ",")
 					sort.Strings(fqdnSlice)
 					fqdn := types.SpecFQDN{
 						MatchNames: fqdnSlice,
+					}
+
+					// FQDN + toPorts , is it needed?
+					dst.ToPorts = removeKubeDNSPort(dst.ToPorts) // we should delete kube-dns ports
+					if len(dst.ToPorts) > 0 {
+						egressPolicy.Metadata["rule"] = egressPolicy.Metadata["rule"] + "+toPorts"
+						egressRule.ToPorts = dst.ToPorts
 					}
 
 					egressRule.ToFQDNs = []types.SpecFQDN{fqdn}
@@ -651,6 +675,8 @@ func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcP
 					networkPolicies = append(networkPolicies, egressPolicy)
 				}
 			} else if strings.HasPrefix(dst.Namespace, "reserved:") && dst.MatchLabels == "" {
+				egressPolicy.Metadata["rule"] = "toEntity"
+
 				// ================= //
 				// build Entity rule //
 				// ================= //
@@ -670,12 +696,15 @@ func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcP
 				// add ingress policy
 				if DiscoveryMode&Ingress > 0 {
 					ingressPolicy := buildNewIngressPolicyFromSameSelector(namespace, egressPolicy.Spec.Selector)
+					ingressPolicy.Metadata["rule"] = "toEntity"
 					ingressRule := types.Ingress{}
 					ingressRule.FromEntities = []string{entity}
 					ingressPolicy.Spec.Ingress = append(ingressPolicy.Spec.Ingress, ingressRule)
 					networkPolicies = append(networkPolicies, ingressPolicy)
 				}
 			} else if dst.Additional != "" {
+				egressPolicy.Metadata["rule"] = "toServices"
+
 				// ================== //
 				// build Service rule //
 				// ================== //
@@ -962,7 +991,7 @@ func mergingProtocolPorts(mergedDsts []MergedPortDst, dst Dst) []MergedPortDst {
 
 		if simple1 == simple2 { // matched, append protocol+port info
 			port := types.SpecPort{Protocol: libs.GetProtocol(dst.Protocol),
-				Ports: strconv.Itoa(dst.DstPort)}
+				Port: strconv.Itoa(dst.DstPort)}
 
 			mergedDsts[i].ToPorts = append(mergedDsts[i].ToPorts, port)
 
@@ -972,7 +1001,7 @@ func mergingProtocolPorts(mergedDsts []MergedPortDst, dst Dst) []MergedPortDst {
 
 	// if not matched, create new one,
 	port := types.SpecPort{Protocol: libs.GetProtocol(dst.Protocol),
-		Ports: strconv.Itoa(dst.DstPort)}
+		Port: strconv.Itoa(dst.DstPort)}
 
 	mergedDst := MergedPortDst{
 		Namespace:  dst.Namespace,
@@ -1070,75 +1099,75 @@ func mergingDstSpecs(mergedSrcsPerDst map[Dst][]string) map[string][]MergedPortD
 		}
 	}
 
-	// merge dns
-	for mergedSrc, dsts := range mergedSrcPerMergedDst {
-		newDsts := []MergedPortDst{}
-		mergedDNS := []string{}
-		mergedDNSToPorts := []types.SpecPort{}
+	// // merge dns
+	// for mergedSrc, dsts := range mergedSrcPerMergedDst {
+	// 	newDsts := []MergedPortDst{}
+	// 	mergedDNS := []string{}
+	// 	mergedDNSToPorts := []types.SpecPort{}
 
-		for _, dst := range dsts {
-			if dst.Namespace == "reserved:dns" {
-				if !libs.ContainsElement(mergedDNS, dst.Additional) {
-					mergedDNS = append(mergedDNS, dst.Additional)
-				}
+	// 	for _, dst := range dsts {
+	// 		if dst.Namespace == "reserved:dns" {
+	// 			if !libs.ContainsElement(mergedDNS, dst.Additional) {
+	// 				mergedDNS = append(mergedDNS, dst.Additional)
+	// 			}
 
-				for _, port := range dst.ToPorts {
-					if !libs.ContainsElement(mergedDNSToPorts, port) {
-						mergedDNSToPorts = append(mergedDNSToPorts, port)
-					}
-				}
-			} else {
-				newDsts = append(newDsts, dst)
-			}
-		}
+	// 			for _, port := range dst.ToPorts {
+	// 				if !libs.ContainsElement(mergedDNSToPorts, port) {
+	// 					mergedDNSToPorts = append(mergedDNSToPorts, port)
+	// 				}
+	// 			}
+	// 		} else {
+	// 			newDsts = append(newDsts, dst)
+	// 		}
+	// 	}
 
-		if len(mergedDNS) > 0 {
-			newDNS := MergedPortDst{
-				Namespace:  "reserved:dns",
-				Additional: strings.Join(mergedDNS, ","),
-				ToPorts:    mergedDNSToPorts,
-				Action:     "allow",
-			}
-			newDsts = append(newDsts, newDNS)
-		}
+	// 	if len(mergedDNS) > 0 {
+	// 		newDNS := MergedPortDst{
+	// 			Namespace:  "reserved:dns",
+	// 			Additional: strings.Join(mergedDNS, ","),
+	// 			ToPorts:    mergedDNSToPorts,
+	// 			Action:     "allow",
+	// 		}
+	// 		newDsts = append(newDsts, newDNS)
+	// 	}
 
-		mergedSrcPerMergedDst[mergedSrc] = newDsts
-	}
+	// 	mergedSrcPerMergedDst[mergedSrc] = newDsts
+	// }
 
-	// merge cidr
-	for mergedSrc, dsts := range mergedSrcPerMergedDst {
-		newDsts := []MergedPortDst{}
-		mergedCIDRs := []string{}
-		mergedCIDRToPorts := []types.SpecPort{}
+	// // merge cidr
+	// for mergedSrc, dsts := range mergedSrcPerMergedDst {
+	// 	newDsts := []MergedPortDst{}
+	// 	mergedCIDRs := []string{}
+	// 	mergedCIDRToPorts := []types.SpecPort{}
 
-		for _, dst := range dsts {
-			if dst.Namespace == "reserved:cidr" {
-				if !libs.ContainsElement(mergedCIDRs, dst.Additional) {
-					mergedCIDRs = append(mergedCIDRs, dst.Additional)
-				}
+	// 	for _, dst := range dsts {
+	// 		if dst.Namespace == "reserved:cidr" {
+	// 			if !libs.ContainsElement(mergedCIDRs, dst.Additional) {
+	// 				mergedCIDRs = append(mergedCIDRs, dst.Additional)
+	// 			}
 
-				for _, port := range dst.ToPorts {
-					if !libs.ContainsElement(mergedCIDRToPorts, port) {
-						mergedCIDRToPorts = append(mergedCIDRToPorts, port)
-					}
-				}
-			} else {
-				newDsts = append(newDsts, dst)
-			}
-		}
+	// 			for _, port := range dst.ToPorts {
+	// 				if !libs.ContainsElement(mergedCIDRToPorts, port) {
+	// 					mergedCIDRToPorts = append(mergedCIDRToPorts, port)
+	// 				}
+	// 			}
+	// 		} else {
+	// 			newDsts = append(newDsts, dst)
+	// 		}
+	// 	}
 
-		if len(mergedCIDRs) > 0 {
-			newDNS := MergedPortDst{
-				Namespace:  "reserved:cidr",
-				Additional: strings.Join(mergedCIDRs, ","),
-				ToPorts:    mergedCIDRToPorts,
-				Action:     "allow",
-			}
-			newDsts = append(newDsts, newDNS)
-		}
+	// 	if len(mergedCIDRs) > 0 {
+	// 		newDNS := MergedPortDst{
+	// 			Namespace:  "reserved:cidr",
+	// 			Additional: strings.Join(mergedCIDRs, ","),
+	// 			ToPorts:    mergedCIDRToPorts,
+	// 			Action:     "allow",
+	// 		}
+	// 		newDsts = append(newDsts, newDNS)
+	// 	}
 
-		mergedSrcPerMergedDst[mergedSrc] = newDsts
-	}
+	// 	mergedSrcPerMergedDst[mergedSrc] = newDsts
+	// }
 
 	return mergedSrcPerMergedDst
 }
@@ -1310,11 +1339,13 @@ func StartToDiscoverNetworkPolicies() {
 	endTime = time.Now().Unix()
 
 	log.Info().Msg("Get network traffic from the database")
-	docs, valid := libs.GetTrafficFlowFromMongo(startTime, endTime)
+	docs, valid := libs.GetTrafficFlowFromDB(startTime, endTime)
 	if !valid {
 		return
 	}
+
 	updateTimeInterval(docs[len(docs)-1])
+
 	ciliumFlows := plugin.ConvertMongoDocsToCiliumFlows(docs)
 
 	// get k8s services
@@ -1359,10 +1390,13 @@ func StartToDiscoverNetworkPolicies() {
 			libs.InsertPoliciesToMongoDB(newPolicies)
 
 			// convert knoxPolicy to CiliumPolicy
-			ciliumPolicies := plugin.ConvertKnoxPoliciesToCiliumPolicies(services, newPolicies)
+			// ciliumPolicies := plugin.ConvertKnoxPoliciesToCiliumPolicies(services, newPolicies)
 
 			// write discovered policies to files
-			libs.WriteCiliumPolicyToYamlFile(namespace, services, ciliumPolicies)
+			// libs.WriteCiliumPolicyToYamlFile(namespace, services, ciliumPolicies)
+
+			// write discovered policies to files
+			libs.WriteKnoxPolicyToYamlFile(namespace, newPolicies)
 
 			log.Info().Msgf("Policy discovery done    for namespace: [%s], [%d] policies discovered", namespace, len(newPolicies))
 		} else {
