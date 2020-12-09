@@ -151,20 +151,20 @@ func UpdateTimeFilters(filter primitive.M, tsStart, tsEnd int64) {
 	filter["timestamp"] = bson.M{"$gte": startTime, "$lt": endTime}
 }
 
-// AnnotateOverlapped function
-func AnnotateOverlapped(cidrPolicyName string, fqdnPolicyNames []string) {
+// UpdateOutdatedLabel function
+func UpdateOutdatedLabel(outdatedPolicy string, latestPolicy string) {
 	client, db := ConnectMongoDB()
 	defer client.Disconnect(context.Background())
 	col := db.Collection(ColDiscoveredPolicy)
 
 	filter := bson.M{}
-	filter["metadata.name"] = cidrPolicyName
+	filter["metadata.name"] = outdatedPolicy
 
 	matchedDoc := map[string]interface{}{}
 	err := col.FindOne(context.Background(), filter).Decode(&matchedDoc)
 	if err == nil {
 		fields := bson.M{}
-		fields["overlapped"] = fqdnPolicyNames
+		fields["labels"] = map[string]string{"outdated": latestPolicy}
 		update := bson.M{"$set": fields}
 
 		_, err = col.UpdateOne(context.Background(), filter, update)
@@ -188,18 +188,6 @@ func GetTrafficFlowFromMongo(startTime, endTime int64) ([]map[string]interface{}
 		log.Info().Msg(err.Error())
 		return nil, false
 	}
-
-	if len(docs) == 0 {
-		log.Info().Msgf("Traffic flow not exist: from %s ~ to %s",
-			time.Unix(startTime, 0).Format(TimeFormSimple),
-			time.Unix(endTime, 0).Format(TimeFormSimple))
-
-		return nil, false
-	}
-
-	log.Info().Msgf("The total number of traffic flow: [%d] from %s ~ to %s", len(docs),
-		time.Unix(startTime, 0).Format(TimeFormSimple),
-		time.Unix(endTime, 0).Format(TimeFormSimple))
 
 	return docs, true
 }
