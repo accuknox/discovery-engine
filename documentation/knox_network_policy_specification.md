@@ -10,6 +10,10 @@ metadata:
   namespace: [namespace name]
   type: [egress|ingress]
   rule: [matchLabels|toPorts|toCIDRs|toEntity|toServices|toFQDNs|toHTTPs]
+  status: [outdated|latest]
+labels:
+  [key1]: [value1]
+  [keyN]: [valueN]
 spec:
   selector:
     matchLabels:
