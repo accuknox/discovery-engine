@@ -70,5 +70,5 @@ spec:
         
   action: [allow|deny]
   
-generated_time: [unix time second]
+generatedTime: [unix time second]
 ```
