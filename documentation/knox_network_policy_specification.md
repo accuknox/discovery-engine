@@ -8,7 +8,8 @@ kind:KnoxNetworkPolicy
 metadata:
   name: [policy name]
   namespace: [namespace name]
-  type: [egress/ingress]
+  type: [egress|ingress]
+  rule: [matchLabels|toPorts|toCIDRs|toEntity|toServices|toFQDNs|toHTTPs]
 spec:
   selector:
     matchLabels:
