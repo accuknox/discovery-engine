@@ -11,14 +11,12 @@ metadata:
   type: [egress|ingress]
   rule: [matchLabels|toPorts|toCIDRs|toEntity|toServices|toFQDNs|toHTTPs]
   status: [outdated|latest]
-labels:
-  [key1]: [value1]
-  [keyN]: [valueN]
+outdated: [overlapped policy name]
 spec:
   selector:
     matchLabels:
       [key1]: [value1]
-      [keyN]: [valueN]
+      [keyN]: [valueN]  
       
   egress:
     - matchLabels:
@@ -49,7 +47,7 @@ spec:
       toHTTPs:
       - method: [http method]
         path: [http path]
-
+        
   ingress:
     - matchLabels:
         [key1]: [value1]
@@ -73,6 +71,5 @@ spec:
         namespace: [namespace]
         
   action: [allow|deny]
-  
 generatedTime: [unix time second]
 ```
