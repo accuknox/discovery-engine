@@ -39,6 +39,6 @@ Fundamentally, a pod has two types of network policy in Kubernetes; egress and i
 Please take a look at the following documents.
 
 1. [Development Guide](./documentation/development_guide.md)
-2. [Knox Network Policy Specification](./documentation/knox_policy_specification.md)
+2. [Knox Network Policy Specification](./documentation/knox_network_policy_specification.md)
 3. [Policy Discovery Examples](./documentation/policy_discovery_examples.md)
 
