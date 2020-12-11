@@ -129,7 +129,7 @@ func UpdateCIDR(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.Knox
 	return newPolicy, true
 }
 
-// UpdateFQDN ...
+// UpdateFQDN function
 func UpdateFQDN(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.KnoxNetworkPolicy) (types.KnoxNetworkPolicy, bool) {
 	if newPolicy.Metadata["type"] == "egress" { // egress
 		// case 1: policy is new one
@@ -147,7 +147,7 @@ func UpdateFQDN(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.Knox
 
 		// case 4: policy has toPorts, which are includes in latest --> skip
 		toPorts := newPolicy.Spec.Egress[0].ToPorts
-		latestToPorts := newPolicy.Spec.Egress[0].ToPorts
+		latestToPorts := latestFQDNs.Spec.Egress[0].ToPorts
 		if IncludeToPorts(toPorts, latestToPorts) {
 			return newPolicy, false
 		}
