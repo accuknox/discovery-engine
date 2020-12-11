@@ -5,20 +5,22 @@ Here is the specification of a knox network policy.
 ```
 apiVersion: v1
 kind:KnoxNetworkPolicy
+
 metadata:
   name: [policy name]
   namespace: [namespace name]
   type: [egress|ingress]
-  rule: [matchLabels|toPorts|toCIDRs|toEntity|toServices|toFQDNs|toHTTPs]
+  rule: [matchLabels|toPorts|toCIDRs|fromCIDRs|toEntities|fromEntities|toServices|toFQDNs|toHTTPs]
   status: [outdated|latest]
-labels:
-  [key1]: [value1]
-  [keyN]: [valueN]
+  
+outdated: [overlapped policy name]
+generatedTime: [unix time second]
+
 spec:
   selector:
     matchLabels:
       [key1]: [value1]
-      [keyN]: [valueN]
+      [keyN]: [valueN]  
       
   egress:
     - matchLabels:
@@ -49,7 +51,7 @@ spec:
       toHTTPs:
       - method: [http method]
         path: [http path]
-
+        
   ingress:
     - matchLabels:
         [key1]: [value1]
@@ -67,12 +69,6 @@ spec:
         
       fromEntities:
       - [entity]
-      
-      fromServices:
-      - service_name: [service name]
-        namespace: [namespace]
         
   action: [allow|deny]
-  
-generatedTime: [unix time second]
 ```
