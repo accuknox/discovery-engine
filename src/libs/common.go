@@ -29,7 +29,7 @@ import (
 // PrintKnoxPolicyJSON function
 func PrintKnoxPolicyJSON(data interface{}) (string, error) {
 	empty := ""
-	tab := "\t"
+	tab := "  "
 
 	buffer := new(bytes.Buffer)
 	encoder := json.NewEncoder(buffer)
