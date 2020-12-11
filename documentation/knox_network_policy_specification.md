@@ -9,7 +9,7 @@ metadata:
   name: [policy name]
   namespace: [namespace name]
   type: [egress|ingress]
-  rule: [matchLabels|toPorts|toCIDRs|toEntity|toServices|toFQDNs|toHTTPs]
+  rule: [matchLabels|toPorts|toCIDRs|fromCIDRs|toEntities|fromEntities|toServices|toFQDNs|toHTTPs]
   status: [outdated|latest]
 outdated: [overlapped policy name]
 spec:
