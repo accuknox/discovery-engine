@@ -124,7 +124,7 @@ func StartToDiscoverNetworkPolicies() {
 
 5. Directories
 
-* Source code for Knox Auto Policy
+* Source code for KnoxAutoPolicy
 
 ```
 common - common sub modules
