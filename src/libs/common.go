@@ -1,8 +1,8 @@
 package libs
 
 import (
+	"bytes"
 	"encoding/json"
-	"fmt"
 	"math/bits"
 	"math/rand"
 	"net"
@@ -17,9 +17,31 @@ import (
 	"time"
 
 	"github.com/accuknox/knoxAutoPolicy/src/types"
+	"github.com/rs/zerolog/log"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"gopkg.in/yaml.v2"
 )
+
+// ================== //
+// == Print Pretty == //
+// ================== //
+
+// PrintKnoxPolicyJSON function
+func PrintKnoxPolicyJSON(data interface{}) (string, error) {
+	empty := ""
+	tab := "\t"
+
+	buffer := new(bytes.Buffer)
+	encoder := json.NewEncoder(buffer)
+	encoder.SetIndent(empty, tab)
+
+	err := encoder.Encode(data)
+	if err != nil {
+		return empty, err
+	}
+
+	return buffer.String(), nil
+}
 
 // ============= //
 // == Network == //
@@ -319,12 +341,14 @@ func RandSeq(n int) string {
 
 // WriteKnoxPolicyToYamlFile Function
 func WriteKnoxPolicyToYamlFile(namespace string, policies []types.KnoxNetworkPolicy) {
-	outdir := GetEnv("OUT_DIR", "./")
+	fileName := GetEnv("OUT_DIR", "./") + "knox_policies_" + namespace + ".yaml"
+
+	os.Remove(fileName)
 
 	// create policy file
-	f, err := os.OpenFile(outdir+"knox_policies_"+namespace+".yaml", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		fmt.Println(err)
+		log.Error().Msg(err.Error())
 		return
 	}
 
@@ -341,11 +365,13 @@ func WriteKnoxPolicyToYamlFile(namespace string, policies []types.KnoxNetworkPol
 // WriteCiliumPolicyToYamlFile Function
 func WriteCiliumPolicyToYamlFile(namespace string, services []types.Service, policies []types.CiliumNetworkPolicy) {
 	// create policy file
-	outdir := GetEnv("OUT_DIR", "./")
+	fileName := GetEnv("OUT_DIR", "./") + "cilium_policies_" + namespace + ".yaml"
 
-	f, err := os.OpenFile(outdir+"cilium_policies_"+namespace+".yaml", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	os.Remove(fileName)
+
+	f, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		fmt.Println(err)
+		log.Error().Msg(err.Error())
 		return
 	}
 
@@ -364,9 +390,9 @@ func WriteKnoxPolicyToJSONFile(namespace string, policies []types.KnoxNetworkPol
 	outdir := GetEnv("OUT_DIR", "./")
 
 	// create policy file
-	f, err := os.OpenFile(outdir+"knox_policies_"+namespace+".json", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(outdir+"knox_policies_"+namespace+".json", os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		fmt.Println(err)
+		log.Error().Msg(err.Error())
 		return
 	}
 

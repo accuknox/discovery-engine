@@ -25,7 +25,7 @@ func TestGetDocsByFilter(t *testing.T) {
 }
 
 func TestGetNetworkPolicies(t *testing.T) {
-	_, err := GetNetworkPolicies()
+	_, err := GetNetworkPoliciesFromMongo()
 
 	require.NoError(t, err)
 }

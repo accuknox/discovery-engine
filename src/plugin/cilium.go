@@ -94,14 +94,14 @@ func getHTTP(flow *flow.Flow) (string, string) {
 	return "", ""
 }
 
-func isFromDNSQuery(log types.KnoxNetworkLog, dnsToIPs map[string][]string) bool {
-	for _, v := range dnsToIPs {
+func isFromDNSQuery(log types.KnoxNetworkLog, dnsToIPs map[string][]string) string {
+	for domain, v := range dnsToIPs {
 		if libs.ContainsElement(v, log.DstPodName) {
-			return true
+			return domain
 		}
 	}
 
-	return false
+	return ""
 }
 
 // ConvertCiliumFlowToKnoxLog function
@@ -167,8 +167,9 @@ func ConvertCiliumFlowToKnoxLog(flow *flow.Flow, dnsToIPs map[string][]string) (
 	// traffic go to the outside of the cluster,
 	if log.DstNamespace == "reserved:world" {
 		// filter if the ip is from the DNS query
-		if isFromDNSQuery(log, dnsToIPs) {
-			return log, false
+		dns := isFromDNSQuery(log, dnsToIPs)
+		if dns != "" {
+			log.DNSQuery = dns
 		}
 	}
 
@@ -199,6 +200,15 @@ func ConvertCiliumFlowToKnoxLog(flow *flow.Flow, dnsToIPs map[string][]string) (
 	return log, true
 }
 
+// ConvertDocsToCiliumFlows function
+func ConvertDocsToCiliumFlows(docs []map[string]interface{}) []*flow.Flow {
+	if libs.DBDriver == "mysql" {
+		return ConvertMySQLDocsToCiliumFlows(docs)
+	} else {
+		return ConvertMongoDocsToCiliumFlows(docs)
+	}
+}
+
 // ConvertMongoDocsToCiliumFlows function
 func ConvertMongoDocsToCiliumFlows(docs []map[string]interface{}) []*flow.Flow {
 	flows := []*flow.Flow{}
@@ -214,8 +224,93 @@ func ConvertMongoDocsToCiliumFlows(docs []map[string]interface{}) []*flow.Flow {
 	return flows
 }
 
+// ConvertMySQLDocsToCiliumFlows function
+func ConvertMySQLDocsToCiliumFlows(docs []map[string]interface{}) []*flow.Flow {
+	flows := []*flow.Flow{}
+
+	for _, doc := range docs {
+		ciliumFlow := &flow.Flow{}
+		var err error
+
+		primitiveDoc := map[string]interface{}{
+			"traffic_direction": doc["traffic_direction"],
+			"verdict":           doc["verdict"],
+			"policy_match_type": doc["policy_match_type"],
+			"drop_reason":       doc["drop_reason"],
+		}
+
+		flowByte, err := json.Marshal(primitiveDoc)
+		if err != nil {
+			log.Error().Msg("Error while unmarshing primitives :" + err.Error())
+			continue
+		}
+
+		err = json.Unmarshal(flowByte, ciliumFlow)
+		if err != nil {
+			log.Error().Msg("Error while unmarshing primitives :" + err.Error())
+			continue
+		}
+
+		if doc["event_type"] != nil {
+			err = json.Unmarshal(doc["event_type"].([]byte), &ciliumFlow.EventType)
+			if err != nil {
+				log.Error().Msg("Error while unmarshing event type :" + err.Error())
+				continue
+			}
+		}
+
+		if doc["source"] != nil {
+			err = json.Unmarshal(doc["source"].([]byte), &ciliumFlow.Source)
+			if err != nil {
+				log.Error().Msg("Error while unmarshing source :" + err.Error())
+				continue
+			}
+		}
+
+		if doc["destination"] != nil {
+			err = json.Unmarshal(doc["destination"].([]byte), &ciliumFlow.Destination)
+			if err != nil {
+				log.Error().Msg("Error while unmarshing destination :" + err.Error())
+				continue
+			}
+		}
+
+		if doc["ip"] != nil {
+			err = json.Unmarshal(doc["ip"].([]byte), &ciliumFlow.IP)
+			if err != nil {
+				log.Error().Msg("Error while unmarshing ip :" + err.Error())
+				continue
+			}
+		}
+
+		if doc["l4"] != nil {
+			err = json.Unmarshal(doc["l4"].([]byte), &ciliumFlow.L4)
+			if err != nil {
+				log.Error().Msg("Error while unmarshing l4 :" + err.Error())
+				continue
+			}
+		}
+
+		if doc["l7"] != nil {
+			l7Byte := doc["l7"].([]byte)
+			if len(l7Byte) != 0 {
+				err = json.Unmarshal(l7Byte, &ciliumFlow.L7)
+				if err != nil {
+					log.Error().Msg("Error while unmarshing l7 :" + err.Error())
+					continue
+				}
+			}
+		}
+
+		flows = append(flows, ciliumFlow)
+	}
+
+	return flows
+}
+
 // ConvertCiliumFlowsToKnoxLogs function
 func ConvertCiliumFlowsToKnoxLogs(targetNamespace string, flows []*flow.Flow, dnsToIPs map[string][]string) []types.KnoxNetworkLog {
+	logMap := map[types.KnoxNetworkLog]bool{}
 	networkLogs := []types.KnoxNetworkLog{}
 
 	for _, flow := range flows {
@@ -231,8 +326,16 @@ func ConvertCiliumFlowsToKnoxLogs(targetNamespace string, flows []*flow.Flow, dn
 		*/
 
 		if log, valid := ConvertCiliumFlowToKnoxLog(flow, dnsToIPs); valid {
-			networkLogs = append(networkLogs, log)
+			// networkLogs = append(networkLogs, log)
+
+			if _, ok := logMap[log]; !ok {
+				logMap[log] = true
+			}
 		}
+	}
+
+	for k := range logMap {
+		networkLogs = append(networkLogs, k)
 	}
 
 	return networkLogs
