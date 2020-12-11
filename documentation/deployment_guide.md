@@ -1,55 +1,64 @@
-# Setup Instructions
+# Deployment Guide
+
+1. Setup Instructions
 ```
-git clone https://github.com/accuknox/knoxAutoPolicy.git
-cd knoxAutoPolicy
-git submodule update --init --recursive
-make -C common
+$ git clone https://github.com/accuknox/knoxAutoPolicy.git
+$ cd knoxAutoPolicy
+$ git submodule update --init --recursive
+$ make -C common
 ```
 
-# Installation
+2. Installation
 ```
-go get github.com/accuknox/knoxAutoPolicy
+$ cd src
+& make 
 ```
 
-# Start script
+3. Run KnoxAutoPolicy
+
+scripts/start.sh has the environment variables as follow.
+
 ```
 #!/bin/bash
 
-KNOX_AUTO_HOME=`dirname $(realpath "$0")`/..
+export KNOX_AUTO_HOME=`dirname $(realpath "$0")`/..
 
-DB_DRIVER=mysql
-DB_PORT=3306
-DB_USER=root
-DB_PASS=password
-DB_NAME=flow_management
+export DB_DRIVER=mysql
+export DB_PORT=3306
+export DB_USER=root
+export DB_PASS=password
+export DB_NAME=flow_management
+export DB_HOST=127.0.0.1
 
-COL_NETWORK_FLOW=network_flow
-COL_DISCOVERED_POLICY=discovered_policy
+export COL_NETWORK_FLOW=network_flow
+export COL_DISCOVERED_POLICY=discovered_policy
 
-OUT_DIR=$KNOX_AUTO_HOME/policies/
+export OUT_DIR=$KNOX_AUTO_HOME/policies/
 
-DB_DRIVER=$DB_DRIVER DB_PORT=$DB_PORT DB_USER=$DB_USER DB_PASS=$DB_PASS DB_NAME=$DB_NAME COL_NETWORK_FLOW=$COL_NETWORK_FLOW COL_DISCOVERED_POLICY=$COL_DISCOVERED_POLICY OUT_DIR=$OUT_DIR $KNOX_AUTO_HOME/src/knoxAutoPolicy
+export DISCOVERY_MODE=egressingress
+
+$KNOX_AUTO_HOME/src/knoxAutoPolicy
 ```
 
-# Run 
+run the script file
 ```
 $ cd knoxAutoPolicy
 $ ./scripts/startService.sh
 ```
 
-# Main Code 
+4. Main Code 
 
 ```
 func StartToDiscoverNetworkPolicies() {
-	endTime = time.Now().Unix()
-
 	log.Info().Msg("Get network traffic from the database")
-	docs, valid := libs.GetTrafficFlowFromMongo(startTime, endTime)
+
+	flows, valid := libs.GetTrafficFlowFromDB()
 	if !valid {
 		return
 	}
-	updateTimeInterval(docs[len(docs)-1])
-	ciliumFlows := plugin.ConvertMongoDocsToCiliumFlows(docs)
+
+	// convert db flows -> cilium flows
+	ciliumFlows := plugin.ConvertDocsToCiliumFlows(flows)
 
 	// get k8s services
 	services := libs.GetServices()
@@ -64,7 +73,11 @@ func StartToDiscoverNetworkPolicies() {
 	namespaces := libs.GetNamespaces()
 
 	// get existing policies in db
-	existingPolicies, _ := libs.GetNetworkPolicies()
+	existingPolicies, err := libs.GetNetworkPolicies("", "latest")
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return
+	}
 
 	// update exposed ports (k8s service, docker-compose portbinding)
 	updateServiceEndpoint(services, endpoints, pods)
@@ -90,13 +103,16 @@ func StartToDiscoverNetworkPolicies() {
 
 		if len(newPolicies) > 0 {
 			// insert discovered policies to db
-			libs.InsertPoliciesToMongoDB(newPolicies)
+			if err := libs.InsertDiscoveredPolicies(newPolicies); err != nil {
+				log.Error().Msg(err.Error())
+				continue
+			}
 
-			// convert knoxPolicy to CiliumPolicy
-			ciliumPolicies := plugin.ConvertKnoxPoliciesToCiliumPolicies(services, newPolicies)
+			// retrieve policies from the db
+			policies, _ := libs.GetNetworkPolicies(namespace, "latest")
 
 			// write discovered policies to files
-			libs.WriteCiliumPolicyToYamlFile(namespace, services, ciliumPolicies)
+			libs.WriteKnoxPolicyToYamlFile(namespace, policies)
 
 			log.Info().Msgf("Policy discovery done    for namespace: [%s], [%d] policies discovered", namespace, len(newPolicies))
 		} else {
@@ -106,13 +122,12 @@ func StartToDiscoverNetworkPolicies() {
 }
 ```
 
-# Directories
+5. Directories
 
 * Source code for Knox Auto Policy
 
 ```
 common - common sub modules
-database - mongodb container for local test
 deployments - deployment file for kubenetes
 policies - discovered policies (.yaml)
 scripts - shell script to start program with environment variables
