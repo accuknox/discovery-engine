@@ -17,8 +17,8 @@ go get github.com/accuknox/knoxAutoPolicy
 
 KNOX_AUTO_HOME=`dirname $(realpath "$0")`/..
 
-DB_DRIVER=mongodb
-DB_PORT=27017
+DB_DRIVER=mysql
+DB_PORT=3306
 DB_USER=root
 DB_PASS=password
 DB_NAME=flow_management
@@ -104,5 +104,23 @@ func StartToDiscoverNetworkPolicies() {
 		}
 	}
 }
+```
+
+# Directories
+
+* Source code for Knox Auto Policy
+
+```
+common - common sub modules
+database - mongodb container for local test
+deployments - deployment file for kubenetes
+policies - discovered policies (.yaml)
+scripts - shell script to start program with environment variables
+src - source codes
+  core - Core functions for Knox Auto Policy
+  libs - Libraries used for generating network policies
+  plugin - Plug-ins used for supporting various CNIs (currently, Cilium)
+  types - Type definitions
+tools - unit test scripts
 ```
 
