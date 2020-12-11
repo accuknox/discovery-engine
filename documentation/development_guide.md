@@ -1,1 +1,108 @@
+# Setup Instructions
+```
+git clone https://github.com/accuknox/knoxAutoPolicy.git
+cd knoxAutoPolicy
+git submodule update --init --recursive
+make -C common
+```
+
+# Installation
+```
+go get github.com/accuknox/knoxAutoPolicy
+```
+
+# Start script
+```
+#!/bin/bash
+
+KNOX_AUTO_HOME=`dirname $(realpath "$0")`/..
+
+DB_DRIVER=mongodb
+DB_PORT=27017
+DB_USER=root
+DB_PASS=password
+DB_NAME=flow_management
+
+COL_NETWORK_FLOW=network_flow
+COL_DISCOVERED_POLICY=discovered_policy
+
+OUT_DIR=$KNOX_AUTO_HOME/policies/
+
+DB_DRIVER=$DB_DRIVER DB_PORT=$DB_PORT DB_USER=$DB_USER DB_PASS=$DB_PASS DB_NAME=$DB_NAME COL_NETWORK_FLOW=$COL_NETWORK_FLOW COL_DISCOVERED_POLICY=$COL_DISCOVERED_POLICY OUT_DIR=$OUT_DIR $KNOX_AUTO_HOME/src/knoxAutoPolicy
+```
+
+# Run 
+```
+$ cd knoxAutoPolicy
+$ ./scripts/startService.sh
+```
+
+# Main Code 
+
+```
+func StartToDiscoverNetworkPolicies() {
+	endTime = time.Now().Unix()
+
+	log.Info().Msg("Get network traffic from the database")
+	docs, valid := libs.GetTrafficFlowFromMongo(startTime, endTime)
+	if !valid {
+		return
+	}
+	updateTimeInterval(docs[len(docs)-1])
+	ciliumFlows := plugin.ConvertMongoDocsToCiliumFlows(docs)
+
+	// get k8s services
+	services := libs.GetServices()
+
+	// get k8s endpoints
+	endpoints := libs.GetEndpoints()
+
+	// get k8s pods
+	pods := libs.GetPods()
+
+	// get k8s namespaces
+	namespaces := libs.GetNamespaces()
+
+	// get existing policies in db
+	existingPolicies, _ := libs.GetNetworkPolicies()
+
+	// update exposed ports (k8s service, docker-compose portbinding)
+	updateServiceEndpoint(services, endpoints, pods)
+
+	// update DNS to IPs
+	updateDNSToIPs(ciliumFlows, DNSToIPs)
+
+	// iterate each namespace
+	for _, namespace := range namespaces {
+		// convert cilium network traffic -> network log, and filter traffic
+		networkLogs := plugin.ConvertCiliumFlowsToKnoxLogs(namespace, ciliumFlows, DNSToIPs)
+		if len(networkLogs) == 0 {
+			continue
+		}
+
+		log.Info().Msgf("Policy discovery started for namespace: [%s]", namespace)
+
+		// discover network policies based on the network logs
+		discoveredPolicies := DiscoverNetworkPolicies(namespace, cidrBits, networkLogs, services, endpoints, pods)
+
+		// remove duplication
+		newPolicies := DeduplicatePolicies(existingPolicies, discoveredPolicies, DNSToIPs)
+
+		if len(newPolicies) > 0 {
+			// insert discovered policies to db
+			libs.InsertPoliciesToMongoDB(newPolicies)
+
+			// convert knoxPolicy to CiliumPolicy
+			ciliumPolicies := plugin.ConvertKnoxPoliciesToCiliumPolicies(services, newPolicies)
+
+			// write discovered policies to files
+			libs.WriteCiliumPolicyToYamlFile(namespace, services, ciliumPolicies)
+
+			log.Info().Msgf("Policy discovery done    for namespace: [%s], [%d] policies discovered", namespace, len(newPolicies))
+		} else {
+			log.Info().Msgf("Policy discovery done    for namespace: [%s], no policy discovered", namespace)
+		}
+	}
+}
+```
 
