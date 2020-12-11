@@ -16,25 +16,25 @@ import (
 
 	"github.com/robfig/cron"
 	"github.com/rs/zerolog/log"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 // ======================= //
 // == Gloabl Variables  == //
 // ======================= //
 
-// network flow between [ startTime <= time < endTime ]
-var startTime int64 = 0
-var endTime int64 = 0
-
 var cidrBits int = 32
 
 var externals = []string{"reserved:world", "external"}
 var skippedLabels = []string{"pod-template-hash"}
 
-var exposedTCPPorts = []int{}
-var exposedUDPPorts = []int{}
-var exposedSCTPPorts = []int{}
+// ExposedTCPPorts ...
+var ExposedTCPPorts = []int{}
+
+// ExposedUDPPorts ...
+var ExposedUDPPorts = []int{}
+
+// ExposedSCTPPorts ...
+var ExposedSCTPPorts = []int{}
 
 var kubeDNSSvc []types.Service
 
@@ -47,6 +47,7 @@ var StopChan chan struct{}
 // DNSToIPs map
 var DNSToIPs map[string][]string
 
+// discovery mode type
 const (
 	Egress        = 1
 	Ingress       = 2
@@ -204,15 +205,15 @@ func removeDstMergedSlice(dsts []MergedPortDst, remove MergedPortDst) []MergedPo
 // isExposedPort Function
 func isExposedPort(protocol int, port int) bool {
 	if protocol == 6 { // tcp
-		if libs.ContainsElement(exposedTCPPorts, port) {
+		if libs.ContainsElement(ExposedTCPPorts, port) {
 			return true
 		}
 	} else if protocol == 17 { // udp
-		if libs.ContainsElement(exposedUDPPorts, port) {
+		if libs.ContainsElement(ExposedUDPPorts, port) {
 			return true
 		}
 	} else if protocol == 132 { // sctp
-		if libs.ContainsElement(exposedSCTPPorts, port) {
+		if libs.ContainsElement(ExposedSCTPPorts, port) {
 			return true
 		}
 	}
@@ -331,12 +332,6 @@ func removeKubeDNSPort(toPorts []types.SpecPort) []types.SpecPort {
 	return filtered
 }
 
-// updateTimeInterval function
-func updateTimeInterval(lastDoc map[string]interface{}) {
-	ts := lastDoc["timestamp"].(primitive.DateTime)
-	startTime = ts.Time().Unix() + 1
-}
-
 // updateDNSToIPs function
 func updateDNSToIPs(flows []*flow.Flow, dnsToIPs map[string][]string) {
 	for _, flow := range flows {
@@ -373,34 +368,34 @@ func updateServiceEndpoint(services []types.Service, endpoints []types.Endpoint,
 	// step 1: service port update
 	for _, service := range services {
 		if strings.ToLower(service.Protocol) == "tcp" { // TCP
-			if !libs.ContainsElement(exposedTCPPorts, service.ServicePort) {
-				exposedTCPPorts = append(exposedTCPPorts, service.ServicePort)
+			if !libs.ContainsElement(ExposedTCPPorts, service.ServicePort) {
+				ExposedTCPPorts = append(ExposedTCPPorts, service.ServicePort)
 			}
-			if !libs.ContainsElement(exposedTCPPorts, service.NodePort) {
-				exposedTCPPorts = append(exposedTCPPorts, service.NodePort)
+			if !libs.ContainsElement(ExposedTCPPorts, service.NodePort) {
+				ExposedTCPPorts = append(ExposedTCPPorts, service.NodePort)
 			}
-			if !libs.ContainsElement(exposedTCPPorts, service.TargetPort) {
-				exposedTCPPorts = append(exposedTCPPorts, service.TargetPort)
+			if !libs.ContainsElement(ExposedTCPPorts, service.TargetPort) {
+				ExposedTCPPorts = append(ExposedTCPPorts, service.TargetPort)
 			}
 		} else if strings.ToLower(service.Protocol) == "udp" { // UDP
-			if !libs.ContainsElement(exposedUDPPorts, service.ServicePort) {
-				exposedUDPPorts = append(exposedUDPPorts, service.ServicePort)
+			if !libs.ContainsElement(ExposedUDPPorts, service.ServicePort) {
+				ExposedUDPPorts = append(ExposedUDPPorts, service.ServicePort)
 			}
-			if !libs.ContainsElement(exposedUDPPorts, service.NodePort) {
-				exposedUDPPorts = append(exposedUDPPorts, service.NodePort)
+			if !libs.ContainsElement(ExposedUDPPorts, service.NodePort) {
+				ExposedUDPPorts = append(ExposedUDPPorts, service.NodePort)
 			}
-			if !libs.ContainsElement(exposedUDPPorts, service.TargetPort) {
-				exposedUDPPorts = append(exposedUDPPorts, service.TargetPort)
+			if !libs.ContainsElement(ExposedUDPPorts, service.TargetPort) {
+				ExposedUDPPorts = append(ExposedUDPPorts, service.TargetPort)
 			}
 		} else if strings.ToLower(service.Protocol) == "sctp" { // SCTP
-			if !libs.ContainsElement(exposedSCTPPorts, service.ServicePort) {
-				exposedSCTPPorts = append(exposedSCTPPorts, service.ServicePort)
+			if !libs.ContainsElement(ExposedSCTPPorts, service.ServicePort) {
+				ExposedSCTPPorts = append(ExposedSCTPPorts, service.ServicePort)
 			}
-			if !libs.ContainsElement(exposedSCTPPorts, service.NodePort) {
-				exposedSCTPPorts = append(exposedSCTPPorts, service.NodePort)
+			if !libs.ContainsElement(ExposedSCTPPorts, service.NodePort) {
+				ExposedSCTPPorts = append(ExposedSCTPPorts, service.NodePort)
 			}
-			if !libs.ContainsElement(exposedSCTPPorts, service.TargetPort) {
-				exposedSCTPPorts = append(exposedSCTPPorts, service.TargetPort)
+			if !libs.ContainsElement(ExposedSCTPPorts, service.TargetPort) {
+				ExposedSCTPPorts = append(ExposedSCTPPorts, service.TargetPort)
 			}
 		}
 	}
@@ -409,16 +404,16 @@ func updateServiceEndpoint(services []types.Service, endpoints []types.Endpoint,
 	for _, endpoint := range endpoints {
 		for _, ep := range endpoint.Endpoints {
 			if strings.ToLower(ep.Protocol) == "tcp" { // TCP
-				if !libs.ContainsElement(exposedTCPPorts, ep.Port) {
-					exposedTCPPorts = append(exposedTCPPorts, ep.Port)
+				if !libs.ContainsElement(ExposedTCPPorts, ep.Port) {
+					ExposedTCPPorts = append(ExposedTCPPorts, ep.Port)
 				}
 			} else if strings.ToLower(ep.Protocol) == "udp" { // UDP
-				if !libs.ContainsElement(exposedUDPPorts, ep.Port) {
-					exposedUDPPorts = append(exposedUDPPorts, ep.Port)
+				if !libs.ContainsElement(ExposedUDPPorts, ep.Port) {
+					ExposedUDPPorts = append(ExposedUDPPorts, ep.Port)
 				}
 			} else if strings.ToLower(ep.Protocol) == "sctp" { // SCTP
-				if !libs.ContainsElement(exposedSCTPPorts, ep.Port) {
-					exposedSCTPPorts = append(exposedSCTPPorts, ep.Port)
+				if !libs.ContainsElement(ExposedSCTPPorts, ep.Port) {
+					ExposedSCTPPorts = append(ExposedSCTPPorts, ep.Port)
 				}
 			}
 		}
@@ -443,12 +438,13 @@ func buildNewKnoxPolicy() types.KnoxNetworkPolicy {
 	return types.KnoxNetworkPolicy{
 		APIVersion: "v1",
 		Kind:       "KnoxNetworkPolicy",
-		Metadata:   map[string]string{},
+		Metadata: map[string]string{
+			"status": "latest",
+		},
+		Outdated: "",
 		Spec: types.Spec{
 			Selector: types.Selector{
-				MatchLabels: map[string]string{
-					"status": "latest",
-				}},
+				MatchLabels: map[string]string{}},
 			Action: "allow",
 		},
 	}
@@ -540,6 +536,13 @@ func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcP
 				egressPolicy.Spec.Selector.MatchLabels[srcKey] = srcVal
 			}
 
+			// sorting toPorts
+			if len(dst.ToPorts) > 0 {
+				sort.Slice(dst.ToPorts, func(i, j int) bool {
+					return dst.ToPorts[i].Port < dst.ToPorts[j].Port
+				})
+			}
+
 			egressRule := types.Egress{}
 
 			// ================= //
@@ -625,6 +628,7 @@ func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcP
 				egressRule.ToCIDRs = []types.SpecCIDR{cidr}
 
 				if len(dst.ToPorts) > 0 {
+
 					egressPolicy.Metadata["rule"] = egressPolicy.Metadata["rule"] + "+toPorts"
 					egressRule.ToPorts = dst.ToPorts
 				}
@@ -675,7 +679,7 @@ func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcP
 					networkPolicies = append(networkPolicies, egressPolicy)
 				}
 			} else if strings.HasPrefix(dst.Namespace, "reserved:") && dst.MatchLabels == "" {
-				egressPolicy.Metadata["rule"] = "toEntity"
+				egressPolicy.Metadata["rule"] = "toEntities"
 
 				// ================= //
 				// build Entity rule //
@@ -696,7 +700,7 @@ func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcP
 				// add ingress policy
 				if DiscoveryMode&Ingress > 0 {
 					ingressPolicy := buildNewIngressPolicyFromSameSelector(namespace, egressPolicy.Spec.Selector)
-					ingressPolicy.Metadata["rule"] = "toEntity"
+					ingressPolicy.Metadata["rule"] = "fromEntities"
 					ingressRule := types.Ingress{}
 					ingressRule.FromEntities = []string{entity}
 					ingressPolicy.Spec.Ingress = append(ingressPolicy.Spec.Ingress, ingressRule)
@@ -1016,6 +1020,93 @@ func mergingProtocolPorts(mergedDsts []MergedPortDst, dst Dst) []MergedPortDst {
 	return mergedDsts
 }
 
+// mergeCIDR function
+func mergeCIDR(mergedSrcPerMergedDst map[string][]MergedPortDst) {
+	// merge cidr
+	for mergedSrc, dsts := range mergedSrcPerMergedDst {
+		newDsts := []MergedPortDst{}
+		mergedCIDRs := []string{}
+		mergedCIDRToPorts := []types.SpecPort{}
+
+		for _, dst := range dsts {
+			if dst.Namespace == "reserved:cidr" {
+				if !libs.ContainsElement(mergedCIDRs, dst.Additional) {
+					mergedCIDRs = append(mergedCIDRs, dst.Additional)
+				}
+
+				for _, port := range dst.ToPorts {
+					if !libs.ContainsElement(mergedCIDRToPorts, port) {
+						mergedCIDRToPorts = append(mergedCIDRToPorts, port)
+					}
+				}
+			} else {
+				newDsts = append(newDsts, dst)
+			}
+		}
+
+		if len(mergedCIDRs) > 0 {
+			newDNS := MergedPortDst{
+				Namespace:  "reserved:cidr",
+				Additional: strings.Join(mergedCIDRs, ","),
+				ToPorts:    mergedCIDRToPorts,
+				Action:     "allow",
+			}
+			newDsts = append(newDsts, newDNS)
+		}
+
+		mergedSrcPerMergedDst[mergedSrc] = newDsts
+	}
+}
+
+// mergeFQDN function
+func mergeFQDN(mergedSrcPerMergedDst map[string][]MergedPortDst) {
+	// merge same dns per each merged Src
+	for mergedSrc, dsts := range mergedSrcPerMergedDst {
+		newDsts := []MergedPortDst{}
+
+		// step 1: get dns
+		dns := map[string][]types.SpecPort{}
+		for _, dst := range dsts {
+			if dst.Namespace == "reserved:dns" {
+				if exist, ok := dns[dst.Additional]; !ok {
+					// if not exist, create dns, and move toPorts
+					if len(dst.ToPorts) > 0 {
+						dns[dst.Additional] = dst.ToPorts
+					} else {
+						dns[dst.Additional] = []types.SpecPort{}
+					}
+				} else {
+					// if exist, check duplicated toPorts
+					for _, port := range dst.ToPorts {
+						if !libs.ContainsElement(exist, port) {
+							exist = append(exist, port)
+						}
+					}
+
+					// update toPorts
+					dns[dst.Additional] = exist
+				}
+			} else {
+				// if no reserved:dns
+				newDsts = append(newDsts, dst)
+			}
+		}
+
+		// step 2: update mergedSrcPerMergedDst
+		for dns, toPorts := range dns {
+			newDNS := MergedPortDst{
+				Namespace:  "reserved:dns",
+				Additional: dns,
+				ToPorts:    toPorts,
+				Action:     "allow",
+			}
+			newDsts = append(newDsts, newDNS)
+		}
+
+		mergedSrcPerMergedDst[mergedSrc] = newDsts
+	}
+}
+
 // mergingDstSpecs Function
 func mergingDstSpecs(mergedSrcsPerDst map[Dst][]string) map[string][]MergedPortDst {
 	mergedSrcPerMergedDst := map[string][]MergedPortDst{}
@@ -1099,75 +1190,8 @@ func mergingDstSpecs(mergedSrcsPerDst map[Dst][]string) map[string][]MergedPortD
 		}
 	}
 
-	// // merge dns
-	// for mergedSrc, dsts := range mergedSrcPerMergedDst {
-	// 	newDsts := []MergedPortDst{}
-	// 	mergedDNS := []string{}
-	// 	mergedDNSToPorts := []types.SpecPort{}
-
-	// 	for _, dst := range dsts {
-	// 		if dst.Namespace == "reserved:dns" {
-	// 			if !libs.ContainsElement(mergedDNS, dst.Additional) {
-	// 				mergedDNS = append(mergedDNS, dst.Additional)
-	// 			}
-
-	// 			for _, port := range dst.ToPorts {
-	// 				if !libs.ContainsElement(mergedDNSToPorts, port) {
-	// 					mergedDNSToPorts = append(mergedDNSToPorts, port)
-	// 				}
-	// 			}
-	// 		} else {
-	// 			newDsts = append(newDsts, dst)
-	// 		}
-	// 	}
-
-	// 	if len(mergedDNS) > 0 {
-	// 		newDNS := MergedPortDst{
-	// 			Namespace:  "reserved:dns",
-	// 			Additional: strings.Join(mergedDNS, ","),
-	// 			ToPorts:    mergedDNSToPorts,
-	// 			Action:     "allow",
-	// 		}
-	// 		newDsts = append(newDsts, newDNS)
-	// 	}
-
-	// 	mergedSrcPerMergedDst[mergedSrc] = newDsts
-	// }
-
-	// // merge cidr
-	// for mergedSrc, dsts := range mergedSrcPerMergedDst {
-	// 	newDsts := []MergedPortDst{}
-	// 	mergedCIDRs := []string{}
-	// 	mergedCIDRToPorts := []types.SpecPort{}
-
-	// 	for _, dst := range dsts {
-	// 		if dst.Namespace == "reserved:cidr" {
-	// 			if !libs.ContainsElement(mergedCIDRs, dst.Additional) {
-	// 				mergedCIDRs = append(mergedCIDRs, dst.Additional)
-	// 			}
-
-	// 			for _, port := range dst.ToPorts {
-	// 				if !libs.ContainsElement(mergedCIDRToPorts, port) {
-	// 					mergedCIDRToPorts = append(mergedCIDRToPorts, port)
-	// 				}
-	// 			}
-	// 		} else {
-	// 			newDsts = append(newDsts, dst)
-	// 		}
-	// 	}
-
-	// 	if len(mergedCIDRs) > 0 {
-	// 		newDNS := MergedPortDst{
-	// 			Namespace:  "reserved:cidr",
-	// 			Additional: strings.Join(mergedCIDRs, ","),
-	// 			ToPorts:    mergedCIDRToPorts,
-	// 			Action:     "allow",
-	// 		}
-	// 		newDsts = append(newDsts, newDNS)
-	// 	}
-
-	// 	mergedSrcPerMergedDst[mergedSrc] = newDsts
-	// }
+	// fqdn merged (not cidr)
+	mergeFQDN(mergedSrcPerMergedDst)
 
 	return mergedSrcPerMergedDst
 }
@@ -1336,17 +1360,15 @@ func DiscoverNetworkPolicies(namespace string,
 
 // StartToDiscoverNetworkPolicies function
 func StartToDiscoverNetworkPolicies() {
-	endTime = time.Now().Unix()
-
 	log.Info().Msg("Get network traffic from the database")
-	docs, valid := libs.GetTrafficFlowFromDB(startTime, endTime)
+
+	flows, valid := libs.GetTrafficFlowFromDB()
 	if !valid {
 		return
 	}
 
-	updateTimeInterval(docs[len(docs)-1])
-
-	ciliumFlows := plugin.ConvertMongoDocsToCiliumFlows(docs)
+	// convert db flows -> cilium flows
+	ciliumFlows := plugin.ConvertDocsToCiliumFlows(flows)
 
 	// get k8s services
 	services := libs.GetServices()
@@ -1361,7 +1383,11 @@ func StartToDiscoverNetworkPolicies() {
 	namespaces := libs.GetNamespaces()
 
 	// get existing policies in db
-	existingPolicies, _ := libs.GetNetworkPolicies()
+	existingPolicies, err := libs.GetNetworkPolicies("", "latest")
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return
+	}
 
 	// update exposed ports (k8s service, docker-compose portbinding)
 	updateServiceEndpoint(services, endpoints, pods)
@@ -1387,7 +1413,13 @@ func StartToDiscoverNetworkPolicies() {
 
 		if len(newPolicies) > 0 {
 			// insert discovered policies to db
-			libs.InsertPoliciesToMongoDB(newPolicies)
+			if err := libs.InsertDiscoveredPolicies(newPolicies); err != nil {
+				log.Error().Msg(err.Error())
+				continue
+			}
+
+			// retrieve policies from the db
+			policies, _ := libs.GetNetworkPolicies(namespace, "latest")
 
 			// convert knoxPolicy to CiliumPolicy
 			// ciliumPolicies := plugin.ConvertKnoxPoliciesToCiliumPolicies(services, newPolicies)
@@ -1396,7 +1428,7 @@ func StartToDiscoverNetworkPolicies() {
 			// libs.WriteCiliumPolicyToYamlFile(namespace, services, ciliumPolicies)
 
 			// write discovered policies to files
-			libs.WriteKnoxPolicyToYamlFile(namespace, newPolicies)
+			libs.WriteKnoxPolicyToYamlFile(namespace, policies)
 
 			log.Info().Msgf("Policy discovery done    for namespace: [%s], [%d] policies discovered", namespace, len(newPolicies))
 		} else {
@@ -1405,8 +1437,8 @@ func StartToDiscoverNetworkPolicies() {
 	}
 }
 
-// CronJob function
-func CronJob() {
+// StartCronJob function
+func StartCronJob() {
 	log.Info().Msg("Auto discovery cron job started")
 
 	// init cron job
@@ -1419,9 +1451,4 @@ func CronJob() {
 	log.Info().Msg("Got a signal to terminate the auto policy discovery")
 
 	c.Stop() // Stop the scheduler (does not stop any jobs already running).
-}
-
-// StartToDiscover function
-func StartToDiscover() {
-	CronJob()
 }

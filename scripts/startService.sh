@@ -2,11 +2,12 @@
 
 export KNOX_AUTO_HOME=`dirname $(realpath "$0")`/..
 
-export DB_DRIVER=mongodb
-export DB_PORT=27017
+export DB_DRIVER=mysql
+export DB_PORT=3306
 export DB_USER=root
 export DB_PASS=password
 export DB_NAME=flow_management
+export DB_HOST=127.0.0.1
 
 export COL_NETWORK_FLOW=network_flow
 export COL_DISCOVERED_POLICY=discovered_policy

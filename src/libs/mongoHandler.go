@@ -3,58 +3,14 @@ package libs
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"net"
 	"time"
 
 	"github.com/accuknox/knoxAutoPolicy/src/types"
-	"github.com/rs/zerolog/log"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
-
-// static values, but it will be deprecated
-var (
-	ColNetworkFlow      string
-	ColDiscoveredPolicy string
-
-	DBHost string
-	DBPort string
-	DBUser string
-	DBPass string
-	DBName string
-)
-
-// init mongodb
-func init() {
-	if IsK8sEnv() {
-		DBHost = GetEnv("DB_HOST", "database.bastion.svc.cluster.local")
-		dbAddr, err := net.LookupIP(DBHost)
-		if err == nil {
-			DBHost = dbAddr[0].String()
-		} else {
-			DBHost = GetExternalIPAddr()
-		}
-	} else {
-		DBHost = GetEnv("DB_HOST", "database")
-		dbAddr, err := net.LookupIP(DBHost)
-		if err == nil {
-			DBHost = dbAddr[0].String()
-		} else {
-			DBHost = GetExternalIPAddr()
-		}
-	}
-
-	DBPort = GetEnv("DB_PORT", "27017")
-	DBUser = GetEnv("DB_USER", "root")
-	DBPass = GetEnv("DB_PASS", "password")
-	DBName = GetEnv("DB_NAME", "flow_management")
-
-	ColNetworkFlow = GetEnv("COL_NETWORK_FLOW", "network_flow")
-	ColDiscoveredPolicy = GetEnv("COL_DISCOVERED_POLICY", "discovered_policy")
-}
 
 // ConnectMongoDB function
 func ConnectMongoDB() (*mongo.Client, *mongo.Database) {
@@ -73,19 +29,20 @@ func ConnectMongoDB() (*mongo.Client, *mongo.Database) {
 	return client, client.Database(DBName)
 }
 
-// InsertPoliciesToMongoDB function
-func InsertPoliciesToMongoDB(policies []types.KnoxNetworkPolicy) {
+// InsertDiscoveredPoliciesToMongoDB function
+func InsertDiscoveredPoliciesToMongoDB(policies []types.KnoxNetworkPolicy) error {
 	client, db := ConnectMongoDB()
 	defer client.Disconnect(context.Background())
 
-	col := db.Collection(ColDiscoveredPolicy)
+	col := db.Collection(TableDiscoveredPolicy)
 
 	for _, policy := range policies {
 		if _, err := col.InsertOne(context.Background(), policy); err != nil {
-			log.Logger.Err(err)
-			continue
+			return err
 		}
 	}
+
+	return nil
 }
 
 // GetDocsByFilter Function
@@ -112,13 +69,16 @@ func GetDocsByFilter(col *mongo.Collection, filter primitive.M) ([]map[string]in
 	return matchedDocs, nil
 }
 
-// GetNetworkPolicies Function
-func GetNetworkPolicies() ([]types.KnoxNetworkPolicy, error) {
+// GetNetworkPoliciesFromMongo Function
+func GetNetworkPoliciesFromMongo(namespace, status string) ([]types.KnoxNetworkPolicy, error) {
 	client, db := ConnectMongoDB()
 	defer client.Disconnect(context.Background())
-	col := db.Collection(ColDiscoveredPolicy)
+	col := db.Collection(TableDiscoveredPolicy)
 
-	docs, _ := GetDocsByFilter(col, bson.M{})
+	docs, _ := GetDocsByFilter(col, bson.M{
+		"namespace": namespace,
+		"status":    status,
+	})
 	if len(docs) == 0 { // if no policy, return error
 		return []types.KnoxNetworkPolicy{}, nil
 	}
@@ -151,11 +111,11 @@ func UpdateTimeFilters(filter primitive.M, tsStart, tsEnd int64) {
 	filter["timestamp"] = bson.M{"$gte": startTime, "$lt": endTime}
 }
 
-// UpdateOutdatedLabel function
-func UpdateOutdatedLabel(outdatedPolicy string, latestPolicy string) {
+// UpdateOutdatedPolicyFromMongo function
+func UpdateOutdatedPolicyFromMongo(outdatedPolicy string, latestPolicy string) error {
 	client, db := ConnectMongoDB()
 	defer client.Disconnect(context.Background())
-	col := db.Collection(ColDiscoveredPolicy)
+	col := db.Collection(TableDiscoveredPolicy)
 
 	filter := bson.M{}
 	filter["metadata.name"] = outdatedPolicy
@@ -164,30 +124,31 @@ func UpdateOutdatedLabel(outdatedPolicy string, latestPolicy string) {
 	err := col.FindOne(context.Background(), filter).Decode(&matchedDoc)
 	if err == nil {
 		fields := bson.M{}
-		fields["labels"] = map[string]string{"outdated": latestPolicy}
+		fields["outdated"] = latestPolicy
 		update := bson.M{"$set": fields}
 
 		_, err = col.UpdateOne(context.Background(), filter, update)
 		if err != nil {
-			fmt.Println(err)
+			return err
 		}
 	}
+
+	return nil
 }
 
 // GetTrafficFlowFromMongo function
-func GetTrafficFlowFromMongo(startTime, endTime int64) ([]map[string]interface{}, bool) {
+func GetTrafficFlowFromMongo(startTime, endTime int64) ([]map[string]interface{}, error) {
 	client, db := ConnectMongoDB()
 	defer client.Disconnect(context.Background())
-	col := db.Collection(ColNetworkFlow)
+	col := db.Collection(TableNetworkFlow)
 
 	filter := bson.M{}
 	UpdateTimeFilters(filter, startTime, endTime)
 
 	docs, err := GetDocsByFilter(col, filter)
 	if err != nil {
-		log.Info().Msg(err.Error())
-		return nil, false
+		return nil, err
 	}
 
-	return docs, true
+	return docs, nil
 }

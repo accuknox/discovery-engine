@@ -74,8 +74,9 @@ type KnoxNetworkPolicy struct {
 	APIVersion string            `json:"apiVersion,omitempty" yaml:"apiVersion,omitempty" bson:"apiVersion,omitempty"`
 	Kind       string            `json:"kind,omitempty" yaml:"kind,omitempty" bson:"kind,omitempty"`
 	Metadata   map[string]string `json:"metadata,omitempty" yaml:"metadata,omitempty" bson:"metadata,omitempty"`
-	Labels     map[string]string `json:"labels,omitempty" yaml:"labels,omitempty" bson:"labels,omitempty"`
-	Spec       Spec              `json:"spec,omitempty" yaml:"spec,omitempty" bson:"spec,omitempty"`
+	Outdated   string            `json:"outdated,omitempty" yaml:"outdated,omitempty" bson:"outdated,omitempty"`
+
+	Spec Spec `json:"spec,omitempty" yaml:"spec,omitempty" bson:"spec,omitempty"`
 
 	GeneratedTime int64 `json:"generatedTime,omitempty" yaml:"generatedTime,omitempty" bson:"generatedTime,omitempty"`
 }
