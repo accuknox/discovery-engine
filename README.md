@@ -14,7 +14,7 @@ Currently, KnoxAutoPolicy can discover egress/ingress network policy for Pod-to-
 * Produce a minimum network policy set covering maximum network flows
 
 When discovering the network policies, if we generate the policies applied to a single pod statically, there would be lots of network policies. In contrast, KnoxAutoPolicy produces the minimum network policy set that can cover the maximum network flows so that we can manage the network policies more efficiently and effectively.
-For example, KnoxAutoPolicy collects the label information of the pods, and then computes the superset of labels, which is the most included in the source (or destination) pods.
+For example, KnoxAutoPolicy collects the label information of the pods, and then computes the intersection of labels, which is the most included in the source (or destination) pods.
 
 * Integrate with container network interfaces (CNIs)
 
