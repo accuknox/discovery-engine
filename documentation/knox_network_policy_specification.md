@@ -159,18 +159,15 @@ Here, we will briefly explain how to define the knox network policy.
     ingress:
     - matchLabels:
         [key1]: [value1]
-        [keyN]: [valueN]
-        
+        [keyN]: [valueN]        
       toPorts:
       - port: [port number]
-        protocol: [protocol]
-        
+        protocol: [protocol]        
       fromCIDRs:
       - cidrs:
         - [ip addr]/[cidr bits]
         except:
-        - [ip addr]/[cidr bits]
-        
+        - [ip addr]/[cidr bits]        
       fromEntities:
       - [entity]
     ```
