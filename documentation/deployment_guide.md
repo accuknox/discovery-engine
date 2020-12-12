@@ -16,7 +16,7 @@ $ cd src
 
 3. Run KnoxAutoPolicy
 
-scripts/start.sh has the environment variables as follow.
+- scripts/start.sh has the environment variables as follow.
 
 ```
 #!/bin/bash
@@ -40,13 +40,14 @@ export DISCOVERY_MODE=egressingress
 $KNOX_AUTO_HOME/src/knoxAutoPolicy
 ```
 
-run the script file
+- run the script file
+    
 ```
 $ cd knoxAutoPolicy
 $ ./scripts/startService.sh
 ```
 
-4. Main Code 
+# Main Code 
 
 ```
 func StartToDiscoverNetworkPolicies() {
@@ -122,7 +123,7 @@ func StartToDiscoverNetworkPolicies() {
 }
 ```
 
-5. Directories
+# Directories
 
 * Source code for KnoxAutoPolicy
 
