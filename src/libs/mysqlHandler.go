@@ -229,8 +229,8 @@ func UpdateOutdatedPolicyFromMySQL(outdatedPolicy string, latestPolicy string) e
 	return nil
 }
 
-// InsertDiscoveredPolicy function
-func InsertDiscoveredPolicy(db *sql.DB, policy types.KnoxNetworkPolicy) error {
+// insertDiscoveredPolicy function
+func insertDiscoveredPolicy(db *sql.DB, policy types.KnoxNetworkPolicy) error {
 	stmt, err := db.Prepare("INSERT INTO " + TableDiscoveredPolicy + "(apiVersion,kind,name,namespace,type,rule,status,outdated,spec,generatedTime) values(?,?,?,?,?,?,?,?,?,?)")
 	if err != nil {
 		return err
@@ -266,7 +266,7 @@ func InsertDiscoveredPoliciesToMySQL(policies []types.KnoxNetworkPolicy) error {
 	defer db.Close()
 
 	for _, policy := range policies {
-		if err := InsertDiscoveredPolicy(db, policy); err != nil {
+		if err := insertDiscoveredPolicy(db, policy); err != nil {
 			return err
 		}
 	}

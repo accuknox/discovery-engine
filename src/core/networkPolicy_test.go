@@ -12,10 +12,10 @@ import (
 func TestGenerateNetworkPolicies(t *testing.T) {
 	/*
 		{
-		    "src_microservice_name": "multiubuntu",
-		    "src_container_group_name": "ubuntu-1-deployment-5ff5974cd4-dfdgt",
-		    "dst_microservice_name": "multiubuntu",
-		    "dst_container_group_name": "ubuntu-4-deployment-5bbd4f6c69-frhlk",
+		    "src_namespace": "multiubuntu",
+		    "src_pod_name": "ubuntu-1-deployment-5ff5974cd4-dfdgt",
+		    "dst_namespace": "multiubuntu",
+		    "dst_pod_name": "ubuntu-4-deployment-5bbd4f6c69-frhlk",
 		    "protocol": 6,
 		    "src_ip": "10.0.2.74",
 		    "dst_ip": "10.0.1.55",
@@ -25,14 +25,14 @@ func TestGenerateNetworkPolicies(t *testing.T) {
 		    "action": "allow"
 		}
 	*/
-	logB := []byte("{\"src_microservice_name\":\"multiubuntu\",\"src_container_group_name\":\"ubuntu-1-deployment-5ff5974cd4-dfdgt\",\"dst_microservice_name\":\"multiubuntu\",\"dst_container_group_name\":\"ubuntu-4-deployment-5bbd4f6c69-frhlk\",\"protocol\":6,\"src_ip\":\"10.0.2.74\",\"dst_ip\":\"10.0.1.55\",\"src_port\":58404,\"dst_port\":8080,\"direction\":\"EGRESS\",\"action\":\"allow\"}")
+	logB := []byte("{\"src_namespace\":\"multiubuntu\",\"src_pod_name\":\"ubuntu-1-deployment-5ff5974cd4-dfdgt\",\"dst_namespace\":\"multiubuntu\",\"dst_pod_name\":\"ubuntu-4-deployment-5bbd4f6c69-frhlk\",\"protocol\":6,\"src_ip\":\"10.0.2.74\",\"dst_ip\":\"10.0.1.55\",\"src_port\":58404,\"dst_port\":8080,\"direction\":\"EGRESS\",\"action\":\"allow\"}")
 	log := types.KnoxNetworkLog{}
 	json.Unmarshal(logB, &log)
 	logs := []types.KnoxNetworkLog{log}
 
 	/*
 		{
-		    "microservice_name": "multiubuntu",
+		    "namespace": "multiubuntu",
 		    "service_name": "ubuntu-4-service",
 		    "labels": [
 		        "service=ubuntu-4"
@@ -49,16 +49,16 @@ func TestGenerateNetworkPolicies(t *testing.T) {
 		    }
 		}
 	*/
-	svc4 := []byte("{\"microservice_name\":\"multiubuntu\",\"service_name\":\"ubuntu-4-service\",\"labels\":[\"service=ubuntu-4\"],\"type\":\"ClusterIP\",\"protocol\":\"TCP\",\"cluster_ip\":\"10.100.49.226\",\"service_port\":8080,\"node_port\":0,\"container_port\":8080,\"selector\":{\"container\":\"ubuntu-4\",\"group\":\"group-2\"}}")
+	svc4 := []byte("{\"namespace\":\"multiubuntu\",\"service_name\":\"ubuntu-4-service\",\"labels\":[\"service=ubuntu-4\"],\"type\":\"ClusterIP\",\"protocol\":\"TCP\",\"cluster_ip\":\"10.100.49.226\",\"service_port\":8080,\"node_port\":0,\"container_port\":8080,\"selector\":{\"container\":\"ubuntu-4\",\"group\":\"group-2\"}}")
 	svc := types.Service{}
 	json.Unmarshal(svc4, &svc)
 	svcs := []types.Service{svc}
 
 	/*
 		{
-		    "microservice_name": "multiubuntu",
-		    "container_group_uid": "a7c68cb1-047a-49a7-91fe-adcf35df06c4",
-		    "container_group_name": "ubuntu-1-deployment-5ff5974cd4-dfdgt",
+		    "namespace": "multiubuntu",
+		    "pod_uid": "a7c68cb1-047a-49a7-91fe-adcf35df06c4",
+		    "pod_name": "ubuntu-1-deployment-5ff5974cd4-dfdgt",
 		    "host_id": "",
 		    "host_name": "",
 		    "host_ip": "",
@@ -70,15 +70,15 @@ func TestGenerateNetworkPolicies(t *testing.T) {
 		    "port_bindings": null
 		}
 	*/
-	pod1B := []byte("{\"microservice_name\":\"multiubuntu\",\"container_group_uid\":\"a7c68cb1-047a-49a7-91fe-adcf35df06c4\",\"container_group_name\":\"ubuntu-1-deployment-5ff5974cd4-dfdgt\",\"host_id\":\"\",\"host_name\":\"\",\"host_ip\":\"\",\"labels\":[\"group=group-1\",\"pod-template-hash=5ff5974cd4\",\"container=ubuntu-1\"],\"port_bindings\":null}")
+	pod1B := []byte("{\"namespace\":\"multiubuntu\",\"pod_uid\":\"a7c68cb1-047a-49a7-91fe-adcf35df06c4\",\"pod_name\":\"ubuntu-1-deployment-5ff5974cd4-dfdgt\",\"host_id\":\"\",\"host_name\":\"\",\"host_ip\":\"\",\"labels\":[\"group=group-1\",\"pod-template-hash=5ff5974cd4\",\"container=ubuntu-1\"],\"port_bindings\":null}")
 	group1 := types.Pod{}
 	json.Unmarshal(pod1B, &group1)
 
 	/*
 		{
-		    "microservice_name": "multiubuntu",
-		    "container_group_uid": "e34298dc-c912-43fe-9eeb-afc5dafdeef0",
-		    "container_group_name": "ubuntu-4-deployment-5bbd4f6c69-frhlk",
+		    "namespace": "multiubuntu",
+		    "pod_uid": "e34298dc-c912-43fe-9eeb-afc5dafdeef0",
+		    "pod_name": "ubuntu-4-deployment-5bbd4f6c69-frhlk",
 		    "host_id": "",
 		    "host_name": "",
 		    "host_ip": "",
@@ -90,7 +90,7 @@ func TestGenerateNetworkPolicies(t *testing.T) {
 		    "port_bindings": null
 		}
 	*/
-	pod4B := []byte("{\"microservice_name\":\"multiubuntu\",\"container_group_uid\":\"e34298dc-c912-43fe-9eeb-afc5dafdeef0\",\"container_group_name\":\"ubuntu-4-deployment-5bbd4f6c69-frhlk\",\"host_id\":\"\",\"host_name\":\"\",\"host_ip\":\"\",\"labels\":[\"container=ubuntu-4\",\"group=group-2\",\"pod-template-hash=5bbd4f6c69\"],\"port_bindings\":null}")
+	pod4B := []byte("{\"namespace\":\"multiubuntu\",\"pod_uid\":\"e34298dc-c912-43fe-9eeb-afc5dafdeef0\",\"pod_name\":\"ubuntu-4-deployment-5bbd4f6c69-frhlk\",\"host_id\":\"\",\"host_name\":\"\",\"host_ip\":\"\",\"labels\":[\"container=ubuntu-4\",\"group=group-2\",\"pod-template-hash=5bbd4f6c69\"],\"port_bindings\":null}")
 	group2 := types.Pod{}
 	json.Unmarshal(pod4B, &group2)
 	pods := []types.Pod{group1, group2}
