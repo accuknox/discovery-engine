@@ -101,9 +101,9 @@ func UpdateCIDR(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.Knox
 			return newPolicy, false
 		}
 
-		// case 4: policy has toPorts, which are includes in latest --> skip
+		// case 4: policy has toPorts, which are includes all in latest --> skip
 		toPorts := newPolicy.Spec.Egress[0].ToPorts
-		latestToPorts := newPolicy.Spec.Egress[0].ToPorts
+		latestToPorts := latestCidrs.Spec.Egress[0].ToPorts
 		if IncludeToPorts(toPorts, latestToPorts) {
 			return newPolicy, false
 		}
@@ -170,24 +170,6 @@ func UpdateFQDN(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.Knox
 	return newPolicy, true
 }
 
-// GetSpecs function
-func GetSpecs(existingPolicies []types.KnoxNetworkPolicy, policy types.KnoxNetworkPolicy) []types.KnoxNetworkPolicy {
-	policies := []types.KnoxNetworkPolicy{}
-
-	for _, exist := range existingPolicies {
-		// check selector
-		if cmp.Equal(&exist.Spec.Selector, &policy.Spec.Selector) {
-			if exist.Metadata["type"] == "egress" { // egress
-				policies = append(policies, exist)
-			} else { // ingress
-				policies = append(policies, exist)
-			}
-		}
-	}
-
-	return policies
-}
-
 // IsExistedPolicy function
 func IsExistedPolicy(existingPolicies []types.KnoxNetworkPolicy, inPolicy types.KnoxNetworkPolicy) bool {
 	for _, policy := range existingPolicies {
@@ -225,8 +207,8 @@ func ReplaceDuplcatedName(existingPolicies []types.KnoxNetworkPolicy, policy typ
 	return policy
 }
 
-// getToFQDNsFromNewDiscoveredPolicies function
-func getToFQDNsFromNewDiscoveredPolicies(policy types.KnoxNetworkPolicy, newPolicies []types.KnoxNetworkPolicy) []types.KnoxNetworkPolicy {
+// GetToFQDNsFromNewDiscoveredPolicies function
+func GetToFQDNsFromNewDiscoveredPolicies(policy types.KnoxNetworkPolicy, newPolicies []types.KnoxNetworkPolicy) []types.KnoxNetworkPolicy {
 	toFQDNs := []types.KnoxNetworkPolicy{}
 
 	for _, newPolicy := range newPolicies {
@@ -242,11 +224,11 @@ func getToFQDNsFromNewDiscoveredPolicies(policy types.KnoxNetworkPolicy, newPoli
 	return toFQDNs
 }
 
-// getDomainNameFromMap function
-func getDomainNameFromMap(inIP string, dnsToIPs map[string][]string) string {
+// GetDomainNameFromMap function
+func GetDomainNameFromMap(ipAddr string, dnsToIPs map[string][]string) string {
 	for domain, ips := range dnsToIPs {
 		for _, ip := range ips {
-			if inIP == ip {
+			if ipAddr == ip {
 				return domain
 			}
 		}
@@ -255,8 +237,8 @@ func getDomainNameFromMap(inIP string, dnsToIPs map[string][]string) string {
 	return ""
 }
 
-// existDomainNameInFQDN function
-func existDomainNameInFQDN(domainName string, fqdnPolicies []types.KnoxNetworkPolicy) (types.KnoxNetworkPolicy, bool) {
+// GetFQDNFromDomainName function
+func GetFQDNFromDomainName(domainName string, fqdnPolicies []types.KnoxNetworkPolicy) (types.KnoxNetworkPolicy, bool) {
 	for _, policy := range fqdnPolicies {
 		for _, egress := range policy.Spec.Egress {
 			for _, fqdn := range egress.ToFQDNs {
@@ -279,15 +261,15 @@ func updateExistCIDRtoNewFQDN(existingPolicies []types.KnoxNetworkPolicy, newPol
 		if policyType == "egress" && strings.Contains(rule, "toCIDRs") {
 			for _, toCidr := range existCIDR.Spec.Egress[0].ToCIDRs {
 				// get fqdns from same selector
-				toFQDNs := getToFQDNsFromNewDiscoveredPolicies(existCIDR, newPolicies)
+				toFQDNs := GetToFQDNsFromNewDiscoveredPolicies(existCIDR, newPolicies)
 
 				for _, cidr := range toCidr.CIDRs { // we know the number of cidr is 1
 					ip := strings.Split(cidr, "/")[0]
 					// get domain name from the map
-					domainName := getDomainNameFromMap(ip, dnsToIPs)
+					domainName := GetDomainNameFromMap(ip, dnsToIPs)
 
 					// check domain name in fqdn
-					if fqdnPolicy, matched := existDomainNameInFQDN(domainName, toFQDNs); matched {
+					if fqdnPolicy, matched := GetFQDNFromDomainName(domainName, toFQDNs); matched {
 						if len(existCIDR.Spec.Egress[0].ToPorts) > 0 {
 							// if cidr has toPorts also, check duplication as well
 							cidrToPorts := existCIDR.Spec.Egress[0].ToPorts
