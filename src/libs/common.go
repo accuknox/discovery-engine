@@ -363,7 +363,7 @@ func WriteKnoxPolicyToYamlFile(namespace string, policies []types.KnoxNetworkPol
 }
 
 // WriteCiliumPolicyToYamlFile Function
-func WriteCiliumPolicyToYamlFile(namespace string, services []types.Service, policies []types.CiliumNetworkPolicy) {
+func WriteCiliumPolicyToYamlFile(namespace string, policies []types.CiliumNetworkPolicy) {
 	// create policy file
 	fileName := GetEnv("OUT_DIR", "./") + "cilium_policies_" + namespace + ".yaml"
 
@@ -387,10 +387,12 @@ func WriteCiliumPolicyToYamlFile(namespace string, services []types.Service, pol
 
 // WriteKnoxPolicyToJSONFile Function
 func WriteKnoxPolicyToJSONFile(namespace string, policies []types.KnoxNetworkPolicy) {
-	outdir := GetEnv("OUT_DIR", "./")
+	fileName := GetEnv("OUT_DIR", "./")
+
+	os.Remove(fileName)
 
 	// create policy file
-	f, err := os.OpenFile(outdir+"knox_policies_"+namespace+".json", os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		log.Error().Msg(err.Error())
 		return

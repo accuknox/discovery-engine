@@ -1422,10 +1422,10 @@ func StartToDiscoverNetworkPolicies() {
 			policies, _ := libs.GetNetworkPolicies(namespace, "latest")
 
 			// convert knoxPolicy to CiliumPolicy
-			// ciliumPolicies := plugin.ConvertKnoxPoliciesToCiliumPolicies(services, newPolicies)
+			ciliumPolicies := plugin.ConvertKnoxPoliciesToCiliumPolicies(services, newPolicies)
 
 			// write discovered policies to files
-			// libs.WriteCiliumPolicyToYamlFile(namespace, services, ciliumPolicies)
+			libs.WriteCiliumPolicyToYamlFile(namespace, ciliumPolicies)
 
 			// write discovered policies to files
 			libs.WriteKnoxPolicyToYamlFile(namespace, policies)
