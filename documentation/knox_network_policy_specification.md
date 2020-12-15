@@ -34,14 +34,12 @@ spec:
       toCIDRs:
       - cidrs:
         - [ip addr]/[cidr bits]
-        except:
-        - [ip addr]/[cidr bits]
         
       toEntities:
       - [entity]
       
       toServices:
-      - service_name: [service name]
+      - serviceName: [service name]
         namespace: [namespace]
         
       toFQDNs:
@@ -60,11 +58,13 @@ spec:
       toPorts:
       - port: [port number]
         protocol: [protocol]
+      
+      toHTTPs:
+      - method: [http method]
+        path: [http path]
         
       fromCIDRs:
       - cidrs:
-        - [ip addr]/[cidr bits]
-        except:
         - [ip addr]/[cidr bits]
         
       fromEntities:

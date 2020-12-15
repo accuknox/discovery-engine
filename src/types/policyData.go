@@ -18,7 +18,7 @@ type SpecPort struct {
 
 // SpecService Structure
 type SpecService struct {
-	ServiceName string `json:"service_name,omitempty" yaml:"service_name,omitempty" bson:"service_name,omitempty"`
+	ServiceName string `json:"serviceName,omitempty" yaml:"serviceName,omitempty" bson:"serviceName,omitempty"`
 	Namespace   string `json:"namespace,omitempty" yaml:"namespace,omitempty" bson:"namespace,omitempty"`
 }
 

@@ -142,6 +142,49 @@ func GetNetworkPolicies(namespace, status string) ([]types.KnoxNetworkPolicy, er
 	return results, nil
 }
 
+// GetNetworkPoliciesBySelector Function
+func GetNetworkPoliciesBySelector(namespace, status string, selector map[string]string) ([]types.KnoxNetworkPolicy, error) {
+	results := []types.KnoxNetworkPolicy{}
+
+	if DBDriver == "mysql" {
+		docs, err := GetNetworkPoliciesFromMySQL(namespace, status)
+		if err != nil {
+			return nil, err
+		}
+		results = docs
+	} else if DBDriver == "mongodb" {
+		docs, err := GetNetworkPoliciesFromMongo(namespace, status)
+		if err != nil {
+			return nil, err
+		}
+		results = docs
+	} else {
+		return results, nil
+	}
+
+	filtered := []types.KnoxNetworkPolicy{}
+	for _, policy := range results {
+		matched := true
+		for k, v := range selector {
+			if val, ok := policy.Spec.Selector.MatchLabels[k]; !ok { // not exist key
+				matched = false
+				break
+			} else {
+				if val != v { // not matched value
+					matched = false
+					break
+				}
+			}
+		}
+
+		if matched {
+			filtered = append(filtered, policy)
+		}
+	}
+
+	return filtered, nil
+}
+
 // UpdateOutdatedPolicy function
 func UpdateOutdatedPolicy(outdatedPolicy string, latestPolicy string) error {
 	if DBDriver == "mysql" {

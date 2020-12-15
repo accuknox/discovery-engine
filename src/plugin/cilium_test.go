@@ -87,7 +87,9 @@ func TestConvertCiliumFlowToKnoxLog(t *testing.T) {
 	expected := &types.KnoxNetworkLog{}
 	json.Unmarshal(logBytes, expected)
 
-	actual := ConvertCiliumFlowToKnoxLog(flow)
+	dnsToIPs := map[string][]string{}
+
+	actual, _ := ConvertCiliumFlowToKnoxLog(flow, dnsToIPs)
 	if !cmp.Equal(*expected, actual) {
 		t.Errorf("they should be equal %v %v", expected, actual)
 	}
@@ -116,7 +118,7 @@ func TestConvertKnoxPolicyToCiliumPolicy(t *testing.T) {
 		                },
 		                "toPorts": [
 		                    {
-		                        "ports": "6379",
+		                        "port": "6379",
 		                        "protocol": "tcp"
 		                    }
 		                ]
@@ -127,7 +129,7 @@ func TestConvertKnoxPolicyToCiliumPolicy(t *testing.T) {
 		    "generated_time": 1605686921
 		}
 	*/
-	knoxBytes := []byte("{\"apiVersion\":\"v1\",\"kind\":\"KnoxNetworkPolicy\",\"metadata\":{\"name\":\"autogen-egress-lbzgbaicmr\",\"namespace\":\"default\"},\"spec\":{\"selector\":{\"matchLabels\":{\"app\":\"cartservice\"}},\"egress\":[{\"matchLabels\":{\"app\":\"redis-cart\",\"k8s:io.kubernetes.pod.namespace\":\"default\"},\"toPorts\":[{\"ports\":\"6379\",\"protocol\":\"tcp\"}]}],\"action\":\"allow\"},\"generated_time\":1605686921}")
+	knoxBytes := []byte("{\"apiVersion\":\"v1\",\"kind\":\"KnoxNetworkPolicy\",\"metadata\":{\"name\":\"autogen-egress-lbzgbaicmr\",\"namespace\":\"default\"},\"spec\":{\"selector\":{\"matchLabels\":{\"app\":\"cartservice\"}},\"egress\":[{\"matchLabels\":{\"app\":\"redis-cart\",\"k8s:io.kubernetes.pod.namespace\":\"default\"},\"toPorts\":[{\"port\":\"6379\",\"protocol\":\"tcp\"}]}],\"action\":\"allow\"},\"generated_time\":1605686921}")
 
 	/*
 		{

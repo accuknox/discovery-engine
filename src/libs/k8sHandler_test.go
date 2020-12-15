@@ -9,7 +9,7 @@ import (
 func TestGetK8sNamespaces(t *testing.T) {
 	actual := GetNamespaces()
 
-	assert.Contains(t, actual, "kube-system")
+	assert.NotContains(t, actual, "kube-system")
 }
 
 func TestGetConGroups(t *testing.T) {

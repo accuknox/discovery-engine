@@ -1418,14 +1418,14 @@ func StartToDiscoverNetworkPolicies() {
 				continue
 			}
 
-			// retrieve policies from the db
+			// retrieve the latest policies from the db
 			policies, _ := libs.GetNetworkPolicies(namespace, "latest")
 
 			// convert knoxPolicy to CiliumPolicy
-			// ciliumPolicies := plugin.ConvertKnoxPoliciesToCiliumPolicies(services, newPolicies)
+			ciliumPolicies := plugin.ConvertKnoxPoliciesToCiliumPolicies(services, policies)
 
 			// write discovered policies to files
-			// libs.WriteCiliumPolicyToYamlFile(namespace, services, ciliumPolicies)
+			libs.WriteCiliumPolicyToYamlFile(namespace, ciliumPolicies)
 
 			// write discovered policies to files
 			libs.WriteKnoxPolicyToYamlFile(namespace, policies)
@@ -1443,7 +1443,7 @@ func StartCronJob() {
 
 	// init cron job
 	c := cron.New()
-	c.AddFunc("@every 0h0m10s", StartToDiscoverNetworkPolicies) // time interval
+	c.AddFunc("@every 0h0m15s", StartToDiscoverNetworkPolicies) // time interval
 	c.Start()
 
 	sig := libs.GetOSSigChannel()
