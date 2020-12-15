@@ -42,6 +42,7 @@ type Selector struct {
 type Ingress struct {
 	MatchLabels map[string]string `json:"matchLabels,omitempty" yaml:"matchLabels,omitempty" bson:"matchLabels,omitempty"`
 	ToPorts     []SpecPort        `json:"toPorts,omitempty" yaml:"toPorts,omitempty" bson:"toPorts,omitempty"`
+	ToHTTPs     []SpecHTTP        `json:"toHTTPs,omitempty" yaml:"toHTTPs,omitempty" bson:"toHTTPs,omitempty"`
 
 	FromCIDRs    []SpecCIDR `json:"fromCIDRs,omitempty" yaml:"fromCIDRs,omitempty" bson:"fromCIDRs,omitempty"`
 	FromEntities []string   `json:"fromEntities,omitempty" yaml:"fromEntities,omitempty" bson:"fromEntities,omitempty"`
