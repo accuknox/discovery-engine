@@ -561,15 +561,30 @@ func ConvertKnoxPolicyToCiliumPolicy(services []types.Service, inPolicy types.Kn
 				// ================ //
 				// build L4 toPorts //
 				// ================ //
-				for _, fromPort := range knoxIngress.ToPorts {
+				for _, toPort := range knoxIngress.ToPorts {
 					if ciliumIngress.ToPorts == nil {
 						ciliumIngress.ToPorts = []types.CiliumPortList{}
 						ciliumPort := types.CiliumPortList{}
 						ciliumPort.Ports = []types.CiliumPort{}
 						ciliumIngress.ToPorts = append(ciliumIngress.ToPorts, ciliumPort)
+
+						// =============== //
+						// build HTTP rule //
+						// =============== //
+						if len(knoxIngress.ToHTTPs) > 0 {
+							ciliumIngress.ToPorts[0].Rules = map[string][]types.SubRule{}
+
+							httpRules := []types.SubRule{}
+							for _, http := range knoxIngress.ToHTTPs {
+								// matchPattern
+								httpRules = append(httpRules, map[string]string{"method": http.Method,
+									"path": http.Path})
+							}
+							ciliumIngress.ToPorts[0].Rules = map[string][]types.SubRule{"http": httpRules}
+						}
 					}
 
-					port := types.CiliumPort{Port: fromPort.Port, Protocol: strings.ToUpper(fromPort.Protocol)}
+					port := types.CiliumPort{Port: toPort.Port, Protocol: strings.ToUpper(toPort.Protocol)}
 					ciliumIngress.ToPorts[0].Ports = append(ciliumIngress.ToPorts[0].Ports, port)
 				}
 			}

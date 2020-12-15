@@ -495,6 +495,14 @@ func buildNewIngressPolicyFromEgressPolicy(egress types.Egress, selector types.S
 		cpy := make([]types.SpecPort, len(egress.ToPorts))
 		copy(cpy, egress.ToPorts)
 		ingress.Spec.Ingress[0].ToPorts = cpy
+
+		if len(egress.ToHTTPs) > 0 {
+			ingress.Metadata["rule"] = ingress.Metadata["rule"] + "+toHTTPs"
+
+			cpyHTTP := make([]types.SpecHTTP, len(egress.ToHTTPs))
+			copy(cpyHTTP, egress.ToHTTPs)
+			ingress.Spec.Ingress[0].ToHTTPs = cpyHTTP
+		}
 	}
 
 	return ingress
@@ -592,13 +600,17 @@ func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcP
 									Path:   path,
 								}
 
-								egressPolicy.Metadata["rule"] = egressPolicy.Metadata["rule"] + "+toHTTPs"
+								if !strings.Contains(egressPolicy.Metadata["rule"], "toHTTPs") {
+									egressPolicy.Metadata["rule"] = egressPolicy.Metadata["rule"] + "+toHTTPs"
+								}
 								egressRule.ToHTTPs = append(egressRule.ToHTTPs, httpRule)
 							}
 						}
 					}
 
-					egressPolicy.Metadata["rule"] = egressPolicy.Metadata["rule"] + "+toPorts"
+					if !strings.Contains(egressPolicy.Metadata["rule"], "toPorts") {
+						egressPolicy.Metadata["rule"] = egressPolicy.Metadata["rule"] + "+toPorts"
+					}
 					egressRule.ToPorts = dst.ToPorts
 				}
 
@@ -611,7 +623,6 @@ func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcP
 				if DiscoveryMode&Ingress > 0 && dst.Namespace != "kube-system" {
 					ingressPolicy := buildNewIngressPolicyFromEgressPolicy(egressRule, egressPolicy.Spec.Selector)
 					ingressPolicy.Spec.Ingress[0].MatchLabels["k8s:io.kubernetes.pod.namespace"] = namespace
-
 					networkPolicies = append(networkPolicies, ingressPolicy)
 				}
 			} else if dst.Namespace == "reserved:cidr" && dst.Additional != "" {
@@ -628,7 +639,6 @@ func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcP
 				egressRule.ToCIDRs = []types.SpecCIDR{cidr}
 
 				if len(dst.ToPorts) > 0 {
-
 					egressPolicy.Metadata["rule"] = egressPolicy.Metadata["rule"] + "+toPorts"
 					egressRule.ToPorts = dst.ToPorts
 				}
@@ -922,7 +932,7 @@ func getMergedLabels(namespace, podName string, pods []types.Pod) string {
 	mergedLabels := ""
 
 	for _, pod := range pods {
-		// find the container group of src
+		// find the src pod
 		if namespace == pod.Namespace && podName == pod.PodName {
 			// remove common name identities
 			labels := []string{}
@@ -1358,8 +1368,29 @@ func DiscoverNetworkPolicies(namespace string,
 	return namedPolicies
 }
 
+// HandleErr Function
+func HandleErr() {
+	// handle panic(), generate system call
+	err, _ := recover().(error)
+	if err != nil {
+		log.Error().Msgf("%v", err)
+	}
+}
+
+// HandleErrRet Function
+func HandleErrRet(ret *bool) {
+	// handle panic(), generate system call, and return value to false
+	err, _ := recover().(error)
+	if err != nil {
+		log.Error().Msgf("%v", err)
+		*ret = false
+	}
+}
+
 // StartToDiscoverNetworkPolicies function
 func StartToDiscoverNetworkPolicies() {
+	defer HandleErr()
+
 	log.Info().Msg("Get network traffic from the database")
 
 	flows, valid := libs.GetTrafficFlowFromDB()
@@ -1414,7 +1445,7 @@ func StartToDiscoverNetworkPolicies() {
 		if len(newPolicies) > 0 {
 			// insert discovered policies to db
 			if err := libs.InsertDiscoveredPolicies(newPolicies); err != nil {
-				log.Error().Msg(err.Error())
+				log.Error().Msgf("%v", err)
 				continue
 			}
 
@@ -1443,7 +1474,7 @@ func StartCronJob() {
 
 	// init cron job
 	c := cron.New()
-	c.AddFunc("@every 0h0m15s", StartToDiscoverNetworkPolicies) // time interval
+	c.AddFunc("@every 0h0m5s", StartToDiscoverNetworkPolicies) // time interval
 	c.Start()
 
 	sig := libs.GetOSSigChannel()

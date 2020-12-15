@@ -14,6 +14,6 @@ export COL_DISCOVERED_POLICY=discovered_policy
 
 export OUT_DIR=$KNOX_AUTO_HOME/policies/
 
-export DISCOVERY_MODE=ingress
+export DISCOVERY_MODE=egress+ingress
 
 $KNOX_AUTO_HOME/src/knoxAutoPolicy
