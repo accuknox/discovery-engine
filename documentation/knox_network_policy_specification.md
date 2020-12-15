@@ -39,7 +39,7 @@ spec:
       - [entity]
       
       toServices:
-      - service_name: [service name]
+      - serviceName: [service name]
         namespace: [namespace]
         
       toFQDNs:
