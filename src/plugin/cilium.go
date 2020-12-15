@@ -15,6 +15,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	// "github.com/cilium/cilium/pkg/policy/api"
 	flow "github.com/cilium/cilium/api/v1/flow"
 	"github.com/cilium/cilium/api/v1/observer"
 )
@@ -29,6 +30,7 @@ func init() {
 	} else {
 		cidrEanbeld = true
 	}
+
 }
 
 // ============================ //
