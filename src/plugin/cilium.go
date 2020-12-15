@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/accuknox/knoxAutoPolicy/src/libs"
 	"github.com/accuknox/knoxAutoPolicy/src/types"
@@ -655,13 +656,30 @@ func ConnectHubbleRelay() *grpc.ClientConn {
 }
 
 // GetCiliumFlowsFromHubble function
-func GetCiliumFlowsFromHubble() []*flow.Flow {
+func GetCiliumFlowsFromHubble() ([]*flow.Flow, bool) {
 	CiliumFlowsMutex.Lock()
-	result := CiliumFlows
+	results := CiliumFlows
 	CiliumFlows = []*flow.Flow{} // reset
 	CiliumFlowsMutex.Unlock()
 
-	return result
+	if len(results) == 0 {
+		log.Info().Msgf("Traffic flow not exist")
+
+		return nil, false
+	}
+
+	fisrtDoc := results[0]
+	lastDoc := results[len(results)-1]
+
+	// id/time filter update
+	startTime := fisrtDoc.Time.Seconds
+	endTime := lastDoc.Time.Seconds
+
+	log.Info().Msgf("The total number of traffic flow: [%d] from %s ~ to %s", len(results),
+		time.Unix(startTime, 0).Format(libs.TimeFormSimple),
+		time.Unix(endTime, 0).Format(libs.TimeFormSimple))
+
+	return results, true
 }
 
 // StartHubbleRelay function

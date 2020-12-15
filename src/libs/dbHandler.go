@@ -52,8 +52,8 @@ func init() {
 	}
 	DBPort = GetEnv("DB_PORT", "3306")
 
-	TableNetworkFlow = GetEnv("COL_NETWORK_FLOW", "network_flow")
-	TableDiscoveredPolicy = GetEnv("COL_DISCOVERED_POLICY", "discovered_policy")
+	TableNetworkFlow = GetEnv("TB_NETWORK_FLOW", "network_flow")
+	TableDiscoveredPolicy = GetEnv("TB_DISCOVERED_POLICY", "discovered_policy")
 }
 
 // updateTimeInterval function

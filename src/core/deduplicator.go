@@ -123,6 +123,11 @@ func GetLastedHTTP(existingPolicies []types.KnoxNetworkPolicy, newPolicy types.K
 
 			// 2. check toPorts
 			for _, toPort := range newToPorts {
+				if existToPorts == nil && len(existToPorts) == 0 {
+					matchToPorts = false
+					break
+				}
+
 				if !libs.ContainsElement(existToPorts, toPort) {
 					matchToPorts = false
 					break
@@ -130,6 +135,54 @@ func GetLastedHTTP(existingPolicies []types.KnoxNetworkPolicy, newPolicy types.K
 			}
 
 			if matchLables && matchToPorts {
+				return exist, true
+			}
+		}
+	}
+
+	return types.KnoxNetworkPolicy{}, false
+}
+
+// GetLatestMatchLabels function
+func GetLatestMatchLabels(existingPolicies []types.KnoxNetworkPolicy, newPolicy types.KnoxNetworkPolicy) (types.KnoxNetworkPolicy, bool) {
+	for _, exist := range existingPolicies {
+		existStatus := exist.Metadata["status"]
+		existPolicyType := exist.Metadata["type"]
+		existRule := exist.Metadata["rule"]
+
+		if cmp.Equal(&exist.Spec.Selector, &newPolicy.Spec.Selector) &&
+			existPolicyType == newPolicy.Metadata["type"] &&
+			existRule == newPolicy.Metadata["rule"] &&
+			existStatus == "latest" {
+
+			// check matchLabels
+			newMatchLabels := map[string]string{}
+			existMatchLabels := map[string]string{}
+
+			if existPolicyType == "egress" {
+				newMatchLabels = newPolicy.Spec.Egress[0].MatchLabels
+				existMatchLabels = exist.Spec.Egress[0].MatchLabels
+			} else {
+				newMatchLabels = newPolicy.Spec.Ingress[0].MatchLabels
+				existMatchLabels = exist.Spec.Ingress[0].MatchLabels
+			}
+
+			matchLables := true
+
+			// 1. check matchLabels
+			for k, v := range newMatchLabels {
+				if val, ok := existMatchLabels[k]; !ok {
+					matchLables = false
+					break
+				} else {
+					if val != v {
+						matchLables = false
+						break
+					}
+				}
+			}
+
+			if matchLables {
 				return exist, true
 			}
 		}
@@ -295,6 +348,60 @@ func UpdateHTTP(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.Knox
 	return newPolicy, true
 }
 
+// UpdateMatchLabelsToPorts function
+func UpdateMatchLabelsToPorts(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.KnoxNetworkPolicy) (types.KnoxNetworkPolicy, bool) {
+	// case 1: if there is no latest, policy is new one
+	latestMatchLabels, exist := GetLatestMatchLabels(existingPolicies, newPolicy)
+	if !exist {
+		return newPolicy, true
+	}
+
+	newToPorts := []types.SpecPort{}
+	existingToPorts := []types.SpecPort{}
+
+	if newPolicy.Metadata["type"] == "egress" {
+		newToPorts = newPolicy.Spec.Egress[0].ToPorts
+		existingToPorts = latestMatchLabels.Spec.Egress[0].ToPorts
+	} else {
+		newToPorts = newPolicy.Spec.Ingress[0].ToPorts
+		existingToPorts = latestMatchLabels.Spec.Ingress[0].ToPorts
+	}
+
+	// case 2: policy has toPorts, which are all includes in latest --> skip
+	includeAllRules := true
+	for _, rule := range newToPorts {
+		if !libs.ContainsElement(existingToPorts, rule) {
+			includeAllRules = false
+		}
+	}
+
+	if includeAllRules {
+		return newPolicy, false
+	}
+
+	// case 3: policy has toPorts, latest has toPorts or no toPorts --> move to new policy
+	for _, oldHTTP := range existingToPorts {
+		if !libs.ContainsElement(newToPorts, oldHTTP) {
+			newToPorts = append(newToPorts, oldHTTP)
+		}
+	}
+
+	if newPolicy.Metadata["type"] == "egress" {
+		newPolicy.Spec.Egress[0].ToPorts = newToPorts
+	} else {
+		newPolicy.Spec.Ingress[0].ToPorts = newToPorts
+	}
+
+	// annotate the outdated fqdn policy
+	err := libs.UpdateOutdatedPolicy(latestMatchLabels.Metadata["name"], newPolicy.Metadata["name"])
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return newPolicy, true
+	}
+
+	return newPolicy, true
+}
+
 // IsExistedPolicy function
 func IsExistedPolicy(existingPolicies []types.KnoxNetworkPolicy, inPolicy types.KnoxNetworkPolicy) bool {
 	for _, policy := range existingPolicies {
@@ -435,6 +542,15 @@ func DeduplicatePolicies(existingPolicies []types.KnoxNetworkPolicy, discoveredP
 		// step 1: compare the total network policy spec
 		if IsExistedPolicy(existingPolicies, policy) {
 			continue
+		}
+
+		// step 2: update existing matchLabels+toPorts rules
+		if policy.Metadata["rule"] == "matchLabels+toPorts" {
+			updated, valid := UpdateMatchLabelsToPorts(policy, existingPolicies)
+			if !valid {
+				continue
+			}
+			policy = updated
 		}
 
 		// step 2: update existing CIDR rules
