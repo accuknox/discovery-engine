@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/accuknox/knoxAutoPolicy/src/libs"
 	"github.com/accuknox/knoxAutoPolicy/src/types"
@@ -173,22 +174,6 @@ func ConvertCiliumFlowToKnoxLog(flow *flow.Flow, dnsToIPs map[string][]string) (
 		if dns != "" {
 			log.DNSQuery = dns
 		}
-	}
-
-	// get L7 DNS
-	if flow.GetL7() != nil && flow.L7.GetDns() != nil {
-		if flow.L7.GetType() == 1 { // if DNS REQUEST,
-			query := strings.TrimSuffix(flow.L7.GetDns().GetQuery(), ".")
-
-			// if query is in the map,
-			if _, ok := dnsToIPs[query]; ok {
-				log.DNSQuery = query
-
-				return log, true
-			}
-		}
-
-		return log, false
 	}
 
 	// get L7 HTTP
@@ -655,13 +640,30 @@ func ConnectHubbleRelay() *grpc.ClientConn {
 }
 
 // GetCiliumFlowsFromHubble function
-func GetCiliumFlowsFromHubble() []*flow.Flow {
+func GetCiliumFlowsFromHubble() ([]*flow.Flow, bool) {
 	CiliumFlowsMutex.Lock()
-	result := CiliumFlows
+	results := CiliumFlows
 	CiliumFlows = []*flow.Flow{} // reset
 	CiliumFlowsMutex.Unlock()
 
-	return result
+	if len(results) == 0 {
+		log.Info().Msgf("Traffic flow not exist")
+
+		return nil, false
+	}
+
+	fisrtDoc := results[0]
+	lastDoc := results[len(results)-1]
+
+	// id/time filter update
+	startTime := fisrtDoc.Time.Seconds
+	endTime := lastDoc.Time.Seconds
+
+	log.Info().Msgf("The total number of traffic flow: [%d] from %s ~ to %s", len(results),
+		time.Unix(startTime, 0).Format(libs.TimeFormSimple),
+		time.Unix(endTime, 0).Format(libs.TimeFormSimple))
+
+	return results, true
 }
 
 // StartHubbleRelay function
