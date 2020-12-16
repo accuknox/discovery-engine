@@ -20,6 +20,7 @@ export DISCOVERY_MODE=egress+ingress
 # hubble | db
 export NETWORK_LOG_FROM=db
 
+# cilium hubble info
 export HUBBLE_URL=127.0.0.1
 export HUBBLE_PORT=4245
 

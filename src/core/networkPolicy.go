@@ -682,8 +682,6 @@ func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcP
 						MatchNames: fqdnSlice,
 					}
 
-					// FQDN + toPorts , is it needed?
-					dst.ToPorts = removeKubeDNSPort(dst.ToPorts) // we should delete kube-dns ports
 					if len(dst.ToPorts) > 0 {
 						egressPolicy.Metadata["rule"] = egressPolicy.Metadata["rule"] + "+toPorts"
 						egressRule.ToPorts = dst.ToPorts
@@ -1498,7 +1496,7 @@ func StartCronJob() {
 
 	// init cron job
 	c := cron.New()
-	c.AddFunc("@every 0h0m5s", StartToDiscoverNetworkPolicies) // time interval
+	c.AddFunc("@every 0h0m10s", StartToDiscoverNetworkPolicies) // time interval
 	c.Start()
 
 	sig := libs.GetOSSigChannel()

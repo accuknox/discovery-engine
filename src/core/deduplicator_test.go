@@ -88,7 +88,7 @@ func TestGetLatestCIDRs(t *testing.T) {
 
 	existings := []types.KnoxNetworkPolicy{exist1, exist2}
 
-	result, valid := GetLatestCIDRs(existings, cidrPolicy)
+	result, valid := GetLatestCIDRPolicy(existings, cidrPolicy)
 	if valid {
 		assert.Equal(t, result, exist1, "they should be equal")
 	} else {
@@ -177,7 +177,7 @@ func TestGetLastedFQDNs(t *testing.T) {
 
 	existings := []types.KnoxNetworkPolicy{exist1, exist2}
 
-	result, valid := GetLastedFQDNs(existings, fqdnPolicy)
+	result, valid := GetLastedFQDNPolicy(existings, fqdnPolicy)
 	if valid {
 		assert.Equal(t, result, exist1, "they should be equal")
 	} else {
@@ -311,7 +311,7 @@ func TestUpdateCIDR(t *testing.T) {
 
 	existings := []types.KnoxNetworkPolicy{exist1}
 
-	result, valid := UpdateCIDR(cidrPolicy, existings)
+	result, valid := UpdateToPorts(cidrPolicy, existings)
 	if valid {
 		assert.Equal(t, result, expectedPolicy, "they should be equal")
 	} else {
@@ -422,7 +422,7 @@ func TestUpdateFQDN(t *testing.T) {
 
 	existings := []types.KnoxNetworkPolicy{exist1}
 
-	result, valid := UpdateFQDN(fqdnPolicy, existings)
+	result, valid := UpdateToPorts(fqdnPolicy, existings)
 	if valid {
 		assert.Equal(t, result, expectedPolicy, "they should be equal")
 	} else {

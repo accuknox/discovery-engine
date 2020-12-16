@@ -176,22 +176,6 @@ func ConvertCiliumFlowToKnoxLog(flow *flow.Flow, dnsToIPs map[string][]string) (
 		}
 	}
 
-	// get L7 DNS
-	if flow.GetL7() != nil && flow.L7.GetDns() != nil {
-		if flow.L7.GetType() == 1 { // if DNS REQUEST,
-			query := strings.TrimSuffix(flow.L7.GetDns().GetQuery(), ".")
-
-			// if query is in the map,
-			if _, ok := dnsToIPs[query]; ok {
-				log.DNSQuery = query
-
-				return log, true
-			}
-		}
-
-		return log, false
-	}
-
 	// get L7 HTTP
 	if flow.GetL7() != nil && flow.L7.GetHttp() != nil {
 		log.HTTPMethod, log.HTTPPath = getHTTP(flow)
