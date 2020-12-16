@@ -60,6 +60,12 @@ var DiscoveryMode int
 // NetworkLogFrom string
 var NetworkLogFrom string
 
+// LabeledSrcsPerDstMap map --> key: simple Dst, value: simple Src
+type LabeledSrcsPerDstMap map[Dst][]SrcSimple
+
+// LabeledSrcsPerDst map --> key: namespace, value: LabeledSrcsPerDstMap
+var LabeledSrcsPerDst map[string]LabeledSrcsPerDstMap
+
 // init Function
 func init() {
 	StopChan = make(chan struct{})
@@ -69,6 +75,8 @@ func init() {
 
 	DiscoveryMode = libs.GetEnvInt("DISCOVERY_MODE", 3)
 	NetworkLogFrom = libs.GetEnv("NETWORK_LOG_FROM", "db")
+
+	LabeledSrcsPerDst = map[string]LabeledSrcsPerDstMap{}
 }
 
 // ====================== //
@@ -959,9 +967,7 @@ func getMergedLabels(namespace, podName string, pods []types.Pod) string {
 }
 
 // extractingSrcFromLogs Function
-func extractingSrcFromLogs(perDst map[Dst][]types.KnoxNetworkLog, pods []types.Pod) map[Dst][]SrcSimple {
-	perDstSrcLabel := map[Dst][]SrcSimple{}
-
+func extractingSrcFromLogs(labeledSrcsPerDst map[Dst][]SrcSimple, perDst map[Dst][]types.KnoxNetworkLog, pods []types.Pod) map[Dst][]SrcSimple {
 	for dst, logs := range perDst {
 		srcs := []SrcSimple{}
 
@@ -983,10 +989,21 @@ func extractingSrcFromLogs(perDst map[Dst][]types.KnoxNetworkLog, pods []types.P
 			}
 		}
 
-		perDstSrcLabel[dst] = srcs
+		if val, ok := labeledSrcsPerDst[dst]; ok {
+			for _, src := range srcs {
+				if !libs.ContainsElement(val, src) {
+					val = append(val, src)
+				}
+			}
+
+			// update srcs
+			labeledSrcsPerDst[dst] = val
+		} else {
+			labeledSrcsPerDst[dst] = srcs
+		}
 	}
 
-	return perDstSrcLabel
+	return labeledSrcsPerDst
 }
 
 // =========================================== //
@@ -1336,6 +1353,21 @@ func generatePolicyName(networkPolicies []types.KnoxNetworkPolicy) []types.KnoxN
 	return newPolicies
 }
 
+// ================================== //
+// == labeledSrcsPerDst Map Update == //
+// ================================== //
+
+// UpdateLabeledSrcsPerDst function
+func UpdateLabeledSrcsPerDst(labeledSrcsPerDst map[Dst][]SrcSimple) map[Dst][]SrcSimple {
+	for dst := range labeledSrcsPerDst {
+		if dst.Namespace == "reserved:cidr" {
+			delete(labeledSrcsPerDst, dst)
+		}
+	}
+
+	return labeledSrcsPerDst
+}
+
 // ============================== //
 // == Discover Network Policy  == //
 // ============================== //
@@ -1351,7 +1383,13 @@ func DiscoverNetworkPolicies(namespace string,
 	logsPerDst := groupingLogsPerDst(networkLogs, endpoints, cidrBits)
 
 	// step 2: {dst: [network logs (src+dst)]} -> {dst: [srcs (labeled)]}
-	labeledSrcsPerDst := extractingSrcFromLogs(logsPerDst, pods)
+	// we keep labeledSrcsPerDst map for aggregating the merged policy set in the future
+	labeledSrcsPerDst := map[Dst][]SrcSimple{}
+	if val, ok := LabeledSrcsPerDst[namespace]; ok {
+		labeledSrcsPerDst = extractingSrcFromLogs(val, logsPerDst, pods)
+	} else {
+		labeledSrcsPerDst = extractingSrcFromLogs(labeledSrcsPerDst, logsPerDst, pods)
+	}
 
 	// step 3: {dst: [srcs (labeled)]} -> {dst: [merged srcs (labeled + merged)]}
 	mergedSrcsPerDst := mergingSrcByLabels(labeledSrcsPerDst)
@@ -1367,6 +1405,9 @@ func DiscoverNetworkPolicies(namespace string,
 
 	// step 7: removing duplication policies
 	namedPolicies := generatePolicyName(networkPolicies)
+
+	// step 8: update labeledSrcsPerDst map (remove cidr dst)
+	LabeledSrcsPerDst[namespace] = UpdateLabeledSrcsPerDst(labeledSrcsPerDst)
 
 	return namedPolicies
 }
@@ -1399,13 +1440,13 @@ func StartToDiscoverNetworkPolicies() {
 	if NetworkLogFrom == "db" {
 		log.Info().Msg("Get network traffic from the database")
 
-		flows, valid := libs.GetTrafficFlowFromDB()
+		results, valid := libs.GetTrafficFlowFromDB()
 		if !valid {
 			return
 		}
 
 		// convert db flows -> cilium flows
-		ciliumFlows = plugin.ConvertDocsToCiliumFlows(flows)
+		ciliumFlows = plugin.ConvertDocsToCiliumFlows(results)
 	} else { // from hubble directly
 		log.Info().Msg("Get network traffic from the hubble directly")
 

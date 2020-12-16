@@ -99,7 +99,7 @@ func GetTrafficFlowByIDTime(id, endTime int64) ([]map[string]interface{}, error)
 
 	QueryBase := QueryBaseSimple + TableNetworkFlow
 
-	rows, err := db.Query(QueryBase+" WHERE id > ? and time < ? ", id, endTime)
+	rows, err := db.Query(QueryBase+" WHERE id > ? and time <= ? ", id, endTime)
 	if err != nil {
 		return nil, err
 	}

@@ -10,79 +10,116 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
+// includeSelectorLabels function
+func includeSelectorLabels(newSelectorLabels map[string]string, existSelectorLabels map[string]string) bool {
+	includeSelector := true
+
+	for k, v := range newSelectorLabels {
+		if val, ok := existSelectorLabels[k]; !ok {
+			includeSelector = false
+			break
+		} else {
+			if val != v {
+				includeSelector = false
+				break
+			}
+		}
+	}
+
+	return includeSelector
+}
+
 // GetLatestCIDRPolicy function
-func GetLatestCIDRPolicy(existingPolicies []types.KnoxNetworkPolicy, policy types.KnoxNetworkPolicy) (types.KnoxNetworkPolicy, bool) {
+func GetLatestCIDRPolicy(existingPolicies []types.KnoxNetworkPolicy, policy types.KnoxNetworkPolicy) []types.KnoxNetworkPolicy {
+	latestPolicies := []types.KnoxNetworkPolicy{}
+
 	for _, exist := range existingPolicies {
 		existStatus := exist.Metadata["status"]
 		existPolicyType := exist.Metadata["type"]
 		existRule := exist.Metadata["rule"]
 
-		if cmp.Equal(&exist.Spec.Selector, &policy.Spec.Selector) &&
-			existPolicyType == policy.Metadata["type"] &&
+		if existPolicyType == policy.Metadata["type"] &&
 			existRule == policy.Metadata["rule"] &&
 			existStatus == "latest" {
 
+			// check selector matchLabels, if not matched, next existing rule
+			if !includeSelectorLabels(policy.Spec.Selector.MatchLabels, exist.Spec.Selector.MatchLabels) {
+				continue
+			}
+
 			// check cidr list
-			included := true
+			matchCIDRs := true
 			for _, cidr := range policy.Spec.Egress[0].ToCIDRs[0].CIDRs {
 				for _, existCidr := range exist.Spec.Egress[0].ToCIDRs[0].CIDRs {
 					if cidr != existCidr {
-						included = false
+						matchCIDRs = false
 					}
 				}
 			}
 
-			if included {
-				return exist, true
+			if matchCIDRs {
+				latestPolicies = append(latestPolicies, exist)
 			}
 		}
 	}
 
-	return types.KnoxNetworkPolicy{}, false
+	return latestPolicies
 }
 
 // GetLastedFQDNPolicy function
-func GetLastedFQDNPolicy(existingPolicies []types.KnoxNetworkPolicy, policy types.KnoxNetworkPolicy) (types.KnoxNetworkPolicy, bool) {
+func GetLastedFQDNPolicy(existingPolicies []types.KnoxNetworkPolicy, policy types.KnoxNetworkPolicy) []types.KnoxNetworkPolicy {
+	latestPolicies := []types.KnoxNetworkPolicy{}
+
 	for _, exist := range existingPolicies {
 		existStatus := exist.Metadata["status"]
 		existPolicyType := exist.Metadata["type"]
 		existRule := exist.Metadata["rule"]
 
-		if cmp.Equal(&exist.Spec.Selector, &policy.Spec.Selector) &&
-			existPolicyType == policy.Metadata["type"] &&
+		if existPolicyType == policy.Metadata["type"] &&
 			existRule == policy.Metadata["rule"] &&
 			existStatus == "latest" {
 
+			// check selector matchLabels, if not matched, next existing rule
+			if !includeSelectorLabels(policy.Spec.Selector.MatchLabels, exist.Spec.Selector.MatchLabels) {
+				continue
+			}
+
 			// check cidr list
-			included := true
+			matchFQDN := true
 			for _, dns := range policy.Spec.Egress[0].ToFQDNs[0].MatchNames {
 				for _, existDNS := range exist.Spec.Egress[0].ToFQDNs[0].MatchNames {
 					if dns != existDNS {
-						included = false
+						matchFQDN = false
 					}
 				}
 			}
 
-			if included {
-				return exist, true
+			if matchFQDN {
+				latestPolicies = append(latestPolicies, exist)
 			}
 		}
 	}
 
-	return types.KnoxNetworkPolicy{}, false
+	return latestPolicies
 }
 
 // GetLastedHTTP function
-func GetLastedHTTP(existingPolicies []types.KnoxNetworkPolicy, policy types.KnoxNetworkPolicy) (types.KnoxNetworkPolicy, bool) {
+func GetLastedHTTP(existingPolicies []types.KnoxNetworkPolicy, policy types.KnoxNetworkPolicy) []types.KnoxNetworkPolicy {
+	latestPolicies := []types.KnoxNetworkPolicy{}
+
 	for _, exist := range existingPolicies {
 		existStatus := exist.Metadata["status"]
 		existPolicyType := exist.Metadata["type"]
 		existRule := exist.Metadata["rule"]
 
-		if cmp.Equal(&exist.Spec.Selector, &policy.Spec.Selector) &&
-			existPolicyType == policy.Metadata["type"] &&
+		if existPolicyType == policy.Metadata["type"] &&
 			strings.Contains(existRule, "toHTTPs") &&
 			existStatus == "latest" {
+
+			// check selector matchLabels, if not matched, next existing rule
+			if !includeSelectorLabels(policy.Spec.Selector.MatchLabels, exist.Spec.Selector.MatchLabels) {
+				continue
+			}
 
 			// check matchLabels & toPorts
 			newMatchLabels := map[string]string{}
@@ -135,27 +172,32 @@ func GetLastedHTTP(existingPolicies []types.KnoxNetworkPolicy, policy types.Knox
 			}
 
 			if matchLables && matchToPorts {
-				return exist, true
+				latestPolicies = append(latestPolicies, exist)
 			}
 		}
 	}
 
-	return types.KnoxNetworkPolicy{}, false
+	return latestPolicies
 }
 
 // GetLatestMatchLabelsPolicy function
-func GetLatestMatchLabelsPolicy(existingPolicies []types.KnoxNetworkPolicy, policy types.KnoxNetworkPolicy) (types.KnoxNetworkPolicy, bool) {
+func GetLatestMatchLabelsPolicy(existingPolicies []types.KnoxNetworkPolicy, policy types.KnoxNetworkPolicy) []types.KnoxNetworkPolicy {
+	latestPolicies := []types.KnoxNetworkPolicy{}
+
 	for _, exist := range existingPolicies {
 		existStatus := exist.Metadata["status"]
 		existPolicyType := exist.Metadata["type"]
 		existRule := exist.Metadata["rule"]
 
-		if cmp.Equal(&exist.Spec.Selector, &policy.Spec.Selector) &&
-			existPolicyType == policy.Metadata["type"] &&
-			existRule == policy.Metadata["rule"] &&
+		if existPolicyType == policy.Metadata["type"] &&
+			strings.Contains(existRule, "matchLabels") &&
 			existStatus == "latest" {
 
-			// check matchLabels
+			// check selector matchLabels, if not matched, next existing rule
+			if !includeSelectorLabels(policy.Spec.Selector.MatchLabels, exist.Spec.Selector.MatchLabels) {
+				continue
+			}
+
 			newMatchLabels := map[string]string{}
 			existMatchLabels := map[string]string{}
 
@@ -169,7 +211,7 @@ func GetLatestMatchLabelsPolicy(existingPolicies []types.KnoxNetworkPolicy, poli
 
 			matchLables := true
 
-			// 1. check matchLabels
+			// check target matchLabels
 			for k, v := range newMatchLabels {
 				if val, ok := existMatchLabels[k]; !ok {
 					matchLables = false
@@ -183,12 +225,12 @@ func GetLatestMatchLabelsPolicy(existingPolicies []types.KnoxNetworkPolicy, poli
 			}
 
 			if matchLables {
-				return exist, true
+				latestPolicies = append(latestPolicies, exist)
 			}
 		}
 	}
 
-	return types.KnoxNetworkPolicy{}, false
+	return latestPolicies
 }
 
 // IncludeToPorts function
@@ -204,214 +246,248 @@ func IncludeToPorts(policyToPorts, latestToPorts []types.SpecPort) bool {
 	return included
 }
 
-// UpdateCIDR function
-// func UpdateCIDR(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.KnoxNetworkPolicy) (types.KnoxNetworkPolicy, bool) {
-// 	if newPolicy.Metadata["type"] == "egress" { // egress
-// 		// case 1: if this policy is new one
-// 		latestCidrs, exist := GetLatestCIDRPolicy(existingPolicies, newPolicy)
-// 		if !exist {
-// 			return newPolicy, true
-// 		}
-
-// 		// case 2: policy has no toPorts, latest has no toPorts --> cannot be happen (exact match)
-
-// 		// case 3: policy has no toPorts, latest has toPorts --> latest has the higher priority
-// 		if len(newPolicy.Spec.Egress[0].ToPorts) == 0 && len(latestCidrs.Spec.Egress[0].ToPorts) > 0 {
-// 			return newPolicy, false
-// 		}
-
-// 		// case 4: policy has toPorts, which are includes all in latest --> skip
-// 		newToPorts := newPolicy.Spec.Egress[0].ToPorts
-// 		existingToPorts := latestCidrs.Spec.Egress[0].ToPorts
-// 		if IncludeToPorts(newToPorts, existingToPorts) {
-// 			return newPolicy, false
-// 		}
-
-// 		// case 5: policy has toPorts, latest has toPorts or no toPorts --> move to new policy
-// 		for _, existingToPort := range existingToPorts {
-// 			if !libs.ContainsElement(newToPorts, existingToPort) {
-// 				newToPorts = append(newToPorts, existingToPort)
-// 			}
-// 		}
-// 		newPolicy.Spec.Egress[0].ToPorts = newToPorts
-
-// 		// annotate the outdated cidr policy
-// 		err := libs.UpdateOutdatedPolicy(latestCidrs.Metadata["name"], newPolicy.Metadata["name"])
-// 		if err != nil {
-// 			log.Error().Msg(err.Error())
-// 			return newPolicy, true
-// 		}
-
-// 		return newPolicy, true
-// 	}
-
-// 	// if ingress cidr don't need to care about it beacuse there is no toPorts
-// 	return newPolicy, true
-// }
-
-// UpdateFQDN function
-// func UpdateFQDN(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.KnoxNetworkPolicy) (types.KnoxNetworkPolicy, bool) {
-// 	if newPolicy.Metadata["type"] == "egress" { // egress
-// 		// case 1: policy is new one
-// 		latestFQDNs, exist := GetLastedFQDNPolicy(existingPolicies, newPolicy)
-// 		if !exist {
-// 			return newPolicy, true
-// 		}
-
-// 		// case 2: policy has no toPorts, latest has no toPorts --> cannot be happen (exact match)
-
-// 		// case 3: policy has no toPorts, latest has toPorts --> latest has the higher priority
-// 		if len(newPolicy.Spec.Egress[0].ToPorts) == 0 && len(latestFQDNs.Spec.Egress[0].ToPorts) > 0 {
-// 			return newPolicy, false
-// 		}
-
-// 		// case 4: policy has toPorts, which are includes in latest --> skip
-// 		newToPorts := newPolicy.Spec.Egress[0].ToPorts
-// 		existingToPorts := latestFQDNs.Spec.Egress[0].ToPorts
-// 		if IncludeToPorts(newToPorts, existingToPorts) {
-// 			return newPolicy, false
-// 		}
-
-// 		// case 5: policy has toPorts, latest has toPorts or no toPorts --> move to this policy
-// 		for _, existingToPort := range existingToPorts {
-// 			if !libs.ContainsElement(newToPorts, existingToPort) {
-// 				newToPorts = append(newToPorts, existingToPort)
-// 			}
-// 		}
-// 		newPolicy.Spec.Egress[0].ToPorts = newToPorts
-
-// 		// annotate the outdated fqdn policy
-// 		err := libs.UpdateOutdatedPolicy(latestFQDNs.Metadata["name"], newPolicy.Metadata["name"])
-// 		if err != nil {
-// 			log.Error().Msg(err.Error())
-// 			return newPolicy, true
-// 		}
-
-// 		return newPolicy, true
-// 	}
-
-// 	// if ingress fqdn don't need to care about,
-// 	return newPolicy, true
-// }
-
 // UpdateHTTP function
 func UpdateHTTP(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.KnoxNetworkPolicy) (types.KnoxNetworkPolicy, bool) {
 	// case 1: if there is no latest, policy is new one
-	latestHTTP, exist := GetLastedHTTP(existingPolicies, newPolicy)
-	if !exist {
+	latestPolicies := GetLastedHTTP(existingPolicies, newPolicy)
+	if len(latestPolicies) == 0 {
 		return newPolicy, true
 	}
 
 	newHTTP := []types.SpecHTTP{}
-	existingHTTP := []types.SpecHTTP{}
-
 	if newPolicy.Metadata["type"] == "egress" {
 		newHTTP = newPolicy.Spec.Egress[0].ToHTTPs
-		existingHTTP = latestHTTP.Spec.Egress[0].ToHTTPs
 	} else {
 		newHTTP = newPolicy.Spec.Ingress[0].ToHTTPs
-		existingHTTP = latestHTTP.Spec.Ingress[0].ToHTTPs
 	}
 
-	// case 2: policy has toHTTPs, which are all includes in latest --> skip
-	includeAllRules := true
-	for _, rule := range newHTTP {
-		if !libs.ContainsElement(existingHTTP, rule) {
-			includeAllRules = false
+	updated := false
+
+	for _, latestPolicy := range latestPolicies {
+		existHTTP := []types.SpecHTTP{}
+		if newPolicy.Metadata["type"] == "egress" {
+			existHTTP = latestPolicy.Spec.Egress[0].ToHTTPs
+		} else {
+			existHTTP = latestPolicy.Spec.Ingress[0].ToHTTPs
 		}
+
+		// case 2: policy has toHTTPs, which are all includes in latest --> skip
+		includeAllRules := true
+		for _, rule := range newHTTP {
+			if !libs.ContainsElement(existHTTP, rule) {
+				includeAllRules = false
+			}
+		}
+
+		if includeAllRules {
+			// case 2-1: policy has the lower selector count? outdated
+			if len(newPolicy.Spec.Selector.MatchLabels) < len(latestPolicy.Spec.Selector.MatchLabels) {
+				err := libs.UpdateOutdatedPolicy(latestPolicy.Metadata["name"], newPolicy.Metadata["name"])
+				if err != nil {
+					log.Error().Msg(err.Error())
+				}
+			}
+
+			continue
+		}
+
+		// case 3: policy has toHTTPs, latest has toHTTPs or no toHTTPs --> move to new policy
+		for _, oldHTTP := range existHTTP {
+			if !libs.ContainsElement(newHTTP, oldHTTP) {
+				newHTTP = append(newHTTP, oldHTTP)
+			}
+		}
+
+		// annotate the outdated fqdn policy
+		err := libs.UpdateOutdatedPolicy(latestPolicy.Metadata["name"], newPolicy.Metadata["name"])
+		if err != nil {
+			log.Error().Msg(err.Error())
+			return newPolicy, true
+		}
+
+		updated = true
 	}
 
-	if includeAllRules {
+	// at least one updated
+	if updated {
+
+		if newPolicy.Metadata["type"] == "egress" {
+			newPolicy.Spec.Egress[0].ToHTTPs = newHTTP
+		} else {
+			newPolicy.Spec.Ingress[0].ToHTTPs = newHTTP
+		}
+
+		return newPolicy, true
+	} else {
 		return newPolicy, false
 	}
-
-	// case 3: policy has toHTTPs, latest has toHTTPs or no toHTTPs --> move to new policy
-	for _, oldHTTP := range existingHTTP {
-		if !libs.ContainsElement(newHTTP, oldHTTP) {
-			newHTTP = append(newHTTP, oldHTTP)
-		}
-	}
-
-	if newPolicy.Metadata["type"] == "egress" {
-		newPolicy.Spec.Egress[0].ToHTTPs = newHTTP
-	} else {
-		newPolicy.Spec.Ingress[0].ToHTTPs = newHTTP
-	}
-
-	// annotate the outdated fqdn policy
-	err := libs.UpdateOutdatedPolicy(latestHTTP.Metadata["name"], newPolicy.Metadata["name"])
-	if err != nil {
-		log.Error().Msg(err.Error())
-		return newPolicy, true
-	}
-
-	return newPolicy, true
 }
 
 // UpdateToPorts function
 func UpdateToPorts(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.KnoxNetworkPolicy) (types.KnoxNetworkPolicy, bool) {
-	latestPolicy := types.KnoxNetworkPolicy{}
-	exist := false
-
 	// case 1: if there is no latest, policy is new one
-	if newPolicy.Metadata["rule"] == "matchLabels+toPorts" {
-		latestPolicy, exist = GetLatestMatchLabelsPolicy(existingPolicies, newPolicy)
-	} else if newPolicy.Metadata["rule"] == "toCIDRs+toPorts" {
-		latestPolicy, exist = GetLatestCIDRPolicy(existingPolicies, newPolicy)
+	latestPolicies := []types.KnoxNetworkPolicy{}
+	if newPolicy.Metadata["rule"] == "toCIDRs+toPorts" {
+		latestPolicies = GetLatestCIDRPolicy(existingPolicies, newPolicy)
 	} else if newPolicy.Metadata["rule"] == "toFQDNs+toPorts" {
-		latestPolicy, exist = GetLastedFQDNPolicy(existingPolicies, newPolicy)
+		latestPolicies = GetLastedFQDNPolicy(existingPolicies, newPolicy)
 	} else {
 		return newPolicy, true
 	}
 
-	if !exist {
+	if len(latestPolicies) == 0 {
 		return newPolicy, true
 	}
 
 	newToPorts := []types.SpecPort{}
-	existingToPorts := []types.SpecPort{}
-
 	if newPolicy.Metadata["type"] == "egress" {
 		newToPorts = newPolicy.Spec.Egress[0].ToPorts
-		existingToPorts = latestPolicy.Spec.Egress[0].ToPorts
 	} else {
 		newToPorts = newPolicy.Spec.Ingress[0].ToPorts
-		existingToPorts = latestPolicy.Spec.Ingress[0].ToPorts
 	}
 
-	// case 2: policy has toPorts, which are all includes in latest --> skip
-	includeAllRules := true
-	for _, rule := range newToPorts {
-		if !libs.ContainsElement(existingToPorts, rule) {
-			includeAllRules = false
+	updated := false
+
+	for _, latestPolicy := range latestPolicies {
+		existToPorts := []types.SpecPort{}
+		if newPolicy.Metadata["type"] == "egress" {
+			existToPorts = latestPolicy.Spec.Egress[0].ToPorts
+		} else {
+			existToPorts = latestPolicy.Spec.Ingress[0].ToPorts
 		}
+
+		includeAllRules := true
+		for _, rule := range newToPorts {
+			if !libs.ContainsElement(existToPorts, rule) {
+				includeAllRules = false
+			}
+		}
+
+		// case 2: policy has toPorts, which are all includes in latest one
+		if includeAllRules {
+			// case 2-1: policy has the lower selector count? outdated
+			if len(newPolicy.Spec.Selector.MatchLabels) < len(latestPolicy.Spec.Selector.MatchLabels) {
+				err := libs.UpdateOutdatedPolicy(latestPolicy.Metadata["name"], newPolicy.Metadata["name"])
+				if err != nil {
+					log.Error().Msg(err.Error())
+				}
+			}
+
+			continue // next existPolicy
+		}
+
+		// case 3: policy has toPorts, latest has toPorts or no toPorts --> move to new policy
+		for _, toPort := range existToPorts {
+			if !libs.ContainsElement(newToPorts, toPort) {
+				newToPorts = append(newToPorts, toPort)
+			}
+		}
+
+		// annotate the outdated policy
+		err := libs.UpdateOutdatedPolicy(latestPolicy.Metadata["name"], newPolicy.Metadata["name"])
+		if err != nil {
+			log.Error().Msg(err.Error())
+		}
+
+		updated = true
 	}
 
-	if includeAllRules {
+	// at least one updated
+	if updated {
+		if newPolicy.Metadata["type"] == "egress" {
+			newPolicy.Spec.Egress[0].ToPorts = newToPorts
+		} else {
+			newPolicy.Spec.Ingress[0].ToPorts = newToPorts
+		}
+
+		return newPolicy, true
+	} else {
 		return newPolicy, false
 	}
+}
 
-	// case 3: policy has toPorts, latest has toPorts or no toPorts --> move to new policy
-	for _, oldHTTP := range existingToPorts {
-		if !libs.ContainsElement(newToPorts, oldHTTP) {
-			newToPorts = append(newToPorts, oldHTTP)
-		}
-	}
-
-	if newPolicy.Metadata["type"] == "egress" {
-		newPolicy.Spec.Egress[0].ToPorts = newToPorts
-	} else {
-		newPolicy.Spec.Ingress[0].ToPorts = newToPorts
-	}
-
-	// annotate the outdated fqdn policy
-	err := libs.UpdateOutdatedPolicy(latestPolicy.Metadata["name"], newPolicy.Metadata["name"])
-	if err != nil {
-		log.Error().Msg(err.Error())
+// UpdateMatchLabels function
+func UpdateMatchLabels(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.KnoxNetworkPolicy) (types.KnoxNetworkPolicy, bool) {
+	// case 1: if there is no latest policy, policy is new one
+	latestPolicies := GetLatestMatchLabelsPolicy(existingPolicies, newPolicy)
+	if len(latestPolicies) == 0 {
 		return newPolicy, true
 	}
 
-	return newPolicy, true
+	newToPorts := []types.SpecPort{}
+	newTargetLabelsCount := 0
+	if newPolicy.Metadata["type"] == "egress" {
+		newToPorts = newPolicy.Spec.Egress[0].ToPorts
+		newTargetLabelsCount = len(newPolicy.Spec.Egress[0].MatchLabels)
+	} else {
+		newToPorts = newPolicy.Spec.Ingress[0].ToPorts
+		newTargetLabelsCount = len(newPolicy.Spec.Ingress[0].MatchLabels)
+	}
+
+	updated := false
+
+	for _, latestPolicy := range latestPolicies {
+		existToPorts := []types.SpecPort{}
+		existTargetLabelsCount := 0
+
+		if newPolicy.Metadata["type"] == "egress" {
+			existToPorts = latestPolicy.Spec.Egress[0].ToPorts
+			existTargetLabelsCount = len(latestPolicy.Spec.Egress[0].MatchLabels)
+		} else {
+			existToPorts = latestPolicy.Spec.Ingress[0].ToPorts
+			existTargetLabelsCount = len(latestPolicy.Spec.Ingress[0].MatchLabels)
+		}
+
+		includeAllRules := true
+		for _, rule := range newToPorts {
+			if !libs.ContainsElement(existToPorts, rule) {
+				includeAllRules = false
+			}
+		}
+
+		// case 2: policy has toPorts, which are all includes in latest one
+		if includeAllRules {
+			// case 2-1: policy has the lower selector count? outdated
+			if len(newPolicy.Spec.Selector.MatchLabels) < len(latestPolicy.Spec.Selector.MatchLabels) ||
+				newTargetLabelsCount < existTargetLabelsCount {
+				// case 2-2: policy has the lower target matchLabels count? outdated
+				err := libs.UpdateOutdatedPolicy(latestPolicy.Metadata["name"], newPolicy.Metadata["name"])
+				if err != nil {
+					log.Error().Msg(err.Error())
+				}
+			}
+
+			continue // next existPolicy
+		}
+
+		// case 3: policy has toPorts, latest has toPorts or no toPorts --> move to new policy
+		for _, toPort := range existToPorts {
+			if !libs.ContainsElement(newToPorts, toPort) {
+				newToPorts = append(newToPorts, toPort)
+			}
+		}
+
+		// annotate the outdated policy
+		err := libs.UpdateOutdatedPolicy(latestPolicy.Metadata["name"], newPolicy.Metadata["name"])
+		if err != nil {
+			log.Error().Msg(err.Error())
+		}
+
+		updated = true
+	}
+
+	// at least one updated
+	if updated {
+		if newPolicy.Metadata["type"] == "egress" {
+			newPolicy.Spec.Egress[0].ToPorts = newToPorts
+		} else {
+			newPolicy.Spec.Ingress[0].ToPorts = newToPorts
+		}
+
+		return newPolicy, true
+	} else {
+		return newPolicy, false
+	}
 }
 
 // IsExistedPolicy function
@@ -556,8 +632,8 @@ func DeduplicatePolicies(existingPolicies []types.KnoxNetworkPolicy, discoveredP
 		}
 
 		// step 2: update existing matchLabels+toPorts rules
-		if policy.Metadata["rule"] == "matchLabels+toPorts" {
-			updated, valid := UpdateToPorts(policy, existingPolicies)
+		if strings.Contains(policy.Metadata["rule"], "matchLabels") {
+			updated, valid := UpdateMatchLabels(policy, existingPolicies)
 			if !valid {
 				continue
 			}
