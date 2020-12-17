@@ -88,12 +88,8 @@ func TestGetLatestCIDRs(t *testing.T) {
 
 	existings := []types.KnoxNetworkPolicy{exist1, exist2}
 
-	result, valid := GetLatestCIDRPolicy(existings, cidrPolicy)
-	if valid {
-		assert.Equal(t, result, exist1, "they should be equal")
-	} else {
-		assert.Equal(t, valid, true, "they should be equal")
-	}
+	result := GetLatestCIDRPolicy(existings, cidrPolicy)
+	assert.Equal(t, result, exist1, "they should be equal")
 }
 
 func TestGetLastedFQDNs(t *testing.T) {
@@ -177,35 +173,8 @@ func TestGetLastedFQDNs(t *testing.T) {
 
 	existings := []types.KnoxNetworkPolicy{exist1, exist2}
 
-	result, valid := GetLastedFQDNPolicy(existings, fqdnPolicy)
-	if valid {
-		assert.Equal(t, result, exist1, "they should be equal")
-	} else {
-		assert.Equal(t, valid, true, "they should be equal")
-	}
-}
-
-func TestIncludeToPorts(t *testing.T) {
-	latestToPorts := []types.SpecPort{
-		types.SpecPort{
-			Port:     "80",
-			Protocol: "tcp",
-		},
-		types.SpecPort{
-			Port:     "443",
-			Protocol: "tcp",
-		},
-	}
-
-	policyToPorts := []types.SpecPort{
-		types.SpecPort{
-			Port:     "80",
-			Protocol: "tcp",
-		},
-	}
-
-	result := IncludeToPorts(policyToPorts, latestToPorts)
-	assert.Equal(t, result, true, "they should be equal")
+	result := GetLastedFQDNPolicy(existings, fqdnPolicy)
+	assert.Equal(t, result, exist1, "they should be equal")
 }
 
 func TestUpdateCIDR(t *testing.T) {
@@ -497,7 +466,7 @@ func TestIsExistedPolicy(t *testing.T) {
 
 	existings := []types.KnoxNetworkPolicy{exist1}
 
-	exist := IsExistedPolicy(existings, newPolicy)
+	exist := IsExistingPolicy(existings, newPolicy)
 	assert.Equal(t, exist, true, "they should be equal")
 }
 

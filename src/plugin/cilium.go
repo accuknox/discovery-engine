@@ -465,11 +465,11 @@ func ConvertKnoxPolicyToCiliumPolicy(services []types.Service, inPolicy types.Kn
 				// build Entity rule //
 				// ================= //
 				for _, entity := range knoxEgress.ToEndtities {
-					if ciliumEgress.ToEndtities == nil {
-						ciliumEgress.ToEndtities = []string{}
+					if ciliumEgress.ToEntities == nil {
+						ciliumEgress.ToEntities = []string{}
 					}
 
-					ciliumEgress.ToEndtities = append(ciliumEgress.ToEndtities, entity)
+					ciliumEgress.ToEntities = append(ciliumEgress.ToEntities, entity)
 				}
 			} else if len(knoxEgress.ToServices) > 0 {
 				// ================== //

@@ -131,10 +131,10 @@ type CiliumEgress struct {
 	ToEndpoints []CiliumEndpoint `json:"toEndpoints,omitempty" yaml:"toEndpoints,omitempty"`
 	ToPorts     []CiliumPortList `json:"toPorts,omitempty" yaml:"toPorts,omitempty"`
 
-	ToCIDRs     []string        `json:"toCIDR,omitempty" yaml:"toCIDR,omitempty"`
-	ToEndtities []string        `json:"toEntities,omitempty" yaml:"toEntities,omitempty"`
-	ToServices  []CiliumService `json:"toServices,omitempty" yaml:"toServices,omitempty"`
-	ToFQDNs     []CiliumFQDN    `json:"toFQDNs,omitempty" yaml:"toFQDNs,omitempty"`
+	ToCIDRs    []string        `json:"toCIDR,omitempty" yaml:"toCIDR,omitempty"`
+	ToEntities []string        `json:"toEntities,omitempty" yaml:"toEntities,omitempty"`
+	ToServices []CiliumService `json:"toServices,omitempty" yaml:"toServices,omitempty"`
+	ToFQDNs    []CiliumFQDN    `json:"toFQDNs,omitempty" yaml:"toFQDNs,omitempty"`
 }
 
 // CiliumIngress Structure
