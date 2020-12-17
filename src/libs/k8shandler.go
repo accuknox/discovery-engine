@@ -64,14 +64,14 @@ func ConnectLocalAPIClient() *kubernetes.Clientset {
 	// use the current context in kubeconfig
 	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
 	if err != nil {
-		log.Err(err)
+		log.Error().Msg(err.Error())
 		return nil
 	}
 
 	// creates the clientset
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		log.Err(err)
+		log.Error().Msg(err.Error())
 		return nil
 	}
 
@@ -98,7 +98,7 @@ func ConnectInClusterAPIClient() *kubernetes.Clientset {
 
 	read, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/token")
 	if err != nil {
-		log.Err(err)
+		log.Error().Msg(err.Error())
 		return nil
 	}
 
@@ -114,7 +114,7 @@ func ConnectInClusterAPIClient() *kubernetes.Clientset {
 	}
 
 	if client, err := kubernetes.NewForConfig(kubeConfig); err != nil {
-		log.Err(err)
+		log.Error().Msg(err.Error())
 		return nil
 	} else {
 		return client
@@ -127,19 +127,20 @@ func ConnectInClusterAPIClient() *kubernetes.Clientset {
 
 // GetNamespaces Function
 func GetNamespaces() []string {
+	results := []string{}
+
 	client := ConnectK8sClient()
 	if client == nil {
-		return nil
+		return results
 	}
 
 	// get namespaces from k8s api client
 	namespaces, err := client.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{})
 	if err != nil {
-		log.Err(err)
-		return nil
+		log.Error().Msg(err.Error())
+		return results
 	}
 
-	results := []string{}
 	for _, namespace := range namespaces.Items {
 		if namespace.Status.Phase != "Active" {
 			continue
@@ -161,6 +162,8 @@ func GetNamespaces() []string {
 
 // GetPods Function
 func GetPods() []types.Pod {
+	results := []types.Pod{}
+
 	client := ConnectK8sClient()
 	if client == nil {
 		return nil
@@ -169,11 +172,9 @@ func GetPods() []types.Pod {
 	// get pods from k8s api client
 	pods, err := client.CoreV1().Pods("").List(context.Background(), metav1.ListOptions{})
 	if err != nil {
-		log.Err(err)
-		return nil
+		log.Error().Msg(err.Error())
+		return results
 	}
-
-	conGroups := []types.Pod{}
 
 	for _, pod := range pods.Items {
 		group := types.Pod{
@@ -187,10 +188,10 @@ func GetPods() []types.Pod {
 			group.Labels = append(group.Labels, k+"="+v)
 		}
 
-		conGroups = append(conGroups, group)
+		results = append(results, group)
 	}
 
-	return conGroups
+	return results
 }
 
 // SetAnnotationsToPodsInNamespace Function
@@ -265,19 +266,20 @@ func SetAnnotationsToPod(podName string, annotation map[string]string) error {
 
 // GetServices Function
 func GetServices() []types.Service {
+	results := []types.Service{}
+
 	client := ConnectK8sClient()
 	if client == nil {
-		return nil
+		return results
 	}
 
 	// get pods from k8s api client
 	svcs, err := client.CoreV1().Services("").List(context.Background(), metav1.ListOptions{})
 	if err != nil {
-		log.Err(err)
-		return nil
+		log.Error().Msg(err.Error())
+		return results
 	}
 
-	results := []types.Service{}
 	for _, svc := range svcs.Items {
 
 		k8sService := types.Service{}
@@ -318,19 +320,20 @@ func GetServices() []types.Service {
 
 // GetEndpoints Function
 func GetEndpoints() []types.Endpoint {
+	results := []types.Endpoint{}
+
 	client := ConnectK8sClient()
 	if client == nil {
-		return nil
+		return results
 	}
 
 	// get pods from k8s api client
 	endpoints, err := client.CoreV1().Endpoints("").List(context.Background(), metav1.ListOptions{})
 	if err != nil {
-		log.Err(err)
-		return nil
+		log.Error().Msg(err.Error())
+		return results
 	}
 
-	results := []types.Endpoint{}
 	for _, k8sEndpoint := range endpoints.Items {
 		metadata := k8sEndpoint.ObjectMeta
 		subsets := k8sEndpoint.Subsets

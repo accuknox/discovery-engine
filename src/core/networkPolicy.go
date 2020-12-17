@@ -25,6 +25,7 @@ import (
 var cidrBits int = 32
 
 var externals = []string{"reserved:world", "external"}
+
 var skippedLabels = []string{"pod-template-hash"}
 
 // ExposedTCPPorts ...
@@ -1372,6 +1373,25 @@ func UpdateLabeledSrcsPerDst(labeledSrcsPerDst map[Dst][]SrcSimple) map[Dst][]Sr
 // == Discover Network Policy  == //
 // ============================== //
 
+// HandleErr Function
+func HandleErr() {
+	// handle panic(), generate system call
+	err, _ := recover().(error)
+	if err != nil {
+		log.Error().Msgf("%v", err)
+	}
+}
+
+// HandleErrRet Function
+func HandleErrRet(ret *bool) {
+	// handle panic(), generate system call, and return value to false
+	err, _ := recover().(error)
+	if err != nil {
+		log.Error().Msgf("%v", err)
+		*ret = false
+	}
+}
+
 // DiscoverNetworkPolicies Function
 func DiscoverNetworkPolicies(namespace string,
 	cidrBits int, // for CIDR policy (24bits in default, 32 bits -> per IP)
@@ -1382,8 +1402,10 @@ func DiscoverNetworkPolicies(namespace string,
 	// step 1: [network logs] -> {dst: [network logs (src+dst)]}
 	logsPerDst := groupingLogsPerDst(networkLogs, endpoints, cidrBits)
 
-	// step 2: {dst: [network logs (src+dst)]} -> {dst: [srcs (labeled)]}
-	// we keep labeledSrcsPerDst map for aggregating the merged policy set in the future
+	/*
+		step 2: {dst: [network logs (src+dst)]} -> {dst: [srcs (labeled)]}
+		we keep labeledSrcsPerDst map for aggregating the merged policy set in the future
+	*/
 	labeledSrcsPerDst := map[Dst][]SrcSimple{}
 	if val, ok := LabeledSrcsPerDst[namespace]; ok {
 		labeledSrcsPerDst = extractingSrcFromLogs(val, logsPerDst, pods)
@@ -1412,25 +1434,6 @@ func DiscoverNetworkPolicies(namespace string,
 	return namedPolicies
 }
 
-// HandleErr Function
-func HandleErr() {
-	// handle panic(), generate system call
-	err, _ := recover().(error)
-	if err != nil {
-		log.Error().Msgf("%v", err)
-	}
-}
-
-// HandleErrRet Function
-func HandleErrRet(ret *bool) {
-	// handle panic(), generate system call, and return value to false
-	err, _ := recover().(error)
-	if err != nil {
-		log.Error().Msgf("%v", err)
-		*ret = false
-	}
-}
-
 // StartToDiscoverNetworkPolicies function
 func StartToDiscoverNetworkPolicies() {
 	defer HandleErr()
@@ -1440,22 +1443,26 @@ func StartToDiscoverNetworkPolicies() {
 	if NetworkLogFrom == "db" {
 		log.Info().Msg("Get network traffic from the database")
 
-		results, valid := libs.GetTrafficFlowFromDB()
-		if !valid {
+		results := libs.GetTrafficFlowFromDB()
+		if len(results) == 0 {
 			return
 		}
 
 		// convert db flows -> cilium flows
 		ciliumFlows = plugin.ConvertDocsToCiliumFlows(results)
-	} else { // from hubble directly
-		log.Info().Msg("Get network traffic from the hubble directly")
+	} else if NetworkLogFrom == "hubble" { // from hubble directly
+		log.Info().Msg("Get network traffic from the Cilium Hubble directly")
 
-		results, valid := plugin.GetCiliumFlowsFromHubble()
-		if !valid {
+		results := plugin.GetCiliumFlowsFromHubble()
+		if len(results) == 0 {
 			return
 		}
 
 		ciliumFlows = results
+	} else {
+		log.Error().Msgf("Network log source not correct: %s", NetworkLogFrom)
+
+		return
 	}
 
 	// get k8s services
@@ -1471,11 +1478,7 @@ func StartToDiscoverNetworkPolicies() {
 	namespaces := libs.GetNamespaces()
 
 	// get existing policies in db
-	existingPolicies, err := libs.GetNetworkPolicies("", "latest")
-	if err != nil {
-		log.Error().Msg(err.Error())
-		return
-	}
+	existingPolicies := libs.GetNetworkPolicies("", "latest")
 
 	// update exposed ports (k8s service, docker-compose portbinding)
 	updateServiceEndpoint(services, endpoints, pods)
@@ -1490,7 +1493,6 @@ func StartToDiscoverNetworkPolicies() {
 		if len(networkLogs) == 0 {
 			continue
 		}
-
 		log.Info().Msgf("Policy discovery started for namespace: [%s]", namespace)
 
 		// discover network policies based on the network logs
@@ -1501,13 +1503,10 @@ func StartToDiscoverNetworkPolicies() {
 
 		if len(newPolicies) > 0 {
 			// insert discovered policies to db
-			if err := libs.InsertDiscoveredPolicies(newPolicies); err != nil {
-				log.Error().Msgf("%v", err)
-				continue
-			}
+			libs.InsertDiscoveredPolicies(newPolicies)
 
 			// retrieve the latest policies from the db
-			policies, _ := libs.GetNetworkPolicies(namespace, "latest")
+			policies := libs.GetNetworkPolicies(namespace, "latest")
 
 			// convert knoxPolicy to CiliumPolicy
 			ciliumPolicies := plugin.ConvertKnoxPoliciesToCiliumPolicies(services, policies)

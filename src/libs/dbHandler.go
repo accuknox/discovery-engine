@@ -67,7 +67,7 @@ func updateTimeInterval(lastDoc map[string]interface{}) {
 }
 
 // GetTrafficFlowFromDB function
-func GetTrafficFlowFromDB() ([]map[string]interface{}, bool) {
+func GetTrafficFlowFromDB() []map[string]interface{} {
 	results := []map[string]interface{}{}
 
 	endTime = time.Now().Unix()
@@ -75,18 +75,18 @@ func GetTrafficFlowFromDB() ([]map[string]interface{}, bool) {
 		docs, err := GetTrafficFlowByIDTime(lastDocID, endTime)
 		if err != nil {
 			log.Error().Msg(err.Error())
-			return nil, false
+			return results
 		}
 		results = docs
 	} else if DBDriver == "mongodb" {
 		docs, err := GetTrafficFlowFromMongo(startTime, endTime)
 		if err != nil {
 			log.Error().Msg(err.Error())
-			return nil, false
+			return results
 		}
 		results = docs
 	} else {
-		return nil, false
+		return results
 	}
 
 	if len(results) == 0 {
@@ -94,7 +94,7 @@ func GetTrafficFlowFromDB() ([]map[string]interface{}, bool) {
 			time.Unix(startTime, 0).Format(TimeFormSimple),
 			time.Unix(endTime, 0).Format(TimeFormSimple))
 
-		return nil, false
+		return results
 	}
 
 	fisrtDoc := results[0]
@@ -116,30 +116,32 @@ func GetTrafficFlowFromDB() ([]map[string]interface{}, bool) {
 		time.Unix(startTime, 0).Format(TimeFormSimple),
 		time.Unix(endTime, 0).Format(TimeFormSimple))
 
-	return results, true
+	return results
 }
 
 // GetNetworkPolicies Function
-func GetNetworkPolicies(namespace, status string) ([]types.KnoxNetworkPolicy, error) {
+func GetNetworkPolicies(namespace, status string) []types.KnoxNetworkPolicy {
 	results := []types.KnoxNetworkPolicy{}
 
 	if DBDriver == "mysql" {
 		docs, err := GetNetworkPoliciesFromMySQL(namespace, status)
 		if err != nil {
-			return nil, err
+			log.Error().Msg(err.Error())
+			return results
 		}
 		results = docs
 	} else if DBDriver == "mongodb" {
 		docs, err := GetNetworkPoliciesFromMongo(namespace, status)
 		if err != nil {
-			return nil, err
+			log.Error().Msg(err.Error())
+			return results
 		}
 		results = docs
 	} else {
-		return results, nil
+		return results
 	}
 
-	return results, nil
+	return results
 }
 
 // GetNetworkPoliciesBySelector Function
@@ -186,31 +188,27 @@ func GetNetworkPoliciesBySelector(namespace, status string, selector map[string]
 }
 
 // UpdateOutdatedPolicy function
-func UpdateOutdatedPolicy(outdatedPolicy string, latestPolicy string) error {
+func UpdateOutdatedPolicy(outdatedPolicy string, latestPolicy string) {
 	if DBDriver == "mysql" {
 		if err := UpdateOutdatedPolicyFromMySQL(outdatedPolicy, latestPolicy); err != nil {
-			return err
+			log.Error().Msg(err.Error())
 		}
 	} else if DBDriver == "mongodb" {
 		if err := UpdateOutdatedPolicyFromMongo(outdatedPolicy, latestPolicy); err != nil {
-			return err
+			log.Error().Msg(err.Error())
 		}
 	}
-
-	return nil
 }
 
 // InsertDiscoveredPolicies function
-func InsertDiscoveredPolicies(policies []types.KnoxNetworkPolicy) error {
+func InsertDiscoveredPolicies(policies []types.KnoxNetworkPolicy) {
 	if DBDriver == "mysql" {
 		if err := InsertDiscoveredPoliciesToMySQL(policies); err != nil {
-			return err
+			log.Error().Msg(err.Error())
 		}
 	} else if DBDriver == "mongodb" {
 		if err := InsertDiscoveredPoliciesToMongoDB(policies); err != nil {
-			return err
+			log.Error().Msg(err.Error())
 		}
 	}
-
-	return nil
 }

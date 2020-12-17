@@ -640,16 +640,17 @@ func ConnectHubbleRelay() *grpc.ClientConn {
 }
 
 // GetCiliumFlowsFromHubble function
-func GetCiliumFlowsFromHubble() ([]*flow.Flow, bool) {
-	CiliumFlowsMutex.Lock()
+func GetCiliumFlowsFromHubble() []*flow.Flow {
 	results := CiliumFlows
+
+	CiliumFlowsMutex.Lock()
 	CiliumFlows = []*flow.Flow{} // reset
 	CiliumFlowsMutex.Unlock()
 
 	if len(results) == 0 {
 		log.Info().Msgf("Traffic flow not exist")
 
-		return nil, false
+		return results
 	}
 
 	fisrtDoc := results[0]
@@ -663,7 +664,7 @@ func GetCiliumFlowsFromHubble() ([]*flow.Flow, bool) {
 		time.Unix(startTime, 0).Format(libs.TimeFormSimple),
 		time.Unix(endTime, 0).Format(libs.TimeFormSimple))
 
-	return results, true
+	return results
 }
 
 // StartHubbleRelay function

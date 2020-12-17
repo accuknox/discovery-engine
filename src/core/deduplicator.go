@@ -5,7 +5,6 @@ import (
 
 	"github.com/accuknox/knoxAutoPolicy/src/libs"
 	types "github.com/accuknox/knoxAutoPolicy/src/types"
-	"github.com/rs/zerolog/log"
 
 	"github.com/google/go-cmp/cmp"
 )
@@ -349,10 +348,7 @@ func UpdateHTTP(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.Knox
 		if includeAllRules {
 			// case 2-1: policy has the lower selector count? outdated
 			if len(newPolicy.Spec.Selector.MatchLabels) < len(latestPolicy.Spec.Selector.MatchLabels) {
-				err := libs.UpdateOutdatedPolicy(latestPolicy.Metadata["name"], newPolicy.Metadata["name"])
-				if err != nil {
-					log.Error().Msg(err.Error())
-				}
+				libs.UpdateOutdatedPolicy(latestPolicy.Metadata["name"], newPolicy.Metadata["name"])
 				updated = true
 			}
 
@@ -366,12 +362,8 @@ func UpdateHTTP(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.Knox
 			}
 		}
 
-		// annotate the outdated fqdn policy
-		err := libs.UpdateOutdatedPolicy(latestPolicy.Metadata["name"], newPolicy.Metadata["name"])
-		if err != nil {
-			log.Error().Msg(err.Error())
-			return newPolicy, true
-		}
+		// annotate the outdated policy
+		libs.UpdateOutdatedPolicy(latestPolicy.Metadata["name"], newPolicy.Metadata["name"])
 		updated = true
 	}
 
@@ -433,10 +425,7 @@ func UpdateToPorts(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.K
 		if includeAllRules {
 			// case 2-1: policy has the lower selector count? outdated
 			if len(newPolicy.Spec.Selector.MatchLabels) < len(latestPolicy.Spec.Selector.MatchLabels) {
-				err := libs.UpdateOutdatedPolicy(latestPolicy.Metadata["name"], newPolicy.Metadata["name"])
-				if err != nil {
-					log.Error().Msg(err.Error())
-				}
+				libs.UpdateOutdatedPolicy(latestPolicy.Metadata["name"], newPolicy.Metadata["name"])
 				updated = true
 			}
 
@@ -451,10 +440,7 @@ func UpdateToPorts(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.K
 		}
 
 		// annotate the outdated policy
-		err := libs.UpdateOutdatedPolicy(latestPolicy.Metadata["name"], newPolicy.Metadata["name"])
-		if err != nil {
-			log.Error().Msg(err.Error())
-		}
+		libs.UpdateOutdatedPolicy(latestPolicy.Metadata["name"], newPolicy.Metadata["name"])
 		updated = true
 	}
 
@@ -517,10 +503,7 @@ func UpdateMatchLabels(newPolicy types.KnoxNetworkPolicy, existingPolicies []typ
 			if len(newPolicy.Spec.Selector.MatchLabels) < len(latestPolicy.Spec.Selector.MatchLabels) ||
 				newTargetLabelsCount < existTargetLabelsCount {
 				// case 2-2: policy has the lower target matchLabels count? outdated
-				err := libs.UpdateOutdatedPolicy(latestPolicy.Metadata["name"], newPolicy.Metadata["name"])
-				if err != nil {
-					log.Error().Msg(err.Error())
-				}
+				libs.UpdateOutdatedPolicy(latestPolicy.Metadata["name"], newPolicy.Metadata["name"])
 				updated = true
 			}
 
@@ -535,10 +518,7 @@ func UpdateMatchLabels(newPolicy types.KnoxNetworkPolicy, existingPolicies []typ
 		}
 
 		// annotate the outdated policy
-		err := libs.UpdateOutdatedPolicy(latestPolicy.Metadata["name"], newPolicy.Metadata["name"])
-		if err != nil {
-			log.Error().Msg(err.Error())
-		}
+		libs.UpdateOutdatedPolicy(latestPolicy.Metadata["name"], newPolicy.Metadata["name"])
 		updated = true
 	}
 
@@ -592,10 +572,7 @@ func UpdateEntity(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.Kn
 		if includeAllEntities {
 			// case 2-1: policy has the lower selector count? outdated
 			if len(newPolicy.Spec.Selector.MatchLabels) < len(latestPolicy.Spec.Selector.MatchLabels) {
-				err := libs.UpdateOutdatedPolicy(latestPolicy.Metadata["name"], newPolicy.Metadata["name"])
-				if err != nil {
-					log.Error().Msg(err.Error())
-				}
+				libs.UpdateOutdatedPolicy(latestPolicy.Metadata["name"], newPolicy.Metadata["name"])
 				updated = true
 			}
 
@@ -610,11 +587,7 @@ func UpdateEntity(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.Kn
 		}
 
 		// annotate the outdated fqdn policy
-		err := libs.UpdateOutdatedPolicy(latestPolicy.Metadata["name"], newPolicy.Metadata["name"])
-		if err != nil {
-			log.Error().Msg(err.Error())
-			return newPolicy, true
-		}
+		libs.UpdateOutdatedPolicy(latestPolicy.Metadata["name"], newPolicy.Metadata["name"])
 		updated = true
 	}
 
@@ -668,10 +641,7 @@ func UpdateService(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.K
 		if includeAllService {
 			// case 2-1: policy has the lower selector count? outdated
 			if len(newPolicy.Spec.Selector.MatchLabels) < len(latestPolicy.Spec.Selector.MatchLabels) {
-				err := libs.UpdateOutdatedPolicy(latestPolicy.Metadata["name"], newPolicy.Metadata["name"])
-				if err != nil {
-					log.Error().Msg(err.Error())
-				}
+				libs.UpdateOutdatedPolicy(latestPolicy.Metadata["name"], newPolicy.Metadata["name"])
 				updated = true
 			}
 
@@ -686,11 +656,7 @@ func UpdateService(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.K
 		}
 
 		// annotate the outdated fqdn policy
-		err := libs.UpdateOutdatedPolicy(latestPolicy.Metadata["name"], newPolicy.Metadata["name"])
-		if err != nil {
-			log.Error().Msg(err.Error())
-			return newPolicy, true
-		}
+		libs.UpdateOutdatedPolicy(latestPolicy.Metadata["name"], newPolicy.Metadata["name"])
 		updated = true
 	}
 
