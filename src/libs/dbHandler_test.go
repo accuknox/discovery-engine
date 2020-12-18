@@ -7,20 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestGetTrafficFlowFromDB(t *testing.T) {
-	docs, valid := GetTrafficFlowFromDB()
-	if len(docs) == 0 {
-		assert.Equal(t, false, valid, "they should be equal")
-	} else {
-		assert.Equal(t, true, valid, "they should be equal")
-	}
-}
-
-func TestGetNetworkPolicies(t *testing.T) {
-	_, err := GetNetworkPolicies("", "")
-	assert.Equal(t, nil, err, "they should be equal")
-}
-
 func TestUpdateOutdatedPolicy(t *testing.T) {
 	outdated := "policy_a"
 	latest := "policy_b"

@@ -118,7 +118,7 @@ func ConvertCiliumFlowToKnoxLog(flow *flow.Flow, dnsToIPs map[string][]string) (
 		log.Action = "allow"
 	}
 
-	// set egress / ingress
+	// set EGRESS / INGRESS
 	log.Direction = flow.GetTrafficDirection().String()
 
 	// set namespace
@@ -305,16 +305,12 @@ func ConvertCiliumFlowsToKnoxLogs(targetNamespace string, flows []*flow.Flow, dn
 			continue
 		}
 
-		/*
-			// packet is dropped (flow.Verdict == 2) and drop reason == 181 (Policy denied by denylist) ?
-			if flow.Verdict == 2 && flow.DropReason == 181 {
-				continue
-			}
-		*/
+		// TODO: packet is dropped (flow.Verdict == 2) and drop reason == 181 (Policy denied by denylist)?
+		if flow.Verdict == 2 && flow.DropReason == 181 {
+			continue
+		}
 
 		if log, valid := ConvertCiliumFlowToKnoxLog(flow, dnsToIPs); valid {
-			// networkLogs = append(networkLogs, log)
-
 			if _, ok := logMap[log]; !ok {
 				logMap[log] = true
 			}
@@ -465,11 +461,11 @@ func ConvertKnoxPolicyToCiliumPolicy(services []types.Service, inPolicy types.Kn
 				// build Entity rule //
 				// ================= //
 				for _, entity := range knoxEgress.ToEndtities {
-					if ciliumEgress.ToEndtities == nil {
-						ciliumEgress.ToEndtities = []string{}
+					if ciliumEgress.ToEntities == nil {
+						ciliumEgress.ToEntities = []string{}
 					}
 
-					ciliumEgress.ToEndtities = append(ciliumEgress.ToEndtities, entity)
+					ciliumEgress.ToEntities = append(ciliumEgress.ToEntities, entity)
 				}
 			} else if len(knoxEgress.ToServices) > 0 {
 				// ================== //
@@ -640,16 +636,17 @@ func ConnectHubbleRelay() *grpc.ClientConn {
 }
 
 // GetCiliumFlowsFromHubble function
-func GetCiliumFlowsFromHubble() ([]*flow.Flow, bool) {
-	CiliumFlowsMutex.Lock()
+func GetCiliumFlowsFromHubble() []*flow.Flow {
 	results := CiliumFlows
+
+	CiliumFlowsMutex.Lock()
 	CiliumFlows = []*flow.Flow{} // reset
 	CiliumFlowsMutex.Unlock()
 
 	if len(results) == 0 {
 		log.Info().Msgf("Traffic flow not exist")
 
-		return nil, false
+		return results
 	}
 
 	fisrtDoc := results[0]
@@ -663,7 +660,7 @@ func GetCiliumFlowsFromHubble() ([]*flow.Flow, bool) {
 		time.Unix(startTime, 0).Format(libs.TimeFormSimple),
 		time.Unix(endTime, 0).Format(libs.TimeFormSimple))
 
-	return results, true
+	return results
 }
 
 // StartHubbleRelay function
