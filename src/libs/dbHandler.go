@@ -71,6 +71,7 @@ func GetTrafficFlowFromDB() []map[string]interface{} {
 	results := []map[string]interface{}{}
 
 	endTime = time.Now().Unix()
+
 	if DBDriver == "mysql" {
 		docs, err := GetTrafficFlowByIDTime(lastDocID, endTime)
 		if err != nil {
@@ -97,25 +98,17 @@ func GetTrafficFlowFromDB() []map[string]interface{} {
 		return results
 	}
 
-	fisrtDoc := results[0]
 	lastDoc := results[len(results)-1]
-
-	// id/time filter update
-	startTime := int64(fisrtDoc["time"].(uint32))
-
+	// id update for mysql
 	if DBDriver == "mysql" {
-		endTime = int64(lastDoc["time"].(uint32))
 		lastDocID = int64(lastDoc["id"].(uint32))
-	} else if DBDriver == "mongodb" {
-		ts := lastDoc["timestamp"].(primitive.DateTime)
-		endTime = ts.Time().Unix()
-		startTime = ts.Time().Unix() + 1
 	}
 
 	log.Info().Msgf("The total number of traffic flow: [%d] from %s ~ to %s", len(results),
 		time.Unix(startTime, 0).Format(TimeFormSimple),
 		time.Unix(endTime, 0).Format(TimeFormSimple))
 
+	startTime = endTime + 1
 	return results
 }
 

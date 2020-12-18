@@ -13,6 +13,7 @@ import (
 	plugin "github.com/accuknox/knoxAutoPolicy/src/plugin"
 	types "github.com/accuknox/knoxAutoPolicy/src/types"
 	"github.com/cilium/cilium/api/v1/flow"
+	"github.com/google/go-cmp/cmp"
 
 	"github.com/robfig/cron"
 	"github.com/rs/zerolog/log"
@@ -26,7 +27,9 @@ var cidrBits int = 32
 
 var externals = []string{"reserved:world", "external"}
 
-var skippedLabels = []string{"pod-template-hash"}
+var skippedLabels = []string{"pod-template-hash",
+	"controller-revision-hash",           // from istana robot-shop
+	"statefulset.kubernetes.io/pod-name"} // from istana robot-shop
 
 // ExposedTCPPorts ...
 var ExposedTCPPorts = []int{}
@@ -533,11 +536,67 @@ func buildNewIngressPolicyFromSameSelector(namespace string, selector types.Sele
 	return ingress
 }
 
+// doublecheckIngressEntities function for dropped packet
+func doublecheckIngressEntities(namespace string, mergedSrcPerMergedDst map[string][]MergedPortDst, networkPolicies []types.KnoxNetworkPolicy) []types.KnoxNetworkPolicy {
+	for mergedSrc, mergedDsts := range mergedSrcPerMergedDst {
+		// if src inlcudes "reserved" prefix, it means Ingress Policy
+		if strings.Contains(mergedSrc, "reserved") {
+			entity := strings.Split(mergedSrc, "=")[1]
+
+			for _, dst := range mergedDsts {
+				included := true
+
+				ingressPolicy := buildNewKnoxIngressPolicy()
+				ingressPolicy.Metadata["namespace"] = namespace
+				ingressPolicy.Metadata["rule"] = "fromEntities"
+
+				dsts := strings.Split(dst.MatchLabels, ",")
+				for _, dest := range dsts {
+					kv := strings.Split(dest, "=")
+					if len(kv) != 2 {
+						continue
+					}
+
+					dstkey := kv[0]
+					dstval := kv[1]
+
+					ingressPolicy.Spec.Selector.MatchLabels[dstkey] = dstval
+				}
+				ingressRule := types.Ingress{}
+				ingressRule.FromEntities = []string{entity}
+				ingressPolicy.Spec.Ingress = append(ingressPolicy.Spec.Ingress, ingressRule)
+
+				for _, policy := range networkPolicies {
+					if cmp.Equal(&ingressPolicy.Spec.Selector, &policy.Spec.Selector) &&
+						policy.Metadata["rule"] == "fromEntities" {
+
+						if !libs.ContainsElement(policy.Spec.Ingress[0].FromEntities, entity) {
+							included = false
+							break
+						}
+					}
+				}
+
+				if !included {
+					networkPolicies = append(networkPolicies, ingressPolicy)
+				}
+			}
+		}
+	}
+
+	return networkPolicies
+}
+
 // buildNetworkPolicies Function
 func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcPerMergedDst map[string][]MergedPortDst) []types.KnoxNetworkPolicy {
 	networkPolicies := []types.KnoxNetworkPolicy{}
 
 	for mergedSrc, mergedDsts := range mergedSrcPerMergedDst {
+		// if src inlcudes "reserved" prefix, process later
+		if strings.Contains(mergedSrc, "reserved") {
+			continue
+		}
+
 		for _, dst := range mergedDsts {
 			egressPolicy := buildNewKnoxEgressPolicy()
 			egressPolicy.Metadata["namespace"] = namespace
@@ -700,19 +759,17 @@ func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcP
 					egressPolicy.Spec.Egress = append(egressPolicy.Spec.Egress, egressRule)
 					networkPolicies = append(networkPolicies, egressPolicy)
 				}
-			} else if strings.HasPrefix(dst.Namespace, "reserved:") && dst.MatchLabels == "" {
+			} else if strings.HasPrefix(dst.Namespace, "reserved:entity") && dst.MatchLabels == "" {
 				egressPolicy.Metadata["rule"] = "toEntities"
 
 				// ================= //
 				// build Entity rule //
 				// ================= //
-				entity := strings.Split(dst.Namespace, ":")[1]
-				if entity == "host" { // host is allowed by default
-					continue
-				}
+				entities := strings.Split(dst.Additional, ",")
+				sort.Strings(entities)
 
 				// handle for entity policy in Cilium
-				egressRule.ToEndtities = []string{entity}
+				egressRule.ToEndtities = entities
 				egressPolicy.Spec.Egress = append(egressPolicy.Spec.Egress, egressRule)
 
 				if DiscoveryMode&Egress > 0 {
@@ -724,7 +781,7 @@ func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcP
 					ingressPolicy := buildNewIngressPolicyFromSameSelector(namespace, egressPolicy.Spec.Selector)
 					ingressPolicy.Metadata["rule"] = "fromEntities"
 					ingressRule := types.Ingress{}
-					ingressRule.FromEntities = []string{entity}
+					ingressRule.FromEntities = entities
 					ingressPolicy.Spec.Ingress = append(ingressPolicy.Spec.Ingress, ingressRule)
 					networkPolicies = append(networkPolicies, ingressPolicy)
 				}
@@ -748,6 +805,11 @@ func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcP
 				}
 			}
 		}
+	}
+
+	// double check ingress entities for dropped packet
+	if DiscoveryMode&Ingress > 0 {
+		networkPolicies = doublecheckIngressEntities(namespace, mergedSrcPerMergedDst, networkPolicies)
 	}
 
 	return networkPolicies
@@ -950,6 +1012,7 @@ func getMergedLabels(namespace, podName string, pods []types.Pod) string {
 			labels := []string{}
 
 			for _, label := range pod.Labels {
+				/* TODO: do we need to skip the hash labels? */
 				if !libs.ContainsElement(skippedLabels, strings.Split(label, "=")[0]) {
 					labels = append(labels, label)
 				}
@@ -973,16 +1036,29 @@ func extractingSrcFromLogs(labeledSrcsPerDst map[Dst][]SrcSimple, perDst map[Dst
 		srcs := []SrcSimple{}
 
 		for _, log := range logs {
-			// get merged matchlables: "a=b,c=d,e=f"
-			mergedLabels := getMergedLabels(log.SrcNamespace, log.SrcPodName, pods)
-			if mergedLabels == "" {
-				continue
-			}
+			src := SrcSimple{}
 
-			src := SrcSimple{
-				Namespace:   log.SrcNamespace,
-				PodName:     log.SrcPodName,
-				MatchLabels: mergedLabels}
+			// if src is reserved:
+			if strings.Contains(log.SrcNamespace, "reserved:") {
+				k := strings.Split(log.SrcNamespace, ":")[0]
+				v := strings.Split(log.SrcNamespace, ":")[1]
+
+				src = SrcSimple{
+					Namespace:   log.SrcNamespace,
+					PodName:     log.SrcPodName,
+					MatchLabels: k + "=" + v}
+			} else {
+				// else get merged matchlables: "a=b,c=d,e=f"
+				mergedLabels := getMergedLabels(log.SrcNamespace, log.SrcPodName, pods)
+				if mergedLabels == "" {
+					continue
+				}
+
+				src = SrcSimple{
+					Namespace:   log.SrcNamespace,
+					PodName:     log.SrcPodName,
+					MatchLabels: mergedLabels}
+			}
 
 			// remove redundant
 			if !libs.ContainsElement(srcs, src) {
@@ -1138,6 +1214,43 @@ func mergeFQDN(mergedSrcPerMergedDst map[string][]MergedPortDst) {
 	}
 }
 
+// mergeEntities function
+func mergeEntities(mergedSrcPerMergedDst map[string][]MergedPortDst) {
+	// merge same dns per each merged Src
+	for mergedSrc, dsts := range mergedSrcPerMergedDst {
+		remains := []MergedPortDst{}
+
+		// step 1: get dns
+		entities := []string{}
+		for _, dst := range dsts {
+			if strings.HasPrefix(dst.Namespace, "reserved:") &&
+				!strings.Contains(dst.Namespace, "cidr") &&
+				!strings.Contains(dst.Namespace, "dns") {
+				entity := strings.Split(dst.Namespace, ":")[1]
+
+				if !libs.ContainsElement(entities, entity) {
+					entities = append(entities, entity)
+				}
+			} else {
+				// if no reserved:entity
+				remains = append(remains, dst)
+			}
+		}
+
+		// step 2: update mergedSrcPerMergedDst
+		if len(entities) > 0 {
+			newDNS := MergedPortDst{
+				Namespace:  "reserved:entity",
+				Additional: strings.Join(entities, ","),
+				Action:     "allow",
+			}
+			remains = append(remains, newDNS)
+		}
+
+		mergedSrcPerMergedDst[mergedSrc] = remains
+	}
+}
+
 // mergingDstSpecs Function
 func mergingDstSpecs(mergedSrcsPerDst map[Dst][]string) map[string][]MergedPortDst {
 	mergedSrcPerMergedDst := map[string][]MergedPortDst{}
@@ -1223,6 +1336,9 @@ func mergingDstSpecs(mergedSrcsPerDst map[Dst][]string) map[string][]MergedPortD
 
 	// fqdn merged (not cidr)
 	mergeFQDN(mergedSrcPerMergedDst)
+
+	// entities merged (for Cilium)
+	mergeEntities(mergedSrcPerMergedDst)
 
 	return mergedSrcPerMergedDst
 }

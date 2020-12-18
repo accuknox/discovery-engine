@@ -254,29 +254,7 @@ func GetLatestEntityPolicy(existingPolicies []types.KnoxNetworkPolicy, policy ty
 				continue
 			}
 
-			// check entities
-			matchEntities := true
-
-			newEntities := []string{}
-			existEntities := []string{}
-
-			if existPolicyType == "egress" {
-				newEntities = policy.Spec.Egress[0].ToEndtities
-				existEntities = exist.Spec.Egress[0].ToEndtities
-			} else {
-				newEntities = policy.Spec.Ingress[0].FromEntities
-				existEntities = exist.Spec.Ingress[0].FromEntities
-			}
-
-			for _, entity := range newEntities {
-				if libs.ContainsElement(existEntities, entity) {
-					matchEntities = false
-				}
-			}
-
-			if matchEntities {
-				latestPolicies = append(latestPolicies, exist)
-			}
+			latestPolicies = append(latestPolicies, exist)
 		}
 	}
 

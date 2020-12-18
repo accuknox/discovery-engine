@@ -118,7 +118,7 @@ func ConvertCiliumFlowToKnoxLog(flow *flow.Flow, dnsToIPs map[string][]string) (
 		log.Action = "allow"
 	}
 
-	// set egress / ingress
+	// set EGRESS / INGRESS
 	log.Direction = flow.GetTrafficDirection().String()
 
 	// set namespace
@@ -305,16 +305,12 @@ func ConvertCiliumFlowsToKnoxLogs(targetNamespace string, flows []*flow.Flow, dn
 			continue
 		}
 
-		/*
-			// packet is dropped (flow.Verdict == 2) and drop reason == 181 (Policy denied by denylist) ?
-			if flow.Verdict == 2 && flow.DropReason == 181 {
-				continue
-			}
-		*/
+		// TODO: packet is dropped (flow.Verdict == 2) and drop reason == 181 (Policy denied by denylist)?
+		if flow.Verdict == 2 && flow.DropReason == 181 {
+			continue
+		}
 
 		if log, valid := ConvertCiliumFlowToKnoxLog(flow, dnsToIPs); valid {
-			// networkLogs = append(networkLogs, log)
-
 			if _, ok := logMap[log]; !ok {
 				logMap[log] = true
 			}
