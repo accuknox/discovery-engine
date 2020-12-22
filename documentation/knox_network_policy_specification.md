@@ -49,6 +49,7 @@ spec:
       toHTTPs:
       - method: [http method]
         path: [http path]
+        aggregated: [true/false]
         
   ingress:
     - matchLabels:
@@ -62,6 +63,7 @@ spec:
       toHTTPs:
       - method: [http method]
         path: [http path]
+        aggregated: [true/false]
         
       fromCIDRs:
       - cidrs:
@@ -123,7 +125,7 @@ Here, we will briefly explain how to define the knox network policy.
     
     ToFQDNs rules are used to define the policies that have DNS queryable domain names. For now, multiple distinct names may be included in separate matchName entries.
     
-    ToHTTPs rules are composed of the method and path of the HTTP protocol. If the method is omitted or empty, all methods are allowed. And in general, ToHTTPs are used with matchLabels and ToPorts rules.
+    ToHTTPs rules are composed of the method and path of the HTTP protocol. If the method is omitted or empty, all methods are allowed. And in general, ToHTTPs are used with matchLabels and ToPorts rules. If paths are aggregated, the aggregate boolean value is set to true.
  
     ```
     egress:
@@ -149,6 +151,7 @@ Here, we will briefly explain how to define the knox network policy.
       toHTTPs:
       - method: [http method]
         path: [http path]
+        aggregated: [true/false]
     ```
     
 - Ingress

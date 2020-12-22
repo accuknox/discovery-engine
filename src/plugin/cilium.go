@@ -305,7 +305,7 @@ func ConvertCiliumFlowsToKnoxLogs(targetNamespace string, flows []*flow.Flow, dn
 			continue
 		}
 
-		// TODO: packet is dropped (flow.Verdict == 2) and drop reason == 181 (Policy denied by denylist)?
+		// TODO: packet is dropped (flow.Verdict == 2) and drop reason == 181 (Flows denied by deny policy)?
 		if flow.Verdict == 2 && flow.DropReason == 181 {
 			continue
 		}

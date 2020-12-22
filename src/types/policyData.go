@@ -29,8 +29,9 @@ type SpecFQDN struct {
 
 // SpecHTTP Structure
 type SpecHTTP struct {
-	Method string `json:"method,omitempty" yaml:"method,omitempty" bson:"method,omitempty"`
-	Path   string `json:"path,omitempty" yaml:"path,omitempty" bson:"path,omitempty"`
+	Method     string `json:"method,omitempty" yaml:"method,omitempty" bson:"method,omitempty"`
+	Path       string `json:"path,omitempty" yaml:"path,omitempty" bson:"path,omitempty"`
+	Aggregated bool   `json:"aggregated,omitempty" yaml:"aggregated,omitempty" bson:"aggregated,omitempty"`
 }
 
 // Selector Structure
