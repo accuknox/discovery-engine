@@ -1135,7 +1135,7 @@ func mergeCIDR(mergedSrcPerMergedDst map[string][]MergedPortDst) {
 		// step 2: update mergedSrcPerMergedDst
 		for cidr, toPorts := range cidrs {
 			newDNS := MergedPortDst{
-				Namespace:   "reserved:dns",
+				Namespace:   "reserved:cidr",
 				Additionals: []string{cidr},
 				ToPorts:     toPorts,
 				Action:      "allow",
