@@ -70,6 +70,9 @@ type LabeledSrcsPerDstMap map[Dst][]SrcSimple
 // LabeledSrcsPerDst map --> key: namespace, value: LabeledSrcsPerDstMap
 var LabeledSrcsPerDst map[string]LabeledSrcsPerDstMap
 
+// HTTPUrlThreshold int
+var HTTPUrlThreshold int = 3
+
 // init Function
 func init() {
 	StopChan = make(chan struct{})
@@ -119,7 +122,7 @@ type Dst struct {
 type MergedPortDst struct {
 	Namespace   string
 	PodName     string
-	Additional  string
+	Additionals []string
 	MatchLabels string
 	ToPorts     []types.SpecPort
 
@@ -662,15 +665,21 @@ func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcP
 						// =============== //
 						// build HTTP rule //
 						// =============== //
-						if toPort.Protocol == "tcp" && libs.CheckHTTPMethod(dst.Additional) {
+						if toPort.Protocol == "tcp" && libs.CheckSpecHTTP(dst.Additionals) {
 							egressRule.ToHTTPs = []types.SpecHTTP{}
 
-							httpElements := strings.Split(dst.Additional, "||")
-							for _, http := range httpElements {
+							sort.Strings(dst.Additionals)
+
+							for _, http := range dst.Additionals {
 								method, path := strings.Split(http, "|")[0], strings.Split(http, "|")[1]
 								httpRule := types.SpecHTTP{
 									Method: method,
 									Path:   path,
+								}
+
+								// if path includes wild card (.*), check aggreagted
+								if strings.Contains(path, ".*") {
+									httpRule.Aggregated = true
 								}
 
 								if !strings.Contains(egressPolicy.Metadata["rule"], "toHTTPs") {
@@ -698,13 +707,13 @@ func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcP
 					ingressPolicy.Spec.Ingress[0].MatchLabels["k8s:io.kubernetes.pod.namespace"] = namespace
 					networkPolicies = append(networkPolicies, ingressPolicy)
 				}
-			} else if dst.Namespace == "reserved:cidr" && dst.Additional != "" {
+			} else if dst.Namespace == "reserved:cidr" && len(dst.Additionals) > 0 {
 				egressPolicy.Metadata["rule"] = "toCIDRs"
 
 				// =============== //
 				// build CIDR rule //
 				// =============== //
-				cidrSlice := strings.Split(dst.Additional, ",")
+				cidrSlice := strings.Split(dst.Additionals[0], ",")
 				sort.Strings(cidrSlice)
 				cidr := types.SpecCIDR{
 					CIDRs: cidrSlice,
@@ -737,17 +746,16 @@ func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcP
 					ingressPolicy.Spec.Ingress = append(ingressPolicy.Spec.Ingress, ingressRule)
 					networkPolicies = append(networkPolicies, ingressPolicy)
 				}
-			} else if dst.Namespace == "reserved:dns" && dst.Additional != "" {
+			} else if dst.Namespace == "reserved:dns" && len(dst.Additionals) > 0 {
 				egressPolicy.Metadata["rule"] = "toFQDNs"
 
 				// =============== //
 				// build FQDN rule //
 				// =============== //
 				if DiscoveryMode&Egress > 0 {
-					fqdnSlice := strings.Split(dst.Additional, ",")
-					sort.Strings(fqdnSlice)
+					sort.Strings(dst.Additionals)
 					fqdn := types.SpecFQDN{
-						MatchNames: fqdnSlice,
+						MatchNames: dst.Additionals,
 					}
 
 					if len(dst.ToPorts) > 0 {
@@ -765,11 +773,10 @@ func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcP
 				// ================= //
 				// build Entity rule //
 				// ================= //
-				entities := strings.Split(dst.Additional, ",")
-				sort.Strings(entities)
+				sort.Strings(dst.Additionals)
 
 				// handle for entity policy in Cilium
-				egressRule.ToEndtities = entities
+				egressRule.ToEndtities = dst.Additionals
 				egressPolicy.Spec.Egress = append(egressPolicy.Spec.Egress, egressRule)
 
 				if DiscoveryMode&Egress > 0 {
@@ -781,11 +788,11 @@ func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcP
 					ingressPolicy := buildNewIngressPolicyFromSameSelector(namespace, egressPolicy.Spec.Selector)
 					ingressPolicy.Metadata["rule"] = "fromEntities"
 					ingressRule := types.Ingress{}
-					ingressRule.FromEntities = entities
+					ingressRule.FromEntities = dst.Additionals
 					ingressPolicy.Spec.Ingress = append(ingressPolicy.Spec.Ingress, ingressRule)
 					networkPolicies = append(networkPolicies, ingressPolicy)
 				}
-			} else if dst.Additional != "" {
+			} else if len(dst.Additionals) > 0 {
 				egressPolicy.Metadata["rule"] = "toServices"
 
 				// ================== //
@@ -795,7 +802,7 @@ func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcP
 					// to external services (NOT internal k8s service)
 					// to affect this policy, we need a service, an endpoint respectively
 					service := types.SpecService{
-						ServiceName: dst.Additional,
+						ServiceName: dst.Additionals[0],
 						Namespace:   dst.Namespace,
 					}
 
@@ -1087,12 +1094,155 @@ func extractingSrcFromLogs(labeledSrcsPerDst map[Dst][]SrcSimple, perDst map[Dst
 // == Step 4: Merging Dst's Protocol + Port == //
 // =========================================== //
 
+// mergeCIDR function
+func mergeCIDR(mergedSrcPerMergedDst map[string][]MergedPortDst) {
+	// merge reserve dst per each merged Src
+	for mergedSrc, dsts := range mergedSrcPerMergedDst {
+		newDsts := []MergedPortDst{}
+
+		// dns To SpecPorts
+		cidrs := map[string][]types.SpecPort{}
+
+		// step 1: get cidr
+		for _, dst := range dsts {
+			if dst.Namespace == "reserved:cidr" {
+				for _, cidrAddr := range dst.Additionals {
+					if exist, ok := cidrs[cidrAddr]; !ok {
+						// if not exist, create cidr, and move toPorts
+						if len(dst.ToPorts) > 0 {
+							cidrs[cidrAddr] = dst.ToPorts
+						} else {
+							cidrs[cidrAddr] = []types.SpecPort{}
+						}
+					} else {
+						// if exist, check duplicated toPorts
+						for _, port := range dst.ToPorts {
+							if !libs.ContainsElement(exist, port) {
+								exist = append(exist, port)
+							}
+						}
+
+						// update toPorts
+						cidrs[cidrAddr] = exist
+					}
+				}
+			} else {
+				// if no reserved:cidr
+				newDsts = append(newDsts, dst)
+			}
+		}
+
+		// step 2: update mergedSrcPerMergedDst
+		for cidr, toPorts := range cidrs {
+			newDNS := MergedPortDst{
+				Namespace:   "reserved:dns",
+				Additionals: []string{cidr},
+				ToPorts:     toPorts,
+				Action:      "allow",
+			}
+			newDsts = append(newDsts, newDNS)
+		}
+
+		mergedSrcPerMergedDst[mergedSrc] = newDsts
+	}
+}
+
+// mergeFQDN function
+func mergeFQDN(mergedSrcPerMergedDst map[string][]MergedPortDst) {
+	// merge same dns per each merged Src
+	for mergedSrc, dsts := range mergedSrcPerMergedDst {
+		newDsts := []MergedPortDst{}
+
+		// dns To SpecPorts
+		dns := map[string][]types.SpecPort{}
+
+		// step 1: get dns
+		for _, dst := range dsts {
+			if dst.Namespace == "reserved:dns" {
+				for _, domainName := range dst.Additionals {
+					if exist, ok := dns[domainName]; !ok {
+						// if not exist, create dns, and move toPorts
+						if len(dst.ToPorts) > 0 {
+							dns[domainName] = dst.ToPorts
+						} else {
+							dns[domainName] = []types.SpecPort{}
+						}
+					} else {
+						// if exist, check duplicated toPorts
+						for _, port := range dst.ToPorts {
+							if !libs.ContainsElement(exist, port) {
+								exist = append(exist, port)
+							}
+						}
+
+						// update toPorts
+						dns[domainName] = exist
+					}
+				}
+			} else {
+				// if no reserved:dns
+				newDsts = append(newDsts, dst)
+			}
+		}
+
+		// step 2: update mergedSrcPerMergedDst
+		for dns, toPorts := range dns {
+			newDNS := MergedPortDst{
+				Namespace:   "reserved:dns",
+				Additionals: []string{dns},
+				ToPorts:     toPorts,
+				Action:      "allow",
+			}
+			newDsts = append(newDsts, newDNS)
+		}
+
+		mergedSrcPerMergedDst[mergedSrc] = newDsts
+	}
+}
+
+// mergeEntities function
+func mergeEntities(mergedSrcPerMergedDst map[string][]MergedPortDst) {
+	// merge same entities per each merged Src
+	for mergedSrc, dsts := range mergedSrcPerMergedDst {
+		remains := []MergedPortDst{}
+
+		// step 1: get entities
+		entities := []string{}
+		for _, dst := range dsts {
+			if strings.HasPrefix(dst.Namespace, "reserved:") &&
+				!strings.Contains(dst.Namespace, "cidr") &&
+				!strings.Contains(dst.Namespace, "dns") {
+				entity := strings.Split(dst.Namespace, ":")[1]
+
+				if !libs.ContainsElement(entities, entity) {
+					entities = append(entities, entity)
+				}
+			} else {
+				// if no reserved:entity
+				remains = append(remains, dst)
+			}
+		}
+
+		// step 2: update mergedSrcPerMergedDst
+		if len(entities) > 0 {
+			newDNS := MergedPortDst{
+				Namespace:   "reserved:entity",
+				Additionals: entities,
+				Action:      "allow",
+			}
+			remains = append(remains, newDNS)
+		}
+
+		mergedSrcPerMergedDst[mergedSrc] = remains
+	}
+}
+
 // mergingProtocolPorts Function
 func mergingProtocolPorts(mergedDsts []MergedPortDst, dst Dst) []MergedPortDst {
 	for i, dstPort := range mergedDsts {
 		simple1 := DstSimple{Namespace: dstPort.Namespace,
 			PodName:    dstPort.PodName,
-			Additional: dstPort.Additional,
+			Additional: dstPort.Additionals[0],
 			Action:     dstPort.Action}
 
 		simple2 := DstSimple{Namespace: dst.Namespace,
@@ -1115,140 +1265,16 @@ func mergingProtocolPorts(mergedDsts []MergedPortDst, dst Dst) []MergedPortDst {
 		Port: strconv.Itoa(dst.DstPort)}
 
 	mergedDst := MergedPortDst{
-		Namespace:  dst.Namespace,
-		PodName:    dst.PodName,
-		Additional: dst.Additional,
-		Action:     dst.Action,
-		ToPorts:    []types.SpecPort{port},
+		Namespace:   dst.Namespace,
+		PodName:     dst.PodName,
+		Additionals: []string{dst.Additional},
+		Action:      dst.Action,
+		ToPorts:     []types.SpecPort{port},
 	}
 
 	mergedDsts = append(mergedDsts, mergedDst)
 
 	return mergedDsts
-}
-
-// mergeCIDR function
-func mergeCIDR(mergedSrcPerMergedDst map[string][]MergedPortDst) {
-	// merge cidr
-	for mergedSrc, dsts := range mergedSrcPerMergedDst {
-		newDsts := []MergedPortDst{}
-		mergedCIDRs := []string{}
-		mergedCIDRToPorts := []types.SpecPort{}
-
-		for _, dst := range dsts {
-			if dst.Namespace == "reserved:cidr" {
-				if !libs.ContainsElement(mergedCIDRs, dst.Additional) {
-					mergedCIDRs = append(mergedCIDRs, dst.Additional)
-				}
-
-				for _, port := range dst.ToPorts {
-					if !libs.ContainsElement(mergedCIDRToPorts, port) {
-						mergedCIDRToPorts = append(mergedCIDRToPorts, port)
-					}
-				}
-			} else {
-				newDsts = append(newDsts, dst)
-			}
-		}
-
-		if len(mergedCIDRs) > 0 {
-			newDNS := MergedPortDst{
-				Namespace:  "reserved:cidr",
-				Additional: strings.Join(mergedCIDRs, ","),
-				ToPorts:    mergedCIDRToPorts,
-				Action:     "allow",
-			}
-			newDsts = append(newDsts, newDNS)
-		}
-
-		mergedSrcPerMergedDst[mergedSrc] = newDsts
-	}
-}
-
-// mergeFQDN function
-func mergeFQDN(mergedSrcPerMergedDst map[string][]MergedPortDst) {
-	// merge same dns per each merged Src
-	for mergedSrc, dsts := range mergedSrcPerMergedDst {
-		newDsts := []MergedPortDst{}
-
-		// step 1: get dns
-		dns := map[string][]types.SpecPort{}
-		for _, dst := range dsts {
-			if dst.Namespace == "reserved:dns" {
-				if exist, ok := dns[dst.Additional]; !ok {
-					// if not exist, create dns, and move toPorts
-					if len(dst.ToPorts) > 0 {
-						dns[dst.Additional] = dst.ToPorts
-					} else {
-						dns[dst.Additional] = []types.SpecPort{}
-					}
-				} else {
-					// if exist, check duplicated toPorts
-					for _, port := range dst.ToPorts {
-						if !libs.ContainsElement(exist, port) {
-							exist = append(exist, port)
-						}
-					}
-
-					// update toPorts
-					dns[dst.Additional] = exist
-				}
-			} else {
-				// if no reserved:dns
-				newDsts = append(newDsts, dst)
-			}
-		}
-
-		// step 2: update mergedSrcPerMergedDst
-		for dns, toPorts := range dns {
-			newDNS := MergedPortDst{
-				Namespace:  "reserved:dns",
-				Additional: dns,
-				ToPorts:    toPorts,
-				Action:     "allow",
-			}
-			newDsts = append(newDsts, newDNS)
-		}
-
-		mergedSrcPerMergedDst[mergedSrc] = newDsts
-	}
-}
-
-// mergeEntities function
-func mergeEntities(mergedSrcPerMergedDst map[string][]MergedPortDst) {
-	// merge same dns per each merged Src
-	for mergedSrc, dsts := range mergedSrcPerMergedDst {
-		remains := []MergedPortDst{}
-
-		// step 1: get dns
-		entities := []string{}
-		for _, dst := range dsts {
-			if strings.HasPrefix(dst.Namespace, "reserved:") &&
-				!strings.Contains(dst.Namespace, "cidr") &&
-				!strings.Contains(dst.Namespace, "dns") {
-				entity := strings.Split(dst.Namespace, ":")[1]
-
-				if !libs.ContainsElement(entities, entity) {
-					entities = append(entities, entity)
-				}
-			} else {
-				// if no reserved:entity
-				remains = append(remains, dst)
-			}
-		}
-
-		// step 2: update mergedSrcPerMergedDst
-		if len(entities) > 0 {
-			newDNS := MergedPortDst{
-				Namespace:  "reserved:entity",
-				Additional: strings.Join(entities, ","),
-				Action:     "allow",
-			}
-			remains = append(remains, newDNS)
-		}
-
-		mergedSrcPerMergedDst[mergedSrc] = remains
-	}
 }
 
 // mergingDstSpecs Function
@@ -1334,8 +1360,11 @@ func mergingDstSpecs(mergedSrcsPerDst map[Dst][]string) map[string][]MergedPortD
 		}
 	}
 
-	// fqdn merged (not cidr)
+	// fqdn merging
 	mergeFQDN(mergedSrcPerMergedDst)
+
+	// cidr merging
+	mergeCIDR(mergedSrcPerMergedDst)
 
 	// entities merged (for Cilium)
 	mergeEntities(mergedSrcPerMergedDst)
@@ -1347,6 +1376,94 @@ func mergingDstSpecs(mergedSrcsPerDst map[Dst][]string) map[string][]MergedPortD
 // == Step 5: Grouping Dst based on Label == //
 // ========================================= //
 
+// AggreateHTTPPaths function
+func AggreateHTTPPaths(paths []string) []string {
+	aggregatedPaths := []string{}
+
+	sort.Strings(paths)
+
+	depthToPaths := map[string][]string{}
+
+	for _, path := range paths {
+		// if path in /apple/banana
+		if len(strings.Split(path, "/")) >= 3 {
+			depth1 := "/" + strings.Split(path, "/")[1]
+			if depPaths, ok := depthToPaths[depth1]; ok {
+				if !libs.ContainsElement(depPaths, path) {
+					depPaths = append(depPaths, path)
+				}
+				depthToPaths[depth1] = depPaths
+			} else {
+				depthToPaths[depth1] = []string{path}
+			}
+		} else {
+			// root path or under depths
+			if path == "/" || !libs.ContainsElement(aggregatedPaths, path) {
+				aggregatedPaths = append(aggregatedPaths, path)
+			}
+		}
+	}
+
+	for key, paths := range depthToPaths {
+		// if threshold over, aggregate it
+		if len(paths) >= HTTPUrlThreshold {
+			aggregatedPaths = append(aggregatedPaths, key+"/.*")
+		} else {
+			for _, path := range paths {
+				if !libs.ContainsElement(aggregatedPaths, path) {
+					aggregatedPaths = append(aggregatedPaths, path)
+				}
+			}
+		}
+	}
+
+	return aggregatedPaths
+}
+
+// aggregateHTTP function
+func aggregateHTTP(mergedSrcPerMergedDst map[string][]MergedPortDst) {
+	// merge same http per each merged Src
+	for mergedSrc, dsts := range mergedSrcPerMergedDst {
+		// remains := []MergedPortDst{}
+
+		// step 1: get http
+		for i, dst := range dsts {
+			// check if dst is for HTTP rules
+			if libs.CheckSpecHTTP(dst.Additionals) {
+				updatedAdditionals := []string{}
+
+				methodToPaths := map[string][]string{}
+
+				for _, http := range dst.Additionals {
+					method := strings.Split(http, "|")[0]
+					path := strings.Split(http, "|")[1]
+
+					if val, ok := methodToPaths[method]; ok {
+						if !libs.ContainsElement(val, path) {
+							val = append(val, path)
+						}
+						methodToPaths[method] = val
+					} else {
+						methodToPaths[method] = []string{path}
+					}
+				}
+
+				for method, paths := range methodToPaths {
+					aggreatedPaths := AggreateHTTPPaths(paths)
+
+					for _, aggPath := range aggreatedPaths {
+						updatedAdditionals = append(updatedAdditionals, method+"|"+aggPath)
+					}
+				}
+
+				dsts[i].Additionals = updatedAdditionals
+			}
+		}
+
+		mergedSrcPerMergedDst[mergedSrc] = dsts
+	}
+}
+
 // groupingDstMergeds Function
 func groupingDstMergeds(label string, dsts []MergedPortDst) MergedPortDst {
 	merged := MergedPortDst{MatchLabels: label}
@@ -1355,11 +1472,16 @@ func groupingDstMergeds(label string, dsts []MergedPortDst) MergedPortDst {
 	for _, dst := range dsts {
 		merged.Action = dst.Action
 		merged.Namespace = dst.Namespace
-		if dst.Additional != "" {
-			if merged.Additional != "" {
-				merged.Additional = merged.Additional + "||" + dst.Additional
+
+		if len(dst.Additionals) > 0 {
+			if merged.Additionals != nil {
+				for _, additional := range dst.Additionals {
+					if !libs.ContainsElement(merged.Additionals, additional) {
+						merged.Additionals = append(merged.Additionals, additional)
+					}
+				}
 			} else {
-				merged.Additional = dst.Additional
+				merged.Additionals = dst.Additionals
 			}
 		}
 
@@ -1375,7 +1497,7 @@ func groupingDstMergeds(label string, dsts []MergedPortDst) MergedPortDst {
 
 // mergingDstByLabels Function
 func mergingDstByLabels(mergedSrcPerMergedProtoDst map[string][]MergedPortDst, pods []types.Pod) map[string][]MergedPortDst {
-	perGroupedSrcGroupedDst := map[string][]MergedPortDst{}
+	mergedSrcPerMergedDst := map[string][]MergedPortDst{}
 
 	for mergedSrc, mergedProtoPortDsts := range mergedSrcPerMergedProtoDst {
 		// label update
@@ -1409,27 +1531,30 @@ func mergingDstByLabels(mergedSrcPerMergedProtoDst map[string][]MergedPortDst, p
 				}
 
 				if len(selectedDsts) != 0 {
-					if perGroupedSrcGroupedDst[mergedSrc] == nil {
-						perGroupedSrcGroupedDst[mergedSrc] = []MergedPortDst{}
+					if mergedSrcPerMergedDst[mergedSrc] == nil {
+						mergedSrcPerMergedDst[mergedSrc] = []MergedPortDst{}
 					}
 
 					// groupingDsts -> one merged grouping dst
 					groupedDst := groupingDstMergeds(label, selectedDsts)
-					perGroupedSrcGroupedDst[mergedSrc] = append(perGroupedSrcGroupedDst[mergedSrc], groupedDst)
+					mergedSrcPerMergedDst[mergedSrc] = append(mergedSrcPerMergedDst[mergedSrc], groupedDst)
 				}
 			}
 		}
 
 		// not grouped dst remains, append it
 		for _, mergedDst := range mergedProtoPortDsts {
-			if perGroupedSrcGroupedDst[mergedSrc] == nil {
-				perGroupedSrcGroupedDst[mergedSrc] = []MergedPortDst{}
+			if mergedSrcPerMergedDst[mergedSrc] == nil {
+				mergedSrcPerMergedDst[mergedSrc] = []MergedPortDst{}
 			}
-			perGroupedSrcGroupedDst[mergedSrc] = append(perGroupedSrcGroupedDst[mergedSrc], mergedDst)
+			mergedSrcPerMergedDst[mergedSrc] = append(mergedSrcPerMergedDst[mergedSrc], mergedDst)
 		}
 	}
 
-	return perGroupedSrcGroupedDst
+	// merge HTTP method+path
+	aggregateHTTP(mergedSrcPerMergedDst)
+
+	return mergedSrcPerMergedDst
 }
 
 // ======================= //
@@ -1515,6 +1640,7 @@ func DiscoverNetworkPolicies(namespace string,
 	services []types.Service,
 	endpoints []types.Endpoint,
 	pods []types.Pod) []types.KnoxNetworkPolicy {
+
 	// step 1: [network logs] -> {dst: [network logs (src+dst)]}
 	logsPerDst := groupingLogsPerDst(networkLogs, endpoints, cidrBits)
 
