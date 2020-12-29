@@ -290,45 +290,6 @@ func GetLatestServicePolicy(existingPolicies []types.KnoxNetworkPolicy, policy t
 // == Update Outdated Policy == //
 // ============================ //
 
-// aggregateSpecHTTP function
-func aggregateSpecHTTP(specHTTP []types.SpecHTTP) []types.SpecHTTP {
-	updatedHTTP := []types.SpecHTTP{}
-
-	methodToPaths := map[string][]string{}
-	for _, http := range specHTTP {
-		method := http.Method
-		path := http.Path
-
-		if val, ok := methodToPaths[method]; ok {
-			if !libs.ContainsElement(val, path) {
-				val = append(val, path)
-			}
-			methodToPaths[method] = val
-		} else {
-			methodToPaths[method] = []string{path}
-		}
-	}
-
-	for method, paths := range methodToPaths {
-		aggreatedPaths := AggreateHTTPPaths(paths)
-
-		for _, aggPath := range aggreatedPaths {
-			http := types.SpecHTTP{
-				Method: method,
-				Path:   aggPath,
-			}
-
-			if strings.Contains(aggPath, ".*") {
-				http.Aggregated = true
-			}
-
-			updatedHTTP = append(updatedHTTP, http)
-		}
-	}
-
-	return updatedHTTP
-}
-
 // includedHTTPPath function
 func includedHTTPPath(httpRules []types.SpecHTTP, targetRule types.SpecHTTP) bool {
 	included := false
@@ -338,17 +299,9 @@ func includedHTTPPath(httpRules []types.SpecHTTP, targetRule types.SpecHTTP) boo
 			continue
 		}
 
-		if httpRule.Aggregated {
-			matchedPath := libs.Prefix([]string{targetRule.Path, httpRule.Path})
-			if len(strings.Split(matchedPath, "/")) >= 3 {
-				included = true
-				break
-			}
-		} else {
-			if httpRule.Path == targetRule.Path {
-				included = true
-				break
-			}
+		if httpRule.Path == targetRule.Path {
+			included = true
+			break
 		}
 	}
 
@@ -397,16 +350,6 @@ func UpdateHTTP(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.Knox
 
 			continue
 		}
-
-		// case 3: policy has toHTTPs, latest has toHTTPs or no toHTTPs --> move to new policy
-		for _, oldHTTP := range existHTTP {
-			if !includedHTTPPath(newHTTP, oldHTTP) {
-				newHTTP = append(newHTTP, oldHTTP)
-			}
-		}
-
-		// aggregate paths
-		newHTTP = aggregateSpecHTTP(newHTTP)
 
 		// annotate the outdated policy
 		libs.UpdateOutdatedPolicy(latestPolicy.Metadata["name"], newPolicy.Metadata["name"])

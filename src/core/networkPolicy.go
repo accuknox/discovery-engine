@@ -84,6 +84,7 @@ func init() {
 	NetworkLogFrom = libs.GetEnv("NETWORK_LOG_FROM", "db")
 
 	LabeledSrcsPerDst = map[string]LabeledSrcsPerDstMap{}
+	// log.Logger = log.With().Caller().Logger()
 }
 
 // ====================== //
@@ -125,8 +126,17 @@ type MergedPortDst struct {
 	Additionals []string
 	MatchLabels string
 	ToPorts     []types.SpecPort
+	HTTPTree    map[string]*Node
 
 	Action string
+}
+
+// HTTPDst Structure
+type HTTPDst struct {
+	Namespace   string
+	MatchLabels string
+	ToPorts     []types.SpecPort
+	HTTPTree    map[string]map[string]*Node
 }
 
 // LabelCount Structure
@@ -678,8 +688,10 @@ func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcP
 								}
 
 								// if path includes wild card (.*), check aggreagted
-								if strings.Contains(path, ".*") {
+								if strings.Contains(path, "*") {
 									httpRule.Aggregated = true
+								} else {
+									httpRule.Aggregated = false
 								}
 
 								if !strings.Contains(egressPolicy.Metadata["rule"], "toHTTPs") {
@@ -1376,94 +1388,6 @@ func mergingDstSpecs(mergedSrcsPerDst map[Dst][]string) map[string][]MergedPortD
 // == Step 5: Grouping Dst based on Label == //
 // ========================================= //
 
-// AggreateHTTPPaths function
-func AggreateHTTPPaths(paths []string) []string {
-	aggregatedPaths := []string{}
-
-	sort.Strings(paths)
-
-	depthToPaths := map[string][]string{}
-
-	for _, path := range paths {
-		// if path in /apple/banana
-		if len(strings.Split(path, "/")) >= 3 {
-			depth1 := "/" + strings.Split(path, "/")[1]
-			if depPaths, ok := depthToPaths[depth1]; ok {
-				if !libs.ContainsElement(depPaths, path) {
-					depPaths = append(depPaths, path)
-				}
-				depthToPaths[depth1] = depPaths
-			} else {
-				depthToPaths[depth1] = []string{path}
-			}
-		} else {
-			// root path or under depths
-			if path == "/" || !libs.ContainsElement(aggregatedPaths, path) {
-				aggregatedPaths = append(aggregatedPaths, path)
-			}
-		}
-	}
-
-	for key, paths := range depthToPaths {
-		// if threshold over, aggregate it
-		if len(paths) >= HTTPUrlThreshold {
-			aggregatedPaths = append(aggregatedPaths, key+"/.*")
-		} else {
-			for _, path := range paths {
-				if !libs.ContainsElement(aggregatedPaths, path) {
-					aggregatedPaths = append(aggregatedPaths, path)
-				}
-			}
-		}
-	}
-
-	return aggregatedPaths
-}
-
-// aggregateHTTP function
-func aggregateHTTP(mergedSrcPerMergedDst map[string][]MergedPortDst) {
-	// merge same http per each merged Src
-	for mergedSrc, dsts := range mergedSrcPerMergedDst {
-		// remains := []MergedPortDst{}
-
-		// step 1: get http
-		for i, dst := range dsts {
-			// check if dst is for HTTP rules
-			if libs.CheckSpecHTTP(dst.Additionals) {
-				updatedAdditionals := []string{}
-
-				methodToPaths := map[string][]string{}
-
-				for _, http := range dst.Additionals {
-					method := strings.Split(http, "|")[0]
-					path := strings.Split(http, "|")[1]
-
-					if val, ok := methodToPaths[method]; ok {
-						if !libs.ContainsElement(val, path) {
-							val = append(val, path)
-						}
-						methodToPaths[method] = val
-					} else {
-						methodToPaths[method] = []string{path}
-					}
-				}
-
-				for method, paths := range methodToPaths {
-					aggreatedPaths := AggreateHTTPPaths(paths)
-
-					for _, aggPath := range aggreatedPaths {
-						updatedAdditionals = append(updatedAdditionals, method+"|"+aggPath)
-					}
-				}
-
-				dsts[i].Additionals = updatedAdditionals
-			}
-		}
-
-		mergedSrcPerMergedDst[mergedSrc] = dsts
-	}
-}
-
 // groupingDstMergeds Function
 func groupingDstMergeds(label string, dsts []MergedPortDst) MergedPortDst {
 	merged := MergedPortDst{MatchLabels: label}
@@ -1476,7 +1400,7 @@ func groupingDstMergeds(label string, dsts []MergedPortDst) MergedPortDst {
 		if len(dst.Additionals) > 0 {
 			if merged.Additionals != nil {
 				for _, additional := range dst.Additionals {
-					if !libs.ContainsElement(merged.Additionals, additional) {
+					if additional != "" && !libs.ContainsElement(merged.Additionals, additional) {
 						merged.Additionals = append(merged.Additionals, additional)
 					}
 				}
@@ -1551,9 +1475,6 @@ func mergingDstByLabels(mergedSrcPerMergedProtoDst map[string][]MergedPortDst, p
 		}
 	}
 
-	// merge HTTP method+path
-	aggregateHTTP(mergedSrcPerMergedDst)
-
 	return mergedSrcPerMergedDst
 }
 
@@ -1566,7 +1487,6 @@ func generatePolicyName(networkPolicies []types.KnoxNetworkPolicy) []types.KnoxN
 	autoPolicyNames := []string{}
 
 	newPolicies := []types.KnoxNetworkPolicy{}
-
 	for _, policy := range networkPolicies {
 		if !libs.ContainsElement(newPolicies, policy) {
 			newPolicies = append(newPolicies, policy)
@@ -1601,8 +1521,15 @@ func generatePolicyName(networkPolicies []types.KnoxNetworkPolicy) []types.KnoxN
 
 // UpdateLabeledSrcsPerDst function
 func UpdateLabeledSrcsPerDst(labeledSrcsPerDst map[Dst][]SrcSimple) map[Dst][]SrcSimple {
+	// only maintains pod-to-pod in cluster
 	for dst := range labeledSrcsPerDst {
+		// remove cidr because cidr can be outdated
 		if dst.Namespace == "reserved:cidr" {
+			delete(labeledSrcsPerDst, dst)
+		}
+
+		// remove additional is not "", which means.. http,fqdn, ....
+		if dst.Additional != "" {
 			delete(labeledSrcsPerDst, dst)
 		}
 	}
@@ -1664,13 +1591,16 @@ func DiscoverNetworkPolicies(namespace string,
 	// step 5: {merged_src: [dsts (merged proto/port + labeld)] grouping dst based on labels
 	mergedSrcPerMergedDst := mergingDstByLabels(mergedSrcPerMergedProtoDst, pods)
 
-	// step 6: building network policies
+	// step 6: aggregate HTTP rule (method+path)
+	AggregateHTTPRules(mergedSrcPerMergedDst)
+
+	// step 7: building network policies
 	networkPolicies := buildNetworkPolicies(namespace, services, mergedSrcPerMergedDst)
 
-	// step 7: removing duplication policies
+	// step 8: generate random policy name
 	namedPolicies := generatePolicyName(networkPolicies)
 
-	// step 8: update labeledSrcsPerDst map (remove cidr dst)
+	// step 9: update labeledSrcsPerDst map (remove cidr dst/additionals)
 	LabeledSrcsPerDst[namespace] = UpdateLabeledSrcsPerDst(labeledSrcsPerDst)
 
 	return namedPolicies
@@ -1678,8 +1608,6 @@ func DiscoverNetworkPolicies(namespace string,
 
 // StartToDiscoverNetworkPolicies function
 func StartToDiscoverNetworkPolicies() {
-	defer HandleErr()
-
 	ciliumFlows := []*flow.Flow{}
 
 	if NetworkLogFrom == "db" {
@@ -1735,6 +1663,7 @@ func StartToDiscoverNetworkPolicies() {
 		if len(networkLogs) == 0 {
 			continue
 		}
+
 		log.Info().Msgf("Policy discovery started for namespace: [%s]", namespace)
 
 		// discover network policies based on the network logs
