@@ -11,52 +11,6 @@ import (
 	types "github.com/accuknox/knoxAutoPolicy/src/types"
 )
 
-// var abpaths = []string{
-// 	"/api/done",
-// 	"/api/cart/add/anonymous-177/RD-10/1",
-// 	"/api/user/uniqueid",
-// 	"/api/ratings/api/fetch/HAL-1",
-// 	"/api/catalogue/products",
-// 	"/api/ratings/api/fetch/RD-10",
-// 	"/api/payment/pay/anonymous-177",
-// 	"/api/cart/add/anonymous-177/HAL-1/1",
-// 	"/",
-// 	"/api/shipping/calc/5345184",
-// 	"/api/catalogue/categories",
-// 	"/api/ratings/api/rate/HAL-1/1",
-// 	"/api/catalogue/product/RD-10",
-// 	"/api/payment/pay/partner-57",
-// 	"/api/shipping/cities/pt",
-// 	"/api/user/login",
-// 	"/api/cart/cart/anonymous-177",
-// 	"/api/shipping/codes",
-// 	"/api/cart/update/anonymous-177/HAL-1/2",
-// 	"/api/catalogue/product/HAL-1",
-// 	"/api/shipping/confirm/anonymous-177",
-// }
-
-// var abpaths2 = []string{
-// 	"/api/payment/pay/anonymous-177",
-// 	"/api/payment/pay/anonymous-178",
-// 	"/api/payment/pay/anonymous-179",
-// 	"/api/payment/pay/anonymous-180",
-// 	"/api/payment/pay",
-// 	"/api/product/91231233/details",
-// 	"/api/product/41231232/view",
-// 	"/api/product/16231231/details",
-// 	"/api/product/71231235/view",
-// 	"/api/user/login",
-// 	"/api",
-// }
-
-// var abpaths3 = []string{
-// 	"/api/payment/pay/anonymous-177",
-// 	"/api/payment/pay",
-// 	"/api/product/91231233/details",
-// 	"/api/product/71231235/view",
-// 	"/api/product/obr",
-// }
-
 // WildPathDigit ...
 var WildPathDigit string = "/[0-9]+"
 

@@ -145,10 +145,8 @@ func GetLastedHTTPPolicy(existingPolicies []types.KnoxNetworkPolicy, policy type
 				existToPorts = exist.Spec.Ingress[0].ToPorts
 			}
 
-			matchLables := true
-			matchToPorts := true
-
 			// 1. check matchLabels
+			matchLables := true
 			for k, v := range newMatchLabels {
 				if val, ok := existMatchLabels[k]; !ok {
 					matchLables = false
@@ -162,6 +160,7 @@ func GetLastedHTTPPolicy(existingPolicies []types.KnoxNetworkPolicy, policy type
 			}
 
 			// 2. check toPorts
+			matchToPorts := true
 			for _, toPort := range newToPorts {
 				if existToPorts == nil && len(existToPorts) == 0 {
 					matchToPorts = false
@@ -816,8 +815,15 @@ func DeduplicatePolicies(existingPolicies []types.KnoxNetworkPolicy, discoveredP
 			continue
 		}
 
-		// step 2: update existing matchLabels+toPorts rules: egress or ingress
-		if strings.Contains(policy.Metadata["rule"], "matchLabels") {
+		// step 2: update existing HTTP rules: egress or ingress
+		if strings.Contains(policy.Metadata["rule"], "toHTTPs") {
+			updated, valid := UpdateHTTP(policy, existingPolicies)
+			if !valid {
+				continue
+			}
+			policy = updated
+		} else if strings.Contains(policy.Metadata["rule"], "matchLabels") {
+			// step 3: update existing matchLabels+toPorts rules: egress or ingress
 			updated, valid := UpdateMatchLabels(policy, existingPolicies)
 			if !valid {
 				continue
@@ -825,7 +831,7 @@ func DeduplicatePolicies(existingPolicies []types.KnoxNetworkPolicy, discoveredP
 			policy = updated
 		}
 
-		// step 3: update existing CIDR(+toPorts) rules: egress or ingress
+		// step 4: update existing CIDR(+toPorts) rules: egress or ingress
 		if strings.Contains(policy.Metadata["rule"], "toCIDRs") {
 			updated, valid := UpdateToPorts(policy, existingPolicies)
 			if !valid {
@@ -834,18 +840,9 @@ func DeduplicatePolicies(existingPolicies []types.KnoxNetworkPolicy, discoveredP
 			policy = updated
 		}
 
-		// step 4: update existing FQDN+toPorts rules: egress
+		// step 5: update existing FQDN+toPorts rules: egress
 		if strings.Contains(policy.Metadata["rule"], "toFQDNs") && policy.Metadata["rule"] == "egress" {
 			updated, valid := UpdateToPorts(policy, existingPolicies)
-			if !valid {
-				continue
-			}
-			policy = updated
-		}
-
-		// step 5: update existing HTTP rules: egress or ingress
-		if strings.Contains(policy.Metadata["rule"], "toHTTPs") {
-			updated, valid := UpdateHTTP(policy, existingPolicies)
 			if !valid {
 				continue
 			}
