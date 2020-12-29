@@ -27,4 +27,10 @@ export NETWORK_LOG_FROM=db
 export HUBBLE_URL=127.0.0.1
 export HUBBLE_PORT=4245
 
+# operation mode: c=cronjob | a=at once
+if [ $# -eq 1 ]
+  then
+    export OPERATION_MODE=$1
+fi
+
 $KNOX_AUTO_HOME/src/knoxAutoPolicy

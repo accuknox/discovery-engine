@@ -90,6 +90,11 @@ func getHTTP(flow *flow.Flow) (string, string) {
 			method := flow.L7.GetHttp().GetMethod()
 			u, _ := url.Parse(flow.L7.GetHttp().GetUrl())
 			path := u.Path
+
+			if strings.HasPrefix(path, "//") {
+				path = strings.Replace(path, "//", "/", 1)
+			}
+
 			return method, path
 		}
 	}
