@@ -34,7 +34,7 @@ func init() {
 	DBName = GetEnv("DB_NAME", "flow_management")
 
 	if IsK8sEnv() {
-		DBHost = GetEnv("DB_HOST", "database.bastion.svc.cluster.local")
+		DBHost = GetEnv("DB_HOST", "database.knox-auto-policy.svc.cluster.local")
 		dbAddr, err := net.LookupIP(DBHost)
 		if err == nil {
 			DBHost = dbAddr[0].String()
@@ -119,14 +119,12 @@ func GetNetworkPolicies(namespace, status string) []types.KnoxNetworkPolicy {
 	if DBDriver == "mysql" {
 		docs, err := GetNetworkPoliciesFromMySQL(namespace, status)
 		if err != nil {
-			log.Error().Msg(err.Error())
 			return results
 		}
 		results = docs
 	} else if DBDriver == "mongodb" {
 		docs, err := GetNetworkPoliciesFromMongo(namespace, status)
 		if err != nil {
-			log.Error().Msg(err.Error())
 			return results
 		}
 		results = docs

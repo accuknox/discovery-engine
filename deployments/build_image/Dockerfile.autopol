@@ -1,0 +1,31 @@
+### Builder
+
+FROM golang:1.15.2-alpine3.12 as builder
+
+RUN apk update
+
+#RUN apk add --no-cache bash git ca-certificates 
+#ARG GITHUB_TOKEN
+#RUN git config --global url."https://${GITHUB_TOKEN}:x-oauth-basic@github.com/accuknox/".insteadOf "https://github.com/accuknox/"
+#ENV GOPRIVATE github.com/accuknox/knoxServiceFlowMgmt
+
+WORKDIR /usr/src/knox
+
+COPY ./libs ./libs
+COPY ./core ./core
+COPY ./types ./types
+COPY ./plugin ./plugin
+COPY ./main.go ./main.go
+COPY ./go.mod ./go.mod
+
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -ldflags '-s -w' -o knoxAutoPolicy main.go
+
+### Make executable image
+
+FROM alpine:3.12
+
+RUN apk add --no-cache bash
+
+COPY --from=builder /usr/src/knox/knoxAutoPolicy /knoxAutoPolicy
+
+ENTRYPOINT ["/knoxAutoPolicy"]

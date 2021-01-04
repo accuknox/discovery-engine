@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"net"
 	"net/url"
 	"strconv"
 	"strings"
@@ -24,6 +25,12 @@ import (
 // cidrEanbeld config
 var cidrEanbeld bool
 
+// CiliumFlows list
+var CiliumFlows []*flow.Flow
+
+// CiliumFlowsMutex mutext
+var CiliumFlowsMutex *sync.Mutex
+
 func init() {
 	env := libs.GetEnv("CIDR_ENABLED", "true")
 	if env == "false" {
@@ -32,6 +39,8 @@ func init() {
 		cidrEanbeld = true
 	}
 
+	// init mutex
+	CiliumFlowsMutex = &sync.Mutex{}
 }
 
 // ============================ //
@@ -618,16 +627,29 @@ func ConvertKnoxPoliciesToCiliumPolicies(services []types.Service, policies []ty
 // == Cilium Hubble Relay == //
 // ========================= //
 
-// CiliumFlows list
-var CiliumFlows []*flow.Flow
-
-// CiliumFlowsMutex mutext
-var CiliumFlowsMutex *sync.Mutex
-
 // ConnectHubbleRelay function.
 func ConnectHubbleRelay() *grpc.ClientConn {
-	url := libs.GetEnv("HUBBLE_URL", "127.0.0.1")
-	port := libs.GetEnv("HUBBLE_PORT", "4245")
+	port := libs.GetEnv("HUBBLE_PORT", "80")
+
+	url := ""
+	if libs.IsK8sEnv() {
+		url = libs.GetEnv("HUBBLE_URL", "hubble-relay.cilium.svc.cluster.local")
+		addr, err := net.LookupIP(url)
+		if err == nil {
+			url = addr[0].String()
+		} else {
+			url = libs.GetExternalIPAddr()
+		}
+	} else {
+		url = libs.GetEnv("HUBBLE_URL", "127.0.0.1")
+		addr, err := net.LookupIP(url)
+		if err == nil {
+			url = addr[0].String()
+		} else {
+			url = libs.GetExternalIPAddr()
+		}
+	}
+
 	addr := url + ":" + port
 
 	conn, err := grpc.Dial(addr, grpc.WithInsecure())
@@ -683,9 +705,6 @@ func StartHubbleRelay(StopChan chan struct{}, wg *sync.WaitGroup) {
 		Since:     timestamppb.Now(),
 		Until:     nil,
 	}
-
-	// init mutex
-	CiliumFlowsMutex = &sync.Mutex{}
 
 	if stream, err := client.GetFlows(context.Background(), req); err == nil {
 		for {
