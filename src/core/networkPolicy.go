@@ -9,9 +9,10 @@ import (
 	"sync"
 	"time"
 
-	libs "github.com/accuknox/knoxAutoPolicy/src/libs"
-	plugin "github.com/accuknox/knoxAutoPolicy/src/plugin"
-	types "github.com/accuknox/knoxAutoPolicy/src/types"
+	"github.com/accuknox/knoxAutoPolicy/src/libs"
+	"github.com/accuknox/knoxAutoPolicy/src/plugin"
+	"github.com/accuknox/knoxAutoPolicy/src/types"
+
 	"github.com/cilium/cilium/api/v1/flow"
 	"github.com/google/go-cmp/cmp"
 
@@ -1707,7 +1708,7 @@ func StartCronJob() {
 
 	// init cron job
 	c := cron.New()
-	c.AddFunc("@every 0h0m10s", StartToDiscoverNetworkPolicies) // time interval
+	c.AddFunc("@every 0h0m15s", StartToDiscoverNetworkPolicies) // time interval
 	c.Start()
 
 	sig := libs.GetOSSigChannel()

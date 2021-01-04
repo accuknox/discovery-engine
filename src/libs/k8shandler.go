@@ -146,7 +146,7 @@ func GetNamespaces() []string {
 			continue
 		}
 
-		if namespace.Name == "kube-system" {
+		if namespace.Name == "kube-system" || namespace.Name == "knox-auto-policy" {
 			continue
 		}
 
