@@ -23,6 +23,7 @@ $ cd src
 
 export KNOX_AUTO_HOME=`dirname $(realpath "$0")`/..
 
+# database info
 export DB_DRIVER=mysql
 export DB_PORT=3306
 export DB_USER=root
@@ -30,12 +31,28 @@ export DB_PASS=password
 export DB_NAME=flow_management
 export DB_HOST=127.0.0.1
 
-export COL_NETWORK_FLOW=network_flow
-export COL_DISCOVERED_POLICY=discovered_policy
+# table info
+export TB_NETWORK_FLOW=network_flow
+export TB_DISCOVERED_POLICY=discovered_policy
 
+# output dir info
 export OUT_DIR=$KNOX_AUTO_HOME/policies/
 
-export DISCOVERY_MODE=egressingress
+# available discovery modes: egress | ingress | egress+ingress
+export DISCOVERY_MODE=egress+ingress
+
+# available network log source: hubble | db
+export NETWORK_LOG_FROM=hubble
+
+# cilium hubble info (if connect to hubble directly)
+export HUBBLE_URL=127.0.0.1
+export HUBBLE_PORT=4245
+
+# operation mode: c=cronjob | a=at once
+if [ $# -eq 1 ]
+  then
+    export OPERATION_MODE=$1
+fi
 
 $KNOX_AUTO_HOME/src/knoxAutoPolicy
 ```
@@ -51,15 +68,32 @@ $ ./scripts/startService.sh
 
 ```
 func StartToDiscoverNetworkPolicies() {
-	log.Info().Msg("Get network traffic from the database")
+	ciliumFlows := []*flow.Flow{}
 
-	flows, valid := libs.GetTrafficFlowFromDB()
-	if !valid {
+	if NetworkLogFrom == "db" {
+		log.Info().Msg("Get network traffic from the database")
+
+		results := libs.GetTrafficFlowFromDB()
+		if len(results) == 0 {
+			return
+		}
+
+		// convert db flows -> cilium flows
+		ciliumFlows = plugin.ConvertDocsToCiliumFlows(results)
+	} else if NetworkLogFrom == "hubble" { // from hubble directly
+		log.Info().Msg("Get network traffic from the Cilium Hubble directly")
+
+		results := plugin.GetCiliumFlowsFromHubble()
+		if len(results) == 0 {
+			return
+		}
+
+		ciliumFlows = results
+	} else {
+		log.Error().Msgf("Network log source not correct: %s", NetworkLogFrom)
+
 		return
 	}
-
-	// convert db flows -> cilium flows
-	ciliumFlows := plugin.ConvertDocsToCiliumFlows(flows)
 
 	// get k8s services
 	services := libs.GetServices()
@@ -74,11 +108,7 @@ func StartToDiscoverNetworkPolicies() {
 	namespaces := libs.GetNamespaces()
 
 	// get existing policies in db
-	existingPolicies, err := libs.GetNetworkPolicies("", "latest")
-	if err != nil {
-		log.Error().Msg(err.Error())
-		return
-	}
+	existingPolicies := libs.GetNetworkPolicies("", "latest")
 
 	// update exposed ports (k8s service, docker-compose portbinding)
 	updateServiceEndpoint(services, endpoints, pods)
@@ -104,13 +134,16 @@ func StartToDiscoverNetworkPolicies() {
 
 		if len(newPolicies) > 0 {
 			// insert discovered policies to db
-			if err := libs.InsertDiscoveredPolicies(newPolicies); err != nil {
-				log.Error().Msg(err.Error())
-				continue
-			}
+			libs.InsertDiscoveredPolicies(newPolicies)
 
-			// retrieve policies from the db
-			policies, _ := libs.GetNetworkPolicies(namespace, "latest")
+			// retrieve the latest policies from the db
+			policies := libs.GetNetworkPolicies(namespace, "latest")
+
+			// convert knoxPolicy to CiliumPolicy
+			ciliumPolicies := plugin.ConvertKnoxPoliciesToCiliumPolicies(services, policies)
+
+			// write discovered policies to files
+			libs.WriteCiliumPolicyToYamlFile(namespace, ciliumPolicies)
 
 			// write discovered policies to files
 			libs.WriteKnoxPolicyToYamlFile(namespace, policies)
