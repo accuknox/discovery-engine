@@ -8,7 +8,6 @@ import (
 	"github.com/rs/zerolog/log"
 
 	core "github.com/accuknox/knoxAutoPolicy/src/core"
-	"github.com/accuknox/knoxAutoPolicy/src/libs"
 	cpb "github.com/accuknox/knoxAutoPolicy/src/protos/v1/config"
 	wpb "github.com/accuknox/knoxAutoPolicy/src/protos/v1/worker"
 	"github.com/accuknox/knoxAutoPolicy/src/types"
@@ -37,7 +36,7 @@ func (s *configServer) Add(ctx context.Context, in *cpb.ConfigRequest) (*cpb.Con
 	var config types.Configuration
 	json.Unmarshal([]byte(str), &config)
 
-	err := libs.AddConfiguration(core.Cfg.ConfigDB, config)
+	err := core.AddConfiguration(config)
 	if err != nil {
 		return &cpb.ConfigResponse{Msg: err.Error()}, nil
 	}
@@ -48,7 +47,7 @@ func (s *configServer) Add(ctx context.Context, in *cpb.ConfigRequest) (*cpb.Con
 func (s *configServer) Get(ctx context.Context, in *cpb.ConfigRequest) (*cpb.ConfigResponse, error) {
 	log.Info().Msg("Get config called")
 
-	results, err := libs.GetConfigurations(core.Cfg.ConfigDB, in.GetName())
+	results, err := core.GetConfigurations(in.GetName())
 	if err != nil {
 		return &cpb.ConfigResponse{Msg: err.Error()}, nil
 	}
@@ -82,7 +81,7 @@ func (s *configServer) Update(ctx context.Context, in *cpb.ConfigRequest) (*cpb.
 	var config types.Configuration
 	json.Unmarshal([]byte(str), &config)
 
-	err := libs.UpdateConfiguration(core.Cfg.ConfigDB, in.GetName(), config)
+	err := core.UpdateConfiguration(in.GetName(), config)
 	if err != nil {
 		return &cpb.ConfigResponse{Msg: err.Error()}, nil
 	}
@@ -93,7 +92,18 @@ func (s *configServer) Update(ctx context.Context, in *cpb.ConfigRequest) (*cpb.
 func (s *configServer) Delete(ctx context.Context, in *cpb.ConfigRequest) (*cpb.ConfigResponse, error) {
 	log.Info().Msg("Delete config called")
 
-	err := libs.DeleteConfiguration(core.Cfg.ConfigDB, in.GetName())
+	err := core.DeleteConfiguration(in.GetName())
+	if err != nil {
+		return &cpb.ConfigResponse{Msg: err.Error()}, nil
+	}
+
+	return &cpb.ConfigResponse{Msg: "ok"}, nil
+}
+
+func (s *configServer) Apply(ctx context.Context, in *cpb.ConfigRequest) (*cpb.ConfigResponse, error) {
+	log.Info().Msg("Apply config called")
+
+	err := core.ApplyConfiguration(in.GetName())
 	if err != nil {
 		return &cpb.ConfigResponse{Msg: err.Error()}, nil
 	}

@@ -306,6 +306,7 @@ func AddConfiguration(cfg types.ConfigDB, newConfig types.Configuration) error {
 	stmt, err := db.Prepare("INSERT INTO " +
 		cfg.TableConfiguration +
 		"(config_name," +
+		"status," +
 		"config_db," +
 		"config_cilium_hubble," +
 		"operation_mode," +
@@ -322,7 +323,7 @@ func AddConfiguration(cfg types.ConfigDB, newConfig types.Configuration) error {
 		"l4_aggregation_level," +
 		"l7_aggregation_level," +
 		"http_url_threshold) " +
-		"values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+		"values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
 
 	if err != nil {
 		return err
@@ -349,6 +350,7 @@ func AddConfiguration(cfg types.ConfigDB, newConfig types.Configuration) error {
 	}
 
 	_, err = stmt.Exec(newConfig.ConfigName,
+		newConfig.Status,
 		configDB,
 		configCilium,
 		newConfig.OperationMode,
@@ -543,6 +545,37 @@ func DeleteConfiguration(cfg types.ConfigDB, configName string) error {
 	defer stmt.Close()
 
 	_, err = stmt.Exec(configName)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ApplyConfiguration ...
+func ApplyConfiguration(cfg types.ConfigDB, oldConfigName, configName string) error {
+	db := ConnectMySQL(cfg)
+	defer db.Close()
+
+	var err error
+	stmt1, err := db.Prepare("UPDATE " + cfg.TableConfiguration + " SET status=? WHERE config_name=?")
+	if err != nil {
+		return err
+	}
+	defer stmt1.Close()
+
+	_, err = stmt1.Exec(0, oldConfigName)
+	if err != nil {
+		return err
+	}
+
+	stmt2, err := db.Prepare("UPDATE " + cfg.TableConfiguration + " SET status=? WHERE config_name=?")
+	if err != nil {
+		return err
+	}
+	defer stmt2.Close()
+
+	_, err = stmt2.Exec(1, configName)
 	if err != nil {
 		return err
 	}

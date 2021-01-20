@@ -6,6 +6,7 @@ import (
 
 	"github.com/accuknox/knoxAutoPolicy/src/libs"
 	types "github.com/accuknox/knoxAutoPolicy/src/types"
+	"github.com/rs/zerolog/log"
 )
 
 // Cfg ...
@@ -84,6 +85,8 @@ func LoadDefaultConfig() {
 
 	// basic
 	Cfg.ConfigName = "default"
+	Cfg.Status = 1
+
 	Cfg.ConfigDB = LoadConfigDB()
 	Cfg.ConfigCiliumHubble = LoadConfigCiliumHubble()
 
@@ -119,4 +122,37 @@ func LoadDefaultConfig() {
 	Cfg.L4AggregationLevel = 3
 	Cfg.L7AggregationLevel = 3
 	Cfg.HTTPUrlThreshold = 3
+}
+
+// AddConfiguration function
+func AddConfiguration(newConfig types.Configuration) error {
+	return libs.AddConfiguration(Cfg.ConfigDB, newConfig)
+}
+
+// GetConfigurations function
+func GetConfigurations(configName string) ([]types.Configuration, error) {
+	return libs.GetConfigurations(Cfg.ConfigDB, configName)
+}
+
+// UpdateConfiguration function
+func UpdateConfiguration(configName string, updateConfig types.Configuration) error {
+	return libs.UpdateConfiguration(Cfg.ConfigDB, configName, updateConfig)
+}
+
+// DeleteConfiguration function
+func DeleteConfiguration(configName string) error {
+	return libs.DeleteConfiguration(Cfg.ConfigDB, configName)
+}
+
+// ApplyConfiguration ...
+func ApplyConfiguration(configName string) error {
+	if Cfg.ConfigName == configName {
+		log.Error().Msg("Not applied " + configName + " due to same configuration name")
+	}
+
+	if err := libs.ApplyConfiguration(Cfg.ConfigDB, Cfg.ConfigName, configName); err != nil {
+		log.Error().Msg(err.Error())
+	}
+
+	return nil
 }
