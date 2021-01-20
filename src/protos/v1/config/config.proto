@@ -16,7 +16,7 @@ service ConfigStore {
 }
 
 message ConfigRequest {
-    string name = 1;
+    string config_name = 1;
     Config config = 3;
 }
 

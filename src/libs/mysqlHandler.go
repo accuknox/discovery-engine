@@ -414,6 +414,7 @@ func GetConfigurations(cfg types.ConfigDB, configName string) ([]types.Configura
 		if err := results.Scan(
 			&id,
 			&cfg.ConfigName,
+			&cfg.Status,
 			&configDBByte,
 			&hubbleByte,
 			&cfg.OperationMode,

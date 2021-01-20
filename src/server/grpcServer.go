@@ -47,7 +47,7 @@ func (s *configServer) Add(ctx context.Context, in *cpb.ConfigRequest) (*cpb.Con
 func (s *configServer) Get(ctx context.Context, in *cpb.ConfigRequest) (*cpb.ConfigResponse, error) {
 	log.Info().Msg("Get config called")
 
-	results, err := core.GetConfigurations(in.GetName())
+	results, err := core.GetConfigurations(in.GetConfigName())
 	if err != nil {
 		return &cpb.ConfigResponse{Msg: err.Error()}, nil
 	}
@@ -81,7 +81,7 @@ func (s *configServer) Update(ctx context.Context, in *cpb.ConfigRequest) (*cpb.
 	var config types.Configuration
 	json.Unmarshal([]byte(str), &config)
 
-	err := core.UpdateConfiguration(in.GetName(), config)
+	err := core.UpdateConfiguration(in.GetConfigName(), config)
 	if err != nil {
 		return &cpb.ConfigResponse{Msg: err.Error()}, nil
 	}
@@ -92,7 +92,7 @@ func (s *configServer) Update(ctx context.Context, in *cpb.ConfigRequest) (*cpb.
 func (s *configServer) Delete(ctx context.Context, in *cpb.ConfigRequest) (*cpb.ConfigResponse, error) {
 	log.Info().Msg("Delete config called")
 
-	err := core.DeleteConfiguration(in.GetName())
+	err := core.DeleteConfiguration(in.GetConfigName())
 	if err != nil {
 		return &cpb.ConfigResponse{Msg: err.Error()}, nil
 	}
@@ -103,7 +103,7 @@ func (s *configServer) Delete(ctx context.Context, in *cpb.ConfigRequest) (*cpb.
 func (s *configServer) Apply(ctx context.Context, in *cpb.ConfigRequest) (*cpb.ConfigResponse, error) {
 	log.Info().Msg("Apply config called")
 
-	err := core.ApplyConfiguration(in.GetName())
+	err := core.ApplyConfiguration(in.GetConfigName())
 	if err != nil {
 		return &cpb.ConfigResponse{Msg: err.Error()}, nil
 	}

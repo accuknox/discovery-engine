@@ -1,12 +1,12 @@
 package core
 
 import (
+	"errors"
 	"net"
 	"strings"
 
 	"github.com/accuknox/knoxAutoPolicy/src/libs"
 	types "github.com/accuknox/knoxAutoPolicy/src/types"
-	"github.com/rs/zerolog/log"
 )
 
 // Cfg ...
@@ -147,12 +147,26 @@ func DeleteConfiguration(configName string) error {
 // ApplyConfiguration ...
 func ApplyConfiguration(configName string) error {
 	if Cfg.ConfigName == configName {
-		log.Error().Msg("Not applied " + configName + " due to same configuration name")
+		return errors.New("Not applied " + configName + " due to same configuration name")
 	}
 
 	if err := libs.ApplyConfiguration(Cfg.ConfigDB, Cfg.ConfigName, configName); err != nil {
-		log.Error().Msg(err.Error())
+		return err
 	}
+
+	appliedConfigs, err := libs.GetConfigurations(Cfg.ConfigDB, configName)
+	if err != nil {
+		return err
+	}
+
+	// check if db info is null
+	appliedCfg := appliedConfigs[0]
+	if appliedCfg.ConfigDB.DBHost == "" {
+		appliedCfg.ConfigDB = Cfg.ConfigDB
+	}
+
+	// update current Cfg
+	Cfg = appliedCfg
 
 	return nil
 }
