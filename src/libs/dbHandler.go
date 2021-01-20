@@ -1,7 +1,7 @@
 package libs
 
 import (
-	"net"
+	"strings"
 	"time"
 
 	"github.com/accuknox/knoxAutoPolicy/src/types"
@@ -9,52 +9,10 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-// env values
-var (
-	TableNetworkFlow      string
-	TableDiscoveredPolicy string
-
-	DBDriver string
-	DBHost   string
-	DBPort   string
-	DBUser   string
-	DBPass   string
-	DBName   string
-)
-
 // network flow between [ startTime <= time < endTime ]
 var lastDocID int64 = 0
 var startTime int64 = 0
 var endTime int64 = 0
-
-func init() {
-	DBDriver = GetEnv("DB_DRIVER", "mysql")
-	DBUser = GetEnv("DB_USER", "root")
-	DBPass = GetEnv("DB_PASS", "password")
-	DBName = GetEnv("DB_NAME", "flow_management")
-
-	if IsK8sEnv() {
-		DBHost = GetEnv("DB_HOST", "database.knox-auto-policy.svc.cluster.local")
-		dbAddr, err := net.LookupIP(DBHost)
-		if err == nil {
-			DBHost = dbAddr[0].String()
-		} else {
-			DBHost = GetExternalIPAddr()
-		}
-	} else {
-		DBHost = GetEnv("DB_HOST", "database")
-		dbAddr, err := net.LookupIP(DBHost)
-		if err == nil {
-			DBHost = dbAddr[0].String()
-		} else {
-			DBHost = GetExternalIPAddr()
-		}
-	}
-	DBPort = GetEnv("DB_PORT", "3306")
-
-	TableNetworkFlow = GetEnv("TB_NETWORK_FLOW", "network_flow")
-	TableDiscoveredPolicy = GetEnv("TB_DISCOVERED_POLICY", "discovered_policy")
-}
 
 // updateTimeInterval function
 func updateTimeInterval(lastDoc map[string]interface{}) {
@@ -67,20 +25,34 @@ func updateTimeInterval(lastDoc map[string]interface{}) {
 }
 
 // GetTrafficFlowFromDB function
-func GetTrafficFlowFromDB() []map[string]interface{} {
+func GetTrafficFlowFromDB(cfg types.ConfigDB, timeSelection string) []map[string]interface{} {
 	results := []map[string]interface{}{}
 
 	endTime = time.Now().Unix()
 
-	if DBDriver == "mysql" {
-		docs, err := GetTrafficFlowByIDTime(lastDocID, endTime)
-		if err != nil {
-			log.Error().Msg(err.Error())
-			return results
+	if cfg.DBDriver == "mysql" {
+		if timeSelection == "" {
+			docs, err := GetTrafficFlowByIDTime(cfg, lastDocID, endTime)
+			if err != nil {
+				log.Error().Msg(err.Error())
+				return results
+			}
+			results = docs
+		} else {
+			// given time selection  from ~ to
+			times := strings.Split(timeSelection, "|")
+			from := ConvertStrToUnixTime(times[0])
+			to := ConvertStrToUnixTime(times[1])
+
+			docs, err := GetTrafficFlowByTime(cfg, from, to)
+			if err != nil {
+				log.Error().Msg(err.Error())
+				return results
+			}
+			results = docs
 		}
-		results = docs
-	} else if DBDriver == "mongodb" {
-		docs, err := GetTrafficFlowFromMongo(startTime, endTime)
+	} else if cfg.DBDriver == "mongodb" {
+		docs, err := GetTrafficFlowFromMongo(cfg, startTime, endTime)
 		if err != nil {
 			log.Error().Msg(err.Error())
 			return results
@@ -99,8 +71,9 @@ func GetTrafficFlowFromDB() []map[string]interface{} {
 	}
 
 	lastDoc := results[len(results)-1]
+
 	// id update for mysql
-	if DBDriver == "mysql" {
+	if cfg.DBDriver == "mysql" {
 		lastDocID = int64(lastDoc["id"].(uint32))
 	}
 
@@ -113,17 +86,17 @@ func GetTrafficFlowFromDB() []map[string]interface{} {
 }
 
 // GetNetworkPolicies Function
-func GetNetworkPolicies(namespace, status string) []types.KnoxNetworkPolicy {
+func GetNetworkPolicies(cfg types.ConfigDB, namespace, status string) []types.KnoxNetworkPolicy {
 	results := []types.KnoxNetworkPolicy{}
 
-	if DBDriver == "mysql" {
-		docs, err := GetNetworkPoliciesFromMySQL(namespace, status)
+	if cfg.DBDriver == "mysql" {
+		docs, err := GetNetworkPoliciesFromMySQL(cfg, namespace, status)
 		if err != nil {
 			return results
 		}
 		results = docs
-	} else if DBDriver == "mongodb" {
-		docs, err := GetNetworkPoliciesFromMongo(namespace, status)
+	} else if cfg.DBDriver == "mongodb" {
+		docs, err := GetNetworkPoliciesFromMongo(cfg, namespace, status)
 		if err != nil {
 			return results
 		}
@@ -136,17 +109,17 @@ func GetNetworkPolicies(namespace, status string) []types.KnoxNetworkPolicy {
 }
 
 // GetNetworkPoliciesBySelector Function
-func GetNetworkPoliciesBySelector(namespace, status string, selector map[string]string) ([]types.KnoxNetworkPolicy, error) {
+func GetNetworkPoliciesBySelector(cfg types.ConfigDB, namespace, status string, selector map[string]string) ([]types.KnoxNetworkPolicy, error) {
 	results := []types.KnoxNetworkPolicy{}
 
-	if DBDriver == "mysql" {
-		docs, err := GetNetworkPoliciesFromMySQL(namespace, status)
+	if cfg.DBDriver == "mysql" {
+		docs, err := GetNetworkPoliciesFromMySQL(cfg, namespace, status)
 		if err != nil {
 			return nil, err
 		}
 		results = docs
-	} else if DBDriver == "mongodb" {
-		docs, err := GetNetworkPoliciesFromMongo(namespace, status)
+	} else if cfg.DBDriver == "mongodb" {
+		docs, err := GetNetworkPoliciesFromMongo(cfg, namespace, status)
 		if err != nil {
 			return nil, err
 		}
@@ -179,26 +152,26 @@ func GetNetworkPoliciesBySelector(namespace, status string, selector map[string]
 }
 
 // UpdateOutdatedPolicy function
-func UpdateOutdatedPolicy(outdatedPolicy string, latestPolicy string) {
-	if DBDriver == "mysql" {
-		if err := UpdateOutdatedPolicyFromMySQL(outdatedPolicy, latestPolicy); err != nil {
+func UpdateOutdatedPolicy(cfg types.ConfigDB, outdatedPolicy string, latestPolicy string) {
+	if cfg.DBDriver == "mysql" {
+		if err := UpdateOutdatedPolicyFromMySQL(cfg, outdatedPolicy, latestPolicy); err != nil {
 			log.Error().Msg(err.Error())
 		}
-	} else if DBDriver == "mongodb" {
-		if err := UpdateOutdatedPolicyFromMongo(outdatedPolicy, latestPolicy); err != nil {
+	} else if cfg.DBDriver == "mongodb" {
+		if err := UpdateOutdatedPolicyFromMongo(cfg, outdatedPolicy, latestPolicy); err != nil {
 			log.Error().Msg(err.Error())
 		}
 	}
 }
 
 // InsertDiscoveredPolicies function
-func InsertDiscoveredPolicies(policies []types.KnoxNetworkPolicy) {
-	if DBDriver == "mysql" {
-		if err := InsertDiscoveredPoliciesToMySQL(policies); err != nil {
+func InsertDiscoveredPolicies(cfg types.ConfigDB, policies []types.KnoxNetworkPolicy) {
+	if cfg.DBDriver == "mysql" {
+		if err := InsertDiscoveredPoliciesToMySQL(cfg, policies); err != nil {
 			log.Error().Msg(err.Error())
 		}
-	} else if DBDriver == "mongodb" {
-		if err := InsertDiscoveredPoliciesToMongoDB(policies); err != nil {
+	} else if cfg.DBDriver == "mongodb" {
+		if err := InsertDiscoveredPoliciesToMongoDB(cfg, policies); err != nil {
 			log.Error().Msg(err.Error())
 		}
 	}

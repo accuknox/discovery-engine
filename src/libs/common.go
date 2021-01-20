@@ -12,6 +12,7 @@ import (
 	"os/signal"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -390,17 +391,17 @@ func GetEnv(key, fallback string) string {
 
 // GetEnvInt Function
 func GetEnvInt(key string, fallback int) int {
+	result := 0
+
 	if value, ok := os.LookupEnv(key); ok {
-		if strings.ToLower(value) == "egress" {
-			return 1
-		} else if strings.ToLower(value) == "ingress" {
-			return 2
-		} else {
-			return 3
+		val, err := strconv.Atoi(value)
+		if err != nil {
+			return fallback
 		}
+		result = val
 	}
 
-	return fallback
+	return result
 }
 
 // ContainsElement Function
@@ -439,7 +440,7 @@ func RandSeq(n int) string {
 
 // WriteKnoxPolicyToYamlFile Function
 func WriteKnoxPolicyToYamlFile(namespace string, policies []types.KnoxNetworkPolicy) {
-	fileName := GetEnv("OUT_DIR", "./") + "knox_policies_" + namespace + ".yaml"
+	fileName := GetEnv("POLICY_DIR", "./") + "knox_policies_" + namespace + ".yaml"
 
 	os.Remove(fileName)
 
@@ -463,7 +464,7 @@ func WriteKnoxPolicyToYamlFile(namespace string, policies []types.KnoxNetworkPol
 // WriteCiliumPolicyToYamlFile Function
 func WriteCiliumPolicyToYamlFile(namespace string, policies []types.CiliumNetworkPolicy) {
 	// create policy file
-	fileName := GetEnv("OUT_DIR", "./") + "cilium_policies_" + namespace + ".yaml"
+	fileName := GetEnv("POLICY_DIR", "./") + "cilium_policies_" + namespace + ".yaml"
 
 	os.Remove(fileName)
 
@@ -485,7 +486,7 @@ func WriteCiliumPolicyToYamlFile(namespace string, policies []types.CiliumNetwor
 
 // WriteKnoxPolicyToJSONFile Function
 func WriteKnoxPolicyToJSONFile(namespace string, policies []types.KnoxNetworkPolicy) {
-	fileName := GetEnv("OUT_DIR", "./")
+	fileName := GetEnv("POLICY_DIR", "./")
 
 	os.Remove(fileName)
 
@@ -533,9 +534,19 @@ const (
 	TimeCilium     string = "2006-01-02T15:04:05.000000000Z"
 )
 
-// ConvertUnixTSToDateTime Function
+// ConvertUnixTSToDateTime Function for mongoDB
 func ConvertUnixTSToDateTime(ts int64) primitive.DateTime {
 	t := time.Unix(ts, 0)
 	dateTime := primitive.NewDateTimeFromTime(t)
 	return dateTime
+}
+
+// ConvertStrToUnixTime function: str -> unix seconds for mysql
+func ConvertStrToUnixTime(strTime string) int64 {
+	if strTime == "now" {
+		return time.Now().UTC().Unix()
+	}
+
+	t, _ := time.Parse(TimeFormSimple, strTime)
+	return t.UTC().Unix()
 }

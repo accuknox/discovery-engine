@@ -343,7 +343,7 @@ func UpdateHTTP(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.Knox
 		if includeAllRules {
 			// case 2-1: policy has the lower selector count? outdated
 			if len(newPolicy.Spec.Selector.MatchLabels) < len(latestPolicy.Spec.Selector.MatchLabels) {
-				libs.UpdateOutdatedPolicy(latestPolicy.Metadata["name"], newPolicy.Metadata["name"])
+				libs.UpdateOutdatedPolicy(Cfg.ConfigDB, latestPolicy.Metadata["name"], newPolicy.Metadata["name"])
 				updated = true
 			}
 
@@ -351,7 +351,7 @@ func UpdateHTTP(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.Knox
 		}
 
 		// annotate the outdated policy
-		libs.UpdateOutdatedPolicy(latestPolicy.Metadata["name"], newPolicy.Metadata["name"])
+		libs.UpdateOutdatedPolicy(Cfg.ConfigDB, latestPolicy.Metadata["name"], newPolicy.Metadata["name"])
 		updated = true
 	}
 
@@ -413,7 +413,7 @@ func UpdateToPorts(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.K
 		if includeAllRules {
 			// case 2-1: policy has the lower selector count? outdated
 			if len(newPolicy.Spec.Selector.MatchLabels) < len(latestPolicy.Spec.Selector.MatchLabels) {
-				libs.UpdateOutdatedPolicy(latestPolicy.Metadata["name"], newPolicy.Metadata["name"])
+				libs.UpdateOutdatedPolicy(Cfg.ConfigDB, latestPolicy.Metadata["name"], newPolicy.Metadata["name"])
 				updated = true
 			}
 
@@ -428,7 +428,7 @@ func UpdateToPorts(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.K
 		}
 
 		// annotate the outdated policy
-		libs.UpdateOutdatedPolicy(latestPolicy.Metadata["name"], newPolicy.Metadata["name"])
+		libs.UpdateOutdatedPolicy(Cfg.ConfigDB, latestPolicy.Metadata["name"], newPolicy.Metadata["name"])
 		updated = true
 	}
 
@@ -491,7 +491,7 @@ func UpdateMatchLabels(newPolicy types.KnoxNetworkPolicy, existingPolicies []typ
 			if len(newPolicy.Spec.Selector.MatchLabels) < len(latestPolicy.Spec.Selector.MatchLabels) ||
 				newTargetLabelsCount < existTargetLabelsCount {
 				// case 2-2: policy has the lower target matchLabels count? outdated
-				libs.UpdateOutdatedPolicy(latestPolicy.Metadata["name"], newPolicy.Metadata["name"])
+				libs.UpdateOutdatedPolicy(Cfg.ConfigDB, latestPolicy.Metadata["name"], newPolicy.Metadata["name"])
 				updated = true
 			}
 
@@ -506,7 +506,7 @@ func UpdateMatchLabels(newPolicy types.KnoxNetworkPolicy, existingPolicies []typ
 		}
 
 		// annotate the outdated policy
-		libs.UpdateOutdatedPolicy(latestPolicy.Metadata["name"], newPolicy.Metadata["name"])
+		libs.UpdateOutdatedPolicy(Cfg.ConfigDB, latestPolicy.Metadata["name"], newPolicy.Metadata["name"])
 		updated = true
 	}
 
@@ -560,7 +560,7 @@ func UpdateEntity(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.Kn
 		if includeAllEntities {
 			// case 2-1: policy has the lower selector count? outdated
 			if len(newPolicy.Spec.Selector.MatchLabels) < len(latestPolicy.Spec.Selector.MatchLabels) {
-				libs.UpdateOutdatedPolicy(latestPolicy.Metadata["name"], newPolicy.Metadata["name"])
+				libs.UpdateOutdatedPolicy(Cfg.ConfigDB, latestPolicy.Metadata["name"], newPolicy.Metadata["name"])
 				updated = true
 			}
 
@@ -575,7 +575,7 @@ func UpdateEntity(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.Kn
 		}
 
 		// annotate the outdated fqdn policy
-		libs.UpdateOutdatedPolicy(latestPolicy.Metadata["name"], newPolicy.Metadata["name"])
+		libs.UpdateOutdatedPolicy(Cfg.ConfigDB, latestPolicy.Metadata["name"], newPolicy.Metadata["name"])
 		updated = true
 	}
 
@@ -629,7 +629,7 @@ func UpdateService(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.K
 		if includeAllService {
 			// case 2-1: policy has the lower selector count? outdated
 			if len(newPolicy.Spec.Selector.MatchLabels) < len(latestPolicy.Spec.Selector.MatchLabels) {
-				libs.UpdateOutdatedPolicy(latestPolicy.Metadata["name"], newPolicy.Metadata["name"])
+				libs.UpdateOutdatedPolicy(Cfg.ConfigDB, latestPolicy.Metadata["name"], newPolicy.Metadata["name"])
 				updated = true
 			}
 
@@ -644,7 +644,7 @@ func UpdateService(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.K
 		}
 
 		// annotate the outdated fqdn policy
-		libs.UpdateOutdatedPolicy(latestPolicy.Metadata["name"], newPolicy.Metadata["name"])
+		libs.UpdateOutdatedPolicy(Cfg.ConfigDB, latestPolicy.Metadata["name"], newPolicy.Metadata["name"])
 		updated = true
 	}
 
@@ -793,7 +793,7 @@ func updateExistCIDRtoNewFQDN(existingPolicies []types.KnoxNetworkPolicy, newPol
 							}
 						}
 
-						libs.UpdateOutdatedPolicy(existCIDR.Metadata["name"], fqdnPolicy.Metadata["name"])
+						libs.UpdateOutdatedPolicy(Cfg.ConfigDB, existCIDR.Metadata["name"], fqdnPolicy.Metadata["name"])
 					}
 				}
 			}
