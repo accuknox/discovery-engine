@@ -391,12 +391,17 @@ func GetEnv(key, fallback string) string {
 
 // GetEnvInt Function
 func GetEnvInt(key string, fallback int) int {
-	val, err := strconv.Atoi(key)
-	if err != nil {
-		return fallback
+	result := 0
+
+	if value, ok := os.LookupEnv(key); ok {
+		val, err := strconv.Atoi(value)
+		if err != nil {
+			return fallback
+		}
+		result = val
 	}
 
-	return val
+	return result
 }
 
 // ContainsElement Function
@@ -529,9 +534,19 @@ const (
 	TimeCilium     string = "2006-01-02T15:04:05.000000000Z"
 )
 
-// ConvertUnixTSToDateTime Function
+// ConvertUnixTSToDateTime Function for mongoDB
 func ConvertUnixTSToDateTime(ts int64) primitive.DateTime {
 	t := time.Unix(ts, 0)
 	dateTime := primitive.NewDateTimeFromTime(t)
 	return dateTime
+}
+
+// ConvertStrToUnixTime function: str -> unix seconds for mysql
+func ConvertStrToUnixTime(strTime string) int64 {
+	if strTime == "now" {
+		return time.Now().UTC().Unix()
+	}
+
+	t, _ := time.Parse(TimeFormSimple, strTime)
+	return t.UTC().Unix()
 }

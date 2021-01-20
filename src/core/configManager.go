@@ -93,7 +93,7 @@ func LoadDefaultConfig() {
 	// set worker
 	Cfg.OperationMode = libs.GetEnvInt("OPERATION_MODE", 1)
 	Cfg.CronJobTimeInterval = libs.GetEnv("CRON_JOB_TIME_INTERVAL", "@every 0h0m5s")
-	Cfg.OneTimeJobTimeSelection = ""
+	Cfg.OneTimeJobTimeSelection = "" // e.g., 2021-01-20 07:00:23|2021-01-20 07:00:25
 
 	// input & output
 	Cfg.NetworkLogFrom = libs.GetEnv("NETWORK_LOG_FROM", "db")

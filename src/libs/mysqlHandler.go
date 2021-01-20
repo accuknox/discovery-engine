@@ -88,7 +88,7 @@ func GetTrafficFlowByTime(cfg types.ConfigDB, startTime, endTime int64) ([]map[s
 
 	QueryBase := QueryBaseSimple + cfg.TableNetworkFlow
 
-	rows, err := db.Query(QueryBase+" WHERE time >= ? and time < ?", int(startTime), int(endTime))
+	rows, err := db.Query(QueryBase+" WHERE time >= ? and time <= ?", int(startTime), int(endTime))
 	if err != nil {
 		return nil, err
 	}

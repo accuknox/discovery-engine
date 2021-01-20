@@ -1584,7 +1584,12 @@ func DiscoverNetworkPolicies(namespace string,
 	return namedPolicies
 }
 
-func isIgnoringNamespace(namespace string) bool {
+// ==================== //
+// == Preprocessing  == //
+// ==================== //
+
+// IgnoringNamespace func
+func IgnoringNamespace(namespace string) bool {
 	for _, igFlows := range Cfg.IgnoringFlows {
 		if igFlows.IgSelectorNamespaces == nil {
 			continue
@@ -1598,32 +1603,42 @@ func isIgnoringNamespace(namespace string) bool {
 	return false
 }
 
-// StartToDiscoveryWorker function
-func StartToDiscoveryWorker() {
+// GetCiliumFlows func
+func GetCiliumFlows() []*flow.Flow {
 	ciliumFlows := []*flow.Flow{}
 
 	if Cfg.NetworkLogFrom == "db" {
 		log.Info().Msg("Get network traffic from the database")
 
-		results := libs.GetTrafficFlowFromDB(Cfg.ConfigDB)
-		if len(results) == 0 {
-			return
+		flows := libs.GetTrafficFlowFromDB(Cfg.ConfigDB, Cfg.OneTimeJobTimeSelection)
+		if len(flows) == 0 {
+			return nil
 		}
 
 		// convert db flows -> cilium flows
-		ciliumFlows = plugin.ConvertDocsToCiliumFlows(Cfg.ConfigDB.DBDriver, results)
+		ciliumFlows = plugin.ConvertDocsToCiliumFlows(Cfg.ConfigDB.DBDriver, flows)
 	} else if Cfg.NetworkLogFrom == "hubble" { // from hubble directly
 		log.Info().Msg("Get network traffic from the Cilium Hubble directly")
 
-		results := plugin.GetCiliumFlowsFromHubble()
-		if len(results) == 0 {
-			return
+		flows := plugin.GetCiliumFlowsFromHubble()
+		if len(flows) == 0 {
+			return nil
 		}
 
-		ciliumFlows = results
+		ciliumFlows = flows
 	} else {
 		log.Error().Msgf("Network log source not correct: %s", Cfg.NetworkLogFrom)
+		return nil
+	}
 
+	return ciliumFlows
+}
+
+// StartToDiscoveryWorker function
+func StartToDiscoveryWorker() {
+	// get network flows
+	networkFlows := GetCiliumFlows()
+	if networkFlows == nil {
 		return
 	}
 
@@ -1646,17 +1661,17 @@ func StartToDiscoveryWorker() {
 	updateServiceEndpoint(services, endpoints, pods)
 
 	// update DNS to IPs
-	updateDNSToIPs(ciliumFlows, dnsToIPs)
+	updateDNSToIPs(networkFlows, dnsToIPs)
 
 	// iterate each namespace
 	for _, namespace := range namespaces {
 		// skip namespace
-		if isIgnoringNamespace(namespace) {
+		if IgnoringNamespace(namespace) {
 			continue
 		}
 
 		// convert cilium network traffic -> network log, and filter traffic
-		networkLogs := plugin.ConvertCiliumFlowsToKnoxLogs(namespace, ciliumFlows, dnsToIPs)
+		networkLogs := plugin.ConvertCiliumFlowsToKnoxLogs(namespace, networkFlows, dnsToIPs)
 		if len(networkLogs) == 0 {
 			continue
 		}
@@ -1747,10 +1762,11 @@ func StartWorker() {
 	}
 	Status = StatusRunning
 
-	if Cfg.OperationMode == 2 { // every time intervals
+	if Cfg.OperationMode == 1 { // every time intervals
 		StartCronJob()
 	} else { // one-time generation
 		StartToDiscoveryWorker()
+		log.Info().Msgf("Auto discovery onetime job done")
 	}
 }
 
@@ -1762,7 +1778,7 @@ func StopWorker() {
 	}
 	Status = StatusIdle
 
-	if Cfg.OperationMode == 2 { // every time intervals
+	if Cfg.OperationMode == 1 { // every time intervals
 		StopCronJob()
 	} else { // one-time generation
 

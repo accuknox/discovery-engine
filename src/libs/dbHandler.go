@@ -1,6 +1,7 @@
 package libs
 
 import (
+	"strings"
 	"time"
 
 	"github.com/accuknox/knoxAutoPolicy/src/types"
@@ -24,18 +25,32 @@ func updateTimeInterval(lastDoc map[string]interface{}) {
 }
 
 // GetTrafficFlowFromDB function
-func GetTrafficFlowFromDB(cfg types.ConfigDB) []map[string]interface{} {
+func GetTrafficFlowFromDB(cfg types.ConfigDB, timeSelection string) []map[string]interface{} {
 	results := []map[string]interface{}{}
 
 	endTime = time.Now().Unix()
 
 	if cfg.DBDriver == "mysql" {
-		docs, err := GetTrafficFlowByIDTime(cfg, lastDocID, endTime)
-		if err != nil {
-			log.Error().Msg(err.Error())
-			return results
+		if timeSelection == "" {
+			docs, err := GetTrafficFlowByIDTime(cfg, lastDocID, endTime)
+			if err != nil {
+				log.Error().Msg(err.Error())
+				return results
+			}
+			results = docs
+		} else {
+			// given time selection  from ~ to
+			times := strings.Split(timeSelection, "|")
+			from := ConvertStrToUnixTime(times[0])
+			to := ConvertStrToUnixTime(times[1])
+
+			docs, err := GetTrafficFlowByTime(cfg, from, to)
+			if err != nil {
+				log.Error().Msg(err.Error())
+				return results
+			}
+			results = docs
 		}
-		results = docs
 	} else if cfg.DBDriver == "mongodb" {
 		docs, err := GetTrafficFlowFromMongo(cfg, startTime, endTime)
 		if err != nil {

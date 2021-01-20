@@ -21,11 +21,11 @@ export HUBBLE_PORT=4245
 
 # operation mode: cronjob: 1
 #                 onetime job: 2
-export OPERATION_MODE=1
+export OPERATION_MODE=2
 export CRON_JOB_TIME_INTERVAL="@every 0h0m5s"
 
 # available network log source: hubble | db
-export NETWORK_LOG_FROM=hubble
+export NETWORK_LOG_FROM=db
 export DISCOVERED_POLICY_TO="db|file"
 export POLICY_DIR=$KNOX_AUTO_HOME/policies/
 
