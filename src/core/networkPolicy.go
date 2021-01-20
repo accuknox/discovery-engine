@@ -1573,19 +1573,112 @@ func DiscoverNetworkPolicies(namespace string,
 // == Preprocessing  == //
 // ==================== //
 
-// IgnoringNamespace func
-func IgnoringNamespace(namespace string) bool {
-	for _, igFlows := range Cfg.IgnoringFlows {
-		if igFlows.IgSelectorNamespaces == nil {
-			continue
-		}
+// getHaveToCheckItems func
+func getHaveToCheckItems(igFlows types.IgnoringFlows) int {
+	check := 0
 
-		if libs.ContainsElement(igFlows.IgSelectorNamespaces, namespace) {
-			return true
+	if igFlows.IgSourceNamespace != "" {
+		check = check | 1<<0 // 1
+	}
+
+	if len(igFlows.IgSourceLabels) > 0 {
+		check = check | 1<<1 // 2
+	}
+
+	if igFlows.IgDestinationNamespace != "" {
+		check = check | 1<<2 // 4
+	}
+
+	if len(igFlows.IgDestinationLabels) > 0 {
+		check = check | 1<<3 // 8
+	}
+
+	if igFlows.IgProtocol != "" {
+		check = check | 1<<4 // 16
+	}
+
+	if igFlows.IgPortNumber != "" {
+		check = check | 1<<5 // 32
+	}
+
+	return check
+}
+
+// containLabels func
+func containLabels(cni string, igLabels []string, flowLabels []string) bool {
+	prefix := ""
+
+	if cni == "cilium" {
+		prefix = "k8s:"
+	}
+
+	for _, label := range igLabels {
+		label = prefix + label
+
+		if !libs.ContainsElement(flowLabels, label) {
+			return false
 		}
 	}
 
-	return false
+	return true
+}
+
+// PrefilterFlows func
+func PrefilterFlows(flows []*flow.Flow) []*flow.Flow {
+	filteredFlows := []*flow.Flow{}
+
+	for _, flow := range flows {
+		ignored := false
+
+		for _, igFlow := range Cfg.IgnoringFlows {
+			checkItems := getHaveToCheckItems(igFlow)
+
+			checkedItems := 0
+
+			// 1. check src namespace
+			if (checkItems&1 > 0) && igFlow.IgSourceNamespace == flow.Source.Namespace {
+				checkedItems = checkedItems | 1<<0
+			}
+
+			// 2. check src pod labels
+			if (checkItems&2 > 0) && containLabels("cilium", igFlow.IgSourceLabels, flow.Source.Labels) {
+				checkedItems = checkedItems | 1<<1
+			}
+
+			// 3. check dest namespace
+			if (checkItems&4 > 0) && igFlow.IgDestinationNamespace == flow.Destination.Namespace {
+				checkedItems = checkedItems | 1<<2
+			}
+
+			// 4. check dest pod labels
+			if (checkItems&8 > 0) && containLabels("cilium", igFlow.IgDestinationLabels, flow.Destination.Labels) {
+				checkedItems = checkedItems | 1<<3
+			}
+
+			// 5. check protocol
+			if (checkItems&16 > 0) && flow.GetL4() != nil && plugin.GetProtocolStr(flow.GetL4()) == igFlow.IgProtocol {
+				checkedItems = checkedItems | 1<<4
+			}
+
+			// 6. check port number
+			if (checkItems&32 > 0) && flow.GetL4() != nil {
+				if strings.Contains(flow.GetL4().String(), igFlow.IgPortNumber) {
+					checkedItems = checkedItems | 1<<5
+				}
+			}
+
+			if checkItems == checkedItems {
+				ignored = true
+				break
+			}
+		}
+
+		if !ignored {
+			filteredFlows = append(filteredFlows, flow)
+		}
+	}
+
+	return filteredFlows
 }
 
 // GetCiliumFlows func
@@ -1627,6 +1720,9 @@ func StartToDiscoveryWorker() {
 		return
 	}
 
+	// filter ignoring network flows
+	networkFlows = PrefilterFlows(networkFlows)
+
 	// get k8s services
 	services := libs.GetServices()
 
@@ -1650,8 +1746,8 @@ func StartToDiscoveryWorker() {
 
 	// iterate each namespace
 	for _, namespace := range namespaces {
-		// skip namespace
-		if IgnoringNamespace(namespace) {
+		// skip uninterested namespaces
+		if libs.ContainsElement(SkipNamespaces, namespace) {
 			continue
 		}
 

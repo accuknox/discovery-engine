@@ -12,6 +12,9 @@ import (
 // Cfg ...
 var Cfg types.Configuration
 
+// SkipNamespaces ...
+var SkipNamespaces []string
+
 func init() {
 	// initially, default -> applied
 	LoadDefaultConfig()
@@ -108,9 +111,8 @@ func LoadDefaultConfig() {
 	Cfg.CIDRBits = 32
 
 	// ignoring flows
-	skipNamespacesStr := libs.GetEnv("IGNORING_SELECTOR_NAMESPACES", "")
-	igFlow1 := types.IgnoringFlows{IgSelectorNamespaces: strings.Split(skipNamespacesStr, "|")}
-	Cfg.IgnoringFlows = []types.IgnoringFlows{igFlow1}
+	skipNamespacesStr := libs.GetEnv("IGNORING_NAMESPACES", "")
+	SkipNamespaces = strings.Split(skipNamespacesStr, "|")
 
 	// aggregation level
 	Cfg.L3AggregationLevel = 3

@@ -61,8 +61,8 @@ func getL4Ports(l4 *flow.Layer4) (int, int) {
 	}
 }
 
-// getProtocol function
-func getProtocol(l4 *flow.Layer4) int {
+// GetProtocol function
+func GetProtocol(l4 *flow.Layer4) int {
 	if l4.GetTCP() != nil {
 		return 6
 	} else if l4.GetUDP() != nil {
@@ -71,6 +71,19 @@ func getProtocol(l4 *flow.Layer4) int {
 		return 1
 	} else {
 		return 0 // unknown?
+	}
+}
+
+// GetProtocolStr function
+func GetProtocolStr(l4 *flow.Layer4) string {
+	if l4.GetTCP() != nil {
+		return "tcp"
+	} else if l4.GetUDP() != nil {
+		return "udp"
+	} else if l4.GetICMPv4() != nil {
+		return "icmp"
+	} else {
+		return "unknown" // unknown?
 	}
 }
 
@@ -164,7 +177,7 @@ func ConvertCiliumFlowToKnoxLog(flow *flow.Flow, dnsToIPs map[string][]string) (
 
 	// get L4
 	if flow.L4 != nil {
-		log.Protocol = getProtocol(flow.L4)
+		log.Protocol = GetProtocol(flow.L4)
 		if log.Protocol == 6 && flow.L4.GetTCP() != nil { // if tcp,
 			log.SynFlag = isSynFlagOnly(flow.L4.GetTCP())
 		}
