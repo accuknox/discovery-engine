@@ -110,12 +110,7 @@ func LoadDefaultConfig() {
 	// ignoring flows
 	skipNamespacesStr := libs.GetEnv("IGNORING_SELECTOR_NAMESPACES", "")
 	igFlow1 := types.IgnoringFlows{IgSelectorNamespaces: strings.Split(skipNamespacesStr, "|")}
-	igFlow2 := types.IgnoringFlows{
-		IgSelectorLabels: []string{"pod-template-hash",
-			"controller-revision-hash",            // from istana robot-shop
-			"statefulset.kubernetes.io/pod-name"}, // from istana robot-shop
-	}
-	Cfg.IgnoringFlows = []types.IgnoringFlows{igFlow1, igFlow2}
+	Cfg.IgnoringFlows = []types.IgnoringFlows{igFlow1}
 
 	// aggregation level
 	Cfg.L3AggregationLevel = 3

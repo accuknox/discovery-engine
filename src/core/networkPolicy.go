@@ -1002,21 +1002,6 @@ func mergingSrcByLabels(perDstSrcLabel map[Dst][]SrcSimple) map[Dst][]string {
 // == Step 2: Replacing Src to Labeled == //
 // ====================================== //
 
-// isIgnoringFlowLabels Function
-func isIgnoringFlowLabels(label string) bool {
-	for _, igFlows := range Cfg.IgnoringFlows {
-		if igFlows.IgSelectorLabels == nil {
-			continue
-		}
-
-		if libs.ContainsElement(igFlows.IgSelectorLabels, strings.Split(label, "=")[0]) {
-			return true
-		}
-	}
-
-	return false
-}
-
 // getMergedLabels Function
 func getMergedLabels(namespace, podName string, pods []types.Pod) string {
 	mergedLabels := ""
@@ -1029,9 +1014,7 @@ func getMergedLabels(namespace, podName string, pods []types.Pod) string {
 
 			for _, label := range pod.Labels {
 				/* TODO: do we need to skip the hash labels? */
-				if !isIgnoringFlowLabels(label) {
-					labels = append(labels, label)
-				}
+				labels = append(labels, label)
 			}
 
 			sort.Slice(labels, func(i, j int) bool {
@@ -1481,6 +1464,7 @@ func mergingDstByLabels(mergedSrcPerMergedProtoDst map[string][]MergedPortDst, p
 
 // generatePolicyName Function
 func generatePolicyName(networkPolicies []types.KnoxNetworkPolicy) []types.KnoxNetworkPolicy {
+	clusterName := libs.GetClusterName()
 	autoPolicyNames := []string{}
 
 	newPolicies := []types.KnoxNetworkPolicy{}
@@ -1507,6 +1491,7 @@ func generatePolicyName(networkPolicies []types.KnoxNetworkPolicy) []types.KnoxN
 		autoPolicyNames = append(autoPolicyNames, newName)
 
 		newPolicies[i].Metadata["name"] = newName
+		newPolicies[i].Metadata["cluster_name"] = clusterName
 	}
 
 	return newPolicies
@@ -1688,17 +1673,20 @@ func StartToDiscoveryWorker() {
 			// insert discovered policies to db
 			libs.InsertDiscoveredPolicies(Cfg.ConfigDB, newPolicies)
 
-			// retrieve the latest policies from the db
-			policies := libs.GetNetworkPolicies(Cfg.ConfigDB, namespace, "latest")
+			if strings.Contains(Cfg.DiscoveredPolicyTo, "file") {
 
-			// convert knoxPolicy to CiliumPolicy
-			// ciliumPolicies := plugin.ConvertKnoxPoliciesToCiliumPolicies(services, policies)
+				// retrieve the latest policies from the db
+				policies := libs.GetNetworkPolicies(Cfg.ConfigDB, namespace, "latest")
 
-			// write discovered policies to files
-			// libs.WriteCiliumPolicyToYamlFile(namespace, ciliumPolicies)
+				// convert knoxPolicy to CiliumPolicy
+				ciliumPolicies := plugin.ConvertKnoxPoliciesToCiliumPolicies(services, policies)
 
-			// write discovered policies to files
-			libs.WriteKnoxPolicyToYamlFile(namespace, policies)
+				// write discovered policies to files
+				libs.WriteCiliumPolicyToYamlFile(namespace, ciliumPolicies)
+
+				// write discovered policies to files
+				libs.WriteKnoxPolicyToYamlFile(namespace, policies)
+			}
 
 			log.Info().Msgf("Policy discovery done    for namespace: [%s], [%d] policies discovered", namespace, len(newPolicies))
 		} else {

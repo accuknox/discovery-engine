@@ -156,6 +156,10 @@ func GetNamespaces() []string {
 // == Container Group (Pod) == //
 // =========================== //
 
+var skipLabelKey []string = []string{"pod-template-hash", // common k8s hash label
+	"controller-revision-hash",           // from istana robot-shop
+	"statefulset.kubernetes.io/pod-name"} // from istana robot-shop
+
 // GetPods Function
 func GetPods() []types.Pod {
 	results := []types.Pod{}
@@ -181,6 +185,11 @@ func GetPods() []types.Pod {
 		}
 
 		for k, v := range pod.Labels {
+			// skip hash or microservice default label key
+			if ContainsElement(skipLabelKey, k) {
+				continue
+			}
+
 			group.Labels = append(group.Labels, k+"="+v)
 		}
 
@@ -382,4 +391,36 @@ func GetEndpoints() []types.Endpoint {
 	}
 
 	return results
+}
+
+// GetClusterName ... (GKE only)
+func GetClusterName() string {
+	client := ConnectK8sClient()
+	if client == nil {
+		return "default"
+	}
+
+	// get pods from k8s api client
+	configMaps, err := client.CoreV1().ConfigMaps("kube-system").List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return "default"
+	}
+
+	for _, configMap := range configMaps.Items {
+		if configMap.GetName() == "gke-metrics-agent-conf" {
+			for _, v := range configMap.Data {
+				lines := strings.Split(v, "\n")
+				for _, line := range lines {
+					if strings.Contains(line, "cluster_name:") {
+						name := strings.TrimSpace(line)
+						clusterName := strings.Split(name, ": ")[1]
+						return clusterName
+					}
+				}
+			}
+		}
+	}
+
+	return "default"
 }

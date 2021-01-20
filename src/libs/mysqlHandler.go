@@ -166,7 +166,7 @@ func GetNetworkPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) (
 	for results.Next() {
 		policy := types.KnoxNetworkPolicy{}
 
-		var name, namespace, policyType, rule, status string
+		var name, clusterName, namespace, policyType, rule, status string
 		specByte := []byte{}
 		spec := types.Spec{}
 
@@ -174,6 +174,7 @@ func GetNetworkPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) (
 			&policy.APIVersion,
 			&policy.Kind,
 			&name,
+			&clusterName,
 			&namespace,
 			&policyType,
 			&rule,
@@ -190,11 +191,12 @@ func GetNetworkPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) (
 		}
 
 		policy.Metadata = map[string]string{
-			"name":      name,
-			"namespace": namespace,
-			"type":      policyType,
-			"rule":      rule,
-			"status":    status,
+			"name":         name,
+			"cluster_name": clusterName,
+			"namespace":    namespace,
+			"type":         policyType,
+			"rule":         rule,
+			"status":       status,
 		}
 		policy.Spec = spec
 
@@ -240,7 +242,7 @@ func UpdateOutdatedPolicyFromMySQL(cfg types.ConfigDB, outdatedPolicy string, la
 
 // insertDiscoveredPolicy function
 func insertDiscoveredPolicy(cfg types.ConfigDB, db *sql.DB, policy types.KnoxNetworkPolicy) error {
-	stmt, err := db.Prepare("INSERT INTO " + cfg.TableDiscoveredPolicy + "(apiVersion,kind,name,namespace,type,rule,status,outdated,spec,generatedTime) values(?,?,?,?,?,?,?,?,?,?)")
+	stmt, err := db.Prepare("INSERT INTO " + cfg.TableDiscoveredPolicy + "(apiVersion,kind,name,cluster_name,namespace,type,rule,status,outdated,spec,generatedTime) values(?,?,?,?,?,?,?,?,?,?,?)")
 	if err != nil {
 		return err
 	}
@@ -255,6 +257,7 @@ func insertDiscoveredPolicy(cfg types.ConfigDB, db *sql.DB, policy types.KnoxNet
 	_, err = stmt.Exec(policy.APIVersion,
 		policy.Kind,
 		policy.Metadata["name"],
+		policy.Metadata["cluster_name"],
 		policy.Metadata["namespace"],
 		policy.Metadata["type"],
 		policy.Metadata["rule"],
