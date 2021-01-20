@@ -1,0 +1,143 @@
+package server
+
+import (
+	"context"
+	"encoding/json"
+
+	"github.com/gogo/protobuf/jsonpb"
+	"github.com/rs/zerolog/log"
+
+	core "github.com/accuknox/knoxAutoPolicy/src/core"
+	"github.com/accuknox/knoxAutoPolicy/src/libs"
+	cpb "github.com/accuknox/knoxAutoPolicy/src/protos/v1/config"
+	wpb "github.com/accuknox/knoxAutoPolicy/src/protos/v1/worker"
+	"github.com/accuknox/knoxAutoPolicy/src/types"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
+)
+
+// PortNumber ...
+const PortNumber = "9000"
+
+// =========================== //
+// == Configuration Service == //
+// ========================== //
+
+type configServer struct {
+	cpb.ConfigStoreServer
+}
+
+func (s *configServer) Add(ctx context.Context, in *cpb.ConfigRequest) (*cpb.ConfigResponse, error) {
+	log.Info().Msg("Add config called")
+
+	m := jsonpb.Marshaler{OrigName: true}
+	str, _ := m.MarshalToString(in.GetConfig())
+
+	var config types.Configuration
+	json.Unmarshal([]byte(str), &config)
+
+	err := libs.AddConfiguration(core.Cfg.ConfigDB, config)
+	if err != nil {
+		return &cpb.ConfigResponse{Msg: err.Error()}, nil
+	}
+
+	return &cpb.ConfigResponse{Msg: "ok"}, nil
+}
+
+func (s *configServer) Get(ctx context.Context, in *cpb.ConfigRequest) (*cpb.ConfigResponse, error) {
+	log.Info().Msg("Get config called")
+
+	results, err := libs.GetConfigurations(core.Cfg.ConfigDB, in.GetName())
+	if err != nil {
+		return &cpb.ConfigResponse{Msg: err.Error()}, nil
+	}
+
+	configs := []*cpb.Config{}
+
+	for _, result := range results {
+		var config cpb.Config
+		if b, err := json.Marshal(&result); err != nil {
+			log.Error().Msg(err.Error())
+			continue
+		} else {
+			if err := json.Unmarshal(b, &config); err != nil {
+				log.Error().Msg(err.Error())
+				continue
+			}
+		}
+
+		configs = append(configs, &config)
+	}
+
+	return &cpb.ConfigResponse{Msg: "ok", Config: configs}, nil
+}
+
+func (s *configServer) Update(ctx context.Context, in *cpb.ConfigRequest) (*cpb.ConfigResponse, error) {
+	log.Info().Msg("Update config called")
+
+	m := jsonpb.Marshaler{OrigName: true}
+	str, _ := m.MarshalToString(in.GetConfig())
+
+	var config types.Configuration
+	json.Unmarshal([]byte(str), &config)
+
+	err := libs.UpdateConfiguration(core.Cfg.ConfigDB, in.GetName(), config)
+	if err != nil {
+		return &cpb.ConfigResponse{Msg: err.Error()}, nil
+	}
+
+	return &cpb.ConfigResponse{Msg: "ok"}, nil
+}
+
+func (s *configServer) Delete(ctx context.Context, in *cpb.ConfigRequest) (*cpb.ConfigResponse, error) {
+	log.Info().Msg("Delete config called")
+
+	err := libs.DeleteConfiguration(core.Cfg.ConfigDB, in.GetName())
+	if err != nil {
+		return &cpb.ConfigResponse{Msg: err.Error()}, nil
+	}
+
+	return &cpb.ConfigResponse{Msg: "ok"}, nil
+}
+
+// ==================== //
+// == Worker Service == //
+// ==================== //
+
+type workerServer struct {
+	wpb.WorkerServer
+}
+
+func (s *workerServer) Start(ctx context.Context, in *wpb.WorkerRequest) (*wpb.WorkerResponse, error) {
+	log.Info().Msg("Start worker called")
+	core.StartWorker()
+	return &wpb.WorkerResponse{Res: "ok"}, nil
+}
+
+func (s *workerServer) Stop(ctx context.Context, in *wpb.WorkerRequest) (*wpb.WorkerResponse, error) {
+	log.Info().Msg("Stop worker called")
+	core.StopWorker()
+	return &wpb.WorkerResponse{Res: "ok"}, nil
+}
+
+func (s *workerServer) GetWorkerStatus(ctx context.Context, in *wpb.WorkerRequest) (*wpb.WorkerResponse, error) {
+	log.Info().Msg("Get worker status called")
+	return &wpb.WorkerResponse{Res: core.Status}, nil
+}
+
+// ================= //
+// == gRPC server == //
+// ================= //
+
+// GetNewServer ...
+func GetNewServer() *grpc.Server {
+	s := grpc.NewServer()
+
+	reflection.Register(s)
+
+	cpb.RegisterConfigStoreServer(s, &configServer{})
+	wpb.RegisterWorkerServer(s, &workerServer{})
+
+	return s
+}

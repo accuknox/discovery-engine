@@ -13,12 +13,12 @@ import (
 )
 
 // ConnectMongoDB function
-func ConnectMongoDB() (*mongo.Client, *mongo.Database) {
+func ConnectMongoDB(cfg types.ConfigDB) (*mongo.Client, *mongo.Database) {
 	credential := options.Credential{
-		AuthSource: DBName, Username: DBUser, Password: DBPass,
+		AuthSource: cfg.DBName, Username: cfg.DBUser, Password: cfg.DBPass,
 	}
 
-	clientOptions := options.Client().ApplyURI("mongodb://" + DBHost + ":" + DBPort + "/").SetAuth(credential)
+	clientOptions := options.Client().ApplyURI("mongodb://" + cfg.DBHost + ":" + cfg.DBPort + "/").SetAuth(credential)
 
 	client, err := mongo.Connect(context.Background(), clientOptions)
 	for err != nil {
@@ -26,15 +26,15 @@ func ConnectMongoDB() (*mongo.Client, *mongo.Database) {
 		time.Sleep(time.Microsecond * 500)
 	}
 
-	return client, client.Database(DBName)
+	return client, client.Database(cfg.DBName)
 }
 
 // InsertDiscoveredPoliciesToMongoDB function
-func InsertDiscoveredPoliciesToMongoDB(policies []types.KnoxNetworkPolicy) error {
-	client, db := ConnectMongoDB()
+func InsertDiscoveredPoliciesToMongoDB(cfg types.ConfigDB, policies []types.KnoxNetworkPolicy) error {
+	client, db := ConnectMongoDB(cfg)
 	defer client.Disconnect(context.Background())
 
-	col := db.Collection(TableDiscoveredPolicy)
+	col := db.Collection(cfg.TableDiscoveredPolicy)
 
 	for _, policy := range policies {
 		if _, err := col.InsertOne(context.Background(), policy); err != nil {
@@ -70,10 +70,10 @@ func GetDocsByFilter(col *mongo.Collection, filter primitive.M) ([]map[string]in
 }
 
 // GetNetworkPoliciesFromMongo Function
-func GetNetworkPoliciesFromMongo(namespace, status string) ([]types.KnoxNetworkPolicy, error) {
-	client, db := ConnectMongoDB()
+func GetNetworkPoliciesFromMongo(cfg types.ConfigDB, namespace, status string) ([]types.KnoxNetworkPolicy, error) {
+	client, db := ConnectMongoDB(cfg)
 	defer client.Disconnect(context.Background())
-	col := db.Collection(TableDiscoveredPolicy)
+	col := db.Collection(cfg.TableDiscoveredPolicy)
 
 	docs, _ := GetDocsByFilter(col, bson.M{
 		"namespace": namespace,
@@ -112,10 +112,10 @@ func UpdateTimeFilters(filter primitive.M, tsStart, tsEnd int64) {
 }
 
 // UpdateOutdatedPolicyFromMongo function
-func UpdateOutdatedPolicyFromMongo(outdatedPolicy string, latestPolicy string) error {
-	client, db := ConnectMongoDB()
+func UpdateOutdatedPolicyFromMongo(cfg types.ConfigDB, outdatedPolicy string, latestPolicy string) error {
+	client, db := ConnectMongoDB(cfg)
 	defer client.Disconnect(context.Background())
-	col := db.Collection(TableDiscoveredPolicy)
+	col := db.Collection(cfg.TableDiscoveredPolicy)
 
 	filter := bson.M{}
 	filter["metadata.name"] = outdatedPolicy
@@ -137,10 +137,10 @@ func UpdateOutdatedPolicyFromMongo(outdatedPolicy string, latestPolicy string) e
 }
 
 // GetTrafficFlowFromMongo function
-func GetTrafficFlowFromMongo(startTime, endTime int64) ([]map[string]interface{}, error) {
-	client, db := ConnectMongoDB()
+func GetTrafficFlowFromMongo(cfg types.ConfigDB, startTime, endTime int64) ([]map[string]interface{}, error) {
+	client, db := ConnectMongoDB(cfg)
 	defer client.Disconnect(context.Background())
-	col := db.Collection(TableNetworkFlow)
+	col := db.Collection(cfg.TableNetworkFlow)
 
 	filter := bson.M{}
 	UpdateTimeFilters(filter, startTime, endTime)

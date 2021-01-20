@@ -181,7 +181,7 @@ func (n *Node) aggregateChildNodes() {
 	}
 
 	// step 1: #child nodes > threshold
-	if len(n.childNodes) > HTTPUrlThreshold {
+	if len(n.childNodes) > Cfg.HTTPUrlThreshold {
 		childPaths := []string{}
 		for _, childNode := range n.childNodes {
 			childPaths = append(childPaths, childNode.path)
@@ -433,7 +433,7 @@ func aggreateHTTPPathsNaive(paths []string) []string {
 
 	for key, paths := range depthToPaths {
 		// if threshold over, aggregate it
-		if len(paths) >= HTTPUrlThreshold {
+		if len(paths) >= Cfg.HTTPUrlThreshold {
 			aggregatedPaths = append(aggregatedPaths, key+"/.*")
 		} else {
 			for _, path := range paths {

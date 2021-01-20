@@ -12,6 +12,7 @@ import (
 	"os/signal"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -390,17 +391,12 @@ func GetEnv(key, fallback string) string {
 
 // GetEnvInt Function
 func GetEnvInt(key string, fallback int) int {
-	if value, ok := os.LookupEnv(key); ok {
-		if strings.ToLower(value) == "egress" {
-			return 1
-		} else if strings.ToLower(value) == "ingress" {
-			return 2
-		} else {
-			return 3
-		}
+	val, err := strconv.Atoi(key)
+	if err != nil {
+		return fallback
 	}
 
-	return fallback
+	return val
 }
 
 // ContainsElement Function
@@ -439,7 +435,7 @@ func RandSeq(n int) string {
 
 // WriteKnoxPolicyToYamlFile Function
 func WriteKnoxPolicyToYamlFile(namespace string, policies []types.KnoxNetworkPolicy) {
-	fileName := GetEnv("OUT_DIR", "./") + "knox_policies_" + namespace + ".yaml"
+	fileName := GetEnv("POLICY_DIR", "./") + "knox_policies_" + namespace + ".yaml"
 
 	os.Remove(fileName)
 
@@ -463,7 +459,7 @@ func WriteKnoxPolicyToYamlFile(namespace string, policies []types.KnoxNetworkPol
 // WriteCiliumPolicyToYamlFile Function
 func WriteCiliumPolicyToYamlFile(namespace string, policies []types.CiliumNetworkPolicy) {
 	// create policy file
-	fileName := GetEnv("OUT_DIR", "./") + "cilium_policies_" + namespace + ".yaml"
+	fileName := GetEnv("POLICY_DIR", "./") + "cilium_policies_" + namespace + ".yaml"
 
 	os.Remove(fileName)
 
@@ -485,7 +481,7 @@ func WriteCiliumPolicyToYamlFile(namespace string, policies []types.CiliumNetwor
 
 // WriteKnoxPolicyToJSONFile Function
 func WriteKnoxPolicyToJSONFile(namespace string, policies []types.KnoxNetworkPolicy) {
-	fileName := GetEnv("OUT_DIR", "./")
+	fileName := GetEnv("POLICY_DIR", "./")
 
 	os.Remove(fileName)
 

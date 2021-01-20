@@ -20,72 +20,53 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// ================================== //
+// == Discovery Policy/Rule Types  == //
+// ================================== //
+
+// const values
+const (
+	// discovery policy type
+	Egress        = 1
+	Ingress       = 2
+	EgressIngress = 3
+
+	// status
+	StatusRunning = "running"
+	StatusIdle    = "idle"
+)
+
 // ======================= //
 // == Gloabl Variables  == //
 // ======================= //
 
-var cidrBits int = 32
+// Status global worker
+var Status string
+
+var cronJob *cron.Cron
+
+var waitG sync.WaitGroup
+var stopChan chan struct{}
+
+var exposedTCPPorts = []int{}
+var exposedUDPPorts = []int{}
+var exposedSCTPPorts = []int{}
 
 var externals = []string{"reserved:world", "external"}
 
-var skippedLabels = []string{"pod-template-hash",
-	"controller-revision-hash",           // from istana robot-shop
-	"statefulset.kubernetes.io/pod-name"} // from istana robot-shop
-
-// ExposedTCPPorts ...
-var ExposedTCPPorts = []int{}
-
-// ExposedUDPPorts ...
-var ExposedUDPPorts = []int{}
-
-// ExposedSCTPPorts ...
-var ExposedSCTPPorts = []int{}
-
-var kubeDNSSvc []types.Service
-
-// WaitG Handler
-var WaitG sync.WaitGroup
-
-// StopChan Channel
-var StopChan chan struct{}
-
-// DNSToIPs map
-var DNSToIPs map[string][]string
-
-// discovery mode type
-const (
-	Egress        = 1
-	Ingress       = 2
-	EgressIngress = 3
-)
-
-// DiscoveryMode int
-var DiscoveryMode int
-
-// NetworkLogFrom string
-var NetworkLogFrom string
-
-// LabeledSrcsPerDstMap map --> key: simple Dst, value: simple Src
-type LabeledSrcsPerDstMap map[Dst][]SrcSimple
-
-// LabeledSrcsPerDst map --> key: namespace, value: LabeledSrcsPerDstMap
-var LabeledSrcsPerDst map[string]LabeledSrcsPerDstMap
-
-// HTTPUrlThreshold int
-var HTTPUrlThreshold int = 3
+type labeledSrcsPerDstMap map[Dst][]SrcSimple          // key: simple Dst, value: simple Src
+var gLabeledSrcsPerDst map[string]labeledSrcsPerDstMap // key: namespace, value: LabeledSrcsPerDstMap
+var dnsToIPs map[string][]string                       // key: domain name, value: ip addresses
+var k8sDNSSvc []types.Service                          // kube-dns
 
 // init Function
 func init() {
-	StopChan = make(chan struct{})
-	WaitG = sync.WaitGroup{}
+	stopChan = make(chan struct{})
+	waitG = sync.WaitGroup{}
 
-	DNSToIPs = map[string][]string{}
-
-	DiscoveryMode = libs.GetEnvInt("DISCOVERY_MODE", 3)
-	NetworkLogFrom = libs.GetEnv("NETWORK_LOG_FROM", "db")
-
-	LabeledSrcsPerDst = map[string]LabeledSrcsPerDstMap{}
-	// log.Logger = log.With().Caller().Logger()
+	dnsToIPs = map[string][]string{}
+	gLabeledSrcsPerDst = map[string]labeledSrcsPerDstMap{}
+	Status = "idle"
 }
 
 // ====================== //
@@ -236,15 +217,15 @@ func removeDstMergedSlice(dsts []MergedPortDst, remove MergedPortDst) []MergedPo
 // isExposedPort Function
 func isExposedPort(protocol int, port int) bool {
 	if protocol == 6 { // tcp
-		if libs.ContainsElement(ExposedTCPPorts, port) {
+		if libs.ContainsElement(exposedTCPPorts, port) {
 			return true
 		}
 	} else if protocol == 17 { // udp
-		if libs.ContainsElement(ExposedUDPPorts, port) {
+		if libs.ContainsElement(exposedUDPPorts, port) {
 			return true
 		}
 	} else if protocol == 132 { // sctp
-		if libs.ContainsElement(ExposedSCTPPorts, port) {
+		if libs.ContainsElement(exposedSCTPPorts, port) {
 			return true
 		}
 	}
@@ -343,7 +324,7 @@ func removeKubeDNSPort(toPorts []types.SpecPort) []types.SpecPort {
 
 	for _, toPort := range toPorts {
 		isDNS := false
-		for _, dnsSvc := range kubeDNSSvc {
+		for _, dnsSvc := range k8sDNSSvc {
 			if toPort.Port == strconv.Itoa(dnsSvc.ServicePort) &&
 				toPort.Protocol == strings.ToLower(dnsSvc.Protocol) {
 				isDNS = true
@@ -399,34 +380,34 @@ func updateServiceEndpoint(services []types.Service, endpoints []types.Endpoint,
 	// step 1: service port update
 	for _, service := range services {
 		if strings.ToLower(service.Protocol) == "tcp" { // TCP
-			if !libs.ContainsElement(ExposedTCPPorts, service.ServicePort) {
-				ExposedTCPPorts = append(ExposedTCPPorts, service.ServicePort)
+			if !libs.ContainsElement(exposedTCPPorts, service.ServicePort) {
+				exposedTCPPorts = append(exposedTCPPorts, service.ServicePort)
 			}
-			if !libs.ContainsElement(ExposedTCPPorts, service.NodePort) {
-				ExposedTCPPorts = append(ExposedTCPPorts, service.NodePort)
+			if !libs.ContainsElement(exposedTCPPorts, service.NodePort) {
+				exposedTCPPorts = append(exposedTCPPorts, service.NodePort)
 			}
-			if !libs.ContainsElement(ExposedTCPPorts, service.TargetPort) {
-				ExposedTCPPorts = append(ExposedTCPPorts, service.TargetPort)
+			if !libs.ContainsElement(exposedTCPPorts, service.TargetPort) {
+				exposedTCPPorts = append(exposedTCPPorts, service.TargetPort)
 			}
 		} else if strings.ToLower(service.Protocol) == "udp" { // UDP
-			if !libs.ContainsElement(ExposedUDPPorts, service.ServicePort) {
-				ExposedUDPPorts = append(ExposedUDPPorts, service.ServicePort)
+			if !libs.ContainsElement(exposedUDPPorts, service.ServicePort) {
+				exposedUDPPorts = append(exposedUDPPorts, service.ServicePort)
 			}
-			if !libs.ContainsElement(ExposedUDPPorts, service.NodePort) {
-				ExposedUDPPorts = append(ExposedUDPPorts, service.NodePort)
+			if !libs.ContainsElement(exposedUDPPorts, service.NodePort) {
+				exposedUDPPorts = append(exposedUDPPorts, service.NodePort)
 			}
-			if !libs.ContainsElement(ExposedUDPPorts, service.TargetPort) {
-				ExposedUDPPorts = append(ExposedUDPPorts, service.TargetPort)
+			if !libs.ContainsElement(exposedUDPPorts, service.TargetPort) {
+				exposedUDPPorts = append(exposedUDPPorts, service.TargetPort)
 			}
 		} else if strings.ToLower(service.Protocol) == "sctp" { // SCTP
-			if !libs.ContainsElement(ExposedSCTPPorts, service.ServicePort) {
-				ExposedSCTPPorts = append(ExposedSCTPPorts, service.ServicePort)
+			if !libs.ContainsElement(exposedSCTPPorts, service.ServicePort) {
+				exposedSCTPPorts = append(exposedSCTPPorts, service.ServicePort)
 			}
-			if !libs.ContainsElement(ExposedSCTPPorts, service.NodePort) {
-				ExposedSCTPPorts = append(ExposedSCTPPorts, service.NodePort)
+			if !libs.ContainsElement(exposedSCTPPorts, service.NodePort) {
+				exposedSCTPPorts = append(exposedSCTPPorts, service.NodePort)
 			}
-			if !libs.ContainsElement(ExposedSCTPPorts, service.TargetPort) {
-				ExposedSCTPPorts = append(ExposedSCTPPorts, service.TargetPort)
+			if !libs.ContainsElement(exposedSCTPPorts, service.TargetPort) {
+				exposedSCTPPorts = append(exposedSCTPPorts, service.TargetPort)
 			}
 		}
 	}
@@ -435,16 +416,16 @@ func updateServiceEndpoint(services []types.Service, endpoints []types.Endpoint,
 	for _, endpoint := range endpoints {
 		for _, ep := range endpoint.Endpoints {
 			if strings.ToLower(ep.Protocol) == "tcp" { // TCP
-				if !libs.ContainsElement(ExposedTCPPorts, ep.Port) {
-					ExposedTCPPorts = append(ExposedTCPPorts, ep.Port)
+				if !libs.ContainsElement(exposedTCPPorts, ep.Port) {
+					exposedTCPPorts = append(exposedTCPPorts, ep.Port)
 				}
 			} else if strings.ToLower(ep.Protocol) == "udp" { // UDP
-				if !libs.ContainsElement(ExposedUDPPorts, ep.Port) {
-					ExposedUDPPorts = append(ExposedUDPPorts, ep.Port)
+				if !libs.ContainsElement(exposedUDPPorts, ep.Port) {
+					exposedUDPPorts = append(exposedUDPPorts, ep.Port)
 				}
 			} else if strings.ToLower(ep.Protocol) == "sctp" { // SCTP
-				if !libs.ContainsElement(ExposedSCTPPorts, ep.Port) {
-					ExposedSCTPPorts = append(ExposedSCTPPorts, ep.Port)
+				if !libs.ContainsElement(exposedSCTPPorts, ep.Port) {
+					exposedSCTPPorts = append(exposedSCTPPorts, ep.Port)
 				}
 			}
 		}
@@ -453,9 +434,9 @@ func updateServiceEndpoint(services []types.Service, endpoints []types.Endpoint,
 	// step 3: save kube-dns to the global variable
 	for _, svc := range services {
 		if svc.Namespace == "kube-system" && svc.ServiceName == "kube-dns" && svc.Protocol == "UDP" {
-			kubeDNSSvc = append(kubeDNSSvc, svc)
+			k8sDNSSvc = append(k8sDNSSvc, svc)
 		} else if svc.Namespace == "kube-system" && svc.ServiceName == "kube-dns" && svc.Protocol == "TCP" {
-			kubeDNSSvc = append(kubeDNSSvc, svc)
+			k8sDNSSvc = append(k8sDNSSvc, svc)
 		}
 	}
 }
@@ -711,11 +692,11 @@ func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcP
 
 				egressPolicy.Spec.Egress = append(egressPolicy.Spec.Egress, egressRule)
 
-				if DiscoveryMode&Egress > 0 {
+				if Cfg.DiscoveryPolicyTypes&Egress > 0 {
 					networkPolicies = append(networkPolicies, egressPolicy)
 				}
 
-				if DiscoveryMode&Ingress > 0 && dst.Namespace != "kube-system" {
+				if Cfg.DiscoveryPolicyTypes&Ingress > 0 && dst.Namespace != "kube-system" {
 					ingressPolicy := buildNewIngressPolicyFromEgressPolicy(egressRule, egressPolicy.Spec.Selector)
 					ingressPolicy.Spec.Ingress[0].MatchLabels["k8s:io.kubernetes.pod.namespace"] = namespace
 					networkPolicies = append(networkPolicies, ingressPolicy)
@@ -740,11 +721,11 @@ func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcP
 
 				egressPolicy.Spec.Egress = append(egressPolicy.Spec.Egress, egressRule)
 
-				if DiscoveryMode&Egress > 0 {
+				if Cfg.DiscoveryPolicyTypes&Egress > 0 {
 					networkPolicies = append(networkPolicies, egressPolicy)
 				}
 
-				if DiscoveryMode&Ingress > 0 {
+				if Cfg.DiscoveryPolicyTypes&Ingress > 0 {
 					// add ingress policy
 					ingressPolicy := buildNewIngressPolicyFromSameSelector(namespace, egressPolicy.Spec.Selector)
 					ingressPolicy.Metadata["rule"] = "toCIDRs"
@@ -765,7 +746,7 @@ func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcP
 				// =============== //
 				// build FQDN rule //
 				// =============== //
-				if DiscoveryMode&Egress > 0 {
+				if Cfg.DiscoveryPolicyTypes&Egress > 0 {
 					sort.Strings(dst.Additionals)
 					fqdn := types.SpecFQDN{
 						MatchNames: dst.Additionals,
@@ -792,12 +773,12 @@ func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcP
 				egressRule.ToEndtities = dst.Additionals
 				egressPolicy.Spec.Egress = append(egressPolicy.Spec.Egress, egressRule)
 
-				if DiscoveryMode&Egress > 0 {
+				if Cfg.DiscoveryPolicyTypes&Egress > 0 {
 					networkPolicies = append(networkPolicies, egressPolicy)
 				}
 
 				// add ingress policy
-				if DiscoveryMode&Ingress > 0 {
+				if Cfg.DiscoveryPolicyTypes&Ingress > 0 {
 					ingressPolicy := buildNewIngressPolicyFromSameSelector(namespace, egressPolicy.Spec.Selector)
 					ingressPolicy.Metadata["rule"] = "fromEntities"
 					ingressRule := types.Ingress{}
@@ -811,7 +792,7 @@ func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcP
 				// ================== //
 				// build Service rule //
 				// ================== //
-				if DiscoveryMode&Egress > 0 {
+				if Cfg.DiscoveryPolicyTypes&Egress > 0 {
 					// to external services (NOT internal k8s service)
 					// to affect this policy, we need a service, an endpoint respectively
 					service := types.SpecService{
@@ -828,7 +809,7 @@ func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcP
 	}
 
 	// double check ingress entities for dropped packet
-	if DiscoveryMode&Ingress > 0 {
+	if Cfg.DiscoveryPolicyTypes&Ingress > 0 {
 		networkPolicies = doublecheckIngressEntities(namespace, mergedSrcPerMergedDst, networkPolicies)
 	}
 
@@ -1021,6 +1002,21 @@ func mergingSrcByLabels(perDstSrcLabel map[Dst][]SrcSimple) map[Dst][]string {
 // == Step 2: Replacing Src to Labeled == //
 // ====================================== //
 
+// isIgnoringFlowLabels Function
+func isIgnoringFlowLabels(label string) bool {
+	for _, igFlows := range Cfg.IgnoringFlows {
+		if igFlows.IgSelectorLabels == nil {
+			continue
+		}
+
+		if libs.ContainsElement(igFlows.IgSelectorLabels, strings.Split(label, "=")[0]) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // getMergedLabels Function
 func getMergedLabels(namespace, podName string, pods []types.Pod) string {
 	mergedLabels := ""
@@ -1033,7 +1029,7 @@ func getMergedLabels(namespace, podName string, pods []types.Pod) string {
 
 			for _, label := range pod.Labels {
 				/* TODO: do we need to skip the hash labels? */
-				if !libs.ContainsElement(skippedLabels, strings.Split(label, "=")[0]) {
+				if !isIgnoringFlowLabels(label) {
 					labels = append(labels, label)
 				}
 			}
@@ -1542,25 +1538,6 @@ func UpdateLabeledSrcsPerDst(labeledSrcsPerDst map[Dst][]SrcSimple) map[Dst][]Sr
 // == Discover Network Policy  == //
 // ============================== //
 
-// HandleErr Function
-func HandleErr() {
-	// handle panic(), generate system call
-	err, _ := recover().(error)
-	if err != nil {
-		log.Error().Msgf("%v", err)
-	}
-}
-
-// HandleErrRet Function
-func HandleErrRet(ret *bool) {
-	// handle panic(), generate system call, and return value to false
-	err, _ := recover().(error)
-	if err != nil {
-		log.Error().Msgf("%v", err)
-		*ret = false
-	}
-}
-
 // DiscoverNetworkPolicies Function
 func DiscoverNetworkPolicies(namespace string,
 	cidrBits int, // for CIDR policy (24bits in default, 32 bits -> per IP)
@@ -1577,7 +1554,7 @@ func DiscoverNetworkPolicies(namespace string,
 		we keep labeledSrcsPerDst map for aggregating the merged policy set in the future
 	*/
 	labeledSrcsPerDst := map[Dst][]SrcSimple{}
-	if val, ok := LabeledSrcsPerDst[namespace]; ok {
+	if val, ok := gLabeledSrcsPerDst[namespace]; ok {
 		labeledSrcsPerDst = extractingSrcFromLogs(val, logsPerDst, pods)
 	} else {
 		labeledSrcsPerDst = extractingSrcFromLogs(labeledSrcsPerDst, logsPerDst, pods)
@@ -1602,26 +1579,40 @@ func DiscoverNetworkPolicies(namespace string,
 	namedPolicies := generatePolicyName(networkPolicies)
 
 	// step 9: update labeledSrcsPerDst map (remove cidr dst/additionals)
-	LabeledSrcsPerDst[namespace] = UpdateLabeledSrcsPerDst(labeledSrcsPerDst)
+	gLabeledSrcsPerDst[namespace] = UpdateLabeledSrcsPerDst(labeledSrcsPerDst)
 
 	return namedPolicies
 }
 
-// StartToDiscoverNetworkPolicies function
-func StartToDiscoverNetworkPolicies() {
+func isIgnoringNamespace(namespace string) bool {
+	for _, igFlows := range Cfg.IgnoringFlows {
+		if igFlows.IgSelectorNamespaces == nil {
+			continue
+		}
+
+		if libs.ContainsElement(igFlows.IgSelectorNamespaces, namespace) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// StartToDiscoveryWorker function
+func StartToDiscoveryWorker() {
 	ciliumFlows := []*flow.Flow{}
 
-	if NetworkLogFrom == "db" {
+	if Cfg.NetworkLogFrom == "db" {
 		log.Info().Msg("Get network traffic from the database")
 
-		results := libs.GetTrafficFlowFromDB()
+		results := libs.GetTrafficFlowFromDB(Cfg.ConfigDB)
 		if len(results) == 0 {
 			return
 		}
 
 		// convert db flows -> cilium flows
-		ciliumFlows = plugin.ConvertDocsToCiliumFlows(results)
-	} else if NetworkLogFrom == "hubble" { // from hubble directly
+		ciliumFlows = plugin.ConvertDocsToCiliumFlows(Cfg.ConfigDB.DBDriver, results)
+	} else if Cfg.NetworkLogFrom == "hubble" { // from hubble directly
 		log.Info().Msg("Get network traffic from the Cilium Hubble directly")
 
 		results := plugin.GetCiliumFlowsFromHubble()
@@ -1631,7 +1622,7 @@ func StartToDiscoverNetworkPolicies() {
 
 		ciliumFlows = results
 	} else {
-		log.Error().Msgf("Network log source not correct: %s", NetworkLogFrom)
+		log.Error().Msgf("Network log source not correct: %s", Cfg.NetworkLogFrom)
 
 		return
 	}
@@ -1649,18 +1640,23 @@ func StartToDiscoverNetworkPolicies() {
 	namespaces := libs.GetNamespaces()
 
 	// get existing policies in db
-	existingPolicies := libs.GetNetworkPolicies("", "latest")
+	existingPolicies := libs.GetNetworkPolicies(Cfg.ConfigDB, "", "latest")
 
 	// update exposed ports (k8s service, docker-compose portbinding)
 	updateServiceEndpoint(services, endpoints, pods)
 
 	// update DNS to IPs
-	updateDNSToIPs(ciliumFlows, DNSToIPs)
+	updateDNSToIPs(ciliumFlows, dnsToIPs)
 
 	// iterate each namespace
 	for _, namespace := range namespaces {
+		// skip namespace
+		if isIgnoringNamespace(namespace) {
+			continue
+		}
+
 		// convert cilium network traffic -> network log, and filter traffic
-		networkLogs := plugin.ConvertCiliumFlowsToKnoxLogs(namespace, ciliumFlows, DNSToIPs)
+		networkLogs := plugin.ConvertCiliumFlowsToKnoxLogs(namespace, ciliumFlows, dnsToIPs)
 		if len(networkLogs) == 0 {
 			continue
 		}
@@ -1668,23 +1664,23 @@ func StartToDiscoverNetworkPolicies() {
 		log.Info().Msgf("Policy discovery started for namespace: [%s]", namespace)
 
 		// discover network policies based on the network logs
-		discoveredPolicies := DiscoverNetworkPolicies(namespace, cidrBits, networkLogs, services, endpoints, pods)
+		discoveredPolicies := DiscoverNetworkPolicies(namespace, Cfg.CIDRBits, networkLogs, services, endpoints, pods)
 
 		// remove duplication
-		newPolicies := DeduplicatePolicies(existingPolicies, discoveredPolicies, DNSToIPs)
+		newPolicies := DeduplicatePolicies(existingPolicies, discoveredPolicies, dnsToIPs)
 
 		if len(newPolicies) > 0 {
 			// insert discovered policies to db
-			libs.InsertDiscoveredPolicies(newPolicies)
+			libs.InsertDiscoveredPolicies(Cfg.ConfigDB, newPolicies)
 
 			// retrieve the latest policies from the db
-			policies := libs.GetNetworkPolicies(namespace, "latest")
+			policies := libs.GetNetworkPolicies(Cfg.ConfigDB, namespace, "latest")
 
 			// convert knoxPolicy to CiliumPolicy
-			ciliumPolicies := plugin.ConvertKnoxPoliciesToCiliumPolicies(services, policies)
+			// ciliumPolicies := plugin.ConvertKnoxPoliciesToCiliumPolicies(services, policies)
 
 			// write discovered policies to files
-			libs.WriteCiliumPolicyToYamlFile(namespace, ciliumPolicies)
+			// libs.WriteCiliumPolicyToYamlFile(namespace, ciliumPolicies)
 
 			// write discovered policies to files
 			libs.WriteKnoxPolicyToYamlFile(namespace, policies)
@@ -1694,29 +1690,81 @@ func StartToDiscoverNetworkPolicies() {
 			log.Info().Msgf("Policy discovery done    for namespace: [%s], no policy discovered", namespace)
 		}
 	}
+
+	if Cfg.OperationMode != 2 && Status == StatusRunning {
+		Status = StatusIdle
+	}
 }
+
+// ============== //
+// == Cron Job == //
+// ============== //
 
 // StartCronJob function
 func StartCronJob() {
-	log.Info().Msg("Auto discovery cron job started")
-
 	// if network from hubble
-	if NetworkLogFrom == "hubble" {
-		go plugin.StartHubbleRelay(StopChan, &WaitG)
-		WaitG.Add(1)
+	if Cfg.NetworkLogFrom == "hubble" {
+		go plugin.StartHubbleRelay(stopChan, &waitG, Cfg.ConfigCiliumHubble)
+		waitG.Add(1)
 	}
 
 	// init cron job
-	c := cron.New()
-	c.AddFunc("@every 0h0m15s", StartToDiscoverNetworkPolicies) // time interval
-	c.Start()
+	cronJob = cron.New()
+	err := cronJob.AddFunc(Cfg.CronJobTimeInterval, StartToDiscoveryWorker) // time interval
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return
+	}
 
-	sig := libs.GetOSSigChannel()
-	<-sig
-	log.Info().Msg("Got a signal to terminate the auto policy discovery")
+	cronJob.Start()
 
-	close(StopChan)
-	WaitG.Wait()
+	log.Info().Msg("Auto discovery cron job started")
+}
 
-	c.Stop() // Stop the scheduler (does not stop any jobs already running).
+// StopCronJob function
+func StopCronJob() {
+	if cronJob != nil {
+		log.Info().Msg("Got a signal to terminate the auto policy discovery")
+
+		close(stopChan)
+		waitG.Wait()
+
+		cronJob.Stop() // Stop the scheduler (does not stop any jobs already running).
+
+		cronJob = nil
+	}
+}
+
+// ====================== //
+// == Discovery Worker == //
+// ====================== //
+
+// StartWorker ...
+func StartWorker() {
+	if Status != StatusIdle {
+		log.Info().Msg("There is no idle discovery worker")
+		return
+	}
+	Status = StatusRunning
+
+	if Cfg.OperationMode == 2 { // every time intervals
+		StartCronJob()
+	} else { // one-time generation
+		StartToDiscoveryWorker()
+	}
+}
+
+// StopWorker ...
+func StopWorker() {
+	if Status != StatusRunning {
+		log.Info().Msg("There is no running discovery worker")
+		return
+	}
+	Status = StatusIdle
+
+	if Cfg.OperationMode == 2 { // every time intervals
+		StopCronJob()
+	} else { // one-time generation
+
+	}
 }

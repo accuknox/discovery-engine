@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"net"
 	"net/url"
 	"strconv"
 	"strings"
@@ -22,8 +21,9 @@ import (
 	"github.com/cilium/cilium/api/v1/observer"
 )
 
-// cidrEanbeld config
-var cidrEanbeld bool
+// ======================= //
+// == Gloabl Variables  == //
+// ======================= //
 
 // CiliumFlows list
 var CiliumFlows []*flow.Flow
@@ -32,13 +32,6 @@ var CiliumFlows []*flow.Flow
 var CiliumFlowsMutex *sync.Mutex
 
 func init() {
-	env := libs.GetEnv("CIDR_ENABLED", "true")
-	if env == "false" {
-		cidrEanbeld = false
-	} else {
-		cidrEanbeld = true
-	}
-
 	// init mutex
 	CiliumFlowsMutex = &sync.Mutex{}
 }
@@ -202,8 +195,8 @@ func ConvertCiliumFlowToKnoxLog(flow *flow.Flow, dnsToIPs map[string][]string) (
 }
 
 // ConvertDocsToCiliumFlows function
-func ConvertDocsToCiliumFlows(docs []map[string]interface{}) []*flow.Flow {
-	if libs.DBDriver == "mysql" {
+func ConvertDocsToCiliumFlows(dbDriver string, docs []map[string]interface{}) []*flow.Flow {
+	if dbDriver == "mysql" {
 		return ConvertMySQLDocsToCiliumFlows(docs)
 	} else {
 		return ConvertMongoDocsToCiliumFlows(docs)
@@ -628,29 +621,8 @@ func ConvertKnoxPoliciesToCiliumPolicies(services []types.Service, policies []ty
 // ========================= //
 
 // ConnectHubbleRelay function.
-func ConnectHubbleRelay() *grpc.ClientConn {
-	port := libs.GetEnv("HUBBLE_PORT", "80")
-
-	url := ""
-	if libs.IsK8sEnv() {
-		url = libs.GetEnv("HUBBLE_URL", "hubble-relay.cilium.svc.cluster.local")
-		addr, err := net.LookupIP(url)
-		if err == nil {
-			url = addr[0].String()
-		} else {
-			url = libs.GetExternalIPAddr()
-		}
-	} else {
-		url = libs.GetEnv("HUBBLE_URL", "127.0.0.1")
-		addr, err := net.LookupIP(url)
-		if err == nil {
-			url = addr[0].String()
-		} else {
-			url = libs.GetExternalIPAddr()
-		}
-	}
-
-	addr := url + ":" + port
+func ConnectHubbleRelay(cfg types.ConfigCiliumHubble) *grpc.ClientConn {
+	addr := cfg.HubbleURL + ":" + cfg.HubblePort
 
 	conn, err := grpc.Dial(addr, grpc.WithInsecure())
 	if err != nil {
@@ -691,8 +663,8 @@ func GetCiliumFlowsFromHubble() []*flow.Flow {
 }
 
 // StartHubbleRelay function
-func StartHubbleRelay(StopChan chan struct{}, wg *sync.WaitGroup) {
-	conn := ConnectHubbleRelay()
+func StartHubbleRelay(StopChan chan struct{}, wg *sync.WaitGroup, cfg types.ConfigCiliumHubble) {
+	conn := ConnectHubbleRelay(cfg)
 	defer conn.Close()
 	defer wg.Done()
 

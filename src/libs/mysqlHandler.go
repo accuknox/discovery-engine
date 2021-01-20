@@ -3,6 +3,7 @@ package libs
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"time"
 
 	"github.com/accuknox/knoxAutoPolicy/src/types"
@@ -12,15 +13,19 @@ import (
 )
 
 // ConnectMySQL function
-func ConnectMySQL() (db *sql.DB) {
-	db, err := sql.Open(DBDriver, DBUser+":"+DBPass+"@tcp("+DBHost+":"+DBPort+")/"+DBName)
+func ConnectMySQL(cfg types.ConfigDB) (db *sql.DB) {
+	db, err := sql.Open(cfg.DBDriver, cfg.DBUser+":"+cfg.DBPass+"@tcp("+cfg.DBHost+":"+cfg.DBPort+")/"+cfg.DBName)
 	for err != nil {
 		log.Error().Msg("connection error :" + err.Error())
 		time.Sleep(time.Second * 1)
-		db, err = sql.Open(DBDriver, DBUser+":"+DBPass+"@tcp("+DBHost+":"+DBPort+")/"+DBName)
+		db, err = sql.Open(cfg.DBDriver, cfg.DBUser+":"+cfg.DBPass+"@tcp("+cfg.DBHost+":"+cfg.DBPort+")/"+cfg.DBName)
 	}
 	return db
 }
+
+// ===================== //
+// == Network Traffic == //
+// ===================== //
 
 // QueryBaseSimple ...
 var QueryBaseSimple string = "select id,time,traffic_direction,verdict,policy_match_type,drop_reason,event_type,source,destination,ip,l4,l7 from "
@@ -77,11 +82,11 @@ func flowScannerToCiliumFlow(results *sql.Rows) ([]map[string]interface{}, error
 }
 
 // GetTrafficFlowByTime function
-func GetTrafficFlowByTime(startTime, endTime int64) ([]map[string]interface{}, error) {
-	db := ConnectMySQL()
+func GetTrafficFlowByTime(cfg types.ConfigDB, startTime, endTime int64) ([]map[string]interface{}, error) {
+	db := ConnectMySQL(cfg)
 	defer db.Close()
 
-	QueryBase := QueryBaseSimple + TableNetworkFlow
+	QueryBase := QueryBaseSimple + cfg.TableNetworkFlow
 
 	rows, err := db.Query(QueryBase+" WHERE time >= ? and time < ?", int(startTime), int(endTime))
 	if err != nil {
@@ -93,11 +98,11 @@ func GetTrafficFlowByTime(startTime, endTime int64) ([]map[string]interface{}, e
 }
 
 // GetTrafficFlowByIDTime function
-func GetTrafficFlowByIDTime(id, endTime int64) ([]map[string]interface{}, error) {
-	db := ConnectMySQL()
+func GetTrafficFlowByIDTime(cfg types.ConfigDB, id, endTime int64) ([]map[string]interface{}, error) {
+	db := ConnectMySQL(cfg)
 	defer db.Close()
 
-	QueryBase := QueryBaseSimple + TableNetworkFlow
+	QueryBase := QueryBaseSimple + cfg.TableNetworkFlow
 
 	rows, err := db.Query(QueryBase+" WHERE id > ? ORDER BY id ASC ", id)
 	if err != nil {
@@ -109,11 +114,11 @@ func GetTrafficFlowByIDTime(id, endTime int64) ([]map[string]interface{}, error)
 }
 
 // GetTrafficFlow function
-func GetTrafficFlow() ([]map[string]interface{}, error) {
-	db := ConnectMySQL()
+func GetTrafficFlow(cfg types.ConfigDB) ([]map[string]interface{}, error) {
+	db := ConnectMySQL(cfg)
 	defer db.Close()
 
-	QueryBase := QueryBaseSimple + TableNetworkFlow
+	QueryBase := QueryBaseSimple + cfg.TableNetworkFlow
 
 	rows, err := db.Query(QueryBase)
 	if err != nil {
@@ -124,16 +129,20 @@ func GetTrafficFlow() ([]map[string]interface{}, error) {
 	return flowScannerToCiliumFlow(rows)
 }
 
+// ==================== //
+// == Network Policy == //
+// ==================== //
+
 // GetNetworkPoliciesFromMySQL function
-func GetNetworkPoliciesFromMySQL(namespace, status string) ([]types.KnoxNetworkPolicy, error) {
-	db := ConnectMySQL()
+func GetNetworkPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) ([]types.KnoxNetworkPolicy, error) {
+	db := ConnectMySQL(cfg)
 	defer db.Close()
 
 	policies := []types.KnoxNetworkPolicy{}
 	var results *sql.Rows
 	var err error
 
-	query := "SELECT apiVersion,kind,name,namespace,type,rule,status,outdated,spec,generatedTime FROM " + TableDiscoveredPolicy
+	query := "SELECT apiVersion,kind,name,namespace,type,rule,status,outdated,spec,generatedTime FROM " + cfg.TableDiscoveredPolicy
 	if namespace != "" && status != "" {
 		query = query + " WHERE namespace = ? and status = ? "
 		results, err = db.Query(query, namespace, status)
@@ -196,14 +205,14 @@ func GetNetworkPoliciesFromMySQL(namespace, status string) ([]types.KnoxNetworkP
 }
 
 // UpdateOutdatedPolicyFromMySQL ...
-func UpdateOutdatedPolicyFromMySQL(outdatedPolicy string, latestPolicy string) error {
-	db := ConnectMySQL()
+func UpdateOutdatedPolicyFromMySQL(cfg types.ConfigDB, outdatedPolicy string, latestPolicy string) error {
+	db := ConnectMySQL(cfg)
 	defer db.Close()
 
 	var err error
 
 	// set status -> outdated
-	stmt1, err := db.Prepare("UPDATE " + TableDiscoveredPolicy + " SET status=? WHERE name=?")
+	stmt1, err := db.Prepare("UPDATE " + cfg.TableDiscoveredPolicy + " SET status=? WHERE name=?")
 	if err != nil {
 		return err
 	}
@@ -215,7 +224,7 @@ func UpdateOutdatedPolicyFromMySQL(outdatedPolicy string, latestPolicy string) e
 	}
 
 	// set outdated -> latest' name
-	stmt2, err := db.Prepare("UPDATE " + TableDiscoveredPolicy + " SET outdated=? WHERE name=?")
+	stmt2, err := db.Prepare("UPDATE " + cfg.TableDiscoveredPolicy + " SET outdated=? WHERE name=?")
 	if err != nil {
 		return err
 	}
@@ -230,8 +239,8 @@ func UpdateOutdatedPolicyFromMySQL(outdatedPolicy string, latestPolicy string) e
 }
 
 // insertDiscoveredPolicy function
-func insertDiscoveredPolicy(db *sql.DB, policy types.KnoxNetworkPolicy) error {
-	stmt, err := db.Prepare("INSERT INTO " + TableDiscoveredPolicy + "(apiVersion,kind,name,namespace,type,rule,status,outdated,spec,generatedTime) values(?,?,?,?,?,?,?,?,?,?)")
+func insertDiscoveredPolicy(cfg types.ConfigDB, db *sql.DB, policy types.KnoxNetworkPolicy) error {
+	stmt, err := db.Prepare("INSERT INTO " + cfg.TableDiscoveredPolicy + "(apiVersion,kind,name,namespace,type,rule,status,outdated,spec,generatedTime) values(?,?,?,?,?,?,?,?,?,?)")
 	if err != nil {
 		return err
 	}
@@ -261,14 +270,281 @@ func insertDiscoveredPolicy(db *sql.DB, policy types.KnoxNetworkPolicy) error {
 }
 
 // InsertDiscoveredPoliciesToMySQL function
-func InsertDiscoveredPoliciesToMySQL(policies []types.KnoxNetworkPolicy) error {
-	db := ConnectMySQL()
+func InsertDiscoveredPoliciesToMySQL(cfg types.ConfigDB, policies []types.KnoxNetworkPolicy) error {
+	db := ConnectMySQL(cfg)
 	defer db.Close()
 
 	for _, policy := range policies {
-		if err := insertDiscoveredPolicy(db, policy); err != nil {
+		if err := insertDiscoveredPolicy(cfg, db, policy); err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+// =================== //
+// == Configuration == //
+// =================== //
+
+// CountConfigByName ...
+func CountConfigByName(db *sql.DB, tableName, configName string) int {
+	var count int
+	db.QueryRow("SELECT COUNT(*) FROM "+tableName+" WHERE config_name=?", configName).Scan(&count)
+	return count
+}
+
+// AddConfiguration function
+func AddConfiguration(cfg types.ConfigDB, newConfig types.Configuration) error {
+	db := ConnectMySQL(cfg)
+	defer db.Close()
+
+	if CountConfigByName(db, cfg.TableConfiguration, newConfig.ConfigName) > 0 {
+		return errors.New("Already exist config name: " + newConfig.ConfigName)
+	}
+
+	stmt, err := db.Prepare("INSERT INTO " +
+		cfg.TableConfiguration +
+		"(config_name," +
+		"config_db," +
+		"config_cilium_hubble," +
+		"operation_mode," +
+		"cronjob_time_interval," +
+		"one_time_job_time_selection," +
+		"network_log_from," +
+		"discovered_policy_to," +
+		"policy_dir," +
+		"discovery_policy_types," +
+		"discovery_rule_types," +
+		"cidr_bits," +
+		"ignoring_flows," +
+		"l3_aggregation_level," +
+		"l4_aggregation_level," +
+		"l7_aggregation_level," +
+		"http_url_threshold) " +
+		"values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+
+	if err != nil {
+		return err
+	}
+
+	defer stmt.Close()
+
+	configDBPtr := &newConfig.ConfigDB
+	configDB, err := json.Marshal(configDBPtr)
+	if err != nil {
+		return err
+	}
+
+	configHubblePtr := &newConfig.ConfigCiliumHubble
+	configCilium, err := json.Marshal(configHubblePtr)
+	if err != nil {
+		return err
+	}
+
+	ignoringFlowsPtr := &newConfig.IgnoringFlows
+	ignoringFlows, err := json.Marshal(ignoringFlowsPtr)
+	if err != nil {
+		return err
+	}
+
+	_, err = stmt.Exec(newConfig.ConfigName,
+		configDB,
+		configCilium,
+		newConfig.OperationMode,
+		newConfig.CronJobTimeInterval,
+		newConfig.OneTimeJobTimeSelection,
+		newConfig.NetworkLogFrom,
+		newConfig.DiscoveredPolicyTo,
+		newConfig.PolicyDir,
+		newConfig.DiscoveryPolicyTypes,
+		newConfig.DiscoveryRuleTypes,
+		newConfig.CIDRBits,
+		ignoringFlows,
+		newConfig.L3AggregationLevel,
+		newConfig.L4AggregationLevel,
+		newConfig.L7AggregationLevel,
+		newConfig.HTTPUrlThreshold,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// GetConfigurations function
+func GetConfigurations(cfg types.ConfigDB, configName string) ([]types.Configuration, error) {
+	db := ConnectMySQL(cfg)
+	defer db.Close()
+
+	configs := []types.Configuration{}
+	var results *sql.Rows
+	var err error
+
+	query := "SELECT * FROM " + cfg.TableConfiguration
+	if configName != "" {
+		query = query + " WHERE config_name = ? "
+		results, err = db.Query(query, configName)
+	}
+
+	defer results.Close()
+
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return nil, err
+	}
+
+	for results.Next() {
+		cfg := types.Configuration{}
+
+		id := 0
+		configDBByte := []byte{}
+		configDB := types.ConfigDB{}
+
+		hubbleByte := []byte{}
+		hubble := types.ConfigCiliumHubble{}
+
+		ignoringFlowByte := []byte{}
+		ignoringFlows := []types.IgnoringFlows{}
+
+		if err := results.Scan(
+			&id,
+			&cfg.ConfigName,
+			&configDBByte,
+			&hubbleByte,
+			&cfg.OperationMode,
+			&cfg.CronJobTimeInterval,
+			&cfg.OneTimeJobTimeSelection,
+			&cfg.NetworkLogFrom,
+			&cfg.DiscoveredPolicyTo,
+			&cfg.PolicyDir,
+			&cfg.DiscoveryPolicyTypes,
+			&cfg.DiscoveryRuleTypes,
+			&cfg.CIDRBits,
+			&ignoringFlowByte,
+			&cfg.L3AggregationLevel,
+			&cfg.L4AggregationLevel,
+			&cfg.L7AggregationLevel,
+			&cfg.HTTPUrlThreshold,
+		); err != nil {
+			return nil, err
+		}
+
+		if err := json.Unmarshal(configDBByte, &configDB); err != nil {
+			return nil, err
+		}
+		cfg.ConfigDB = configDB
+
+		if err := json.Unmarshal(hubbleByte, &hubble); err != nil {
+			return nil, err
+		}
+		cfg.ConfigCiliumHubble = hubble
+
+		if err := json.Unmarshal(ignoringFlowByte, &ignoringFlows); err != nil {
+			return nil, err
+		}
+		cfg.IgnoringFlows = ignoringFlows
+
+		configs = append(configs, cfg)
+	}
+
+	return configs, nil
+}
+
+// UpdateConfiguration ...
+func UpdateConfiguration(cfg types.ConfigDB, configName string, updateConfig types.Configuration) error {
+	db := ConnectMySQL(cfg)
+	defer db.Close()
+
+	var err error
+
+	stmt, err := db.Prepare("UPDATE " + cfg.TableConfiguration + " SET " +
+		"config_name=?," +
+		"config_db=?," +
+		"config_cilium_hubble=?," +
+		"operation_mode=?," +
+		"cronjob_time_interval=?," +
+		"one_time_job_time_selection=?," +
+		"network_log_from=?," +
+		"discovered_policy_to=?," +
+		"policy_dir=?," +
+		"discovery_policy_types=?," +
+		"discovery_rule_types=?," +
+		"cidr_bits=?," +
+		"ignoring_flows=?," +
+		"l3_aggregation_level=?," +
+		"l4_aggregation_level=?," +
+		"l7_aggregation_level=?," +
+		"http_url_threshold=? " +
+		"WHERE config_name=?")
+
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	configDBPtr := &updateConfig.ConfigDB
+	configDB, err := json.Marshal(configDBPtr)
+	if err != nil {
+		return err
+	}
+
+	configHubblePtr := &updateConfig.ConfigCiliumHubble
+	configCilium, err := json.Marshal(configHubblePtr)
+	if err != nil {
+		return err
+	}
+
+	ignoringFlowsPtr := &updateConfig.IgnoringFlows
+	ignoringFlows, err := json.Marshal(ignoringFlowsPtr)
+	if err != nil {
+		return err
+	}
+
+	_, err = stmt.Exec(
+		updateConfig.ConfigName,
+		configDB,
+		configCilium,
+		updateConfig.OperationMode,
+		updateConfig.CronJobTimeInterval,
+		updateConfig.OneTimeJobTimeSelection,
+		updateConfig.NetworkLogFrom,
+		updateConfig.DiscoveredPolicyTo,
+		updateConfig.PolicyDir,
+		updateConfig.DiscoveryPolicyTypes,
+		updateConfig.DiscoveryRuleTypes,
+		updateConfig.CIDRBits,
+		ignoringFlows,
+		updateConfig.L3AggregationLevel,
+		updateConfig.L4AggregationLevel,
+		updateConfig.L7AggregationLevel,
+		updateConfig.HTTPUrlThreshold,
+		configName,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// DeleteConfiguration ...
+func DeleteConfiguration(cfg types.ConfigDB, configName string) error {
+	db := ConnectMySQL(cfg)
+	defer db.Close()
+
+	stmt, err := db.Prepare("DELETE FROM " + cfg.TableConfiguration + "WHERE config_name=?")
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(configName)
+	if err != nil {
+		return err
 	}
 
 	return nil
