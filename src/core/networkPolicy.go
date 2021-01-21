@@ -1805,7 +1805,6 @@ func StartToDiscoveryWorker() {
 			libs.InsertDiscoveredPolicies(Cfg.ConfigDB, newPolicies)
 
 			if strings.Contains(Cfg.DiscoveredPolicyTo, "file") {
-
 				// retrieve the latest policies from the db
 				policies := libs.GetNetworkPolicies(Cfg.ConfigDB, namespace, "latest")
 
