@@ -22,12 +22,12 @@ type ConfigCiliumHubble struct {
 
 // IgnoringFlows ...
 type IgnoringFlows struct {
-	IgSelectorNamespaces []string `json:"ig_selector_namespaces,omitempty" bson:"ig_selector_namespaces,omitempty"`
-	IgSelectorLabels     []string `json:"ig_selector_labels,omitempty" bson:"ig_selector_labels,omitempty"`
-	IgTargetNamespaces   []string `json:"ig_target_namespaces,omitempty" bson:"ig_target_namespaces,omitempty"`
-	IgTargetLabels       []string `json:"ig_target_labels,omitempty" bson:"ig_target_labels,omitempty"`
-	IgProtocols          []string `json:"ig_protocols,omitempty" bson:"ig_protocols,omitempty"`
-	IgPortNumbers        []string `json:"ig_port_numbers,omitempty" bson:"ig_port_numbers,omitempty"`
+	IgSourceNamespace      string   `json:"ig_source_namespace,omitempty" bson:"ig_source_namespace,omitempty"`
+	IgSourceLabels         []string `json:"ig_source_labels,omitempty" bson:"ig_source_labels,omitempty"`
+	IgDestinationNamespace string   `json:"ig_destination_namespace,omitempty" bson:"ig_destination_namespace,omitempty"`
+	IgDestinationLabels    []string `json:"ig_destination_labels,omitempty" bson:"ig_destination_labels,omitempty"`
+	IgProtocol             string   `json:"ig_protocol,omitempty" bson:"ig_protocol,omitempty"`
+	IgPortNumber           string   `json:"ig_port_number,omitempty" bson:"ig_port_number,omitempty"`
 }
 
 // Configuration ...

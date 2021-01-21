@@ -31,6 +31,17 @@ const (
 	Ingress       = 2
 	EgressIngress = 3
 
+	// discovery rule type
+	matchLabels  = 1 << 0 // 1
+	toPorts      = 1 << 1 // 2
+	toHTTPs      = 1 << 2 // 4
+	toCIDRs      = 1 << 3 // 8
+	toEntities   = 1 << 4 // 16
+	toServices   = 1 << 5 // 32
+	toFQDNs      = 1 << 6 // 64
+	fromCIDRs    = 1 << 7 // 128
+	fromEntities = 1 << 8 // 256
+
 	// status
 	StatusRunning = "running"
 	StatusIdle    = "idle"
@@ -621,10 +632,15 @@ func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcP
 
 			egressRule := types.Egress{}
 
-			// ================= //
-			// L3/L4 label-based //
-			// ================= //
+			// ==================== //
+			// build L3 label-based //
+			// ==================== //
 			if dst.MatchLabels != "" {
+				// check matchLabels rule
+				if Cfg.DiscoveryRuleTypes&matchLabels == 0 {
+					continue
+				}
+
 				egressPolicy.Metadata["rule"] = "matchLabels"
 
 				egressRule.MatchLabels = map[string]string{}
@@ -679,7 +695,11 @@ func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcP
 								if !strings.Contains(egressPolicy.Metadata["rule"], "toHTTPs") {
 									egressPolicy.Metadata["rule"] = egressPolicy.Metadata["rule"] + "+toHTTPs"
 								}
-								egressRule.ToHTTPs = append(egressRule.ToHTTPs, httpRule)
+
+								// check toHTTPs rule
+								if Cfg.DiscoveryRuleTypes&toHTTPs > 0 {
+									egressRule.ToHTTPs = append(egressRule.ToHTTPs, httpRule)
+								}
 							}
 						}
 					}
@@ -687,15 +707,20 @@ func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcP
 					if !strings.Contains(egressPolicy.Metadata["rule"], "toPorts") {
 						egressPolicy.Metadata["rule"] = egressPolicy.Metadata["rule"] + "+toPorts"
 					}
-					egressRule.ToPorts = dst.ToPorts
+
+					// check toPorts rule
+					if Cfg.DiscoveryRuleTypes&toPorts > 0 {
+						egressRule.ToPorts = dst.ToPorts
+					}
 				}
 
+				// check egress
 				egressPolicy.Spec.Egress = append(egressPolicy.Spec.Egress, egressRule)
-
 				if Cfg.DiscoveryPolicyTypes&Egress > 0 {
 					networkPolicies = append(networkPolicies, egressPolicy)
 				}
 
+				// check ingress
 				if Cfg.DiscoveryPolicyTypes&Ingress > 0 && dst.Namespace != "kube-system" {
 					ingressPolicy := buildNewIngressPolicyFromEgressPolicy(egressRule, egressPolicy.Spec.Selector)
 					ingressPolicy.Spec.Ingress[0].MatchLabels["k8s:io.kubernetes.pod.namespace"] = namespace
@@ -712,20 +737,26 @@ func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcP
 				cidr := types.SpecCIDR{
 					CIDRs: cidrSlice,
 				}
-				egressRule.ToCIDRs = []types.SpecCIDR{cidr}
 
-				if len(dst.ToPorts) > 0 {
+				// check toCIDRs rule
+				if Cfg.DiscoveryRuleTypes&toCIDRs > 0 {
+					egressRule.ToCIDRs = []types.SpecCIDR{cidr}
+				}
+
+				// check toPorts rule
+				if len(dst.ToPorts) > 0 && Cfg.DiscoveryRuleTypes&toPorts > 0 {
 					egressPolicy.Metadata["rule"] = egressPolicy.Metadata["rule"] + "+toPorts"
 					egressRule.ToPorts = dst.ToPorts
 				}
 
+				// check egress
 				egressPolicy.Spec.Egress = append(egressPolicy.Spec.Egress, egressRule)
-
 				if Cfg.DiscoveryPolicyTypes&Egress > 0 {
 					networkPolicies = append(networkPolicies, egressPolicy)
 				}
 
-				if Cfg.DiscoveryPolicyTypes&Ingress > 0 {
+				// check ingress & fromCIDRs rule
+				if Cfg.DiscoveryPolicyTypes&Ingress > 0 && Cfg.DiscoveryRuleTypes&fromCIDRs > 0 {
 					// add ingress policy
 					ingressPolicy := buildNewIngressPolicyFromSameSelector(namespace, egressPolicy.Spec.Selector)
 					ingressPolicy.Metadata["rule"] = "toCIDRs"
@@ -746,7 +777,10 @@ func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcP
 				// =============== //
 				// build FQDN rule //
 				// =============== //
-				if Cfg.DiscoveryPolicyTypes&Egress > 0 {
+
+				// check egress & toFQDNs rule
+				if Cfg.DiscoveryPolicyTypes&Egress > 0 && Cfg.DiscoveryRuleTypes&toFQDNs > 0 {
+
 					sort.Strings(dst.Additionals)
 					fqdn := types.SpecFQDN{
 						MatchNames: dst.Additionals,
@@ -773,12 +807,13 @@ func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcP
 				egressRule.ToEndtities = dst.Additionals
 				egressPolicy.Spec.Egress = append(egressPolicy.Spec.Egress, egressRule)
 
-				if Cfg.DiscoveryPolicyTypes&Egress > 0 {
+				// check egress & toEntities rule
+				if Cfg.DiscoveryPolicyTypes&Egress > 0 && Cfg.DiscoveryRuleTypes&toEntities > 0 {
 					networkPolicies = append(networkPolicies, egressPolicy)
 				}
 
-				// add ingress policy
-				if Cfg.DiscoveryPolicyTypes&Ingress > 0 {
+				// check ingress & fromEntities rule
+				if Cfg.DiscoveryPolicyTypes&Ingress > 0 && Cfg.DiscoveryRuleTypes&fromEntities > 0 {
 					ingressPolicy := buildNewIngressPolicyFromSameSelector(namespace, egressPolicy.Spec.Selector)
 					ingressPolicy.Metadata["rule"] = "fromEntities"
 					ingressRule := types.Ingress{}
@@ -792,7 +827,7 @@ func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcP
 				// ================== //
 				// build Service rule //
 				// ================== //
-				if Cfg.DiscoveryPolicyTypes&Egress > 0 {
+				if Cfg.DiscoveryPolicyTypes&Egress > 0 && Cfg.DiscoveryRuleTypes&toServices > 0 {
 					// to external services (NOT internal k8s service)
 					// to affect this policy, we need a service, an endpoint respectively
 					service := types.SpecService{
@@ -1002,21 +1037,6 @@ func mergingSrcByLabels(perDstSrcLabel map[Dst][]SrcSimple) map[Dst][]string {
 // == Step 2: Replacing Src to Labeled == //
 // ====================================== //
 
-// isIgnoringFlowLabels Function
-func isIgnoringFlowLabels(label string) bool {
-	for _, igFlows := range Cfg.IgnoringFlows {
-		if igFlows.IgSelectorLabels == nil {
-			continue
-		}
-
-		if libs.ContainsElement(igFlows.IgSelectorLabels, strings.Split(label, "=")[0]) {
-			return true
-		}
-	}
-
-	return false
-}
-
 // getMergedLabels Function
 func getMergedLabels(namespace, podName string, pods []types.Pod) string {
 	mergedLabels := ""
@@ -1029,9 +1049,7 @@ func getMergedLabels(namespace, podName string, pods []types.Pod) string {
 
 			for _, label := range pod.Labels {
 				/* TODO: do we need to skip the hash labels? */
-				if !isIgnoringFlowLabels(label) {
-					labels = append(labels, label)
-				}
+				labels = append(labels, label)
 			}
 
 			sort.Slice(labels, func(i, j int) bool {
@@ -1481,6 +1499,7 @@ func mergingDstByLabels(mergedSrcPerMergedProtoDst map[string][]MergedPortDst, p
 
 // generatePolicyName Function
 func generatePolicyName(networkPolicies []types.KnoxNetworkPolicy) []types.KnoxNetworkPolicy {
+	clusterName := libs.GetClusterName()
 	autoPolicyNames := []string{}
 
 	newPolicies := []types.KnoxNetworkPolicy{}
@@ -1507,6 +1526,7 @@ func generatePolicyName(networkPolicies []types.KnoxNetworkPolicy) []types.KnoxN
 		autoPolicyNames = append(autoPolicyNames, newName)
 
 		newPolicies[i].Metadata["name"] = newName
+		newPolicies[i].Metadata["cluster_name"] = clusterName
 	}
 
 	return newPolicies
@@ -1588,19 +1608,112 @@ func DiscoverNetworkPolicies(namespace string,
 // == Preprocessing  == //
 // ==================== //
 
-// IgnoringNamespace func
-func IgnoringNamespace(namespace string) bool {
-	for _, igFlows := range Cfg.IgnoringFlows {
-		if igFlows.IgSelectorNamespaces == nil {
-			continue
-		}
+// getHaveToCheckItems func
+func getHaveToCheckItems(igFlows types.IgnoringFlows) int {
+	check := 0
 
-		if libs.ContainsElement(igFlows.IgSelectorNamespaces, namespace) {
-			return true
+	if igFlows.IgSourceNamespace != "" {
+		check = check | 1<<0 // 1
+	}
+
+	if len(igFlows.IgSourceLabels) > 0 {
+		check = check | 1<<1 // 2
+	}
+
+	if igFlows.IgDestinationNamespace != "" {
+		check = check | 1<<2 // 4
+	}
+
+	if len(igFlows.IgDestinationLabels) > 0 {
+		check = check | 1<<3 // 8
+	}
+
+	if igFlows.IgProtocol != "" {
+		check = check | 1<<4 // 16
+	}
+
+	if igFlows.IgPortNumber != "" {
+		check = check | 1<<5 // 32
+	}
+
+	return check
+}
+
+// containLabels func
+func containLabels(cni string, igLabels []string, flowLabels []string) bool {
+	prefix := ""
+
+	if cni == "cilium" {
+		prefix = "k8s:"
+	}
+
+	for _, label := range igLabels {
+		label = prefix + label
+
+		if !libs.ContainsElement(flowLabels, label) {
+			return false
 		}
 	}
 
-	return false
+	return true
+}
+
+// PrefilterFlows func
+func PrefilterFlows(flows []*flow.Flow) []*flow.Flow {
+	filteredFlows := []*flow.Flow{}
+
+	for _, flow := range flows {
+		ignored := false
+
+		for _, igFlow := range Cfg.IgnoringFlows {
+			checkItems := getHaveToCheckItems(igFlow)
+
+			checkedItems := 0
+
+			// 1. check src namespace
+			if (checkItems&1 > 0) && igFlow.IgSourceNamespace == flow.Source.Namespace {
+				checkedItems = checkedItems | 1<<0
+			}
+
+			// 2. check src pod labels
+			if (checkItems&2 > 0) && containLabels("cilium", igFlow.IgSourceLabels, flow.Source.Labels) {
+				checkedItems = checkedItems | 1<<1
+			}
+
+			// 3. check dest namespace
+			if (checkItems&4 > 0) && igFlow.IgDestinationNamespace == flow.Destination.Namespace {
+				checkedItems = checkedItems | 1<<2
+			}
+
+			// 4. check dest pod labels
+			if (checkItems&8 > 0) && containLabels("cilium", igFlow.IgDestinationLabels, flow.Destination.Labels) {
+				checkedItems = checkedItems | 1<<3
+			}
+
+			// 5. check protocol
+			if (checkItems&16 > 0) && flow.GetL4() != nil && plugin.GetProtocolStr(flow.GetL4()) == igFlow.IgProtocol {
+				checkedItems = checkedItems | 1<<4
+			}
+
+			// 6. check port number
+			if (checkItems&32 > 0) && flow.GetL4() != nil {
+				if strings.Contains(flow.GetL4().String(), igFlow.IgPortNumber) {
+					checkedItems = checkedItems | 1<<5
+				}
+			}
+
+			if checkItems == checkedItems {
+				ignored = true
+				break
+			}
+		}
+
+		if !ignored {
+			filteredFlows = append(filteredFlows, flow)
+		}
+	}
+
+	return filteredFlows
 }
 
 // GetCiliumFlows func
@@ -1642,6 +1755,9 @@ func StartToDiscoveryWorker() {
 		return
 	}
 
+	// filter ignoring network flows
+	networkFlows = PrefilterFlows(networkFlows)
+
 	// get k8s services
 	services := libs.GetServices()
 
@@ -1665,8 +1781,8 @@ func StartToDiscoveryWorker() {
 
 	// iterate each namespace
 	for _, namespace := range namespaces {
-		// skip namespace
-		if IgnoringNamespace(namespace) {
+		// skip uninterested namespaces
+		if libs.ContainsElement(SkipNamespaces, namespace) {
 			continue
 		}
 
@@ -1688,17 +1804,20 @@ func StartToDiscoveryWorker() {
 			// insert discovered policies to db
 			libs.InsertDiscoveredPolicies(Cfg.ConfigDB, newPolicies)
 
-			// retrieve the latest policies from the db
-			policies := libs.GetNetworkPolicies(Cfg.ConfigDB, namespace, "latest")
+			if strings.Contains(Cfg.DiscoveredPolicyTo, "file") {
 
-			// convert knoxPolicy to CiliumPolicy
-			// ciliumPolicies := plugin.ConvertKnoxPoliciesToCiliumPolicies(services, policies)
+				// retrieve the latest policies from the db
+				policies := libs.GetNetworkPolicies(Cfg.ConfigDB, namespace, "latest")
 
-			// write discovered policies to files
-			// libs.WriteCiliumPolicyToYamlFile(namespace, ciliumPolicies)
+				// convert knoxPolicy to CiliumPolicy
+				ciliumPolicies := plugin.ConvertKnoxPoliciesToCiliumPolicies(services, policies)
 
-			// write discovered policies to files
-			libs.WriteKnoxPolicyToYamlFile(namespace, policies)
+				// write discovered policies to files
+				libs.WriteCiliumPolicyToYamlFile(namespace, ciliumPolicies)
+
+				// write discovered policies to files
+				libs.WriteKnoxPolicyToYamlFile(namespace, policies)
+			}
 
 			log.Info().Msgf("Policy discovery done    for namespace: [%s], [%d] policies discovered", namespace, len(newPolicies))
 		} else {

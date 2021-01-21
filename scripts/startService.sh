@@ -37,6 +37,6 @@ export DISCOVERY_POLICY_TYPES=1
 export DISCOVERY_RULE_TYPES=1
 
 # skip namepsace info
-export IGNORING_SELECTOR_NAMESPACES="kube-system|knox-auto-policy|cilium|hipster"
+export IGNORING_NAMESPACES="kube-system|knox-auto-policy|cilium|hipster"
 
 $KNOX_AUTO_HOME/src/knoxAutoPolicy

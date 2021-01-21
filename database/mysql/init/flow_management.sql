@@ -31,17 +31,16 @@ CREATE TABLE IF NOT EXISTS `network_flow` (
 
 CREATE TABLE IF NOT EXISTS `discovered_policy` (
   `id` int NOT NULL AUTO_INCREMENT,
-
   `apiVersion` varchar(20) DEFAULT NULL,
   `kind` varchar(20) DEFAULT NULL,
   `name` varchar(50) DEFAULT NULL,
+  `cluster_name` varchar(50) DEFAULT NULL,
   `namespace` varchar(50) DEFAULT NULL,
   `type` varchar(10) DEFAULT NULL,
   `rule` varchar(30) DEFAULT NULL,
   `status` varchar(10) DEFAULT NULL,
   `outdated` varchar(50) DEFAULT NULL,
   `spec` JSON DEFAULT NULL,
-
   `generatedTime` int DEFAULT NULL,
   PRIMARY KEY (`id`)
 );

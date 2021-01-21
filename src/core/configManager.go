@@ -12,6 +12,9 @@ import (
 // Cfg ...
 var Cfg types.Configuration
 
+// SkipNamespaces ...
+var SkipNamespaces []string
+
 func init() {
 	// initially, default -> applied
 	LoadDefaultConfig()
@@ -102,20 +105,14 @@ func LoadDefaultConfig() {
 
 	// discovery types
 	Cfg.DiscoveryPolicyTypes = libs.GetEnvInt("DISCOVERY_POLICY_TYPES", 3)
-	Cfg.DiscoveryPolicyTypes = libs.GetEnvInt("DISCOVERY_RULE_TYPES", 1)
+	Cfg.DiscoveryRuleTypes = libs.GetEnvInt("DISCOVERY_RULE_TYPES", 511)
 
 	// cidr bits
 	Cfg.CIDRBits = 32
 
 	// ignoring flows
-	skipNamespacesStr := libs.GetEnv("IGNORING_SELECTOR_NAMESPACES", "")
-	igFlow1 := types.IgnoringFlows{IgSelectorNamespaces: strings.Split(skipNamespacesStr, "|")}
-	igFlow2 := types.IgnoringFlows{
-		IgSelectorLabels: []string{"pod-template-hash",
-			"controller-revision-hash",            // from istana robot-shop
-			"statefulset.kubernetes.io/pod-name"}, // from istana robot-shop
-	}
-	Cfg.IgnoringFlows = []types.IgnoringFlows{igFlow1, igFlow2}
+	skipNamespacesStr := libs.GetEnv("IGNORING_NAMESPACES", "")
+	SkipNamespaces = strings.Split(skipNamespacesStr, "|")
 
 	// aggregation level
 	Cfg.L3AggregationLevel = 3
