@@ -31,6 +31,17 @@ const (
 	Ingress       = 2
 	EgressIngress = 3
 
+	// discovery rule type
+	matchLabels  = 1 << 0 // 1
+	toPorts      = 1 << 1 // 2
+	toHTTPs      = 1 << 2 // 4
+	toCIDRs      = 1 << 3 // 8
+	toEntities   = 1 << 4 // 16
+	toServices   = 1 << 5 // 32
+	toFQDNs      = 1 << 6 // 64
+	fromCIDRs    = 1 << 7 // 128
+	fromEntities = 1 << 8 // 256
+
 	// status
 	StatusRunning = "running"
 	StatusIdle    = "idle"
@@ -621,10 +632,15 @@ func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcP
 
 			egressRule := types.Egress{}
 
-			// ================= //
-			// L3/L4 label-based //
-			// ================= //
+			// ==================== //
+			// build L3 label-based //
+			// ==================== //
 			if dst.MatchLabels != "" {
+				// check matchLabels rule
+				if Cfg.DiscoveryRuleTypes&matchLabels == 0 {
+					continue
+				}
+
 				egressPolicy.Metadata["rule"] = "matchLabels"
 
 				egressRule.MatchLabels = map[string]string{}
@@ -679,7 +695,11 @@ func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcP
 								if !strings.Contains(egressPolicy.Metadata["rule"], "toHTTPs") {
 									egressPolicy.Metadata["rule"] = egressPolicy.Metadata["rule"] + "+toHTTPs"
 								}
-								egressRule.ToHTTPs = append(egressRule.ToHTTPs, httpRule)
+
+								// check toHTTPs rule
+								if Cfg.DiscoveryRuleTypes&toHTTPs > 0 {
+									egressRule.ToHTTPs = append(egressRule.ToHTTPs, httpRule)
+								}
 							}
 						}
 					}
@@ -687,15 +707,20 @@ func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcP
 					if !strings.Contains(egressPolicy.Metadata["rule"], "toPorts") {
 						egressPolicy.Metadata["rule"] = egressPolicy.Metadata["rule"] + "+toPorts"
 					}
-					egressRule.ToPorts = dst.ToPorts
+
+					// check toPorts rule
+					if Cfg.DiscoveryRuleTypes&toPorts > 0 {
+						egressRule.ToPorts = dst.ToPorts
+					}
 				}
 
+				// check egress
 				egressPolicy.Spec.Egress = append(egressPolicy.Spec.Egress, egressRule)
-
 				if Cfg.DiscoveryPolicyTypes&Egress > 0 {
 					networkPolicies = append(networkPolicies, egressPolicy)
 				}
 
+				// check ingress
 				if Cfg.DiscoveryPolicyTypes&Ingress > 0 && dst.Namespace != "kube-system" {
 					ingressPolicy := buildNewIngressPolicyFromEgressPolicy(egressRule, egressPolicy.Spec.Selector)
 					ingressPolicy.Spec.Ingress[0].MatchLabels["k8s:io.kubernetes.pod.namespace"] = namespace
@@ -712,20 +737,26 @@ func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcP
 				cidr := types.SpecCIDR{
 					CIDRs: cidrSlice,
 				}
-				egressRule.ToCIDRs = []types.SpecCIDR{cidr}
 
-				if len(dst.ToPorts) > 0 {
+				// check toCIDRs rule
+				if Cfg.DiscoveryRuleTypes&toCIDRs > 0 {
+					egressRule.ToCIDRs = []types.SpecCIDR{cidr}
+				}
+
+				// check toPorts rule
+				if len(dst.ToPorts) > 0 && Cfg.DiscoveryRuleTypes&toPorts > 0 {
 					egressPolicy.Metadata["rule"] = egressPolicy.Metadata["rule"] + "+toPorts"
 					egressRule.ToPorts = dst.ToPorts
 				}
 
+				// check egress
 				egressPolicy.Spec.Egress = append(egressPolicy.Spec.Egress, egressRule)
-
 				if Cfg.DiscoveryPolicyTypes&Egress > 0 {
 					networkPolicies = append(networkPolicies, egressPolicy)
 				}
 
-				if Cfg.DiscoveryPolicyTypes&Ingress > 0 {
+				// check ingress & fromCIDRs rule
+				if Cfg.DiscoveryPolicyTypes&Ingress > 0 && Cfg.DiscoveryRuleTypes&fromCIDRs > 0 {
 					// add ingress policy
 					ingressPolicy := buildNewIngressPolicyFromSameSelector(namespace, egressPolicy.Spec.Selector)
 					ingressPolicy.Metadata["rule"] = "toCIDRs"
@@ -746,7 +777,10 @@ func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcP
 				// =============== //
 				// build FQDN rule //
 				// =============== //
-				if Cfg.DiscoveryPolicyTypes&Egress > 0 {
+
+				// check egress & toFQDNs rule
+				if Cfg.DiscoveryPolicyTypes&Egress > 0 && Cfg.DiscoveryRuleTypes&toFQDNs > 0 {
+
 					sort.Strings(dst.Additionals)
 					fqdn := types.SpecFQDN{
 						MatchNames: dst.Additionals,
@@ -773,12 +807,13 @@ func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcP
 				egressRule.ToEndtities = dst.Additionals
 				egressPolicy.Spec.Egress = append(egressPolicy.Spec.Egress, egressRule)
 
-				if Cfg.DiscoveryPolicyTypes&Egress > 0 {
+				// check egress & toEntities rule
+				if Cfg.DiscoveryPolicyTypes&Egress > 0 && Cfg.DiscoveryRuleTypes&toEntities > 0 {
 					networkPolicies = append(networkPolicies, egressPolicy)
 				}
 
-				// add ingress policy
-				if Cfg.DiscoveryPolicyTypes&Ingress > 0 {
+				// check ingress & fromEntities rule
+				if Cfg.DiscoveryPolicyTypes&Ingress > 0 && Cfg.DiscoveryRuleTypes&fromEntities > 0 {
 					ingressPolicy := buildNewIngressPolicyFromSameSelector(namespace, egressPolicy.Spec.Selector)
 					ingressPolicy.Metadata["rule"] = "fromEntities"
 					ingressRule := types.Ingress{}
@@ -792,7 +827,7 @@ func buildNetworkPolicies(namespace string, services []types.Service, mergedSrcP
 				// ================== //
 				// build Service rule //
 				// ================== //
-				if Cfg.DiscoveryPolicyTypes&Egress > 0 {
+				if Cfg.DiscoveryPolicyTypes&Egress > 0 && Cfg.DiscoveryRuleTypes&toServices > 0 {
 					// to external services (NOT internal k8s service)
 					// to affect this policy, we need a service, an endpoint respectively
 					service := types.SpecService{

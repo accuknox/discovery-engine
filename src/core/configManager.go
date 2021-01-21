@@ -105,7 +105,7 @@ func LoadDefaultConfig() {
 
 	// discovery types
 	Cfg.DiscoveryPolicyTypes = libs.GetEnvInt("DISCOVERY_POLICY_TYPES", 3)
-	Cfg.DiscoveryPolicyTypes = libs.GetEnvInt("DISCOVERY_RULE_TYPES", 1)
+	Cfg.DiscoveryRuleTypes = libs.GetEnvInt("DISCOVERY_RULE_TYPES", 511)
 
 	// cidr bits
 	Cfg.CIDRBits = 32
