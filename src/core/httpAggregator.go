@@ -181,7 +181,7 @@ func (n *Node) aggregateChildNodes() {
 	}
 
 	// step 1: #child nodes > threshold
-	if len(n.childNodes) > Cfg.HTTPUrlThreshold {
+	if len(n.childNodes) > HTTPUrlThreshold {
 		childPaths := []string{}
 		for _, childNode := range n.childNodes {
 			childPaths = append(childPaths, childNode.path)
@@ -433,7 +433,7 @@ func aggreateHTTPPathsNaive(paths []string) []string {
 
 	for key, paths := range depthToPaths {
 		// if threshold over, aggregate it
-		if len(paths) >= Cfg.HTTPUrlThreshold {
+		if len(paths) >= HTTPUrlThreshold {
 			aggregatedPaths = append(aggregatedPaths, key+"/.*")
 		} else {
 			for _, path := range paths {
@@ -480,6 +480,11 @@ func AggregatePaths(treeMap map[string]*Node, paths []string) []string {
 
 // AggregateHTTPRules function
 func AggregateHTTPRules(mergedSrcPerMergedDst map[string][]MergedPortDst) {
+	// if level 1, do not aggregate http path
+	if Cfg.L7AggregationLevel == 1 {
+		return
+	}
+
 	for mergedSrc, dsts := range mergedSrcPerMergedDst {
 		for i, dst := range dsts {
 			// check if dst is for HTTP rules

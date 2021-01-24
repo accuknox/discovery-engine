@@ -71,7 +71,5 @@ CREATE TABLE IF NOT EXISTS `auto_policy_config` (
   `l3_aggregation_level` int DEFAULT NULL,
   `l4_aggregation_level` int DEFAULT NULL,
   `l7_aggregation_level` int DEFAULT NULL,
-  `http_url_threshold` int DEFAULT NULL,
-
   PRIMARY KEY (`id`)
 );

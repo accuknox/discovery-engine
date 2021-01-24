@@ -1397,62 +1397,64 @@ func mergingDstSpecs(mergedSrcsPerDst map[Dst][]string) map[string][]MergedPortD
 		}
 	}
 
-	for mergedSrc, dsts := range dstsPerMergedSrc {
-		// convert dst -> dstSimple, and count each dstSimple
-		dstSimpleCounts := map[DstSimple]int{}
+	if Cfg.L4Compression == 1 {
+		for mergedSrc, dsts := range dstsPerMergedSrc {
+			// convert dst -> dstSimple, and count each dstSimple
+			dstSimpleCounts := map[DstSimple]int{}
 
-		for _, dst := range dsts {
-			dstSimple := DstSimple{Namespace: dst.Namespace,
-				PodName:    dst.PodName,
-				Additional: dst.Additional,
-				Action:     dst.Action}
+			for _, dst := range dsts {
+				dstSimple := DstSimple{Namespace: dst.Namespace,
+					PodName:    dst.PodName,
+					Additional: dst.Additional,
+					Action:     dst.Action}
 
-			if val, ok := dstSimpleCounts[dstSimple]; !ok {
-				dstSimpleCounts[dstSimple] = 1
-			} else {
-				dstSimpleCounts[dstSimple] = val + 1
+				if val, ok := dstSimpleCounts[dstSimple]; !ok {
+					dstSimpleCounts[dstSimple] = 1
+				} else {
+					dstSimpleCounts[dstSimple] = val + 1
+				}
 			}
-		}
 
-		// sort dstCount by descending order
-		type dstCount struct {
-			DstSimple DstSimple
-			Count     int
-		}
+			// sort dstCount by descending order
+			type dstCount struct {
+				DstSimple DstSimple
+				Count     int
+			}
 
-		var dstCounts []dstCount
-		for dst, count := range dstSimpleCounts {
-			dstCounts = append(dstCounts, dstCount{dst, count})
-		}
+			var dstCounts []dstCount
+			for dst, count := range dstSimpleCounts {
+				dstCounts = append(dstCounts, dstCount{dst, count})
+			}
 
-		sort.Slice(dstCounts, func(i, j int) bool {
-			return dstCounts[i].Count > dstCounts[j].Count
-		})
+			sort.Slice(dstCounts, func(i, j int) bool {
+				return dstCounts[i].Count > dstCounts[j].Count
+			})
 
-		if mergedSrcPerMergedDst[mergedSrc] == nil {
-			mergedSrcPerMergedDst[mergedSrc] = []MergedPortDst{}
-		}
+			if mergedSrcPerMergedDst[mergedSrc] == nil {
+				mergedSrcPerMergedDst[mergedSrc] = []MergedPortDst{}
+			}
 
-		// if dst is matched dstSimple, remove it from origin dst list
-		for _, dstCount := range dstCounts {
-			if dstCount.Count >= 2 { // at least match count >= 2
-				for _, dst := range dsts {
-					simple := DstSimple{Namespace: dst.Namespace,
-						PodName:    dst.PodName,
-						Additional: dst.Additional,
-						Action:     dst.Action}
+			// if dst is matched dstSimple, remove it from origin dst list
+			for _, dstCount := range dstCounts {
+				if dstCount.Count >= 2 { // at least match count >= 2
+					for _, dst := range dsts {
+						simple := DstSimple{Namespace: dst.Namespace,
+							PodName:    dst.PodName,
+							Additional: dst.Additional,
+							Action:     dst.Action}
 
-					if dstCount.DstSimple == simple {
-						// merge protocol + port
-						mergedSrcPerMergedDst[mergedSrc] = mergingProtocolPorts(mergedSrcPerMergedDst[mergedSrc], dst)
-						// and then, remove dst
-						dsts = removeDstFromSlice(dsts, dst)
+						if dstCount.DstSimple == simple {
+							// merge protocol + port
+							mergedSrcPerMergedDst[mergedSrc] = mergingProtocolPorts(mergedSrcPerMergedDst[mergedSrc], dst)
+							// and then, remove dst
+							dsts = removeDstFromSlice(dsts, dst)
+						}
 					}
 				}
 			}
-		}
 
-		dstsPerMergedSrc[mergedSrc] = dsts
+			dstsPerMergedSrc[mergedSrc] = dsts
+		}
 	}
 
 	// if not merged dsts remains, append it by default
@@ -1462,11 +1464,13 @@ func mergingDstSpecs(mergedSrcsPerDst map[Dst][]string) map[string][]MergedPortD
 		}
 	}
 
-	// fqdn merging
-	mergeFQDN(mergedSrcPerMergedDst)
+	if Cfg.L4Compression == 1 {
+		// fqdn merging
+		mergeFQDN(mergedSrcPerMergedDst)
 
-	// cidr merging
-	mergeCIDR(mergedSrcPerMergedDst)
+		// cidr merging
+		mergeCIDR(mergedSrcPerMergedDst)
+	}
 
 	// entities merged (for Cilium)
 	mergeEntities(mergedSrcPerMergedDst)

@@ -15,6 +15,9 @@ var Cfg types.Configuration
 // SkipNamespaces ...
 var SkipNamespaces []string
 
+// HTTPUrlThreshold
+var HTTPUrlThreshold int
+
 func init() {
 	// initially, default -> applied
 	LoadDefaultConfig()
@@ -116,9 +119,14 @@ func LoadDefaultConfig() {
 
 	// aggregation level
 	Cfg.L3AggregationLevel = 3
-	Cfg.L4AggregationLevel = 3
+	Cfg.L4Compression = 3
 	Cfg.L7AggregationLevel = 3
-	Cfg.HTTPUrlThreshold = 3
+
+	if Cfg.L7AggregationLevel == 3 {
+		HTTPUrlThreshold = 3
+	} else if Cfg.L7AggregationLevel == 2 {
+		HTTPUrlThreshold = 5
+	}
 }
 
 // AddConfiguration function
