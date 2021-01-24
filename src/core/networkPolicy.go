@@ -180,7 +180,7 @@ func descendingLabelCountMap(labelCountMap map[string]int) []LabelCount {
 // updateDstLabels Function
 func updateDstLabels(dsts []MergedPortDst, pods []types.Pod) []MergedPortDst {
 	for i, dst := range dsts {
-		matchLabels := getMergedLabels(dst.Namespace, dst.PodName, pods)
+		matchLabels := getMergedAndSortedLabels(dst.Namespace, dst.PodName, pods)
 		if matchLabels != "" {
 			dsts[i].MatchLabels = matchLabels
 		}
@@ -985,46 +985,121 @@ func groupingLogsPerDst(networkLogs []types.KnoxNetworkLog, endpoints []types.En
 // == Step 3: Grouping Src Based on Labels == //
 // ========================================== //
 
+// checkIncludeAllSrcPods func
+func checkIncludeAllSrcPods(superSetLabels string, srcs []SrcSimple, pods []types.Pod) bool {
+	srcNamespace := ""
+	labels := strings.Split(superSetLabels, ",")
+
+	// temporary pod struct
+	type innerPod struct {
+		namespace string
+		podName   string
+	}
+
+	// 1. get pods from srcs
+	podNamesFromSrcs := []innerPod{}
+	for _, src := range srcs {
+		srcNamespace = src.Namespace
+
+		include := true
+		for _, label := range labels {
+			if !strings.Contains(src.MatchLabels, label) {
+				include = false
+				break
+			}
+		}
+
+		if include {
+			podNamesFromSrcs = append(podNamesFromSrcs, innerPod{
+				namespace: src.Namespace,
+				podName:   src.PodName,
+			})
+		}
+	}
+
+	// 2. get pods from k8s
+	podNamesFromK8s := []innerPod{}
+	for _, pod := range pods {
+		if pod.Namespace != srcNamespace {
+			continue
+		}
+
+		include := true
+		for _, label := range labels {
+			if !libs.ContainsElement(pod.Labels, label) {
+				include = false
+				break
+			}
+		}
+
+		if include {
+			podNamesFromK8s = append(podNamesFromK8s, innerPod{
+				namespace: pod.Namespace,
+				podName:   pod.PodName,
+			})
+		}
+	}
+
+	// 3. comapre two slices
+	srcIncludeAllK8sPods := true
+	for _, pod := range podNamesFromSrcs {
+		if libs.ContainsElement(podNamesFromK8s, pod) {
+			srcIncludeAllK8sPods = false
+			break
+		}
+	}
+
+	return srcIncludeAllK8sPods
+}
+
 // mergingSrcByLabels Function
-func mergingSrcByLabels(perDstSrcLabel map[Dst][]SrcSimple) map[Dst][]string {
+func mergingSrcByLabels(perDstSrcLabel map[Dst][]SrcSimple, pods []types.Pod) map[Dst][]string {
 	perDstGroupedSrc := map[Dst][]string{}
 
 	for dst, srcs := range perDstSrcLabel {
-		// first, count each src label (a=b:1 a=b,c=d:2 e=f:1, ... )
-		labelCountMap := map[string]int{}
-		for _, src := range srcs {
-			libs.CountLabelByCombinations(labelCountMap, src.MatchLabels)
-		}
+		// if level 2 or 3, aggregate labels
+		if Cfg.L3AggregationLevel >= 2 {
+			// first, count each src label (a=b:1 a=b,c=d:2 e=f:1, ... )
+			labelCountMap := map[string]int{}
+			for _, src := range srcs {
+				libs.CountLabelByCombinations(labelCountMap, src.MatchLabels)
+			}
 
-		// sorting label by descending order (e=f:10, f=e:9, d=s:5, ...)
-		countsPerLabel := descendingLabelCountMap(labelCountMap)
+			// sorting label by descending order (e=f:10, f=e:9, d=s:5, ...)
+			countsPerLabel := descendingLabelCountMap(labelCountMap)
 
-		// enumerating src label by descending order
-		for _, perLabel := range countsPerLabel {
-			if perLabel.Count >= 2 {
-				// merge if at least match count >= 2
-				// it could be single (a=b) or combined (a=b,c=d)
-				label := perLabel.Label
+			// enumerating src label by descending order
+			for _, perLabel := range countsPerLabel {
+				if perLabel.Count >= 2 {
+					// merge if at least match count >= 2
+					// it could be single (a=b) or combined (a=b,c=d)
+					label := perLabel.Label
 
-				// if 'src' contains the label, remove 'src' from srcs
-				for _, src := range srcs {
-					if libs.ContainLabel(label, src.MatchLabels) {
-						srcs = removeSrcFromSlice(srcs, src)
+					// if level 2, the super set of labels should be included in all the pods to be aggregated
+					if Cfg.L3AggregationLevel == 2 && !checkIncludeAllSrcPods(label, srcs, pods) {
+						continue
 					}
-				}
 
-				if perDstGroupedSrc[dst] == nil {
-					perDstGroupedSrc[dst] = []string{}
-				}
+					// if 'src' contains the label, remove 'src' from srcs
+					for _, src := range srcs {
+						if libs.ContainLabel(label, src.MatchLabels) {
+							srcs = removeSrcFromSlice(srcs, src)
+						}
+					}
 
-				// append the label (the removed src included) to the dst
-				if !libs.ContainsElement(perDstGroupedSrc[dst], label) {
-					perDstGroupedSrc[dst] = append(perDstGroupedSrc[dst], label)
+					if perDstGroupedSrc[dst] == nil {
+						perDstGroupedSrc[dst] = []string{}
+					}
+
+					// append the label (the removed src included) to the dst
+					if !libs.ContainsElement(perDstGroupedSrc[dst], label) {
+						perDstGroupedSrc[dst] = append(perDstGroupedSrc[dst], label)
+					}
 				}
 			}
 		}
 
-		// if there is remained src, add its match label
+		// if there is remained src, append it
 		for _, src := range srcs {
 			perDstGroupedSrc[dst] = append(perDstGroupedSrc[dst], src.MatchLabels)
 		}
@@ -1037,8 +1112,8 @@ func mergingSrcByLabels(perDstSrcLabel map[Dst][]SrcSimple) map[Dst][]string {
 // == Step 2: Replacing Src to Labeled == //
 // ====================================== //
 
-// getMergedLabels Function
-func getMergedLabels(namespace, podName string, pods []types.Pod) string {
+// getMergedAndSortedLabels Function
+func getMergedAndSortedLabels(namespace, podName string, pods []types.Pod) string {
 	mergedLabels := ""
 
 	for _, pod := range pods {
@@ -1083,7 +1158,7 @@ func extractingSrcFromLogs(labeledSrcsPerDst map[Dst][]SrcSimple, perDst map[Dst
 					MatchLabels: k + "=" + v}
 			} else {
 				// else get merged matchlables: "a=b,c=d,e=f"
-				mergedLabels := getMergedLabels(log.SrcNamespace, log.SrcPodName, pods)
+				mergedLabels := getMergedAndSortedLabels(log.SrcNamespace, log.SrcPodName, pods)
 				if mergedLabels == "" {
 					continue
 				}
@@ -1403,6 +1478,73 @@ func mergingDstSpecs(mergedSrcsPerDst map[Dst][]string) map[string][]MergedPortD
 // == Step 5: Grouping Dst based on Label == //
 // ========================================= //
 
+// checkIncludeAllDstPods func
+func checkIncludeAllDstPods(superSetLabels string, dsts []MergedPortDst, pods []types.Pod) bool {
+	dstNamespace := ""
+	labels := strings.Split(superSetLabels, ",")
+
+	// temporary pod struct
+	type innerPod struct {
+		namespace string
+		podName   string
+	}
+
+	// 1. get pods from srcs
+	podNamesFromDsts := []innerPod{}
+	for _, dst := range dsts {
+		dstNamespace = dst.Namespace
+
+		include := true
+		for _, label := range labels {
+			if !strings.Contains(dst.MatchLabels, label) {
+				include = false
+				break
+			}
+		}
+
+		if include {
+			podNamesFromDsts = append(podNamesFromDsts, innerPod{
+				namespace: dst.Namespace,
+				podName:   dst.PodName,
+			})
+		}
+	}
+
+	// 2. get pods from k8s
+	podNamesFromK8s := []innerPod{}
+	for _, pod := range pods {
+		if pod.Namespace != dstNamespace {
+			continue
+		}
+
+		include := true
+		for _, label := range labels {
+			if !libs.ContainsElement(pod.Labels, label) {
+				include = false
+				break
+			}
+		}
+
+		if include {
+			podNamesFromK8s = append(podNamesFromK8s, innerPod{
+				namespace: pod.Namespace,
+				podName:   pod.PodName,
+			})
+		}
+	}
+
+	// 3. comapre two slices
+	dstIncludeAllK8sPods := true
+	for _, pod := range podNamesFromDsts {
+		if libs.ContainsElement(podNamesFromK8s, pod) {
+			dstIncludeAllK8sPods = false
+			break
+		}
+	}
+
+	return dstIncludeAllK8sPods
+}
+
 // groupingDstMergeds Function
 func groupingDstMergeds(label string, dsts []MergedPortDst) MergedPortDst {
 	merged := MergedPortDst{MatchLabels: label}
@@ -1442,41 +1584,49 @@ func mergingDstByLabels(mergedSrcPerMergedProtoDst map[string][]MergedPortDst, p
 		// label update
 		mergedProtoPortDsts = updateDstLabels(mergedProtoPortDsts, pods)
 
-		// count each dst label
-		labelCountMap := map[string]int{}
-		for _, dst := range mergedProtoPortDsts {
-			if dst.MatchLabels == "" {
-				continue
-			}
-
-			libs.CountLabelByCombinations(labelCountMap, dst.MatchLabels)
-		}
-
-		// sort label count by descending orders
-		labelCounts := descendingLabelCountMap(labelCountMap)
-
-		// fetch matched label dsts
-		for _, labelCount := range labelCounts {
-			if labelCount.Count >= 2 {
-				// at least match count >= 2
-				label := labelCount.Label
-
-				selectedDsts := make([]MergedPortDst, 0)
-				for _, dst := range mergedProtoPortDsts {
-					if libs.ContainLabel(label, dst.MatchLabels) {
-						selectedDsts = append(selectedDsts, dst)
-						mergedProtoPortDsts = removeDstMergedSlice(mergedProtoPortDsts, dst)
-					}
+		// if level 2 or 3, aggregate labels
+		if Cfg.L3AggregationLevel >= 2 {
+			// count each dst label
+			labelCountMap := map[string]int{}
+			for _, dst := range mergedProtoPortDsts {
+				if dst.MatchLabels == "" {
+					continue
 				}
 
-				if len(selectedDsts) != 0 {
-					if mergedSrcPerMergedDst[mergedSrc] == nil {
-						mergedSrcPerMergedDst[mergedSrc] = []MergedPortDst{}
+				libs.CountLabelByCombinations(labelCountMap, dst.MatchLabels)
+			}
+
+			// sort label count by descending orders
+			labelCounts := descendingLabelCountMap(labelCountMap)
+
+			// fetch matched label dsts
+			for _, labelCount := range labelCounts {
+				if labelCount.Count >= 2 {
+					// at least match count >= 2
+					label := labelCount.Label
+
+					// if level 2, the super set of labels should be included in all the pods to be aggregated
+					if Cfg.L3AggregationLevel == 2 && !checkIncludeAllDstPods(label, mergedProtoPortDsts, pods) {
+						continue
 					}
 
-					// groupingDsts -> one merged grouping dst
-					groupedDst := groupingDstMergeds(label, selectedDsts)
-					mergedSrcPerMergedDst[mergedSrc] = append(mergedSrcPerMergedDst[mergedSrc], groupedDst)
+					selectedDsts := make([]MergedPortDst, 0)
+					for _, dst := range mergedProtoPortDsts {
+						if libs.ContainLabel(label, dst.MatchLabels) {
+							selectedDsts = append(selectedDsts, dst)
+							mergedProtoPortDsts = removeDstMergedSlice(mergedProtoPortDsts, dst)
+						}
+					}
+
+					if len(selectedDsts) != 0 {
+						if mergedSrcPerMergedDst[mergedSrc] == nil {
+							mergedSrcPerMergedDst[mergedSrc] = []MergedPortDst{}
+						}
+
+						// groupingDsts -> one merged grouping dst
+						groupedDst := groupingDstMergeds(label, selectedDsts)
+						mergedSrcPerMergedDst[mergedSrc] = append(mergedSrcPerMergedDst[mergedSrc], groupedDst)
+					}
 				}
 			}
 		}
@@ -1581,7 +1731,7 @@ func DiscoverNetworkPolicies(namespace string,
 	}
 
 	// step 3: {dst: [srcs (labeled)]} -> {dst: [merged srcs (labeled + merged)]}
-	mergedSrcsPerDst := mergingSrcByLabels(labeledSrcsPerDst)
+	mergedSrcsPerDst := mergingSrcByLabels(labeledSrcsPerDst, pods)
 
 	// step 4: {merged_src: [dsts (merged proto/port)]} merging protocols and ports for the same destinations
 	mergedSrcPerMergedProtoDst := mergingDstSpecs(mergedSrcsPerDst)
@@ -1818,9 +1968,9 @@ func StartToDiscoveryWorker() {
 				libs.WriteKnoxPolicyToYamlFile(namespace, policies)
 			}
 
-			log.Info().Msgf("Policy discovery done    for namespace: [%s], [%d] policies discovered", namespace, len(newPolicies))
+			log.Info().Msgf("Policy discovery done for namespace: [%s], [%d] policies discovered", namespace, len(newPolicies))
 		} else {
-			log.Info().Msgf("Policy discovery done    for namespace: [%s], no policy discovered", namespace)
+			log.Info().Msgf("Policy discovery done for namespace: [%s], no policy discovered", namespace)
 		}
 	}
 
