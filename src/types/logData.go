@@ -2,6 +2,8 @@ package types
 
 // KnoxNetworkLog Structure
 type KnoxNetworkLog struct {
+	FlowID int `json:"flow_id,omitempty" bson:"flow_id"`
+
 	SrcNamespace string `json:"src_namespace,omitempty" bson:"src_namespace"`
 	SrcPodName   string `json:"src_pod_name,omitempty" bson:"src_pod_name"`
 

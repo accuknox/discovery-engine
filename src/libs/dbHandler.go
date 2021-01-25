@@ -24,8 +24,8 @@ func updateTimeInterval(lastDoc map[string]interface{}) {
 	}
 }
 
-// GetTrafficFlowFromDB function
-func GetTrafficFlowFromDB(cfg types.ConfigDB, timeSelection string) []map[string]interface{} {
+// GetNetworkFlowFromDB function
+func GetNetworkFlowFromDB(cfg types.ConfigDB, timeSelection string) []map[string]interface{} {
 	results := []map[string]interface{}{}
 
 	endTime = time.Now().Unix()

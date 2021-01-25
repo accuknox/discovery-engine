@@ -15,8 +15,11 @@ var Cfg types.Configuration
 // SkipNamespaces ...
 var SkipNamespaces []string
 
-// HTTPUrlThreshold
+// HTTPUrlThreshold ...
 var HTTPUrlThreshold int
+
+// PlugIn ...
+var PlugIn string
 
 func init() {
 	// initially, default -> applied
@@ -55,6 +58,8 @@ func LoadConfigDB() types.ConfigDB {
 	cfgDB.TableNetworkFlow = libs.GetEnv("TB_NETWORK_FLOW", "network_flow")
 	cfgDB.TableDiscoveredPolicy = libs.GetEnv("TB_DISCOVERED_POLICY", "discovered_policy")
 	cfgDB.TableConfiguration = libs.GetEnv("TB_CONFIGURATION", "auto_policy_config")
+
+	PlugIn = "cilium"
 
 	return cfgDB
 }

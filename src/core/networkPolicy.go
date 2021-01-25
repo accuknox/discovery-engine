@@ -13,7 +13,6 @@ import (
 	"github.com/accuknox/knoxAutoPolicy/src/plugin"
 	"github.com/accuknox/knoxAutoPolicy/src/types"
 
-	"github.com/cilium/cilium/api/v1/flow"
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/robfig/cron"
@@ -67,15 +66,17 @@ var externals = []string{"reserved:world", "external"}
 
 type labeledSrcsPerDstMap map[Dst][]SrcSimple          // key: simple Dst, value: simple Src
 var gLabeledSrcsPerDst map[string]labeledSrcsPerDstMap // key: namespace, value: LabeledSrcsPerDstMap
-var dnsToIPs map[string][]string                       // key: domain name, value: ip addresses
-var k8sDNSSvc []types.Service                          // kube-dns
+
+// DomainToIPs ...
+var DomainToIPs map[string][]string // key: domain name, value: ip addresses
+var k8sDNSSvc []types.Service       // kube-dns
 
 // init Function
 func init() {
 	stopChan = make(chan struct{})
 	waitG = sync.WaitGroup{}
 
-	dnsToIPs = map[string][]string{}
+	DomainToIPs = map[string][]string{}
 	gLabeledSrcsPerDst = map[string]labeledSrcsPerDstMap{}
 	Status = "idle"
 }
@@ -141,6 +142,18 @@ type LabelCount struct {
 // ======================= //
 // == Helper Functions  == //
 // ======================= //
+
+// getDomainNameFromDNSToIP func
+func getDomainNameFromDNSToIP(log types.KnoxNetworkLog) string {
+	for domain, ips := range DomainToIPs {
+		// here, pod name is ip addr (external)
+		if libs.ContainsElement(ips, log.DstPodName) {
+			return domain
+		}
+	}
+
+	return ""
+}
 
 // removeSrcFromSlice Function
 func removeSrcFromSlice(srcs []SrcSimple, remove SrcSimple) []SrcSimple {
@@ -353,37 +366,6 @@ func removeKubeDNSPort(toPorts []types.SpecPort) []types.SpecPort {
 	}
 
 	return filtered
-}
-
-// updateDNSToIPs function
-func updateDNSToIPs(flows []*flow.Flow, dnsToIPs map[string][]string) {
-	for _, flow := range flows {
-		if flow.GetL7() != nil && flow.L7.GetDns() != nil {
-			// if DSN response includes IPs
-			if flow.L7.GetType() == 2 && len(flow.L7.GetDns().Ips) > 0 {
-				// if internal services, skip
-				if strings.HasSuffix(flow.L7.GetDns().GetQuery(), "svc.cluster.local.") {
-					continue
-				}
-
-				query := strings.TrimSuffix(flow.L7.GetDns().GetQuery(), ".")
-				ips := flow.L7.GetDns().GetIps()
-
-				// udpate DNS to IPs map
-				if val, ok := dnsToIPs[query]; ok {
-					for _, ip := range ips {
-						if !libs.ContainsElement(val, ip) {
-							val = append(val, ip)
-						}
-					}
-
-					dnsToIPs[query] = val
-				} else {
-					dnsToIPs[query] = ips
-				}
-			}
-		}
-	}
 }
 
 // updateServiceEndpoint Function
@@ -1762,155 +1744,63 @@ func DiscoverNetworkPolicies(namespace string,
 // == Preprocessing  == //
 // ==================== //
 
-// getHaveToCheckItems func
-func getHaveToCheckItems(igFlows types.IgnoringFlows) int {
-	check := 0
-
-	if igFlows.IgSourceNamespace != "" {
-		check = check | 1<<0 // 1
-	}
-
-	if len(igFlows.IgSourceLabels) > 0 {
-		check = check | 1<<1 // 2
-	}
-
-	if igFlows.IgDestinationNamespace != "" {
-		check = check | 1<<2 // 4
-	}
-
-	if len(igFlows.IgDestinationLabels) > 0 {
-		check = check | 1<<3 // 8
-	}
-
-	if igFlows.IgProtocol != "" {
-		check = check | 1<<4 // 16
-	}
-
-	if igFlows.IgPortNumber != "" {
-		check = check | 1<<5 // 32
-	}
-
-	return check
-}
-
-// containLabels func
-func containLabels(cni string, igLabels []string, flowLabels []string) bool {
-	prefix := ""
-
-	if cni == "cilium" {
-		prefix = "k8s:"
-	}
-
-	for _, label := range igLabels {
-		label = prefix + label
-
-		if !libs.ContainsElement(flowLabels, label) {
-			return false
-		}
-	}
-
-	return true
-}
-
-// PrefilterFlows func
-func PrefilterFlows(flows []*flow.Flow) []*flow.Flow {
-	filteredFlows := []*flow.Flow{}
-
-	for _, flow := range flows {
-		ignored := false
-
-		for _, igFlow := range Cfg.IgnoringFlows {
-			checkItems := getHaveToCheckItems(igFlow)
-
-			checkedItems := 0
-
-			// 1. check src namespace
-			if (checkItems&1 > 0) && igFlow.IgSourceNamespace == flow.Source.Namespace {
-				checkedItems = checkedItems | 1<<0
-			}
-
-			// 2. check src pod labels
-			if (checkItems&2 > 0) && containLabels("cilium", igFlow.IgSourceLabels, flow.Source.Labels) {
-				checkedItems = checkedItems | 1<<1
-			}
-
-			// 3. check dest namespace
-			if (checkItems&4 > 0) && igFlow.IgDestinationNamespace == flow.Destination.Namespace {
-				checkedItems = checkedItems | 1<<2
-			}
-
-			// 4. check dest pod labels
-			if (checkItems&8 > 0) && containLabels("cilium", igFlow.IgDestinationLabels, flow.Destination.Labels) {
-				checkedItems = checkedItems | 1<<3
-			}
-
-			// 5. check protocol
-			if (checkItems&16 > 0) && flow.GetL4() != nil && plugin.GetProtocolStr(flow.GetL4()) == igFlow.IgProtocol {
-				checkedItems = checkedItems | 1<<4
-			}
-
-			// 6. check port number
-			if (checkItems&32 > 0) && flow.GetL4() != nil {
-				if strings.Contains(flow.GetL4().String(), igFlow.IgPortNumber) {
-					checkedItems = checkedItems | 1<<5
-				}
-			}
-
-			if checkItems == checkedItems {
-				ignored = true
-				break
-			}
-		}
-
-		if !ignored {
-			filteredFlows = append(filteredFlows, flow)
-		}
-	}
-
-	return filteredFlows
-}
-
-// GetCiliumFlows func
-func GetCiliumFlows() []*flow.Flow {
-	ciliumFlows := []*flow.Flow{}
+// getNetworkLogs function
+func getNetworkLogs() []types.KnoxNetworkLog {
+	networkLogs := []types.KnoxNetworkLog{}
 
 	if Cfg.NetworkLogFrom == "db" {
-		log.Info().Msg("Get network traffic from the database")
+		log.Info().Msg("Get network flow from the database")
 
-		flows := libs.GetTrafficFlowFromDB(Cfg.ConfigDB, Cfg.OneTimeJobTimeSelection)
+		// get flows from db
+		flows := libs.GetNetworkFlowFromDB(Cfg.ConfigDB, Cfg.OneTimeJobTimeSelection)
 		if len(flows) == 0 {
 			return nil
 		}
 
-		// convert db flows -> cilium flows
-		ciliumFlows = plugin.ConvertDocsToCiliumFlows(Cfg.ConfigDB.DBDriver, flows)
+		// convert db flows -> network logs
+		networkLogs = plugin.ConvertCiliumFlowsToKnoxNetworkLogs(Cfg.ConfigDB.DBDriver, flows, DomainToIPs)
 	} else if Cfg.NetworkLogFrom == "hubble" { // from hubble directly
-		log.Info().Msg("Get network traffic from the Cilium Hubble directly")
+		log.Info().Msg("Get network flow from the Cilium Hubble directly")
 
+		// get flows from hubble relay
 		flows := plugin.GetCiliumFlowsFromHubble()
 		if len(flows) == 0 {
 			return nil
 		}
 
-		ciliumFlows = flows
+		// convert hubble flows -> network logs (but, in this case, no flow id..)
+		for _, flow := range flows {
+			if log, valid := plugin.ConvertCiliumFlowToKnoxNetworkLog(flow); valid {
+				networkLogs = append(networkLogs, log)
+			}
+		}
 	} else {
 		log.Error().Msgf("Network log source not correct: %s", Cfg.NetworkLogFrom)
 		return nil
 	}
 
-	return ciliumFlows
+	// update dns query logs
+	for i, log := range networkLogs {
+		// traffic go to the outside of the cluster,
+		if log.DstNamespace == "reserved:world" {
+			// filter if the ip is from the DNS query
+			dns := getDomainNameFromDNSToIP(log)
+			if dns != "" {
+				networkLogs[i].DNSQuery = dns
+			}
+		}
+	}
+
+	return networkLogs
 }
 
 // StartToDiscoveryWorker function
 func StartToDiscoveryWorker() {
-	// get network flows
-	networkFlows := GetCiliumFlows()
-	if networkFlows == nil {
+	// get network logs
+	networkLogs := getNetworkLogs()
+	if networkLogs == nil {
 		return
 	}
-
-	// filter ignoring network flows
-	networkFlows = PrefilterFlows(networkFlows)
 
 	// get k8s services
 	services := libs.GetServices()
@@ -1924,14 +1814,14 @@ func StartToDiscoveryWorker() {
 	// get k8s namespaces
 	namespaces := libs.GetNamespaces()
 
-	// get existing policies in db
-	existingPolicies := libs.GetNetworkPolicies(Cfg.ConfigDB, "", "latest")
-
 	// update exposed ports (k8s service, docker-compose portbinding)
 	updateServiceEndpoint(services, endpoints, pods)
 
-	// update DNS to IPs
-	updateDNSToIPs(networkFlows, dnsToIPs)
+	// get existing policies in db
+	existingPolicies := libs.GetNetworkPolicies(Cfg.ConfigDB, "", "latest")
+
+	// filter ignoring network logs from configuration
+	networkLogs = FilterNetworkLogsByConfig(networkLogs, pods)
 
 	// iterate each namespace
 	for _, namespace := range namespaces {
@@ -1940,19 +1830,19 @@ func StartToDiscoveryWorker() {
 			continue
 		}
 
-		// convert cilium network traffic -> network log, and filter traffic
-		networkLogs := plugin.ConvertCiliumFlowsToKnoxLogs(namespace, networkFlows, dnsToIPs)
-		if len(networkLogs) == 0 {
+		// filter network logs by target namespace
+		filteredNetworkLogs := FilterNetworkLogsByNamespace(namespace, networkLogs)
+		if len(filteredNetworkLogs) == 0 {
 			continue
 		}
 
 		log.Info().Msgf("Policy discovery started for namespace: [%s]", namespace)
 
 		// discover network policies based on the network logs
-		discoveredPolicies := DiscoverNetworkPolicies(namespace, Cfg.CIDRBits, networkLogs, services, endpoints, pods)
+		discoveredPolicies := DiscoverNetworkPolicies(namespace, Cfg.CIDRBits, filteredNetworkLogs, services, endpoints, pods)
 
 		// remove duplication
-		newPolicies := DeduplicatePolicies(existingPolicies, discoveredPolicies, dnsToIPs)
+		newPolicies := DeduplicatePolicies(existingPolicies, discoveredPolicies, DomainToIPs)
 
 		if len(newPolicies) > 0 {
 			// insert discovered policies to db
@@ -2026,7 +1916,7 @@ func StopCronJob() {
 // == Discovery Worker == //
 // ====================== //
 
-// StartWorker ...
+// StartWorker function
 func StartWorker() {
 	if Status != StatusIdle {
 		log.Info().Msg("There is no idle discovery worker")
@@ -2042,7 +1932,7 @@ func StartWorker() {
 	}
 }
 
-// StopWorker ...
+// StopWorker function
 func StopWorker() {
 	if Status != StatusRunning {
 		log.Info().Msg("There is no running discovery worker")

@@ -32,13 +32,13 @@ var CiliumFlows []*flow.Flow
 var CiliumFlowsMutex *sync.Mutex
 
 func init() {
-	// init mutex
+	// init mutex for hubble relay
 	CiliumFlowsMutex = &sync.Mutex{}
 }
 
-// ============================ //
-// == Traffic Flow Convertor == //
-// ============================ //
+// ====================== //
+// == Helper Functions == //
+// ====================== //
 
 // isSynFlagOnly function
 func isSynFlagOnly(tcp *flow.TCP) bool {
@@ -117,19 +117,18 @@ func getHTTP(flow *flow.Flow) (string, string) {
 	return "", ""
 }
 
-func isFromDNSQuery(log types.KnoxNetworkLog, dnsToIPs map[string][]string) string {
-	for domain, v := range dnsToIPs {
-		if libs.ContainsElement(v, log.DstPodName) {
-			return domain
-		}
-	}
+// ============================ //
+// == Network Flow Convertor == //
+// ============================ //
 
-	return ""
-}
-
-// ConvertCiliumFlowToKnoxLog function
-func ConvertCiliumFlowToKnoxLog(flow *flow.Flow, dnsToIPs map[string][]string) (types.KnoxNetworkLog, bool) {
+// ConvertCiliumFlowToKnoxNetworkLog function
+func ConvertCiliumFlowToKnoxNetworkLog(flow *flow.Flow) (types.KnoxNetworkLog, bool) {
 	log := types.KnoxNetworkLog{}
+
+	// TODO: packet is dropped (flow.Verdict == 2) and drop reason == 181 (Flows denied by deny policy)?
+	if flow.Verdict == 2 && flow.DropReason == 181 {
+		return log, false
+	}
 
 	// set action
 	if flow.Verdict == 2 {
@@ -187,15 +186,6 @@ func ConvertCiliumFlowToKnoxLog(flow *flow.Flow, dnsToIPs map[string][]string) (
 		return log, false
 	}
 
-	// traffic go to the outside of the cluster,
-	if log.DstNamespace == "reserved:world" {
-		// filter if the ip is from the DNS query
-		dns := isFromDNSQuery(log, dnsToIPs)
-		if dns != "" {
-			log.DNSQuery = dns
-		}
-	}
-
 	// get L7 HTTP
 	if flow.GetL7() != nil && flow.L7.GetHttp() != nil {
 		log.HTTPMethod, log.HTTPPath = getHTTP(flow)
@@ -207,33 +197,39 @@ func ConvertCiliumFlowToKnoxLog(flow *flow.Flow, dnsToIPs map[string][]string) (
 	return log, true
 }
 
-// ConvertDocsToCiliumFlows function
-func ConvertDocsToCiliumFlows(dbDriver string, docs []map[string]interface{}) []*flow.Flow {
-	if dbDriver == "mysql" {
-		return ConvertMySQLDocsToCiliumFlows(docs)
-	} else {
-		return ConvertMongoDocsToCiliumFlows(docs)
+// updateDomainToIPMap func
+func updateDomainToIPMap(flow *flow.Flow, dnsToIPs map[string][]string) {
+	// get L7 DNS
+	if flow.GetL7() != nil && flow.L7.GetDns() != nil {
+		// if DSN response includes IPs
+		if flow.L7.GetType() == 2 && len(flow.L7.GetDns().Ips) > 0 {
+			// if internal services, skip
+			if strings.HasSuffix(flow.L7.GetDns().GetQuery(), "svc.cluster.local.") {
+				return
+			}
+
+			query := strings.TrimSuffix(flow.L7.GetDns().GetQuery(), ".")
+			ips := flow.L7.GetDns().GetIps()
+
+			// udpate DNS to IPs map
+			if val, ok := dnsToIPs[query]; ok {
+				for _, ip := range ips {
+					if !libs.ContainsElement(val, ip) {
+						val = append(val, ip)
+					}
+				}
+
+				dnsToIPs[query] = val
+			} else {
+				dnsToIPs[query] = ips
+			}
+		}
 	}
 }
 
-// ConvertMongoDocsToCiliumFlows function
-func ConvertMongoDocsToCiliumFlows(docs []map[string]interface{}) []*flow.Flow {
-	flows := []*flow.Flow{}
-
-	for _, doc := range docs {
-		flow := &flow.Flow{}
-		flowByte, _ := json.Marshal(doc)
-		json.Unmarshal(flowByte, flow)
-
-		flows = append(flows, flow)
-	}
-
-	return flows
-}
-
-// ConvertMySQLDocsToCiliumFlows function
-func ConvertMySQLDocsToCiliumFlows(docs []map[string]interface{}) []*flow.Flow {
-	flows := []*flow.Flow{}
+// ConvertMySQLFlowsToNetworkLogs function
+func ConvertMySQLFlowsToNetworkLogs(docs []map[string]interface{}, dnsToIPs map[string][]string) []types.KnoxNetworkLog {
+	logs := []types.KnoxNetworkLog{}
 
 	for _, doc := range docs {
 		ciliumFlow := &flow.Flow{}
@@ -309,44 +305,50 @@ func ConvertMySQLDocsToCiliumFlows(docs []map[string]interface{}) []*flow.Flow {
 			}
 		}
 
-		flows = append(flows, ciliumFlow)
+		// update dns maps
+		updateDomainToIPMap(ciliumFlow, dnsToIPs)
+
+		if log, valid := ConvertCiliumFlowToKnoxNetworkLog(ciliumFlow); valid {
+			// get flow id
+			log.FlowID = int(doc["id"].(int32))
+			logs = append(logs, log)
+		}
 	}
 
-	return flows
+	return logs
 }
 
-// ConvertCiliumFlowsToKnoxLogs function
-func ConvertCiliumFlowsToKnoxLogs(targetNamespace string, flows []*flow.Flow, dnsToIPs map[string][]string) []types.KnoxNetworkLog {
-	logMap := map[types.KnoxNetworkLog]bool{}
-	networkLogs := []types.KnoxNetworkLog{}
+// ConvertMongoFlowsToNetworkLogs function
+func ConvertMongoFlowsToNetworkLogs(docs []map[string]interface{}) []types.KnoxNetworkLog {
+	logs := []types.KnoxNetworkLog{}
 
-	for _, flow := range flows {
-		if flow.Source.Namespace != targetNamespace && flow.Destination.Namespace != targetNamespace {
-			continue
-		}
+	for _, doc := range docs {
+		flow := &flow.Flow{}
+		flowByte, _ := json.Marshal(doc)
+		json.Unmarshal(flowByte, flow)
 
-		// TODO: packet is dropped (flow.Verdict == 2) and drop reason == 181 (Flows denied by deny policy)?
-		if flow.Verdict == 2 && flow.DropReason == 181 {
-			continue
-		}
-
-		if log, valid := ConvertCiliumFlowToKnoxLog(flow, dnsToIPs); valid {
-			if _, ok := logMap[log]; !ok {
-				logMap[log] = true
-			}
+		if log, valid := ConvertCiliumFlowToKnoxNetworkLog(flow); valid {
+			logs = append(logs, log)
 		}
 	}
 
-	for k := range logMap {
-		networkLogs = append(networkLogs, k)
-	}
-
-	return networkLogs
+	return logs
 }
 
-// ===================================== //
-// == Cilium Network Policy Convertor == //
-// ===================================== //
+// ConvertCiliumFlowsToKnoxNetworkLogs function
+func ConvertCiliumFlowsToKnoxNetworkLogs(dbDriver string, docs []map[string]interface{}, dnsToIPs map[string][]string) []types.KnoxNetworkLog {
+	if dbDriver == "mysql" {
+		return ConvertMySQLFlowsToNetworkLogs(docs, dnsToIPs)
+	} else if dbDriver == "mongo" {
+		return ConvertMongoFlowsToNetworkLogs(docs)
+	} else {
+		return []types.KnoxNetworkLog{}
+	}
+}
+
+// ============================== //
+// == Network Policy Convertor == //
+// ============================== //
 
 // buildNewCiliumNetworkPolicy function
 func buildNewCiliumNetworkPolicy(inPolicy types.KnoxNetworkPolicy) types.CiliumNetworkPolicy {
