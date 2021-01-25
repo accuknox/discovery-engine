@@ -33,8 +33,8 @@ export POLICY_DIR=$KNOX_AUTO_HOME/policies/
 #   all (egress+ingress): 3
 #   egress only: 1
 #   ingress only: 2
-export DISCOVERY_POLICY_TYPES=1
-export DISCOVERY_RULE_TYPES=1
+export DISCOVERY_POLICY_TYPES=3
+export DISCOVERY_RULE_TYPES=511
 
 # skip namepsace info
 export IGNORING_NAMESPACES="kube-system|knox-auto-policy|cilium|hipster"

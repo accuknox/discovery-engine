@@ -142,7 +142,7 @@ func GetNetworkPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) (
 	var results *sql.Rows
 	var err error
 
-	query := "SELECT apiVersion,kind,name,namespace,type,rule,status,outdated,spec,generatedTime FROM " + cfg.TableDiscoveredPolicy
+	query := "SELECT apiVersion,kind,name,cluster_name,namespace,type,rule,status,outdated,spec,generatedTime FROM " + cfg.TableDiscoveredPolicy
 	if namespace != "" && status != "" {
 		query = query + " WHERE namespace = ? and status = ? "
 		results, err = db.Query(query, namespace, status)
@@ -324,9 +324,8 @@ func AddConfiguration(cfg types.ConfigDB, newConfig types.Configuration) error {
 		"ignoring_flows," +
 		"l3_aggregation_level," +
 		"l4_aggregation_level," +
-		"l7_aggregation_level," +
-		"http_url_threshold) " +
-		"values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+		"l7_aggregation_level) " +
+		"values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
 
 	if err != nil {
 		return err
@@ -367,9 +366,8 @@ func AddConfiguration(cfg types.ConfigDB, newConfig types.Configuration) error {
 		newConfig.CIDRBits,
 		ignoringFlows,
 		newConfig.L3AggregationLevel,
-		newConfig.L4AggregationLevel,
+		newConfig.L4Compression,
 		newConfig.L7AggregationLevel,
-		newConfig.HTTPUrlThreshold,
 	)
 
 	if err != nil {
@@ -431,9 +429,8 @@ func GetConfigurations(cfg types.ConfigDB, configName string) ([]types.Configura
 			&cfg.CIDRBits,
 			&ignoringFlowByte,
 			&cfg.L3AggregationLevel,
-			&cfg.L4AggregationLevel,
+			&cfg.L4Compression,
 			&cfg.L7AggregationLevel,
-			&cfg.HTTPUrlThreshold,
 		); err != nil {
 			return nil, err
 		}
@@ -482,8 +479,7 @@ func UpdateConfiguration(cfg types.ConfigDB, configName string, updateConfig typ
 		"ignoring_flows=?," +
 		"l3_aggregation_level=?," +
 		"l4_aggregation_level=?," +
-		"l7_aggregation_level=?," +
-		"http_url_threshold=? " +
+		"l7_aggregation_level=? " +
 		"WHERE config_name=?")
 
 	if err != nil {
@@ -524,9 +520,8 @@ func UpdateConfiguration(cfg types.ConfigDB, configName string, updateConfig typ
 		updateConfig.CIDRBits,
 		ignoringFlows,
 		updateConfig.L3AggregationLevel,
-		updateConfig.L4AggregationLevel,
+		updateConfig.L4Compression,
 		updateConfig.L7AggregationLevel,
-		updateConfig.HTTPUrlThreshold,
 		configName,
 	)
 

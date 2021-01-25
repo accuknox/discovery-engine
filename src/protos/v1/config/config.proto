@@ -73,7 +73,6 @@ message Config {
     repeated IgnoringFlows ignoring_flows = 14;
 
     int32 l3_aggregation_level = 15;
-    int32 l4_aggregation_level = 16;
+    int32 l4_compression = 16;
     int32 l7_aggregation_level = 17;
-    int32 http_url_threshold = 18;
 }

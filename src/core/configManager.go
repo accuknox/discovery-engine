@@ -15,6 +15,9 @@ var Cfg types.Configuration
 // SkipNamespaces ...
 var SkipNamespaces []string
 
+// HTTPUrlThreshold
+var HTTPUrlThreshold int
+
 func init() {
 	// initially, default -> applied
 	LoadDefaultConfig()
@@ -104,8 +107,8 @@ func LoadDefaultConfig() {
 	Cfg.PolicyDir = libs.GetEnv("POLICY_DIR", "./")
 
 	// discovery types
-	Cfg.DiscoveryPolicyTypes = libs.GetEnvInt("DISCOVERY_POLICY_TYPES", 3)
-	Cfg.DiscoveryRuleTypes = libs.GetEnvInt("DISCOVERY_RULE_TYPES", 511)
+	Cfg.DiscoveryPolicyTypes = libs.GetEnvInt("DISCOVERY_POLICY_TYPES", 3) // 3: all types
+	Cfg.DiscoveryRuleTypes = libs.GetEnvInt("DISCOVERY_RULE_TYPES", 511)   // 511: all rules
 
 	// cidr bits
 	Cfg.CIDRBits = 32
@@ -116,9 +119,14 @@ func LoadDefaultConfig() {
 
 	// aggregation level
 	Cfg.L3AggregationLevel = 3
-	Cfg.L4AggregationLevel = 3
+	Cfg.L4Compression = 3
 	Cfg.L7AggregationLevel = 3
-	Cfg.HTTPUrlThreshold = 3
+
+	if Cfg.L7AggregationLevel == 3 {
+		HTTPUrlThreshold = 3
+	} else if Cfg.L7AggregationLevel == 2 {
+		HTTPUrlThreshold = 5
+	}
 }
 
 // AddConfiguration function

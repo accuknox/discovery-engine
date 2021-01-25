@@ -53,7 +53,6 @@ type Configuration struct {
 	IgnoringFlows []IgnoringFlows `json:"ignoring_flows,omitempty" bson:"ignoring_flows,omitempty"`
 
 	L3AggregationLevel int `json:"l3_aggregation_level,omitempty" bson:"l3_aggregation_level,omitempty"`
-	L4AggregationLevel int `json:"l4_aggregation_level,omitempty" bson:"l4_aggregation_level,omitempty"`
+	L4Compression      int `json:"l4_compression,omitempty" bson:"l4_compression,omitempty"`
 	L7AggregationLevel int `json:"l7_aggregation_level,omitempty" bson:"l7_aggregation_level,omitempty"`
-	HTTPUrlThreshold   int `json:"http_url_threshold,omitempty" bson:"http_url_threshold,omitempty"`
 }
