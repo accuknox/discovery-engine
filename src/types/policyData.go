@@ -75,6 +75,7 @@ type Spec struct {
 type KnoxNetworkPolicy struct {
 	APIVersion string            `json:"apiVersion,omitempty" yaml:"apiVersion,omitempty" bson:"apiVersion,omitempty"`
 	Kind       string            `json:"kind,omitempty" yaml:"kind,omitempty" bson:"kind,omitempty"`
+	FlowIDs    []int             `json:"flow_ids,omitempty" yaml:"flow_ids,omitempty" bson:"flow_ids,omitempty"`
 	Metadata   map[string]string `json:"metadata,omitempty" yaml:"metadata,omitempty" bson:"metadata,omitempty"`
 	Outdated   string            `json:"outdated,omitempty" yaml:"outdated,omitempty" bson:"outdated,omitempty"`
 

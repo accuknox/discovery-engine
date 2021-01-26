@@ -288,9 +288,9 @@ func (n *Node) mergeSameChildNodes() {
 	}
 }
 
-// ====================== //
-// == Helper Functions == //
-// ====================== //
+// =================== //
+// == Tree Handling == //
+// =================== //
 
 func findByName(root *Node, path string, depth int) *Node {
 	queue := make([]*Node, 0)
@@ -478,18 +478,18 @@ func AggregatePaths(treeMap map[string]*Node, paths []string) []string {
 	return results
 }
 
-// AggregateHTTPRules function
-func AggregateHTTPRules(mergedSrcPerMergedDst map[string][]MergedPortDst) {
+// AggregateHTTPRule function
+func AggregateHTTPRule(aggregatedSrcPerAggregatedDst map[string][]MergedPortDst) {
 	// if level 1, do not aggregate http path
 	if Cfg.L7AggregationLevel == 1 {
 		return
 	}
 
-	for mergedSrc, dsts := range mergedSrcPerMergedDst {
+	for aggregatedSrc, dsts := range aggregatedSrcPerAggregatedDst {
 		for i, dst := range dsts {
 			// check if dst is for HTTP rules
 			if libs.CheckSpecHTTP(dst.Additionals) {
-				httpTree := getHTTPTree(mergedSrc, dst)
+				httpTree := getHTTPTree(aggregatedSrc, dst)
 				if httpTree == nil {
 					httpTree = map[string]map[string]*Node{}
 				}
@@ -532,10 +532,10 @@ func AggregateHTTPRules(mergedSrcPerMergedDst map[string][]MergedPortDst) {
 
 				dsts[i].Additionals = updatedAdditionals
 
-				setHTTPTree(mergedSrc, dst, httpTree)
+				setHTTPTree(aggregatedSrc, dst, httpTree)
 			}
 		}
 
-		mergedSrcPerMergedDst[mergedSrc] = dsts
+		aggregatedSrcPerAggregatedDst[aggregatedSrc] = dsts
 	}
 }

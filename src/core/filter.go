@@ -8,9 +8,9 @@ import (
 	types "github.com/accuknox/knoxAutoPolicy/src/types"
 )
 
-// ====================== //
-// == Helper Functions == //
-// ====================== //
+// ========================= //
+// == Network Log Filter  == //
+// ========================= //
 
 // getHaveToCheckItems func
 func getHaveToCheckItems(igFlows types.IgnoringFlows) int {
@@ -43,39 +43,6 @@ func getHaveToCheckItems(igFlows types.IgnoringFlows) int {
 	return check
 }
 
-func getLabelsFromPod(podName string, pods []types.Pod) []string {
-	for _, pod := range pods {
-		if pod.PodName == podName {
-			return pod.Labels
-		}
-	}
-
-	return []string{}
-}
-
-// containLabels func
-func containLabels(cni string, igLabels []string, flowLabels []string) bool {
-	prefix := ""
-
-	if cni == "cilium" {
-		prefix = "k8s:"
-	}
-
-	for _, label := range igLabels {
-		label = prefix + label
-
-		if !libs.ContainsElement(flowLabels, label) {
-			return false
-		}
-	}
-
-	return true
-}
-
-// ========================= //
-// == Network Log Filter  == //
-// ========================= //
-
 // FilterNetworkLogsByConfig func
 func FilterNetworkLogsByConfig(logs []types.KnoxNetworkLog, pods []types.Pod) []types.KnoxNetworkLog {
 	filteredLogs := []types.KnoxNetworkLog{}
@@ -94,7 +61,7 @@ func FilterNetworkLogsByConfig(logs []types.KnoxNetworkLog, pods []types.Pod) []
 			}
 
 			// 2. check src pod labels
-			if (checkItems&2 > 0) && containLabels("cilium", igFlow.IgSourceLabels, getLabelsFromPod(log.SrcPodName, pods)) {
+			if (checkItems&2 > 0) && containLabelByConfiguration("cilium", igFlow.IgSourceLabels, getLabelsFromPod(log.SrcPodName, pods)) {
 				checkedItems = checkedItems | 1<<1
 			}
 
@@ -104,7 +71,7 @@ func FilterNetworkLogsByConfig(logs []types.KnoxNetworkLog, pods []types.Pod) []
 			}
 
 			// 4. check dest pod labels
-			if (checkItems&8 > 0) && containLabels("cilium", igFlow.IgDestinationLabels, getLabelsFromPod(log.DstPodName, pods)) {
+			if (checkItems&8 > 0) && containLabelByConfiguration("cilium", igFlow.IgDestinationLabels, getLabelsFromPod(log.DstPodName, pods)) {
 				checkedItems = checkedItems | 1<<3
 			}
 
@@ -138,12 +105,17 @@ func FilterNetworkLogsByConfig(logs []types.KnoxNetworkLog, pods []types.Pod) []
 func FilterNetworkLogsByNamespace(targetNamespace string, logs []types.KnoxNetworkLog) []types.KnoxNetworkLog {
 	filteredLogs := []types.KnoxNetworkLog{}
 
+	// case 1: src namespace == target namespace
+	// case 2: dst namespace == target namespace && src namespace == reserved: or kube-system or cilium
 	for _, log := range logs {
-		if log.SrcNamespace != targetNamespace && log.DstNamespace != targetNamespace {
-			continue
-		}
+		if log.SrcNamespace == targetNamespace {
+			filteredLogs = append(filteredLogs, log)
 
-		filteredLogs = append(filteredLogs, log)
+		} else if log.DstNamespace == targetNamespace {
+			if strings.Contains(log.SrcNamespace, "reserved:") {
+				filteredLogs = append(filteredLogs, log)
+			}
+		}
 	}
 
 	return filteredLogs

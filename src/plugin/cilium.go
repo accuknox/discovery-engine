@@ -36,6 +36,9 @@ func init() {
 	CiliumFlowsMutex = &sync.Mutex{}
 }
 
+// CiliumReserved ...
+var CiliumReserved string = "reserved:"
+
 // ====================== //
 // == Helper Functions == //
 // ====================== //

@@ -676,31 +676,38 @@ func IsExistingPolicy(existingPolicies []types.KnoxNetworkPolicy, newPolicy type
 	return false
 }
 
-// ==================================== //
-// == Remove Policy Name Duplication == //
-// ==================================== //
+// ======================= //
+// == Policy Name Check == //
+// ======================= //
 
-// ReplaceDuplcatedName function
-func ReplaceDuplcatedName(existingPolicies []types.KnoxNetworkPolicy, policy types.KnoxNetworkPolicy) types.KnoxNetworkPolicy {
+func existPolicyName(policyNamesMap map[string]bool, name string) bool {
+	if _, ok := policyNamesMap[name]; ok {
+		return true
+	}
+
+	return false
+}
+
+// GeneratePolicyName function
+func GeneratePolicyName(policyNamesMap map[string]bool, policy types.KnoxNetworkPolicy) types.KnoxNetworkPolicy {
 	egressPrefix := "autopol-egress-"
 	ingressPrefix := "autopol-ingress-"
 
-	existNames := []string{}
-	for _, exist := range existingPolicies {
-		existNames = append(existNames, exist.Metadata["name"])
-	}
+	polType := policy.Metadata["type"]
+	name := "autopol-" + polType + "-" + libs.RandSeq(15)
 
-	name := policy.Metadata["name"]
-
-	for libs.ContainsElement(existNames, name) {
-		if strings.HasPrefix(name, egressPrefix) {
-			name = egressPrefix + libs.RandSeq(10)
+	for existPolicyName(policyNamesMap, name) {
+		if polType == "egress" {
+			name = egressPrefix + libs.RandSeq(15)
 		} else {
-			name = ingressPrefix + libs.RandSeq(10)
+			name = ingressPrefix + libs.RandSeq(15)
 		}
 	}
 
+	policyNamesMap[name] = true
+
 	policy.Metadata["name"] = name
+	policy.Metadata["cluster_name"] = libs.GetClusterName()
 
 	return policy
 }
@@ -805,9 +812,15 @@ func updateExistCIDRtoNewFQDN(existingPolicies []types.KnoxNetworkPolicy, newPol
 // == Trace Old Network Policy == //
 // ============================== //
 
-// DeduplicatePolicies function
-func DeduplicatePolicies(existingPolicies []types.KnoxNetworkPolicy, discoveredPolicies []types.KnoxNetworkPolicy, dnsToIPs map[string][]string) []types.KnoxNetworkPolicy {
+// RemoveDuplicatePolicy function
+func RemoveDuplicatePolicy(existingPolicies []types.KnoxNetworkPolicy, discoveredPolicies []types.KnoxNetworkPolicy, dnsToIPs map[string][]string) []types.KnoxNetworkPolicy {
 	newPolicies := []types.KnoxNetworkPolicy{}
+
+	// update policy name map
+	policyNamesMap := map[string]bool{}
+	for _, exist := range existingPolicies {
+		policyNamesMap[exist.Metadata["name"]] = true
+	}
 
 	for _, policy := range discoveredPolicies {
 		// step 1: compare the total network policy spec
@@ -868,7 +881,7 @@ func DeduplicatePolicies(existingPolicies []types.KnoxNetworkPolicy, discoveredP
 		}
 
 		// step 8: check policy name confict
-		namedPolicy := ReplaceDuplcatedName(existingPolicies, policy)
+		namedPolicy := GeneratePolicyName(policyNamesMap, policy)
 
 		newPolicies = append(newPolicies, namedPolicy)
 	}
