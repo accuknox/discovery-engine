@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS `discovered_policy` (
   `id` int NOT NULL AUTO_INCREMENT,
   `apiVersion` varchar(20) DEFAULT NULL,
   `kind` varchar(20) DEFAULT NULL,
+  `flow_ids` JSON DEFAULT NULL,
   `name` varchar(50) DEFAULT NULL,
   `cluster_name` varchar(50) DEFAULT NULL,
   `namespace` varchar(50) DEFAULT NULL,
@@ -47,27 +48,20 @@ CREATE TABLE IF NOT EXISTS `discovered_policy` (
 
 CREATE TABLE IF NOT EXISTS `auto_policy_config` (
   `id` int NOT NULL AUTO_INCREMENT,
-  
   `config_name` varchar(50) DEFAULT NULL,
   `status` int DEFAULT '0',
-
   `config_db` JSON DEFAULT NULL,
   `config_cilium_hubble` JSON DEFAULT NULL,
-
   `operation_mode` int DEFAULT NULL,
   `cronjob_time_interval` varchar(50) DEFAULT NULL,
   `one_time_job_time_selection` varchar(50) DEFAULT NULL,
-
   `network_log_from` varchar(50) DEFAULT NULL,
   `discovered_policy_to` varchar(50) DEFAULT NULL,
   `policy_dir` varchar(50) DEFAULT NULL,
-
   `discovery_policy_types` int DEFAULT NULL,
   `discovery_rule_types` int DEFAULT NULL,
-
   `cidr_bits` int DEFAULT NULL,
   `ignoring_flows` JSON DEFAULT NULL,
-
   `l3_aggregation_level` int DEFAULT NULL,
   `l4_aggregation_level` int DEFAULT NULL,
   `l7_aggregation_level` int DEFAULT NULL,

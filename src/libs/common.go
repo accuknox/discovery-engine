@@ -3,7 +3,6 @@ package libs
 import (
 	"bytes"
 	"encoding/json"
-	"math/bits"
 	"math/rand"
 	"net"
 	"net/http"
@@ -11,7 +10,6 @@ import (
 	"os/exec"
 	"os/signal"
 	"reflect"
-	"sort"
 	"strconv"
 	"strings"
 	"syscall"
@@ -236,105 +234,6 @@ func GetProtocolInt(protocol string) int {
 	return protocolMap[protocol]
 }
 
-// =========== //
-// == Label == //
-// =========== //
-
-// ContainLabel Function
-func ContainLabel(label, targetLabel string) bool {
-	labels := strings.Split(label, ",")
-	targetLabels := strings.Split(targetLabel, ",")
-
-	if len(labels) == 1 { // single label
-		for _, target := range targetLabels {
-			if label == target {
-				return true
-			}
-		}
-	} else {
-		for i := 2; i <= len(targetLabels); i++ {
-			results := Combinations(targetLabels, i)
-			for _, comb := range results {
-				combineLabel := strings.Join(comb, ",")
-				if label == combineLabel {
-					return true
-				}
-			}
-		}
-	}
-
-	return false
-}
-
-// Combinations Function
-func Combinations(set []string, n int) (subsets [][]string) {
-	length := uint(len(set))
-
-	if n > len(set) {
-		n = len(set)
-	}
-
-	// Go through all possible combinations of objects
-	// from 1 (only first object in subset) to 2^length (all objects in subset)
-	for subsetBits := 1; subsetBits < (1 << length); subsetBits++ {
-		if n > 0 && bits.OnesCount(uint(subsetBits)) != n {
-			continue
-		}
-
-		var subset []string
-
-		for object := uint(0); object < length; object++ {
-			// checks if object is contained in subset
-			// by checking if bit 'object' is set in subsetBits
-			if (subsetBits>>object)&1 == 1 {
-				// add object to subset
-				subset = append(subset, set[object])
-			}
-		}
-		// add subset to subsets
-		subsets = append(subsets, subset)
-	}
-
-	return subsets
-}
-
-// CountLabelByCombinations Function (combination!)
-func CountLabelByCombinations(labelCount map[string]int, mergedLabels string) {
-	// split labels
-	labels := strings.Split(mergedLabels, ",")
-
-	// sorting string first: a -> b -> c -> ...
-	sort.Slice(labels, func(i, j int) bool {
-		return labels[i] > labels[j]
-	})
-
-	// step 1: count single label
-	for _, label := range labels {
-		if val, ok := labelCount[label]; ok {
-			labelCount[label] = val + 1
-		} else {
-			labelCount[label] = 1
-		}
-	}
-
-	if len(labels) < 2 {
-		return
-	}
-
-	// step 2: count multiple labels (at least, it should be 2)
-	for i := 2; i <= len(labels); i++ {
-		results := Combinations(labels, i)
-		for _, comb := range results {
-			combineLabel := strings.Join(comb, ",")
-			if val, ok := labelCount[combineLabel]; ok {
-				labelCount[combineLabel] = val + 1
-			} else {
-				labelCount[combineLabel] = 1
-			}
-		}
-	}
-}
-
 // ============ //
 // == Common == //
 // ============ //
@@ -452,6 +351,9 @@ func WriteKnoxPolicyToYamlFile(namespace string, policies []types.KnoxNetworkPol
 	}
 
 	for _, policy := range policies {
+		// set flow ids null
+		policy.FlowIDs = nil
+
 		b, _ := yaml.Marshal(&policy)
 		f.Write(b)
 		f.WriteString("---\n")

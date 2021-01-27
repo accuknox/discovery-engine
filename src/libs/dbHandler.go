@@ -9,8 +9,8 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-// network flow between [ startTime <= time < endTime ]
-var lastDocID int64 = 0
+// LastFlowID network flow between [ startTime <= time < endTime ]
+var LastFlowID int64 = 0
 var startTime int64 = 0
 var endTime int64 = 0
 
@@ -24,22 +24,22 @@ func updateTimeInterval(lastDoc map[string]interface{}) {
 	}
 }
 
-// GetTrafficFlowFromDB function
-func GetTrafficFlowFromDB(cfg types.ConfigDB, timeSelection string) []map[string]interface{} {
+// GetNetworkFlowFromDB function
+func GetNetworkFlowFromDB(cfg types.ConfigDB, timeSelection string) []map[string]interface{} {
 	results := []map[string]interface{}{}
 
 	endTime = time.Now().Unix()
 
 	if cfg.DBDriver == "mysql" {
 		if timeSelection == "" {
-			docs, err := GetTrafficFlowByIDTime(cfg, lastDocID, endTime)
+			docs, err := GetTrafficFlowByIDTime(cfg, LastFlowID, endTime)
 			if err != nil {
 				log.Error().Msg(err.Error())
 				return results
 			}
 			results = docs
 		} else {
-			// given time selection  from ~ to
+			// given time selection from ~ to
 			times := strings.Split(timeSelection, "|")
 			from := ConvertStrToUnixTime(times[0])
 			to := ConvertStrToUnixTime(times[1])
@@ -74,7 +74,7 @@ func GetTrafficFlowFromDB(cfg types.ConfigDB, timeSelection string) []map[string
 
 	// id update for mysql
 	if cfg.DBDriver == "mysql" {
-		lastDocID = int64(lastDoc["id"].(uint32))
+		LastFlowID = int64(lastDoc["id"].(uint32))
 	}
 
 	log.Info().Msgf("The total number of traffic flow: [%d] from %s ~ to %s", len(results),

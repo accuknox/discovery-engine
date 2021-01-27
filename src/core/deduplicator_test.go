@@ -499,7 +499,7 @@ func TestReplaceDuplcatedName(t *testing.T) {
 		},
 	}
 
-	result := ReplaceDuplcatedName(existings, newPolicy)
+	result := GeneratePolicyName(existings, newPolicy)
 	assert.Equal(t, expectedPolicy, result, "they should be equal")
 }
 
@@ -626,6 +626,6 @@ func TestDeduplicatePolicies(t *testing.T) {
 		"test.com": []string{"1.2.3.4"},
 	}
 
-	result := DeduplicatePolicies(existings, discovered, DNSToIPs)
+	result := RemoveDuplicatePolicy(existings, discovered, DNSToIPs)
 	assert.Equal(t, result, discovered, "they should be equal")
 }
