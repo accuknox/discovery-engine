@@ -228,7 +228,7 @@ func trackFlowID2(label string, src SrcSimple, dst Dst) {
 	track2Key := FlowIDTracking2{AggreagtedSrc: label, Dst: dst}
 
 	if flowIDs, ok := FlowIDTracker2[track2Key]; !ok {
-		FlowIDTracker2[track2Key] = flowIDs
+		FlowIDTracker2[track2Key] = idFromTrack1
 	} else {
 		for _, id := range idFromTrack1 {
 			if !libs.ContainsElement(flowIDs, id) {

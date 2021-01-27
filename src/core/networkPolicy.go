@@ -1585,16 +1585,16 @@ func StartToDiscoveryWorker() {
 
 			if strings.Contains(Cfg.DiscoveredPolicyTo, "file") {
 				// retrieve the latest policies from the db
-				policies := libs.GetNetworkPolicies(Cfg.ConfigDB, namespace, "latest")
+				latestPolicies := libs.GetNetworkPolicies(Cfg.ConfigDB, namespace, "latest")
+
+				// write discovered policies to files
+				libs.WriteKnoxPolicyToYamlFile(namespace, latestPolicies)
 
 				// convert knoxPolicy to CiliumPolicy
-				ciliumPolicies := plugin.ConvertKnoxPoliciesToCiliumPolicies(services, policies)
+				ciliumPolicies := plugin.ConvertKnoxPoliciesToCiliumPolicies(services, latestPolicies)
 
 				// write discovered policies to files
 				libs.WriteCiliumPolicyToYamlFile(namespace, ciliumPolicies)
-
-				// write discovered policies to files
-				libs.WriteKnoxPolicyToYamlFile(namespace, policies)
 			}
 
 			log.Info().Msgf("Policy discovery done for namespace: [%s], [%d] policies discovered", namespace, len(newPolicies))
@@ -1603,7 +1603,7 @@ func StartToDiscoveryWorker() {
 		}
 	}
 
-	if Cfg.OperationMode != 2 && Status == StatusRunning {
+	if Cfg.OperationMode == 2 && Status == StatusRunning {
 		Status = StatusIdle
 	}
 }

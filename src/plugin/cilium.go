@@ -313,7 +313,7 @@ func ConvertMySQLFlowsToNetworkLogs(docs []map[string]interface{}, dnsToIPs map[
 
 		if log, valid := ConvertCiliumFlowToKnoxNetworkLog(ciliumFlow); valid {
 			// get flow id
-			log.FlowID = int(doc["id"].(int32))
+			log.FlowID = int(doc["id"].(uint32))
 			logs = append(logs, log)
 		}
 	}

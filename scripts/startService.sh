@@ -24,16 +24,28 @@ export HUBBLE_PORT=4245
 export OPERATION_MODE=2
 export CRON_JOB_TIME_INTERVAL="@every 0h0m5s"
 
-# available network log source: hubble | db
+# network log source: hubble | db
 export NETWORK_LOG_FROM=db
+
+# discovered policy output: db or db|file
 export DISCOVERED_POLICY_TO="db|file"
 export POLICY_DIR=$KNOX_AUTO_HOME/policies/
 
-# available discovery modes: 
-#   all (egress+ingress): 3
-#   egress only: 1
-#   ingress only: 2
+# discovery policy types: egress only   : 1
+#                         ingress only  : 2
+#                         all           : 3
 export DISCOVERY_POLICY_TYPES=3
+
+# discovery rule types: matchLabels: matchLabels: 1
+#                                    toPorts    : 2
+#                                    toHTTPs    : 4
+#                                    toCIDRs    : 8
+#                                    toEntities : 16
+#                                    toServices : 32
+#                                    toFQDNs    : 64
+#                                    fromCIDRs  : 128
+#                                    fromEntities : 256
+#                                    all        : 511
 export DISCOVERY_RULE_TYPES=511
 
 # skip namepsace info

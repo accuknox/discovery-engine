@@ -142,7 +142,7 @@ func GetNetworkPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) (
 	var results *sql.Rows
 	var err error
 
-	query := "SELECT apiVersion,kind,name,cluster_name,namespace,type,rule,status,outdated,spec,generatedTime FROM " + cfg.TableDiscoveredPolicy
+	query := "SELECT apiVersion,kind,flow_ids,name,cluster_name,namespace,type,rule,status,outdated,spec,generatedTime FROM " + cfg.TableDiscoveredPolicy
 	if namespace != "" && status != "" {
 		query = query + " WHERE namespace = ? and status = ? "
 		results, err = db.Query(query, namespace, status)
@@ -170,9 +170,13 @@ func GetNetworkPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) (
 		specByte := []byte{}
 		spec := types.Spec{}
 
+		flowIDsByte := []byte{}
+		flowIDs := []int{}
+
 		if err := results.Scan(
 			&policy.APIVersion,
 			&policy.Kind,
+			&flowIDsByte,
 			&name,
 			&clusterName,
 			&namespace,
@@ -190,6 +194,10 @@ func GetNetworkPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) (
 			return nil, err
 		}
 
+		if err := json.Unmarshal(flowIDsByte, &flowIDs); err != nil {
+			return nil, err
+		}
+
 		policy.Metadata = map[string]string{
 			"name":         name,
 			"cluster_name": clusterName,
@@ -198,6 +206,9 @@ func GetNetworkPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) (
 			"rule":         rule,
 			"status":       status,
 		}
+
+		// TODO: not set flow ids
+		// policy.FlowIDs = flowIDs
 		policy.Spec = spec
 
 		policies = append(policies, policy)
@@ -242,11 +253,17 @@ func UpdateOutdatedPolicyFromMySQL(cfg types.ConfigDB, outdatedPolicy string, la
 
 // insertDiscoveredPolicy function
 func insertDiscoveredPolicy(cfg types.ConfigDB, db *sql.DB, policy types.KnoxNetworkPolicy) error {
-	stmt, err := db.Prepare("INSERT INTO " + cfg.TableDiscoveredPolicy + "(apiVersion,kind,name,cluster_name,namespace,type,rule,status,outdated,spec,generatedTime) values(?,?,?,?,?,?,?,?,?,?,?)")
+	stmt, err := db.Prepare("INSERT INTO " + cfg.TableDiscoveredPolicy + "(apiVersion,kind,flow_ids,name,cluster_name,namespace,type,rule,status,outdated,spec,generatedTime) values(?,?,?,?,?,?,?,?,?,?,?,?)")
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
+
+	flowIDsPointer := &policy.FlowIDs
+	flowids, err := json.Marshal(flowIDsPointer)
+	if err != nil {
+		return err
+	}
 
 	specPointer := &policy.Spec
 	spec, err := json.Marshal(specPointer)
@@ -256,6 +273,7 @@ func insertDiscoveredPolicy(cfg types.ConfigDB, db *sql.DB, policy types.KnoxNet
 
 	_, err = stmt.Exec(policy.APIVersion,
 		policy.Kind,
+		flowids,
 		policy.Metadata["name"],
 		policy.Metadata["cluster_name"],
 		policy.Metadata["namespace"],
