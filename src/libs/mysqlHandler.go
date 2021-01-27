@@ -207,8 +207,7 @@ func GetNetworkPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) (
 			"status":       status,
 		}
 
-		// TODO: not set flow ids
-		// policy.FlowIDs = flowIDs
+		policy.FlowIDs = flowIDs
 		policy.Spec = spec
 
 		policies = append(policies, policy)

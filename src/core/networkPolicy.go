@@ -1550,7 +1550,7 @@ func StartToDiscoveryWorker() {
 	updateServiceEndpoint(services, endpoints, pods)
 
 	// get existing policies in db
-	existingPolicies := libs.GetNetworkPolicies(Cfg.ConfigDB, "", "latest")
+	existingPolicies := libs.GetNetworkPolicies(Cfg.ConfigDB, "", "")
 
 	// filter ignoring network logs from configuration
 	configFilteredLogs := FilterNetworkLogsByConfig(networkLogs, pods)

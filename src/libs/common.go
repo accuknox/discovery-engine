@@ -351,6 +351,9 @@ func WriteKnoxPolicyToYamlFile(namespace string, policies []types.KnoxNetworkPol
 	}
 
 	for _, policy := range policies {
+		// set flow ids null
+		policy.FlowIDs = nil
+
 		b, _ := yaml.Marshal(&policy)
 		f.Write(b)
 		f.WriteString("---\n")
