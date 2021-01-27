@@ -16,7 +16,7 @@ $ cd src
 
 3. Run KnoxAutoPolicy
 
-- scripts/start.sh has the environment variables as follow.
+- scripts/startService.sh has the environment variables as follow.
 
 ```
 #!/bin/bash
@@ -25,34 +25,52 @@ export KNOX_AUTO_HOME=`dirname $(realpath "$0")`/..
 
 # database info
 export DB_DRIVER=mysql
+export DB_HOST=127.0.0.1
 export DB_PORT=3306
 export DB_USER=root
 export DB_PASS=password
 export DB_NAME=flow_management
-export DB_HOST=127.0.0.1
 
-# table info
+# database table info
 export TB_NETWORK_FLOW=network_flow
 export TB_DISCOVERED_POLICY=discovered_policy
+export TB_CONFIGURATION=auto_policy_config
 
-# output dir info
-export OUT_DIR=$KNOX_AUTO_HOME/policies/
-
-# available discovery modes: egress | ingress | egress+ingress
-export DISCOVERY_MODE=egress+ingress
-
-# available network log source: hubble | db
-export NETWORK_LOG_FROM=hubble
-
-# cilium hubble info (if connect to hubble directly)
+# cilium hubble info (if want to connect with hubble relay directly)
 export HUBBLE_URL=127.0.0.1
 export HUBBLE_PORT=4245
 
-# operation mode: c=cronjob | a=at once
-if [ $# -eq 1 ]
-  then
-    export OPERATION_MODE=$1
-fi
+# operation mode: cronjob: 1
+#                 onetime job: 2
+export OPERATION_MODE=2
+export CRON_JOB_TIME_INTERVAL="@every 0h0m5s"
+
+# network log source: hubble | db
+export NETWORK_LOG_FROM=db
+
+# discovered policy output: db or db|file
+export DISCOVERED_POLICY_TO="db|file"
+export POLICY_DIR=$KNOX_AUTO_HOME/policies/
+
+# discovery policy types: egress only   : 1
+#                         ingress only  : 2
+#                         all           : 3
+export DISCOVERY_POLICY_TYPES=3
+
+# discovery rule types: matchLabels: matchLabels: 1
+#                                    toPorts    : 2
+#                                    toHTTPs    : 4
+#                                    toCIDRs    : 8
+#                                    toEntities : 16
+#                                    toServices : 32
+#                                    toFQDNs    : 64
+#                                    fromCIDRs  : 128
+#                                    fromEntities : 256
+#                                    all        : 511
+export DISCOVERY_RULE_TYPES=511
+
+# skip namepsace info
+export IGNORING_NAMESPACES="kube-system|knox-auto-policy|cilium|hipster"
 
 $KNOX_AUTO_HOME/src/knoxAutoPolicy
 ```
@@ -67,31 +85,10 @@ $ ./scripts/startService.sh
 # Main Code 
 
 ```
-func StartToDiscoverNetworkPolicies() {
-	ciliumFlows := []*flow.Flow{}
-
-	if NetworkLogFrom == "db" {
-		log.Info().Msg("Get network traffic from the database")
-
-		results := libs.GetTrafficFlowFromDB()
-		if len(results) == 0 {
-			return
-		}
-
-		// convert db flows -> cilium flows
-		ciliumFlows = plugin.ConvertDocsToCiliumFlows(results)
-	} else if NetworkLogFrom == "hubble" { // from hubble directly
-		log.Info().Msg("Get network traffic from the Cilium Hubble directly")
-
-		results := plugin.GetCiliumFlowsFromHubble()
-		if len(results) == 0 {
-			return
-		}
-
-		ciliumFlows = results
-	} else {
-		log.Error().Msgf("Network log source not correct: %s", NetworkLogFrom)
-
+func StartToDiscoveryWorker() {
+	// get network logs
+	networkLogs := getNetworkLogs()
+	if networkLogs == nil {
 		return
 	}
 
@@ -107,51 +104,65 @@ func StartToDiscoverNetworkPolicies() {
 	// get k8s namespaces
 	namespaces := libs.GetNamespaces()
 
-	// get existing policies in db
-	existingPolicies := libs.GetNetworkPolicies("", "latest")
-
 	// update exposed ports (k8s service, docker-compose portbinding)
 	updateServiceEndpoint(services, endpoints, pods)
 
-	// update DNS to IPs
-	updateDNSToIPs(ciliumFlows, DNSToIPs)
+	// get existing policies in db
+	existingPolicies := libs.GetNetworkPolicies(Cfg.ConfigDB, "", "")
+
+	// filter ignoring network logs from configuration
+	configFilteredLogs := FilterNetworkLogsByConfig(networkLogs, pods)
 
 	// iterate each namespace
 	for _, namespace := range namespaces {
-		// convert cilium network traffic -> network log, and filter traffic
-		networkLogs := plugin.ConvertCiliumFlowsToKnoxLogs(namespace, ciliumFlows, DNSToIPs)
-		if len(networkLogs) == 0 {
+		// skip uninterested namespaces
+		if libs.ContainsElement(SkipNamespaces, namespace) {
+			continue
+		}
+
+		// filter network logs by target namespace
+		nsFilteredLogs := FilterNetworkLogsByNamespace(namespace, configFilteredLogs)
+		if len(nsFilteredLogs) == 0 {
 			continue
 		}
 
 		log.Info().Msgf("Policy discovery started for namespace: [%s]", namespace)
 
-		// discover network policies based on the network logs
-		discoveredPolicies := DiscoverNetworkPolicies(namespace, cidrBits, networkLogs, services, endpoints, pods)
+		// reset flow id track every target namespace
+		resetTrackFlowID()
 
-		// remove duplication
-		newPolicies := DeduplicatePolicies(existingPolicies, discoveredPolicies, DNSToIPs)
+		// discover network policies based on the network logs
+		discoveredPolicies := DiscoverNetworkPolicy(namespace, nsFilteredLogs, services, endpoints, pods)
+
+		// remove duplicated policy
+		newPolicies := RemoveDuplicatePolicy(existingPolicies, discoveredPolicies, DomainToIPs)
 
 		if len(newPolicies) > 0 {
 			// insert discovered policies to db
-			libs.InsertDiscoveredPolicies(newPolicies)
+			libs.InsertDiscoveredPolicies(Cfg.ConfigDB, newPolicies)
 
-			// retrieve the latest policies from the db
-			policies := libs.GetNetworkPolicies(namespace, "latest")
+			if strings.Contains(Cfg.DiscoveredPolicyTo, "file") {
+				// retrieve the latest policies from the db
+				latestPolicies := libs.GetNetworkPolicies(Cfg.ConfigDB, namespace, "latest")
 
-			// convert knoxPolicy to CiliumPolicy
-			ciliumPolicies := plugin.ConvertKnoxPoliciesToCiliumPolicies(services, policies)
+				// write discovered policies to files
+				libs.WriteKnoxPolicyToYamlFile(namespace, latestPolicies)
 
-			// write discovered policies to files
-			libs.WriteCiliumPolicyToYamlFile(namespace, ciliumPolicies)
+				// convert knoxPolicy to CiliumPolicy
+				ciliumPolicies := plugin.ConvertKnoxPoliciesToCiliumPolicies(services, latestPolicies)
 
-			// write discovered policies to files
-			libs.WriteKnoxPolicyToYamlFile(namespace, policies)
+				// write discovered policies to files
+				libs.WriteCiliumPolicyToYamlFile(namespace, ciliumPolicies)
+			}
 
-			log.Info().Msgf("Policy discovery done    for namespace: [%s], [%d] policies discovered", namespace, len(newPolicies))
+			log.Info().Msgf("Policy discovery done for namespace: [%s], [%d] policies discovered", namespace, len(newPolicies))
 		} else {
-			log.Info().Msgf("Policy discovery done    for namespace: [%s], no policy discovered", namespace)
+			log.Info().Msgf("Policy discovery done for namespace: [%s], no policy discovered", namespace)
 		}
+	}
+
+	if Cfg.OperationMode == 2 && Status == StatusRunning {
+		Status = StatusIdle
 	}
 }
 ```
@@ -169,6 +180,8 @@ src - source codes
   core - Core functions for Knox Auto Policy
   libs - Libraries used for generating network policies
   plugin - Plug-ins used for supporting various CNIs (currently, Cilium)
+  protos - ProtoBuf definitions for gRPC server
+  server - gRPC server implementation
   types - Type definitions
 tools - unit test scripts
 ```
