@@ -15,6 +15,8 @@ cp -r $KNOX_SRC_HOME/libs $KNOX_HOME/deployments/build_image
 cp -r $KNOX_SRC_HOME/core $KNOX_HOME/deployments/build_image
 cp -r $KNOX_SRC_HOME/types $KNOX_HOME/deployments/build_image
 cp -r $KNOX_SRC_HOME/plugin $KNOX_HOME/deployments/build_image
+cp -r $KNOX_SRC_HOME/protos $KNOX_HOME/deployments/build_image
+cp -r $KNOX_SRC_HOME/server $KNOX_HOME/deployments/build_image
 cp -r $KNOX_SRC_HOME/main.go $KNOX_HOME/deployments/build_image
 cp -r $KNOX_SRC_HOME/go.mod $KNOX_HOME/deployments/build_image
 
@@ -24,5 +26,7 @@ rm -r $KNOX_HOME/deployments/build_image/libs
 rm -r $KNOX_HOME/deployments/build_image/core
 rm -r $KNOX_HOME/deployments/build_image/types
 rm -r $KNOX_HOME/deployments/build_image/plugin
+rm -r $KNOX_HOME/deployments/build_image/protos
+rm -r $KNOX_HOME/deployments/build_image/server
 rm -r $KNOX_HOME/deployments/build_image/main.go
 rm -r $KNOX_HOME/deployments/build_image/go.mod

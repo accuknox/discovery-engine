@@ -22,6 +22,21 @@ subjects:
   name: knoxautopolicy
   namespace: knox-auto-policy
 ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: knoxautopolicy
+  namespace: knox-auto-policy
+  labels:
+    service: knoxautopolicy
+spec:
+  ports:
+  - port: 9089
+    targetPort: 9089
+    protocol: TCP
+  selector:
+    container: knoxautopolicy
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -57,18 +72,28 @@ spec:
           value: "network_flow"
         - name: TB_DISCOVERED_POLICY
           value: "discovered_policy"
-        - name: OUT_DIR
-          value: ./
-        - name: DISCOVERY_MODE
-          value: "egress+ingress"
-        - name: NETWORK_LOG_FROM
-          value: "hubble"
+        - name: TB_CONFIGURATION
+          value: "auto_policy_config"
         - name: HUBBLE_URL
           value: "10.4.41.240"
         - name: HUBBLE_PORT
           value: "80"
         - name: OPERATION_MODE
-          value: "cronjob"
+          value: 1
+        - name: CRON_JOB_TIME_INTERVAL
+          value: "@every 0h0m5s"
+        - name: NETWORK_LOG_FROM
+          value: "db"
+        - name: DISCOVERED_POLICY_TO
+          value: "db|file"
+        - name: POLICY_DIR
+          value: ./
+        - name: DISCOVERY_POLICY_TYPES
+          value: "3"
+        - name: DISCOVERY_RULE_TYPES
+          value: "511"
+        - name: IGNORING_NAMESPACES
+          value: "kube-system|knox-auto-policy"
 ---
 apiVersion: v1
 kind: Service
@@ -94,7 +119,8 @@ data:
   initdb.sql: |
     CREATE DATABASE IF NOT EXISTS `flow_management`;
     USE `flow_management`;
-    CREATE TABLE IF NOT EXISTS `discovered_policy` (`id` int NOT NULL AUTO_INCREMENT,`apiVersion` varchar(20) DEFAULT NULL,`kind` varchar(20) DEFAULT NULL,`name` varchar(50) DEFAULT NULL,`namespace` varchar(50) DEFAULT NULL,`type` varchar(10) DEFAULT NULL,`rule` varchar(30) DEFAULT NULL,`status` varchar(10) DEFAULT NULL,`outdated` varchar(50) DEFAULT NULL,`spec` JSON DEFAULT NULL,`generatedTime` int DEFAULT NULL,PRIMARY KEY (`id`));
+    CREATE TABLE IF NOT EXISTS `discovered_policy` (`id` int NOT NULL AUTO_INCREMENT,`apiVersion` varchar(20) DEFAULT NULL,`kind` varchar(20) DEFAULT NULL,`flow_ids` JSON DEFAULT NULL,`name` varchar(50) DEFAULT NULL,`namespace` varchar(50) DEFAULT NULL,`type` varchar(10) DEFAULT NULL,`rule` varchar(30) DEFAULT NULL,`status` varchar(10) DEFAULT NULL,`outdated` varchar(50) DEFAULT NULL,`spec` JSON DEFAULT NULL,`generatedTime` int DEFAULT NULL,PRIMARY KEY (`id`));
+    CREATE TABLE IF NOT EXISTS `auto_policy_config` (`id` int NOT NULL AUTO_INCREMENT,`config_name` varchar(50) DEFAULT NULL,`status` int DEFAULT '0',`config_db` JSON DEFAULT NULL,`config_cilium_hubble` JSON DEFAULT NULL,`operation_mode` int DEFAULT NULL,`cronjob_time_interval` varchar(50) DEFAULT NULL,`one_time_job_time_selection` varchar(50) DEFAULT NULL,`network_log_from` varchar(50) DEFAULT NULL,`discovered_policy_to` varchar(50) DEFAULT NULL,`policy_dir` varchar(50) DEFAULT NULL,`discovery_policy_types` int DEFAULT NULL,`discovery_rule_types` int DEFAULT NULL,`cidr_bits` int DEFAULT NULL,`ignoring_flows` JSON DEFAULT NULL,`l3_aggregation_level` int DEFAULT NULL,`l4_aggregation_level` int DEFAULT NULL,`l7_aggregation_level` int DEFAULT NULL,PRIMARY KEY (`id`));
 ---
 apiVersion: apps/v1
 kind: Deployment

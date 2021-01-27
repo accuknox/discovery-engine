@@ -15,6 +15,8 @@ COPY ./libs ./libs
 COPY ./core ./core
 COPY ./types ./types
 COPY ./plugin ./plugin
+COPY ./protos ./protos
+COPY ./server ./server
 COPY ./main.go ./main.go
 COPY ./go.mod ./go.mod
 
