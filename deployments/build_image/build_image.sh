@@ -30,3 +30,5 @@ rm -r $KNOX_HOME/deployments/build_image/protos
 rm -r $KNOX_HOME/deployments/build_image/server
 rm -r $KNOX_HOME/deployments/build_image/main.go
 rm -r $KNOX_HOME/deployments/build_image/go.mod
+
+docker image tag knoxautopolicy:latest accuknox/knoxautopolicy:latest
