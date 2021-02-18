@@ -1,6 +1,6 @@
 .vscode/
 knoxAutoPolicy
-*.yaml
+policies/*.yaml
 bin/
 src/go.sum
 !policies/.keep
