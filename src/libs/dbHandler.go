@@ -176,3 +176,14 @@ func InsertDiscoveredPolicies(cfg types.ConfigDB, policies []types.KnoxNetworkPo
 		}
 	}
 }
+
+// ClearDBTables function
+func ClearDBTables(cfg types.ConfigDB) {
+	if cfg.DBDriver == "mysql" {
+		if err := ClearDBTablesMySQL(cfg); err != nil {
+			log.Error().Msg(err.Error())
+		}
+	} else if cfg.DBDriver == "mongodb" {
+
+	}
+}

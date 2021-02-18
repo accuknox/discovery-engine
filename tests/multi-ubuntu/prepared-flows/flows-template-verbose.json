@@ -1,0 +1,849 @@
+[
+  {
+    "time": "2021-02-18T00:25:31.813293543Z",
+    "verdict": "FORWARDED",
+    "ethernet": {
+      "source": "fa:73:7c:8b:7e:3f",
+      "destination": "d6:c5:76:f2:df:07"
+    },
+    "IP": {
+      "source": "10.12.6.126",
+      "destination": "10.12.2.92",
+      "ipVersion": "IPv4"
+    },
+    "l4": {
+      "UDP": {
+        "source_port": 56740,
+        "destination_port": 53
+      }
+    },
+    "source": {
+      "ID": 292,
+      "identity": 20802,
+      "namespace": "multiubuntu",
+      "labels": [
+        "k8s:container=ubuntu-1",
+        "k8s:group=group-1",
+        "k8s:io.cilium.k8s.policy.cluster=default",
+        "k8s:io.cilium.k8s.policy.serviceaccount=default",
+        "k8s:io.kubernetes.pod.namespace=multiubuntu"
+      ],
+      "pod_name": "ubuntu-1-deployment-7bd47f78d5-7sk2w"
+    },
+    "destination": {
+      "identity": 742,
+      "namespace": "kube-system",
+      "labels": [
+        "k8s:io.cilium.k8s.policy.cluster=default",
+        "k8s:io.cilium.k8s.policy.serviceaccount=kube-dns",
+        "k8s:io.kubernetes.pod.namespace=kube-system",
+        "k8s:k8s-app=kube-dns"
+      ],
+      "pod_name": "kube-dns-66d6b7c877-cpn98"
+    },
+    "Type": "L3_L4",
+    "node_name": "gke-darkload-darkload-nodepool-b53fdd70-vmvy",
+    "event_type": {
+      "type": 4,
+      "sub_type": 3
+    },
+    "traffic_direction": "EGRESS",
+    "trace_observation_point": "TO_STACK",
+    "Summary": "UDP"
+  },
+  {
+    "time": "2021-02-18T00:25:31.813316802Z",
+    "verdict": "FORWARDED",
+    "ethernet": {
+      "source": "fa:73:7c:8b:7e:3f",
+      "destination": "d6:c5:76:f2:df:07"
+    },
+    "IP": {
+      "source": "10.12.6.126",
+      "destination": "10.12.2.92",
+      "ipVersion": "IPv4"
+    },
+    "l4": {
+      "UDP": {
+        "source_port": 56740,
+        "destination_port": 53
+      }
+    },
+    "source": {
+      "ID": 292,
+      "identity": 20802,
+      "namespace": "multiubuntu",
+      "labels": [
+        "k8s:container=ubuntu-1",
+        "k8s:group=group-1",
+        "k8s:io.cilium.k8s.policy.cluster=default",
+        "k8s:io.cilium.k8s.policy.serviceaccount=default",
+        "k8s:io.kubernetes.pod.namespace=multiubuntu"
+      ],
+      "pod_name": "ubuntu-1-deployment-7bd47f78d5-7sk2w"
+    },
+    "destination": {
+      "identity": 742,
+      "namespace": "kube-system",
+      "labels": [
+        "k8s:io.cilium.k8s.policy.cluster=default",
+        "k8s:io.cilium.k8s.policy.serviceaccount=kube-dns",
+        "k8s:io.kubernetes.pod.namespace=kube-system",
+        "k8s:k8s-app=kube-dns"
+      ],
+      "pod_name": "kube-dns-66d6b7c877-cpn98"
+    },
+    "Type": "L3_L4",
+    "node_name": "gke-darkload-darkload-nodepool-b53fdd70-vmvy",
+    "event_type": {
+      "type": 4,
+      "sub_type": 3
+    },
+    "traffic_direction": "EGRESS",
+    "trace_observation_point": "TO_STACK",
+    "Summary": "UDP"
+  },
+  {
+    "time": "2021-02-18T00:25:31.816054697Z",
+    "verdict": "FORWARDED",
+    "ethernet": {
+      "source": "d6:c5:76:f2:df:07",
+      "destination": "fa:73:7c:8b:7e:3f"
+    },
+    "IP": {
+      "source": "10.12.2.92",
+      "destination": "10.12.6.126",
+      "ipVersion": "IPv4"
+    },
+    "l4": {
+      "UDP": {
+        "source_port": 53,
+        "destination_port": 56740
+      }
+    },
+    "source": {
+      "identity": 742,
+      "namespace": "kube-system",
+      "labels": [
+        "k8s:io.cilium.k8s.policy.cluster=default",
+        "k8s:io.cilium.k8s.policy.serviceaccount=kube-dns",
+        "k8s:io.kubernetes.pod.namespace=kube-system",
+        "k8s:k8s-app=kube-dns"
+      ],
+      "pod_name": "kube-dns-66d6b7c877-cpn98"
+    },
+    "destination": {
+      "ID": 292,
+      "identity": 20802,
+      "namespace": "multiubuntu",
+      "labels": [
+        "k8s:container=ubuntu-1",
+        "k8s:group=group-1",
+        "k8s:io.cilium.k8s.policy.cluster=default",
+        "k8s:io.cilium.k8s.policy.serviceaccount=default",
+        "k8s:io.kubernetes.pod.namespace=multiubuntu"
+      ],
+      "pod_name": "ubuntu-1-deployment-7bd47f78d5-7sk2w"
+    },
+    "Type": "L3_L4",
+    "node_name": "gke-darkload-darkload-nodepool-b53fdd70-vmvy",
+    "reply": true,
+    "event_type": {
+      "type": 4
+    },
+    "traffic_direction": "EGRESS",
+    "trace_observation_point": "TO_ENDPOINT",
+    "Summary": "UDP"
+  },
+  {
+    "time": "2021-02-18T00:25:31.816073309Z",
+    "verdict": "FORWARDED",
+    "ethernet": {
+      "source": "d6:c5:76:f2:df:07",
+      "destination": "fa:73:7c:8b:7e:3f"
+    },
+    "IP": {
+      "source": "10.12.2.92",
+      "destination": "10.12.6.126",
+      "ipVersion": "IPv4"
+    },
+    "l4": {
+      "UDP": {
+        "source_port": 53,
+        "destination_port": 56740
+      }
+    },
+    "source": {
+      "identity": 742,
+      "namespace": "kube-system",
+      "labels": [
+        "k8s:io.cilium.k8s.policy.cluster=default",
+        "k8s:io.cilium.k8s.policy.serviceaccount=kube-dns",
+        "k8s:io.kubernetes.pod.namespace=kube-system",
+        "k8s:k8s-app=kube-dns"
+      ],
+      "pod_name": "kube-dns-66d6b7c877-cpn98"
+    },
+    "destination": {
+      "ID": 292,
+      "identity": 20802,
+      "namespace": "multiubuntu",
+      "labels": [
+        "k8s:container=ubuntu-1",
+        "k8s:group=group-1",
+        "k8s:io.cilium.k8s.policy.cluster=default",
+        "k8s:io.cilium.k8s.policy.serviceaccount=default",
+        "k8s:io.kubernetes.pod.namespace=multiubuntu"
+      ],
+      "pod_name": "ubuntu-1-deployment-7bd47f78d5-7sk2w"
+    },
+    "Type": "L3_L4",
+    "node_name": "gke-darkload-darkload-nodepool-b53fdd70-vmvy",
+    "reply": true,
+    "event_type": {
+      "type": 4
+    },
+    "traffic_direction": "EGRESS",
+    "trace_observation_point": "TO_ENDPOINT",
+    "Summary": "UDP"
+  },
+  {
+    "time": "2021-02-18T00:25:31.816825955Z",
+    "verdict": "FORWARDED",
+    "ethernet": {
+      "source": "fa:73:7c:8b:7e:3f",
+      "destination": "d6:c5:76:f2:df:07"
+    },
+    "IP": {
+      "source": "10.12.6.126",
+      "destination": "10.12.4.154",
+      "ipVersion": "IPv4"
+    },
+    "l4": {
+      "TCP": {
+        "source_port": 42908,
+        "destination_port": 8080,
+        "flags": {
+          "SYN": true
+        }
+      }
+    },
+    "source": {
+      "ID": 292,
+      "identity": 20802,
+      "namespace": "multiubuntu",
+      "labels": [
+        "k8s:container=ubuntu-1",
+        "k8s:group=group-1",
+        "k8s:io.cilium.k8s.policy.cluster=default",
+        "k8s:io.cilium.k8s.policy.serviceaccount=default",
+        "k8s:io.kubernetes.pod.namespace=multiubuntu"
+      ],
+      "pod_name": "ubuntu-1-deployment-7bd47f78d5-7sk2w"
+    },
+    "destination": {
+      "identity": 33883,
+      "namespace": "multiubuntu",
+      "labels": [
+        "k8s:container=ubuntu-4",
+        "k8s:group=group-2",
+        "k8s:io.cilium.k8s.policy.cluster=default",
+        "k8s:io.cilium.k8s.policy.serviceaccount=default",
+        "k8s:io.kubernetes.pod.namespace=multiubuntu"
+      ],
+      "pod_name": "ubuntu-4-deployment-77675c466d-9chzq"
+    },
+    "Type": "L3_L4",
+    "node_name": "gke-darkload-darkload-nodepool-b53fdd70-vmvy",
+    "event_type": {
+      "type": 4,
+      "sub_type": 3
+    },
+    "traffic_direction": "EGRESS",
+    "trace_observation_point": "TO_STACK",
+    "Summary": "TCP Flags: SYN"
+  },
+  {
+    "time": "2021-02-18T00:25:31.818625669Z",
+    "verdict": "FORWARDED",
+    "ethernet": {
+      "source": "66:d1:d6:09:f2:c0",
+      "destination": "2a:70:35:d7:05:6c"
+    },
+    "IP": {
+      "source": "10.128.0.69",
+      "destination": "10.12.4.154",
+      "ipVersion": "IPv4"
+    },
+    "l4": {
+      "TCP": {
+        "source_port": 42908,
+        "destination_port": 8080,
+        "flags": {
+          "SYN": true
+        }
+      }
+    },
+    "source": {
+      "identity": 6,
+      "labels": [
+        "reserved:remote-node"
+      ]
+    },
+    "destination": {
+      "ID": 415,
+      "identity": 33883,
+      "namespace": "multiubuntu",
+      "labels": [
+        "k8s:container=ubuntu-4",
+        "k8s:group=group-2",
+        "k8s:io.cilium.k8s.policy.cluster=default",
+        "k8s:io.cilium.k8s.policy.serviceaccount=default",
+        "k8s:io.kubernetes.pod.namespace=multiubuntu"
+      ],
+      "pod_name": "ubuntu-4-deployment-77675c466d-9chzq"
+    },
+    "Type": "L3_L4",
+    "node_name": "gke-darkload-darkload-nodepool-b53fdd70-wguc",
+    "event_type": {
+      "type": 4
+    },
+    "traffic_direction": "INGRESS",
+    "trace_observation_point": "TO_ENDPOINT",
+    "Summary": "TCP Flags: SYN"
+  },
+  {
+    "time": "2021-02-18T00:25:31.818652498Z",
+    "verdict": "FORWARDED",
+    "ethernet": {
+      "source": "2a:70:35:d7:05:6c",
+      "destination": "66:d1:d6:09:f2:c0"
+    },
+    "IP": {
+      "source": "10.12.4.154",
+      "destination": "10.128.0.69",
+      "ipVersion": "IPv4"
+    },
+    "l4": {
+      "TCP": {
+        "source_port": 8080,
+        "destination_port": 42908,
+        "flags": {
+          "SYN": true,
+          "ACK": true
+        }
+      }
+    },
+    "source": {
+      "ID": 415,
+      "identity": 33883,
+      "namespace": "multiubuntu",
+      "labels": [
+        "k8s:container=ubuntu-4",
+        "k8s:group=group-2",
+        "k8s:io.cilium.k8s.policy.cluster=default",
+        "k8s:io.cilium.k8s.policy.serviceaccount=default",
+        "k8s:io.kubernetes.pod.namespace=multiubuntu"
+      ],
+      "pod_name": "ubuntu-4-deployment-77675c466d-9chzq"
+    },
+    "destination": {
+      "identity": 6,
+      "labels": [
+        "reserved:remote-node"
+      ]
+    },
+    "Type": "L3_L4",
+    "node_name": "gke-darkload-darkload-nodepool-b53fdd70-wguc",
+    "reply": true,
+    "event_type": {
+      "type": 4,
+      "sub_type": 3
+    },
+    "traffic_direction": "INGRESS",
+    "trace_observation_point": "TO_STACK",
+    "Summary": "TCP Flags: SYN, ACK"
+  },
+  {
+    "time": "2021-02-18T00:25:31.818673772Z",
+    "verdict": "FORWARDED",
+    "ethernet": {
+      "source": "fa:73:7c:8b:7e:3f",
+      "destination": "d6:c5:76:f2:df:07"
+    },
+    "IP": {
+      "source": "10.12.6.126",
+      "destination": "10.12.4.154",
+      "ipVersion": "IPv4"
+    },
+    "l4": {
+      "TCP": {
+        "source_port": 42908,
+        "destination_port": 8080,
+        "flags": {
+          "ACK": true
+        }
+      }
+    },
+    "source": {
+      "ID": 292,
+      "identity": 20802,
+      "namespace": "multiubuntu",
+      "labels": [
+        "k8s:container=ubuntu-1",
+        "k8s:group=group-1",
+        "k8s:io.cilium.k8s.policy.cluster=default",
+        "k8s:io.cilium.k8s.policy.serviceaccount=default",
+        "k8s:io.kubernetes.pod.namespace=multiubuntu"
+      ],
+      "pod_name": "ubuntu-1-deployment-7bd47f78d5-7sk2w"
+    },
+    "destination": {
+      "identity": 33883,
+      "namespace": "multiubuntu",
+      "labels": [
+        "k8s:container=ubuntu-4",
+        "k8s:group=group-2",
+        "k8s:io.cilium.k8s.policy.cluster=default",
+        "k8s:io.cilium.k8s.policy.serviceaccount=default",
+        "k8s:io.kubernetes.pod.namespace=multiubuntu"
+      ],
+      "pod_name": "ubuntu-4-deployment-77675c466d-9chzq"
+    },
+    "Type": "L3_L4",
+    "node_name": "gke-darkload-darkload-nodepool-b53fdd70-vmvy",
+    "event_type": {
+      "type": 4,
+      "sub_type": 3
+    },
+    "traffic_direction": "EGRESS",
+    "trace_observation_point": "TO_STACK",
+    "Summary": "TCP Flags: ACK"
+  },
+  {
+    "time": "2021-02-18T00:25:31.819114123Z",
+    "verdict": "FORWARDED",
+    "ethernet": {
+      "source": "fa:73:7c:8b:7e:3f",
+      "destination": "d6:c5:76:f2:df:07"
+    },
+    "IP": {
+      "source": "10.12.6.126",
+      "destination": "10.12.4.154",
+      "ipVersion": "IPv4"
+    },
+    "l4": {
+      "TCP": {
+        "source_port": 42908,
+        "destination_port": 8080,
+        "flags": {
+          "PSH": true,
+          "ACK": true
+        }
+      }
+    },
+    "source": {
+      "ID": 292,
+      "identity": 20802,
+      "namespace": "multiubuntu",
+      "labels": [
+        "k8s:container=ubuntu-1",
+        "k8s:group=group-1",
+        "k8s:io.cilium.k8s.policy.cluster=default",
+        "k8s:io.cilium.k8s.policy.serviceaccount=default",
+        "k8s:io.kubernetes.pod.namespace=multiubuntu"
+      ],
+      "pod_name": "ubuntu-1-deployment-7bd47f78d5-7sk2w"
+    },
+    "destination": {
+      "identity": 33883,
+      "namespace": "multiubuntu",
+      "labels": [
+        "k8s:container=ubuntu-4",
+        "k8s:group=group-2",
+        "k8s:io.cilium.k8s.policy.cluster=default",
+        "k8s:io.cilium.k8s.policy.serviceaccount=default",
+        "k8s:io.kubernetes.pod.namespace=multiubuntu"
+      ],
+      "pod_name": "ubuntu-4-deployment-77675c466d-9chzq"
+    },
+    "Type": "L3_L4",
+    "node_name": "gke-darkload-darkload-nodepool-b53fdd70-vmvy",
+    "event_type": {
+      "type": 4,
+      "sub_type": 3
+    },
+    "traffic_direction": "EGRESS",
+    "trace_observation_point": "TO_STACK",
+    "Summary": "TCP Flags: ACK, PSH"
+  },
+  {
+    "time": "2021-02-18T00:25:31.819472697Z",
+    "verdict": "FORWARDED",
+    "ethernet": {
+      "source": "66:d1:d6:09:f2:c0",
+      "destination": "2a:70:35:d7:05:6c"
+    },
+    "IP": {
+      "source": "10.128.0.69",
+      "destination": "10.12.4.154",
+      "ipVersion": "IPv4"
+    },
+    "l4": {
+      "TCP": {
+        "source_port": 42908,
+        "destination_port": 8080,
+        "flags": {
+          "ACK": true
+        }
+      }
+    },
+    "source": {
+      "identity": 6,
+      "labels": [
+        "reserved:remote-node"
+      ]
+    },
+    "destination": {
+      "ID": 415,
+      "identity": 33883,
+      "namespace": "multiubuntu",
+      "labels": [
+        "k8s:container=ubuntu-4",
+        "k8s:group=group-2",
+        "k8s:io.cilium.k8s.policy.cluster=default",
+        "k8s:io.cilium.k8s.policy.serviceaccount=default",
+        "k8s:io.kubernetes.pod.namespace=multiubuntu"
+      ],
+      "pod_name": "ubuntu-4-deployment-77675c466d-9chzq"
+    },
+    "Type": "L3_L4",
+    "node_name": "gke-darkload-darkload-nodepool-b53fdd70-wguc",
+    "event_type": {
+      "type": 4
+    },
+    "traffic_direction": "INGRESS",
+    "trace_observation_point": "TO_ENDPOINT",
+    "Summary": "TCP Flags: ACK"
+  },
+  {
+    "time": "2021-02-18T00:25:31.819856777Z",
+    "verdict": "FORWARDED",
+    "ethernet": {
+      "source": "66:d1:d6:09:f2:c0",
+      "destination": "2a:70:35:d7:05:6c"
+    },
+    "IP": {
+      "source": "10.128.0.69",
+      "destination": "10.12.4.154",
+      "ipVersion": "IPv4"
+    },
+    "l4": {
+      "TCP": {
+        "source_port": 42908,
+        "destination_port": 8080,
+        "flags": {
+          "PSH": true,
+          "ACK": true
+        }
+      }
+    },
+    "source": {
+      "identity": 6,
+      "labels": [
+        "reserved:remote-node"
+      ]
+    },
+    "destination": {
+      "ID": 415,
+      "identity": 33883,
+      "namespace": "multiubuntu",
+      "labels": [
+        "k8s:container=ubuntu-4",
+        "k8s:group=group-2",
+        "k8s:io.cilium.k8s.policy.cluster=default",
+        "k8s:io.cilium.k8s.policy.serviceaccount=default",
+        "k8s:io.kubernetes.pod.namespace=multiubuntu"
+      ],
+      "pod_name": "ubuntu-4-deployment-77675c466d-9chzq"
+    },
+    "Type": "L3_L4",
+    "node_name": "gke-darkload-darkload-nodepool-b53fdd70-wguc",
+    "event_type": {
+      "type": 4
+    },
+    "traffic_direction": "INGRESS",
+    "trace_observation_point": "TO_ENDPOINT",
+    "Summary": "TCP Flags: ACK, PSH"
+  },
+  {
+    "time": "2021-02-18T00:25:31.822003182Z",
+    "verdict": "FORWARDED",
+    "ethernet": {
+      "source": "2a:70:35:d7:05:6c",
+      "destination": "66:d1:d6:09:f2:c0"
+    },
+    "IP": {
+      "source": "10.12.4.154",
+      "destination": "10.128.0.69",
+      "ipVersion": "IPv4"
+    },
+    "l4": {
+      "TCP": {
+        "source_port": 8080,
+        "destination_port": 42908,
+        "flags": {
+          "PSH": true,
+          "ACK": true
+        }
+      }
+    },
+    "source": {
+      "ID": 415,
+      "identity": 33883,
+      "namespace": "multiubuntu",
+      "labels": [
+        "k8s:container=ubuntu-4",
+        "k8s:group=group-2",
+        "k8s:io.cilium.k8s.policy.cluster=default",
+        "k8s:io.cilium.k8s.policy.serviceaccount=default",
+        "k8s:io.kubernetes.pod.namespace=multiubuntu"
+      ],
+      "pod_name": "ubuntu-4-deployment-77675c466d-9chzq"
+    },
+    "destination": {
+      "identity": 6,
+      "labels": [
+        "reserved:remote-node"
+      ]
+    },
+    "Type": "L3_L4",
+    "node_name": "gke-darkload-darkload-nodepool-b53fdd70-wguc",
+    "reply": true,
+    "event_type": {
+      "type": 4,
+      "sub_type": 3
+    },
+    "traffic_direction": "INGRESS",
+    "trace_observation_point": "TO_STACK",
+    "Summary": "TCP Flags: ACK, PSH"
+  },
+  {
+    "time": "2021-02-18T00:25:31.822189965Z",
+    "verdict": "FORWARDED",
+    "ethernet": {
+      "source": "d6:c5:76:f2:df:07",
+      "destination": "fa:73:7c:8b:7e:3f"
+    },
+    "IP": {
+      "source": "10.12.4.154",
+      "destination": "10.12.6.126",
+      "ipVersion": "IPv4"
+    },
+    "l4": {
+      "TCP": {
+        "source_port": 8080,
+        "destination_port": 42908,
+        "flags": {
+          "FIN": true,
+          "PSH": true,
+          "ACK": true
+        }
+      }
+    },
+    "source": {
+      "identity": 33883,
+      "namespace": "multiubuntu",
+      "labels": [
+        "k8s:container=ubuntu-4",
+        "k8s:group=group-2",
+        "k8s:io.cilium.k8s.policy.cluster=default",
+        "k8s:io.cilium.k8s.policy.serviceaccount=default",
+        "k8s:io.kubernetes.pod.namespace=multiubuntu"
+      ],
+      "pod_name": "ubuntu-4-deployment-77675c466d-9chzq"
+    },
+    "destination": {
+      "ID": 292,
+      "identity": 20802,
+      "namespace": "multiubuntu",
+      "labels": [
+        "k8s:container=ubuntu-1",
+        "k8s:group=group-1",
+        "k8s:io.cilium.k8s.policy.cluster=default",
+        "k8s:io.cilium.k8s.policy.serviceaccount=default",
+        "k8s:io.kubernetes.pod.namespace=multiubuntu"
+      ],
+      "pod_name": "ubuntu-1-deployment-7bd47f78d5-7sk2w"
+    },
+    "Type": "L3_L4",
+    "node_name": "gke-darkload-darkload-nodepool-b53fdd70-vmvy",
+    "reply": true,
+    "event_type": {
+      "type": 4
+    },
+    "traffic_direction": "EGRESS",
+    "trace_observation_point": "TO_ENDPOINT",
+    "Summary": "TCP Flags: ACK, FIN, PSH"
+  },
+  {
+    "time": "2021-02-18T00:25:31.822451946Z",
+    "verdict": "FORWARDED",
+    "ethernet": {
+      "source": "fa:73:7c:8b:7e:3f",
+      "destination": "d6:c5:76:f2:df:07"
+    },
+    "IP": {
+      "source": "10.12.6.126",
+      "destination": "10.12.4.154",
+      "ipVersion": "IPv4"
+    },
+    "l4": {
+      "TCP": {
+        "source_port": 42908,
+        "destination_port": 8080,
+        "flags": {
+          "FIN": true,
+          "ACK": true
+        }
+      }
+    },
+    "source": {
+      "ID": 292,
+      "identity": 20802,
+      "namespace": "multiubuntu",
+      "labels": [
+        "k8s:container=ubuntu-1",
+        "k8s:group=group-1",
+        "k8s:io.cilium.k8s.policy.cluster=default",
+        "k8s:io.cilium.k8s.policy.serviceaccount=default",
+        "k8s:io.kubernetes.pod.namespace=multiubuntu"
+      ],
+      "pod_name": "ubuntu-1-deployment-7bd47f78d5-7sk2w"
+    },
+    "destination": {
+      "identity": 33883,
+      "namespace": "multiubuntu",
+      "labels": [
+        "k8s:container=ubuntu-4",
+        "k8s:group=group-2",
+        "k8s:io.cilium.k8s.policy.cluster=default",
+        "k8s:io.cilium.k8s.policy.serviceaccount=default",
+        "k8s:io.kubernetes.pod.namespace=multiubuntu"
+      ],
+      "pod_name": "ubuntu-4-deployment-77675c466d-9chzq"
+    },
+    "Type": "L3_L4",
+    "node_name": "gke-darkload-darkload-nodepool-b53fdd70-vmvy",
+    "event_type": {
+      "type": 4,
+      "sub_type": 3
+    },
+    "traffic_direction": "EGRESS",
+    "trace_observation_point": "TO_STACK",
+    "Summary": "TCP Flags: ACK, FIN"
+  },
+  {
+    "time": "2021-02-18T00:25:31.822684577Z",
+    "verdict": "FORWARDED",
+    "ethernet": {
+      "source": "2a:70:35:d7:05:6c",
+      "destination": "66:d1:d6:09:f2:c0"
+    },
+    "IP": {
+      "source": "10.12.4.154",
+      "destination": "10.128.0.69",
+      "ipVersion": "IPv4"
+    },
+    "l4": {
+      "TCP": {
+        "source_port": 8080,
+        "destination_port": 42908,
+        "flags": {
+          "FIN": true,
+          "PSH": true,
+          "ACK": true
+        }
+      }
+    },
+    "source": {
+      "ID": 415,
+      "identity": 33883,
+      "namespace": "multiubuntu",
+      "labels": [
+        "k8s:container=ubuntu-4",
+        "k8s:group=group-2",
+        "k8s:io.cilium.k8s.policy.cluster=default",
+        "k8s:io.cilium.k8s.policy.serviceaccount=default",
+        "k8s:io.kubernetes.pod.namespace=multiubuntu"
+      ],
+      "pod_name": "ubuntu-4-deployment-77675c466d-9chzq"
+    },
+    "destination": {
+      "identity": 6,
+      "labels": [
+        "reserved:remote-node"
+      ]
+    },
+    "Type": "L3_L4",
+    "node_name": "gke-darkload-darkload-nodepool-b53fdd70-wguc",
+    "reply": true,
+    "event_type": {
+      "type": 4,
+      "sub_type": 3
+    },
+    "traffic_direction": "INGRESS",
+    "trace_observation_point": "TO_STACK",
+    "Summary": "TCP Flags: ACK, FIN, PSH"
+  },
+  {
+    "time": "2021-02-18T00:25:31.823074119Z",
+    "verdict": "FORWARDED",
+    "ethernet": {
+      "source": "66:d1:d6:09:f2:c0",
+      "destination": "2a:70:35:d7:05:6c"
+    },
+    "IP": {
+      "source": "10.128.0.69",
+      "destination": "10.12.4.154",
+      "ipVersion": "IPv4"
+    },
+    "l4": {
+      "TCP": {
+        "source_port": 42908,
+        "destination_port": 8080,
+        "flags": {
+          "FIN": true,
+          "ACK": true
+        }
+      }
+    },
+    "source": {
+      "identity": 6,
+      "labels": [
+        "reserved:remote-node"
+      ]
+    },
+    "destination": {
+      "ID": 415,
+      "identity": 33883,
+      "namespace": "multiubuntu",
+      "labels": [
+        "k8s:container=ubuntu-4",
+        "k8s:group=group-2",
+        "k8s:io.cilium.k8s.policy.cluster=default",
+        "k8s:io.cilium.k8s.policy.serviceaccount=default",
+        "k8s:io.kubernetes.pod.namespace=multiubuntu"
+      ],
+      "pod_name": "ubuntu-4-deployment-77675c466d-9chzq"
+    },
+    "Type": "L3_L4",
+    "node_name": "gke-darkload-darkload-nodepool-b53fdd70-wguc",
+    "event_type": {
+      "type": 4
+    },
+    "traffic_direction": "INGRESS",
+    "trace_observation_point": "TO_ENDPOINT",
+    "Summary": "TCP Flags: ACK, FIN"
+  }
+]

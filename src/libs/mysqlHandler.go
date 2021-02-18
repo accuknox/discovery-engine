@@ -303,6 +303,24 @@ func InsertDiscoveredPoliciesToMySQL(cfg types.ConfigDB, policies []types.KnoxNe
 	return nil
 }
 
+// ClearDBTablesMySQL function
+func ClearDBTablesMySQL(cfg types.ConfigDB) error {
+	db := ConnectMySQL(cfg)
+	defer db.Close()
+
+	query := "DELETE FROM " + cfg.TableDiscoveredPolicy
+	if _, err := db.Query(query); err != nil {
+		return err
+	}
+
+	query = "DELETE FROM " + cfg.TableNetworkFlow
+	if _, err := db.Query(query); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // =================== //
 // == Configuration == //
 // =================== //

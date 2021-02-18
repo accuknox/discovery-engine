@@ -9,6 +9,7 @@ import (
 
 	"github.com/accuknox/knoxAutoPolicy/src/libs"
 	types "github.com/accuknox/knoxAutoPolicy/src/types"
+	"github.com/cilium/cilium/api/v1/flow"
 )
 
 // =========== //
@@ -200,8 +201,8 @@ func updateDstLabels(dsts []MergedPortDst, pods []types.Pod) []MergedPortDst {
 // == Flow ID Tracking == //
 // ====================== //
 
-// resetTrackFlowID function
-func resetTrackFlowID() {
+// clearTrackFlowID function
+func clearTrackFlowID() {
 	FlowIDTracker = map[FlowIDTracking][]int{}
 	FlowIDTracker2 = map[FlowIDTracking2][]int{}
 }
@@ -538,6 +539,126 @@ func updateServiceEndpoint(services []types.Service, endpoints []types.Endpoint,
 			k8sDNSSvc = append(k8sDNSSvc, svc)
 		} else if svc.Namespace == "kube-system" && svc.ServiceName == "kube-dns" && svc.Protocol == "TCP" {
 			k8sDNSSvc = append(k8sDNSSvc, svc)
+		}
+	}
+}
+
+// =============== //
+// == Clearance == //
+// =============== //
+
+func clearDomainToIPs() {
+	DomainToIPs = map[string][]string{}
+}
+
+func cleargLabeledSrcsPerDst() {
+	gLabeledSrcsPerDst = map[string]labeledSrcsPerDstMap{}
+}
+
+func clearHTTPAggregator() {
+	WildPaths = []string{WildPathDigit, WildPathChar}
+	MergedSrcPerMergedDstForHTTP = map[string][]*HTTPDst{}
+}
+
+func clearGlobalVariabels() {
+	clearDomainToIPs()
+	cleargLabeledSrcsPerDst()
+	clearHTTPAggregator()
+	clearTrackFlowID()
+}
+
+// ============= //
+// == Testing == //
+// ============= //
+
+// ReplaceMultiubuntuPodName ...
+func ReplaceMultiubuntuPodName(flows []*flow.Flow, pods []types.Pod) {
+	var pod1Name, pod2Name, pod3Name, pod4Name, pod5Name string
+	var kubeDNS string
+
+	for _, pod := range pods {
+		if strings.Contains(pod.PodName, "ubuntu-1-deployment") {
+			pod1Name = pod.PodName
+		}
+
+		if strings.Contains(pod.PodName, "ubuntu-2-deployment") {
+			pod2Name = pod.PodName
+		}
+
+		if strings.Contains(pod.PodName, "ubuntu-3-deployment") {
+			pod3Name = pod.PodName
+		}
+
+		if strings.Contains(pod.PodName, "ubuntu-4-deployment") {
+			pod4Name = pod.PodName
+		}
+
+		if strings.Contains(pod.PodName, "ubuntu-5-deployment") {
+			pod5Name = pod.PodName
+		}
+
+		if strings.Contains(pod.PodName, "kube-dns") && !strings.Contains(pod.PodName, "kube-dns-autoscaler") {
+			kubeDNS = pod.PodName
+		}
+	}
+
+	for i, flow := range flows {
+		if strings.Contains(flow.GetSource().GetPodName(), "ubuntu-1-deployment") {
+			flows[i].Source.PodName = pod1Name
+		}
+
+		if strings.Contains(flow.GetDestination().GetPodName(), "ubuntu-1-deployment") {
+			flows[i].Destination.PodName = pod1Name
+		}
+
+		///
+
+		if strings.Contains(flow.GetSource().GetPodName(), "ubuntu-2-deployment") {
+			flows[i].Source.PodName = pod2Name
+		}
+
+		if strings.Contains(flow.GetDestination().GetPodName(), "ubuntu-2-deployment") {
+			flows[i].Destination.PodName = pod2Name
+		}
+
+		///
+
+		if strings.Contains(flow.GetSource().GetPodName(), "ubuntu-3-deployment") {
+			flows[i].Source.PodName = pod3Name
+		}
+
+		if strings.Contains(flow.GetDestination().GetPodName(), "ubuntu-3-deployment") {
+			flows[i].Destination.PodName = pod3Name
+		}
+
+		///
+
+		if strings.Contains(flow.GetSource().GetPodName(), "ubuntu-4-deployment") {
+			flows[i].Source.PodName = pod4Name
+		}
+
+		if strings.Contains(flow.GetDestination().GetPodName(), "ubuntu-4-deployment") {
+			flows[i].Destination.PodName = pod4Name
+		}
+
+		///
+
+		if strings.Contains(flow.GetSource().GetPodName(), "ubuntu-5-deployment") {
+			flows[i].Source.PodName = pod5Name
+		}
+
+		if strings.Contains(flow.GetDestination().GetPodName(), "ubuntu-5-deployment") {
+			flows[i].Destination.PodName = pod5Name
+		}
+
+		///
+
+		if strings.Contains(flow.GetSource().GetPodName(), "kube-dns") && !strings.Contains(flow.GetSource().GetPodName(), "kube-dns-autoscaler") {
+			flows[i].Source.PodName = kubeDNS
+		}
+
+		if strings.Contains(flow.GetDestination().GetPodName(), "kube-dns") && !strings.Contains(flow.GetSource().GetPodName(), "kube-dns-autoscaler") {
+			flows[i].Destination.PodName = kubeDNS
 		}
 	}
 }

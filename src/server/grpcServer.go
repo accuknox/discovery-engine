@@ -8,6 +8,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	core "github.com/accuknox/knoxAutoPolicy/src/core"
+	"github.com/accuknox/knoxAutoPolicy/src/libs"
 	cpb "github.com/accuknox/knoxAutoPolicy/src/protos/v1/config"
 	wpb "github.com/accuknox/knoxAutoPolicy/src/protos/v1/worker"
 	"github.com/accuknox/knoxAutoPolicy/src/types"
@@ -121,6 +122,15 @@ type workerServer struct {
 
 func (s *workerServer) Start(ctx context.Context, in *wpb.WorkerRequest) (*wpb.WorkerResponse, error) {
 	log.Info().Msg("Start worker called")
+
+	if in.GetReq() == "dbclear" {
+		libs.ClearDBTables(core.Cfg.ConfigDB)
+	}
+
+	if in.GetLogfile() != "" {
+		core.SetLogFile(in.GetLogfile())
+	}
+
 	core.StartWorker()
 	return &wpb.WorkerResponse{Res: "ok"}, nil
 }

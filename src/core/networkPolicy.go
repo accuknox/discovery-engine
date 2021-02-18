@@ -1,7 +1,10 @@
 package core
 
 import (
+	"encoding/json"
+	"io/ioutil"
 	"net"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -11,6 +14,7 @@ import (
 	"github.com/accuknox/knoxAutoPolicy/src/libs"
 	"github.com/accuknox/knoxAutoPolicy/src/plugin"
 	"github.com/accuknox/knoxAutoPolicy/src/types"
+	"github.com/cilium/cilium/api/v1/flow"
 
 	"github.com/google/go-cmp/cmp"
 
@@ -1506,6 +1510,31 @@ func getNetworkLogs() []types.KnoxNetworkLog {
 				networkLogs = append(networkLogs, log)
 			}
 		}
+	} else if Cfg.NetworkLogFrom == "file" { // from json file for testing
+		log.Info().Msg("Get network flow from the json file : " + Cfg.NetworkLogFile)
+		flows := []*flow.Flow{}
+
+		// Open our jsonFile
+		logFile, err := os.Open(Cfg.NetworkLogFile)
+		if err != nil {
+			log.Error().Msg(err.Error())
+			return nil
+		}
+		defer logFile.Close()
+
+		byteValue, _ := ioutil.ReadAll(logFile)
+		json.Unmarshal(byteValue, &flows)
+
+		// replace the pod names in prepared-flows with the working pod names
+		pods := libs.GetPods()
+		ReplaceMultiubuntuPodName(flows, pods)
+
+		// convert file flows -> network logs (but, in this case, no flow id..)
+		for _, flow := range flows {
+			if log, valid := plugin.ConvertCiliumFlowToKnoxNetworkLog(flow); valid {
+				networkLogs = append(networkLogs, log)
+			}
+		}
 	} else {
 		log.Error().Msgf("Network log source not correct: %s", Cfg.NetworkLogFrom)
 		return nil
@@ -1531,6 +1560,10 @@ func StartToDiscoveryWorker() {
 	// get network logs
 	networkLogs := getNetworkLogs()
 	if networkLogs == nil {
+		if Cfg.OperationMode == 2 && Status == StatusRunning {
+			Status = StatusIdle
+		}
+
 		return
 	}
 
@@ -1571,7 +1604,7 @@ func StartToDiscoveryWorker() {
 		log.Info().Msgf("Policy discovery started for namespace: [%s]", namespace)
 
 		// reset flow id track every target namespace
-		resetTrackFlowID()
+		clearTrackFlowID()
 
 		// discover network policies based on the network logs
 		discoveredPolicies := DiscoverNetworkPolicy(namespace, nsFilteredLogs, services, endpoints, pods)
@@ -1677,7 +1710,5 @@ func StopWorker() {
 
 	if Cfg.OperationMode == 1 { // every time intervals
 		StopCronJob()
-	} else { // one-time generation
-
 	}
 }

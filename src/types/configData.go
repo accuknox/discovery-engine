@@ -42,7 +42,9 @@ type Configuration struct {
 	CronJobTimeInterval     string `json:"cronjob_time_interval,omitempty" bson:"cronjob_time_interval,omitempty"`
 	OneTimeJobTimeSelection string `json:"one_time_job_time_selection,omitempty" bson:"one_time_job_time_selection,omitempty"`
 
-	NetworkLogFrom     string `json:"network_log_from,omitempty" bson:"network_log_from,omitempty"`
+	NetworkLogFrom string `json:"network_log_from,omitempty" bson:"network_log_from,omitempty"`
+	NetworkLogFile string `json:"network_log_file,omitempty" bson:"network_log_file,omitempty"`
+
 	DiscoveredPolicyTo string `json:"discovered_policy_to,omitempty" bson:"discovered_policy_to,omitempty"`
 	PolicyDir          string `json:"policy_dir,omitempty" bson:"policy_dir,omitempty"`
 
