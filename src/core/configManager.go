@@ -106,8 +106,11 @@ func LoadDefaultConfig() {
 	Cfg.CronJobTimeInterval = libs.GetEnv("CRON_JOB_TIME_INTERVAL", "@every 0h0m5s")
 	Cfg.OneTimeJobTimeSelection = "" // e.g., 2021-01-20 07:00:23|2021-01-20 07:00:25
 
-	// input & output
+	// input
 	Cfg.NetworkLogFrom = libs.GetEnv("NETWORK_LOG_FROM", "db")
+	Cfg.NetworkLogFile = libs.GetEnv("NETWORK_LOG_FILE", "./flows.json")
+
+	// output
 	Cfg.DiscoveredPolicyTo = libs.GetEnv("DISCOVERED_POLICY_TO", "db")
 	Cfg.PolicyDir = libs.GetEnv("POLICY_DIR", "./")
 
@@ -132,6 +135,11 @@ func LoadDefaultConfig() {
 	} else if Cfg.L7AggregationLevel == 2 {
 		HTTPUrlThreshold = 5
 	}
+}
+
+// SetLogFile for testing
+func SetLogFile(file string) {
+	Cfg.NetworkLogFile = file
 }
 
 // AddConfiguration function

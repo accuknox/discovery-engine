@@ -24,8 +24,8 @@ export HUBBLE_PORT=4245
 export OPERATION_MODE=2
 export CRON_JOB_TIME_INTERVAL="@every 0h0m5s"
 
-# network log source: hubble | db
-export NETWORK_LOG_FROM=db
+# network log source: hubble | db | file (for testing functionalities)
+export NETWORK_LOG_FROM=file
 
 # discovered policy output: db or db|file
 export DISCOVERED_POLICY_TO="db|file"

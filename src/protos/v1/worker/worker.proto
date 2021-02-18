@@ -12,6 +12,7 @@ service Worker {
 
 message WorkerRequest {
     string req = 1;
+    string logfile = 2;
 }
 
 message WorkerResponse {
