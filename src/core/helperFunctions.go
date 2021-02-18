@@ -600,6 +600,10 @@ func ReplaceMultiubuntuPodName(flows []*flow.Flow, pods []types.Pod) {
 		if strings.Contains(pod.PodName, "kube-dns") && !strings.Contains(pod.PodName, "kube-dns-autoscaler") {
 			kubeDNS = pod.PodName
 		}
+
+		if strings.Contains(pod.PodName, "coredns") && !strings.Contains(pod.PodName, "coredns-autoscaler") {
+			kubeDNS = pod.PodName
+		}
 	}
 
 	for i, flow := range flows {
@@ -658,6 +662,16 @@ func ReplaceMultiubuntuPodName(flows []*flow.Flow, pods []types.Pod) {
 		}
 
 		if strings.Contains(flow.GetDestination().GetPodName(), "kube-dns") && !strings.Contains(flow.GetSource().GetPodName(), "kube-dns-autoscaler") {
+			flows[i].Destination.PodName = kubeDNS
+		}
+
+		///
+
+		if strings.Contains(flow.GetSource().GetPodName(), "coredns") && !strings.Contains(flow.GetSource().GetPodName(), "coredns-autoscaler") {
+			flows[i].Source.PodName = kubeDNS
+		}
+
+		if strings.Contains(flow.GetDestination().GetPodName(), "coredns") && !strings.Contains(flow.GetSource().GetPodName(), "coredns-autoscaler") {
 			flows[i].Destination.PodName = kubeDNS
 		}
 	}
