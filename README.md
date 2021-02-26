@@ -5,9 +5,9 @@ Basically, KnoxAutoPolicy operates as plug-ins because each CNI employs its own 
 
 KnoxAutoPolicy is designed for Kubernetes environments; it focuses on pods/services, and its fundamental principle is to produce a minimal network policy set covering maximum flows. To do this, we actively use the label information assigned from the Kubernetes workloads/resources.
 
-Currently, KnoxAutoPolicy can discover egress/ingress network policy for Pod-to- Pod, (External)Service, Entity, CIDR, FQDN, HTTP. Further detail is available [here](./documentation/knox_network_policy_specification.md).
+Currently, KnoxAutoPolicy can discover egress/ingress network policy for Pod-to- Pod, (External)Service, Entity, CIDR, FQDN, HTTP. Further detail is available [here](./getting-started/knox_network_policy_specification.md).
 
-<center><img src=./documentation/resources/autopolicy_overview.png></center>
+<center><img src=./getting-started/resources/autopolicy_overview.png></center>
 
 # Functionality Overview
 
