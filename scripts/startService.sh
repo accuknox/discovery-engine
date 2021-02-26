@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export KNOX_AUTO_HOME=`dirname $(realpath "$0")`/..
+export AUTOPOL_HOME=`dirname $(realpath "$0")`/..
 
 # database info
 export DB_DRIVER=mysql
@@ -29,7 +29,7 @@ export NETWORK_LOG_FROM=file
 
 # discovered policy output: db or db|file
 export DISCOVERED_POLICY_TO="db|file"
-export POLICY_DIR=$KNOX_AUTO_HOME/policies/
+export POLICY_DIR=$AUTOPOL_HOME/policies/
 
 # discovery policy types: egress only   : 1
 #                         ingress only  : 2
@@ -51,4 +51,4 @@ export DISCOVERY_RULE_TYPES=511
 # skip namepsace info
 export IGNORING_NAMESPACES="kube-system|knox-auto-policy|cilium|hipster"
 
-$KNOX_AUTO_HOME/src/knoxAutoPolicy
+$AUTOPOL_HOME/knoxAutoPolicy/knoxAutoPolicy

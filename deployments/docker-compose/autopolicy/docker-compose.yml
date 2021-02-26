@@ -1,0 +1,49 @@
+version: "3"
+services:
+  knoxautopolicy:
+    image: accuknox/knoxautopolicy:latest
+    container_name: knoxautopolicy
+    ports:
+      - "9089:9089"
+    environment:
+      MYSQL_DATABASE: "flow_management"
+      # database info
+      DB_DRIVER: "mysql"
+      DB_HOST: "database"
+      DB_PORT: "3306"
+      DB_USER: "root"
+      DB_PASS: "password"
+      DB_NAME: "flow_management"
+      # database table info
+      TB_NETWORK_FLOW: "network_flow"
+      TB_DISCOVERED_POLICY: "discovered_policy"
+      TB_CONFIGURATION: "auto_policy_config"
+      # cilium hubble info (if want to connect with hubble relay directly)
+      HUBBLE_URL: "127.0.0.1"
+      HUBBLE_PORT: "4245"
+      # operation mode: cronjob: 1
+      #                 onetime job: 2
+      OPERATION_MODE: "2"
+      CRON_JOB_TIME_INTERVAL: "@every 0h0m5s"
+      # network log source: hubble | db | file (for testing functionalities)
+      NETWORK_LOG_FROM: "file"
+      # discovered policy output: db or db|file
+      DISCOVERED_POLICY_TO: "db|file"
+      POLICY_DIR: "./"
+      # discovery policy types: egress only   : 1
+      #                         ingress only  : 2
+      #                         all           : 3
+      DISCOVERY_POLICY_TYPES: "3"
+      # discovery rule types: matchLabels: matchLabels: 1
+      #                                    toPorts    : 2
+      #                                    toHTTPs    : 4
+      #                                    toCIDRs    : 8
+      #                                    toEntities : 16
+      #                                    toServices : 32
+      #                                    toFQDNs    : 64
+      #                                    fromCIDRs  : 128
+      #                                    fromEntities : 256
+      #                                    all        : 511
+      DISCOVERY_RULE_TYPES: "511"
+      # skip namepsace info
+      IGNORING_NAMESPACES: "kube-system|knox-auto-policy|cilium|hipster"
