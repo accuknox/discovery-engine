@@ -1,5 +1,5 @@
 .vscode/
-knoxAutoPolicy
+knoxAutoPolicy/knoxAutoPolicy
 policies/*.yaml
 bin/
 src/go.sum
