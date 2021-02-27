@@ -13,17 +13,6 @@ import (
 // == Get Latest Policy in DB == //
 // ============================= //
 
-// updateOutdatedPolicy function
-func updateOutdatedPolicy(outdatedPolicy types.KnoxNetworkPolicy, newPolicy *types.KnoxNetworkPolicy) {
-	for _, id := range outdatedPolicy.FlowIDs {
-		if !libs.ContainsElement(newPolicy.FlowIDs, id) {
-			newPolicy.FlowIDs = append(newPolicy.FlowIDs, id)
-		}
-	}
-
-	libs.UpdateOutdatedPolicy(Cfg.ConfigDB, outdatedPolicy.Metadata["name"], newPolicy.Metadata["name"])
-}
-
 // includeSelectorLabels function
 func includeSelectorLabels(newSelectorLabels map[string]string, existSelectorLabels map[string]string) bool {
 	includeSelector := true
@@ -299,6 +288,17 @@ func GetLatestServicePolicy(existingPolicies []types.KnoxNetworkPolicy, policy t
 // == Update Outdated Policy == //
 // ============================ //
 
+// updateOutdatedPolicy function
+func updateOutdatedPolicy(outdatedPolicy types.KnoxNetworkPolicy, newPolicy *types.KnoxNetworkPolicy) {
+	for _, id := range outdatedPolicy.FlowIDs {
+		if !libs.ContainsElement(newPolicy.FlowIDs, id) {
+			newPolicy.FlowIDs = append(newPolicy.FlowIDs, id)
+		}
+	}
+
+	libs.UpdateOutdatedPolicy(Cfg.ConfigDB, outdatedPolicy.Metadata["name"], newPolicy.Metadata["name"])
+}
+
 // includedHTTPPath function
 func includedHTTPPath(httpRules []types.SpecHTTP, targetRule types.SpecHTTP) bool {
 	included := false
@@ -358,6 +358,13 @@ func UpdateHTTP(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.Knox
 			}
 
 			continue
+		}
+
+		// case 3: if policy has no toHTTPs, append it
+		for _, rule := range existHTTP {
+			if !includedHTTPPath(newHTTP, rule) {
+				newHTTP = append(newHTTP, rule)
+			}
 		}
 
 		// annotate the outdated policy
@@ -819,11 +826,11 @@ func IsExistingPolicy(existingPolicies []types.KnoxNetworkPolicy, newPolicy type
 }
 
 // ======================================== //
-// == Removing Duplicated Network Policy == //
+// == Update Duplicated Network Policy == //
 // ======================================== //
 
-// RemoveDuplicatePolicy function
-func RemoveDuplicatePolicy(existingPolicies []types.KnoxNetworkPolicy, discoveredPolicies []types.KnoxNetworkPolicy, dnsToIPs map[string][]string) []types.KnoxNetworkPolicy {
+// UpdateDuplicatedPolicy function
+func UpdateDuplicatedPolicy(existingPolicies []types.KnoxNetworkPolicy, discoveredPolicies []types.KnoxNetworkPolicy, dnsToIPs map[string][]string) []types.KnoxNetworkPolicy {
 	newPolicies := []types.KnoxNetworkPolicy{}
 
 	// update policy name map

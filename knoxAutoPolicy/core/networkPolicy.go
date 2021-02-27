@@ -1610,7 +1610,7 @@ func StartToDiscoveryWorker() {
 		discoveredPolicies := DiscoverNetworkPolicy(namespace, nsFilteredLogs, services, endpoints, pods)
 
 		// remove duplicated policy
-		newPolicies := RemoveDuplicatePolicy(existingPolicies, discoveredPolicies, DomainToIPs)
+		newPolicies := UpdateDuplicatedPolicy(existingPolicies, discoveredPolicies, DomainToIPs)
 
 		if len(newPolicies) > 0 {
 			// insert discovered policies to db

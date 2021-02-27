@@ -5,7 +5,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -34,17 +33,6 @@ func TestContainsElement(t *testing.T) {
 	element := "c"
 
 	assert.True(t, ContainsElement(elements, element), "it should contain the element 'c'")
-}
-
-func TestCombinations(t *testing.T) {
-	elements := []string{"a", "b", "c"}
-
-	actual := Combinations(elements, 2)
-	expected := [][]string{{"a", "b"}, {"a", "c"}, {"b", "c"}}
-
-	if !cmp.Equal(actual, expected) {
-		t.Error("Wrong result ", expected, actual)
-	}
 }
 
 func TestRandSeq(t *testing.T) {

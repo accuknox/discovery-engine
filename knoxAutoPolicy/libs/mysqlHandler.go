@@ -572,7 +572,7 @@ func DeleteConfiguration(cfg types.ConfigDB, configName string) error {
 	db := ConnectMySQL(cfg)
 	defer db.Close()
 
-	stmt, err := db.Prepare("DELETE FROM " + cfg.TableConfiguration + "WHERE config_name=?")
+	stmt, err := db.Prepare("DELETE FROM " + cfg.TableConfiguration + " WHERE config_name=?")
 	if err != nil {
 		return err
 	}
