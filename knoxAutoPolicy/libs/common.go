@@ -238,6 +238,12 @@ func GetProtocolInt(protocol string) int {
 // == Common == //
 // ============ //
 
+// DeepCopy deepcopies a to b using json marshaling
+func DeepCopy(dst, src interface{}) {
+	byt, _ := json.Marshal(src)
+	json.Unmarshal(byt, dst)
+}
+
 // exists Function
 func exists(path string) (bool, error) {
 	_, err := os.Stat(path)
@@ -290,17 +296,15 @@ func GetEnv(key, fallback string) string {
 
 // GetEnvInt Function
 func GetEnvInt(key string, fallback int) int {
-	result := 0
-
 	if value, ok := os.LookupEnv(key); ok {
 		val, err := strconv.Atoi(value)
 		if err != nil {
 			return fallback
 		}
-		result = val
+		return val
+	} else {
+		return fallback
 	}
-
-	return result
 }
 
 // ContainsElement Function

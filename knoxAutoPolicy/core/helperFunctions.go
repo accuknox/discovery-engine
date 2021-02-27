@@ -59,6 +59,25 @@ func containLabel(mergedLabel, targetLabel string) bool {
 	return false
 }
 
+// containLabelByConfiguration func
+func containLabelByConfiguration(cni string, igLabels []string, flowLabels []string) bool {
+	prefix := ""
+
+	if cni == "cilium" {
+		prefix = "k8s:"
+	}
+
+	for _, label := range igLabels {
+		label = prefix + label
+
+		if !libs.ContainsElement(flowLabels, label) {
+			return false
+		}
+	}
+
+	return true
+}
+
 // combinationLabels Function
 func combinationLabels(set []string, n int) (subsets [][]string) {
 	length := uint(len(set))
@@ -166,25 +185,6 @@ func getLabelsFromPod(podName string, pods []types.Pod) []string {
 	return []string{}
 }
 
-// containLabelByConfiguration func
-func containLabelByConfiguration(cni string, igLabels []string, flowLabels []string) bool {
-	prefix := ""
-
-	if cni == "cilium" {
-		prefix = "k8s:"
-	}
-
-	for _, label := range igLabels {
-		label = prefix + label
-
-		if !libs.ContainsElement(flowLabels, label) {
-			return false
-		}
-	}
-
-	return true
-}
-
 // updateDstLabels Function
 func updateDstLabels(dsts []MergedPortDst, pods []types.Pod) []MergedPortDst {
 	for i, dst := range dsts {
@@ -264,95 +264,6 @@ func getDomainNameFromDNSToIP(log types.KnoxNetworkLog) string {
 	}
 
 	return ""
-}
-
-// ==================================== //
-// == Egress + Ingress into a Policy == //
-// ==================================== //
-
-// removeSelectorFromPolicies Function
-func removeSelectorFromPolicies(policies []types.KnoxNetworkPolicy, inSelector types.Selector) []types.KnoxNetworkPolicy {
-	cp := make([]types.KnoxNetworkPolicy, len(policies))
-	copy(cp, policies)
-
-	for i, policy := range policies {
-		selector := policy.Spec.Selector
-
-		matched := true
-		for k := range inSelector.MatchLabels {
-			if _, exist := selector.MatchLabels[k]; !exist {
-				matched = false
-			}
-
-			if !matched {
-				break
-			}
-		}
-
-		if matched {
-			if i == len(policies)-1 { // if element is last
-				cp = cp[:len(policies)-1]
-			} else {
-				cp = append(cp[:i], cp[i+1:]...)
-			}
-		}
-	}
-
-	return cp
-}
-
-// getEgressIngressRules Function
-func getEgressIngressRules(policies []types.KnoxNetworkPolicy, inSelector types.Selector) ([]types.Egress, []types.Ingress) {
-	egressRules := []types.Egress{}
-	ingressRules := []types.Ingress{}
-
-	for _, policy := range policies {
-		selector := policy.Spec.Selector
-
-		matched := true
-		for k := range inSelector.MatchLabels {
-			if _, exist := selector.MatchLabels[k]; !exist {
-				matched = false
-			}
-
-			if !matched {
-				break
-			}
-		}
-
-		if matched {
-			for _, egress := range policy.Spec.Egress {
-				egressRules = append(egressRules, egress)
-			}
-			for _, ingress := range policy.Spec.Ingress {
-				ingressRules = append(ingressRules, ingress)
-			}
-		}
-	}
-
-	return egressRules, ingressRules
-}
-
-// mergeEgressIngressRules Function
-func mergeEgressIngressRules(networkPolicies []types.KnoxNetworkPolicy) []types.KnoxNetworkPolicy {
-	mergedNetworkPolicies := []types.KnoxNetworkPolicy{}
-
-	for _, networkPolicy := range networkPolicies {
-		selector := networkPolicy.Spec.Selector
-		egress, ingress := getEgressIngressRules(networkPolicies, selector)
-		networkPolicies = removeSelectorFromPolicies(networkPolicies, selector)
-
-		new := buildNewKnoxPolicy()
-		new.Spec.Selector = selector
-		if len(egress) > 0 {
-			new.Spec.Egress = egress
-		}
-		if len(ingress) > 0 {
-			new.Spec.Ingress = ingress
-		}
-	}
-
-	return mergedNetworkPolicies
 }
 
 // ==================================== //

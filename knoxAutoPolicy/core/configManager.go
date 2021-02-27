@@ -45,7 +45,7 @@ func LoadConfigDB() types.ConfigDB {
 			cfgDB.DBHost = libs.GetExternalIPAddr()
 		}
 	} else {
-		cfgDB.DBHost = libs.GetEnv("DB_HOST", "database")
+		cfgDB.DBHost = libs.GetEnv("DB_HOST", "database") // for docker-compose
 		dbAddr, err := net.LookupIP(cfgDB.DBHost)
 		if err == nil {
 			cfgDB.DBHost = dbAddr[0].String()
@@ -59,7 +59,7 @@ func LoadConfigDB() types.ConfigDB {
 	cfgDB.TableDiscoveredPolicy = libs.GetEnv("TB_DISCOVERED_POLICY", "discovered_policy")
 	cfgDB.TableConfiguration = libs.GetEnv("TB_CONFIGURATION", "auto_policy_config")
 
-	PlugIn = "cilium"
+	PlugIn = "cilium" // for now, cilium only supported
 
 	return cfgDB
 }
@@ -94,7 +94,7 @@ func LoadConfigCiliumHubble() types.ConfigCiliumHubble {
 func LoadDefaultConfig() {
 	Cfg = types.Configuration{}
 
-	// basic
+	// base
 	Cfg.ConfigName = "default"
 	Cfg.Status = 1
 

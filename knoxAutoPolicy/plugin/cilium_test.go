@@ -87,9 +87,7 @@ func TestConvertCiliumFlowToKnoxLog(t *testing.T) {
 	expected := &types.KnoxNetworkLog{}
 	json.Unmarshal(logBytes, expected)
 
-	dnsToIPs := map[string][]string{}
-
-	actual, _ := ConvertCiliumFlowToKnoxNetworkLog(flow, dnsToIPs)
+	actual, _ := ConvertCiliumFlowToKnoxNetworkLog(flow)
 	if !cmp.Equal(*expected, actual) {
 		t.Errorf("they should be equal %v %v", expected, actual)
 	}
