@@ -34,7 +34,7 @@ export POLICY_DIR=$AUTOPOL_HOME/policies/
 # discovery policy types: egress only   : 1
 #                         ingress only  : 2
 #                         all           : 3
-export DISCOVERY_POLICY_TYPES=3
+export DISCOVERY_POLICY_TYPES=1
 
 # discovery rule types: matchLabels: matchLabels: 1
 #                                    toPorts    : 2
@@ -51,4 +51,4 @@ export DISCOVERY_RULE_TYPES=511
 # skip namepsace info
 export IGNORING_NAMESPACES="kube-system|knox-auto-policy|cilium|hipster"
 
-$AUTOPOL_HOME/knoxAutoPolicy/knoxAutoPolicy
+$AUTOPOL_HOME/src/knoxAutoPolicy
