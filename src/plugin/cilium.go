@@ -200,8 +200,8 @@ func ConvertCiliumFlowToKnoxNetworkLog(flow *flow.Flow) (types.KnoxNetworkLog, b
 	return log, true
 }
 
-// updateDomainToIPMap func
-func updateDomainToIPMap(flow *flow.Flow, dnsToIPs map[string][]string) {
+// UpdateDomainToIPMapFromCiliumFlow func
+func UpdateDomainToIPMapFromCiliumFlow(flow *flow.Flow, dnsToIPs map[string][]string) {
 	// get L7 DNS
 	if flow.GetL7() != nil && flow.L7.GetDns() != nil {
 		// if DSN response includes IPs
@@ -309,7 +309,7 @@ func ConvertMySQLFlowsToNetworkLogs(docs []map[string]interface{}, dnsToIPs map[
 		}
 
 		// update dns maps
-		updateDomainToIPMap(ciliumFlow, dnsToIPs)
+		UpdateDomainToIPMapFromCiliumFlow(ciliumFlow, dnsToIPs)
 
 		if log, valid := ConvertCiliumFlowToKnoxNetworkLog(ciliumFlow); valid {
 			// get flow id
