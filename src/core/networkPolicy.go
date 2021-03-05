@@ -1531,6 +1531,8 @@ func getNetworkLogs() []types.KnoxNetworkLog {
 
 		// convert file flows -> network logs (but, in this case, no flow id..)
 		for _, flow := range flows {
+			// update dns maps
+			plugin.UpdateDomainToIPMapFromCiliumFlow(flow, DomainToIPs)
 			if log, valid := plugin.ConvertCiliumFlowToKnoxNetworkLog(flow); valid {
 				networkLogs = append(networkLogs, log)
 			}
@@ -1614,7 +1616,9 @@ func StartToDiscoveryWorker() {
 
 		if len(newPolicies) > 0 {
 			// insert discovered policies to db
-			libs.InsertDiscoveredPolicies(Cfg.ConfigDB, newPolicies)
+			if strings.Contains(Cfg.DiscoveredPolicyTo, "db") {
+				libs.InsertDiscoveredPolicies(Cfg.ConfigDB, newPolicies)
+			}
 
 			if strings.Contains(Cfg.DiscoveredPolicyTo, "file") {
 				// retrieve the latest policies from the db
