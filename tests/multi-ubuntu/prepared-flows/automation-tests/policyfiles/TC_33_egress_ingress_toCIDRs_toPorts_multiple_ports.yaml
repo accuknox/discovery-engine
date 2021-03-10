@@ -1,0 +1,34 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autopol-egress-xvlbzgbaicmrajw
+  namespace: multiubuntu
+spec:
+  endpointSelector:
+    matchLabels:
+      container: ubuntu-4
+      group: group-2
+  egress:
+  - toPorts:
+    - ports:
+      - port: "8000"
+        protocol: TCP
+      - port: "8080"
+        protocol: TCP
+    toCIDR:
+    - 10.96.0.23/32
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autopol-ingress-whthctcuaxhxkqf
+  namespace: multiubuntu
+spec:
+  endpointSelector:
+    matchLabels:
+      container: ubuntu-4
+      group: group-2
+  ingress:
+  - fromCIDR:
+    - 10.96.0.23/32
+---

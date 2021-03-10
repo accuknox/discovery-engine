@@ -1,0 +1,31 @@
+[ 
+  {
+    "verdict": "FORWARDED",
+    "IP": {
+      "source": "10.0.1.10",
+      "destination": "10.0.1.108",
+      "ipVersion": "IPv4"
+    },
+    "l4": {
+      "TCP": {
+        "source_port": 42908,
+        "destination_port": 8000
+      }
+    },
+    "source": {
+      "namespace": "multiubuntu",
+      "labels": [
+        "k8s:container=ubuntu-1",
+        "k8s:group=group-1"
+      ],
+      "pod_name": "ubuntu-1-deployment-5ff5974cd4-pp8ef"
+    },
+    "destination": {
+      "namespace": "multiubuntu",
+      "labels": [
+        "k8s:container=ubuntu-4",
+        "k8s:group=group-2"
+      ],
+      "pod_name": "ubuntu-4-deployment-5bbd4f6c69-xfluy"
+    }
+  }]

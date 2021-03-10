@@ -1,0 +1,57 @@
+[{
+		"verdict": "FORWARDED",
+		"IP": {
+			"source": "10.0.1.10",
+			"destination": "10.96.0.23",
+			"ipVersion": "IPv4"
+		},
+		"l4": {
+			"TCP": {
+				"source_port": 52612,
+				"destination_port": 8000
+			}
+		},
+		"source": {
+			"namespace": "multiubuntu",
+			"labels": [
+				"k8s:container=ubuntu-4",
+				"k8s:group=group-2"
+			],
+			"pod_name": "ubuntu-4-deployment-6c57bbb46f-ggbl6"
+		},
+		"destination": {
+			"identity": 2,
+			"labels": [
+				"reserved:world"
+			]
+		}
+	},
+	{
+		"verdict": "FORWARDED",
+		"IP": {
+			"source": "10.0.1.10",
+			"destination": "10.96.0.23",
+			"ipVersion": "IPv4"
+		},
+		"l4": {
+			"TCP": {
+				"source_port": 52612,
+				"destination_port": 8080
+			}
+		},
+		"source": {
+			"namespace": "multiubuntu",
+			"labels": [
+				"k8s:container=ubuntu-4",
+				"k8s:group=group-2"
+			],
+			"pod_name": "ubuntu-4-deployment-6c57bbb46f-ggbl6"
+		},
+		"destination": {
+			"identity": 2,
+			"labels": [
+				"reserved:world"
+			]
+		}
+	}
+]

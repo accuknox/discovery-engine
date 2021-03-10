@@ -1,0 +1,87 @@
+[{
+    "time": "2021-02-24T05:49:44.424282812Z",
+    "verdict": "FORWARDED",
+    "ethernet": {
+      "source": "92:42:d4:69:45:54",
+      "destination": "e6:88:0a:df:38:52"
+    },
+    "IP": {
+      "source": "10.12.3.155",
+      "destination": "10.12.2.35",
+      "ipVersion": "IPv4"
+    },
+    "l4": {
+      "UDP": {
+        "source_port": 53,
+        "destination_port": 39234
+      }
+    },
+    "source": {
+      "identity": 742,
+      "namespace": "kube-system",
+      "labels": [
+        "k8s:io.kubernetes.pod.namespace=kube-system",
+        "k8s:k8s-app=kube-dns"
+      ],
+      "pod_name": "kube-dns-66d6b7c877-chdpr"
+    },
+    "destination": {
+      "ID": 1103,
+      "identity": 4262,
+      "namespace": "multiubuntu",
+      "labels": [
+        "k8s:container=ubuntu-2",
+        "k8s:group=group-1"
+      ],
+      "pod_name": "ubuntu-2-deployment-6c57bbb46f-ggbl6"
+    },
+    "Type": "L3_L4",
+    "node_name": "gke-darkload-darkload-nodepool-b53fdd70-vyaa",
+    "reply": true,
+    "event_type": {
+      "type": 4
+    },
+    "traffic_direction": "EGRESS",
+    "trace_observation_point": "TO_ENDPOINT",
+    "Summary": "UDP"
+  },
+  {
+    "time": "2021-02-24T05:49:44.432771956Z",
+    "verdict": "FORWARDED",
+    "ethernet": {
+      "source": "e6:88:0a:df:38:52",
+      "destination": "92:42:d4:69:45:54"
+    },
+    "IP": {
+      "source": "10.12.2.35",
+      "destination": "143.248.36.38",
+      "ipVersion": "IPv4"
+    },
+    "l4": {
+      "TCP": {
+        "source_port": 52472,
+        "destination_port": 80,
+        "flags": {
+          "SYN": true
+        }
+      }
+    },
+    "source": {
+      "ID": 1103,
+      "identity": 4262,
+      "namespace": "multiubuntu",
+      "labels": [
+        "k8s:container=ubuntu-2",
+        "k8s:group=group-1"
+      ],
+      "pod_name": "ubuntu-2-deployment-6c57bbb46f-ggbl6"
+    },
+    "destination": {
+      "identity": 2,
+      "labels": [
+        "reserved:world"
+      ]
+    }
+  }
+]
+
