@@ -224,6 +224,19 @@ spec:
         image: 0x010/ubuntu-w-utils:latest
 ---
 apiVersion: v1
+kind: Endpoints
+metadata:
+  namespace: multiubuntu
+  name: external-service
+subsets:
+  - addresses:
+      - ip: 143.248.36.38 # seungsoo.net
+    ports:
+      - port: 80
+        protocol: TCP
+        name: http-80
+---
+apiVersion: v1
 kind: Service
 metadata:
   namespace: multiubuntu
@@ -236,16 +249,3 @@ spec:
     targetPort: 80
     protocol: TCP
     name: http-80
----
-apiVersion: v1
-kind: Endpoints
-metadata:
-  namespace: multiubuntu
-  name: external-service
-subsets:
-  - addresses:
-      - ip: 143.248.36.38 # seungsoo.net
-    ports:
-      - port: 80
-        protocol: TCP
-        name: http-80

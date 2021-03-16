@@ -1,0 +1,104 @@
+[{
+  "time": "2021-03-01T11:49:49.967400638Z",
+  "verdict": "FORWARDED",
+  "IP": {
+    "source": "10.12.2.35",
+    "destination": "35.232.8.239",
+    "ipVersion": "IPv4"
+  },
+  "l4": {
+    "TCP": {
+      "source_port": 8080,
+      "destination_port": 8000
+    }
+  },
+  "source": {
+    "ID": 1103,
+    "identity": 4262,
+    "namespace": "multiubuntu",
+    "labels": [
+      "k8s:container=ubuntu-2",
+      "k8s:group=group-1"
+    ],
+    "pod_name": "ubuntu-2-deployment-6c57bbb46f-ggbl6"
+  },
+  "destination": {
+    "identity": 2,
+    "labels": [
+      "reserved:world"
+    ]
+  },
+  "Type": "L7",
+  "node_name": "gke-darkload-darkload-nodepool-b53fdd70-vyaa",
+  "l7": {
+    "type": "REQUEST",
+    "dns": {
+      "query": "app.test.accuknox.com.",
+      "observation_source": "proxy",
+      "qtypes": [
+        "A"
+      ]
+    }
+  },
+  "event_type": {
+    "type": 129
+  },
+  "traffic_direction": "EGRESS",
+  "Summary": "DNS Query app.test.accuknox.com. A"
+}, {
+  "time": "2021-03-01T11:49:49.967979587Z",
+  "verdict": "FORWARDED",
+  "IP": {
+    "source": "10.12.3.155",
+    "destination": "35.232.8.239",
+    "ipVersion": "IPv4"
+  },
+  "l4": {
+    "TCP": {
+      "source_port": 8080,
+      "destination_port": 8000
+    }
+  },
+  "source": {
+    "ID": 1103,
+    "identity": 4262,
+    "namespace": "multiubuntu",
+    "labels": [
+      "k8s:container=ubuntu-2",
+      "k8s:group=group-1"
+    ],
+    "pod_name": "ubuntu-2-deployment-6c57bbb46f-ggbl6"
+  },
+
+  "destination": {
+    "identity": 2,
+    "labels": [
+      "reserved:world"
+    ]
+  },
+  "Type": "L7",
+  "node_name": "gke-darkload-darkload-nodepool-b53fdd70-vyaa",
+  "l7": {
+    "type": "RESPONSE",
+    "dns": {
+      "query": "app.test.accuknox.com.",
+      "ips": [
+        "35.232.8.239"
+      ],
+      "ttl": 1739,
+      "observation_source": "proxy",
+      "qtypes": [
+        "A"
+      ],
+      "rrtypes": [
+        "A"
+      ]
+    }
+  },
+  "reply": true,
+  "event_type": {
+    "type": 129
+  },
+  "traffic_direction": "EGRESS",
+  "Summary": "DNS Answer \"35.232.8.239\" TTL: 1256 (Proxy app.test.accuknox.com. A)"
+}]

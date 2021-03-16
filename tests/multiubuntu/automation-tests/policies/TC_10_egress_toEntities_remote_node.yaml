@@ -1,0 +1,14 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autopol-egress-xvlbzgbaicmrajw
+  namespace: multiubuntu
+spec:
+  endpointSelector:
+    matchLabels:
+      container: ubuntu-1
+      group: group-1
+  egress:
+  - toEntities:
+    - remote-node
+---

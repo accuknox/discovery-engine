@@ -1,0 +1,31 @@
+[{
+        "verdict": "FORWARDED",
+        "IP": {
+                "source": "10.0.1.10",
+                "destination": "10.110.105.183",
+                "ipVersion": "IPv4"
+        },
+        "l4": {
+                "TCP": {
+                        "source_port": 52612,
+                        "destination_port": 80,
+                        "flags": {
+                                "SYN": true
+                        }
+                }
+        },
+        "source": {
+                "namespace": "multiubuntu",
+                "labels": [
+                        "k8s:container=ubuntu-1",
+                        "k8s:group=group-1"
+                ],
+                "pod_name": "ubuntu-1-deployment-6c57bbb46f-ggbl6"
+        },
+        "destination": {
+                "identity": 2,
+                "labels": [
+                        "reserved:remote-node"
+                ]
+        }
+}]

@@ -52,3 +52,7 @@ export DISCOVERY_RULE_TYPES=511
 export IGNORING_NAMESPACES="kube-system|knox-auto-policy|cilium|hipster"
 
 $AUTOPOL_HOME/src/knoxAutoPolicy
+echo $?
+if [ $? != 0 ]; then
+    exit 1
+fi

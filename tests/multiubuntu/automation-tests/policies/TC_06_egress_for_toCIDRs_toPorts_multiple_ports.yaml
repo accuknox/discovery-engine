@@ -1,0 +1,20 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autopol-egress-dafplsjfbcxoeff
+  namespace: multiubuntu
+spec:
+  endpointSelector:
+    matchLabels:
+      container: ubuntu-2
+      group: group-1
+  egress:
+  - toPorts:
+    - ports:
+      - port: "8000"
+        protocol: TCP
+      - port: "8080"
+        protocol: TCP
+    toCIDR:
+    - 143.248.36.38/32
+---

@@ -1,0 +1,12 @@
+version: "3"
+services:
+  mysqlexample:
+    image: mysql:8.0.17
+    container_name: mysql-example
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: "password"
+      MYSQL_DATABASE: "flow_management"
+    volumes:
+      - ./init/:/docker-entrypoint-initdb.d/

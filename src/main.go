@@ -2,6 +2,7 @@ package main
 
 import (
 	"net"
+	"os"
 
 	gserver "github.com/accuknox/knoxAutoPolicy/src/server"
 	"github.com/rs/zerolog/log"
@@ -10,8 +11,8 @@ import (
 func main() {
 	lis, err := net.Listen("tcp", ":"+gserver.PortNumber)
 	if err != nil {
-		log.Info().Msgf("KnoxAutoPolicy failed to listen: %v", err)
-		return
+		log.Error().Msgf("KnoxAutoPolicy failed to listen: %v", err)
+		os.Exit(1)
 	}
 
 	server := gserver.GetNewServer()

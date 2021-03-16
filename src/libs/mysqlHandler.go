@@ -20,6 +20,7 @@ func ConnectMySQL(cfg types.ConfigDB) (db *sql.DB) {
 		time.Sleep(time.Second * 1)
 		db, err = sql.Open(cfg.DBDriver, cfg.DBUser+":"+cfg.DBPass+"@tcp("+cfg.DBHost+":"+cfg.DBPort+")/"+cfg.DBName)
 	}
+	db.SetMaxIdleConns(0)
 	return db
 }
 
