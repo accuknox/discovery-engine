@@ -21,16 +21,45 @@ FAILED_TESTS=()
 ## == Helper Functions == ##
 ## ====================== ##
 
+# Checks if element "$1" is in array "$2"
+# @NOTE:
+#   Be sure that array is passed in the form:
+#       "${ARR[@]}"
+# Usage:
+# list=(11 22 33)
+# item=22
+
+# if elementIn "$item" "${list[@]}"; then
+#     echo TRUE;
+# else
+#     echo FALSE
+# fi
+function elementIn() {
+    local e
+    for e in "${@:2}"; do [[ "$e" == "$1" ]] && return 0; done
+    return 1
+}
+
 function start_and_wait_for_mysql_initialization() {
     cd $TEST_HOME/mysql
     docker-compose up -d
 
-    sleep 10
+    for (( ; ; ))
+    do
+        docker logs mysql-example > ./logs 2>&1
+        log=$(cat $TEST_HOME/mysql/logs)
+        if [[ $log == *"Ready for start up"* ]]; then
+            break
+        fi
+
+        sleep 1
+    done
 }
 
 function stop_and_wait_for_mysql_termination() {
     cd $TEST_HOME/mysql
     docker-compose down -v
+    rm $TEST_HOME/mysql/logs
 }
 
 res_start_service=0
@@ -218,10 +247,18 @@ if [ $res_microservice == 0 ]; then
             echo "[INFO] Tested $testcase"
         fi
 
+        if elementIn "$testcase" "${PASSED_TESTS[@]}"; then
+            echo TRUE;
+        else
+            echo FALSE
+        fi
+
         # stop knoxAutoPolicy
         echo -e "${ORANGE}[INFO] Stopping KnoxAutoPolicy${NC}"
         stop_and_wait_for_KnoxAutoPolicy_termination
         echo "[INFO] Stopped KnoxAutoPolicy"
+
+        break
     done
 
     # res_delete=0
@@ -237,30 +274,6 @@ fi
 ## == Database == ##
 ## ============== ##
 
-# echo -e "${ORANGE}[INFO] Stopping MySQL database${NC}"
+echo -e "${ORANGE}[INFO] Stopping MySQL database${NC}"
 stop_and_wait_for_mysql_termination
-# echo "[INFO] Stopped MySQL database"
-
-
-# ## == KnoxAutoPolicy == ##
-
-# res_KnoxAutoPolicy=0
-
-# echo -e "${ORANGE}[INFO] Stopping KnoxAutoPolicy${NC}"
-# stop_and_wait_for_KnoxAutoPolicy_termination
-
-# if [ $res_KnoxAutoPolicy == 0 ]; then
-#     echo "[INFO] Stopped KnoxAutoPolicy"
-# fi
-
-# if [ $res_microservice != 0 ]; then
-#     echo -e "${RED}[FAIL] Failed to test KnoxAutoPolicy${NC}"
-# else
-#     echo -e "${BLUE}[PASS] Successfully tested KnoxAutoPolicy${NC}"
-# fi
-
-# if [ $res_microservice != 0 ]; then
-#     exit 1
-# else
-#     exit 0
-# fi
+echo "[INFO] Stopped MySQL database"
