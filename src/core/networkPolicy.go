@@ -29,24 +29,28 @@ import (
 // const values
 const (
 	// discovery policy type
-	Egress        = 1
-	Ingress       = 2
-	EgressIngress = 3
+	EGRESS         = 1
+	INGRESS        = 2
+	EGRESS_INGRESS = 3
 
 	// discovery rule type
-	matchLabels  = 1 << 0 // 1
-	toPorts      = 1 << 1 // 2
-	toHTTPs      = 1 << 2 // 4
-	toCIDRs      = 1 << 3 // 8
-	toEntities   = 1 << 4 // 16
-	toServices   = 1 << 5 // 32
-	toFQDNs      = 1 << 6 // 64
-	fromCIDRs    = 1 << 7 // 128
-	fromEntities = 1 << 8 // 256
+	MATCH_LABELS  = 1 << 0 // 1
+	TO_PORTS      = 1 << 1 // 2
+	TO_HTTPS      = 1 << 2 // 4
+	TO_CIDRS      = 1 << 3 // 8
+	TO_ENTITIES   = 1 << 4 // 16
+	TO_SERVICES   = 1 << 5 // 32
+	TO_FQDNS      = 1 << 6 // 64
+	FROM_CIDRS    = 1 << 7 // 128
+	FROM_ENTITIES = 1 << 8 // 256
+
+	// operation mode
+	OP_MODE_CRONJOB = 1
+	OP_MODE_ONETIME = 2
 
 	// status
-	StatusRunning = "running"
-	StatusIdle    = "idle"
+	STATUS_RUNNING = "running"
+	STATUS_IDLE    = "idle"
 )
 
 // ======================= //
@@ -61,30 +65,33 @@ var cronJob *cron.Cron
 var waitG sync.WaitGroup
 var stopChan chan struct{}
 
+// for k8s service ports
 var exposedTCPPorts = []int{}
 var exposedUDPPorts = []int{}
 var exposedSCTPPorts = []int{}
 
+// if the target IP is in out-of-cluster
 var externals = []string{"reserved:world", "external"}
 
-type labeledSrcsPerDstMap map[Dst][]SrcSimple          // key: simple Dst, value: simple Src
-var gLabeledSrcsPerDst map[string]labeledSrcsPerDstMap // key: namespace, value: LabeledSrcsPerDstMap
+// labeledSrcsPerDstMap [key: simple Dst, value: simple Src]
+type labeledSrcsPerDstMap map[Dst][]SrcSimple
 
-// DomainToIPs key: domain name, value: ip addresses
+// gLabeledSrcsPerDst [key: namespace, value: LabeledSrcsPerDstMap]
+var gLabeledSrcsPerDst map[string]labeledSrcsPerDstMap
+
+// DomainToIPs [key: domain name, value: ip addresses]
 var DomainToIPs map[string][]string
 
 // k8sDNSSvc kube-dns services
 var k8sDNSSvc []types.Service
 
-// FlowIDTracker flow ids tracking
+// FlowIDTracker flow ids (stored in DB) tracking - To show a discovered policy comes from which network logs
 var FlowIDTracker map[FlowIDTracking][]int
-
-// FlowIDTracker2 flow ids tracking2
 var FlowIDTracker2 map[FlowIDTracking2][]int
 
 // init Function
 func init() {
-	Status = "idle"
+	Status = STATUS_IDLE
 
 	stopChan = make(chan struct{})
 	waitG = sync.WaitGroup{}
@@ -1189,7 +1196,7 @@ func buildNetworkPolicy(namespace string, services []types.Service, aggregatedSr
 			// ==================== //
 			if dst.MatchLabels != "" {
 				// check matchLabels rule
-				if Cfg.DiscoveryRuleTypes&matchLabels == 0 {
+				if Cfg.DiscoveryRuleTypes&MATCH_LABELS == 0 {
 					continue
 				}
 
@@ -1246,7 +1253,7 @@ func buildNetworkPolicy(namespace string, services []types.Service, aggregatedSr
 								}
 
 								// check toHTTPs rule
-								if Cfg.DiscoveryRuleTypes&toHTTPs > 0 {
+								if Cfg.DiscoveryRuleTypes&TO_HTTPS > 0 {
 									egressRule.ToHTTPs = append(egressRule.ToHTTPs, httpRule)
 								}
 							}
@@ -1258,19 +1265,19 @@ func buildNetworkPolicy(namespace string, services []types.Service, aggregatedSr
 					}
 
 					// check toPorts rule
-					if Cfg.DiscoveryRuleTypes&toPorts > 0 {
+					if Cfg.DiscoveryRuleTypes&TO_PORTS > 0 {
 						egressRule.ToPorts = dst.ToPorts
 					}
 				}
 
 				// check egress
 				egressPolicy.Spec.Egress = append(egressPolicy.Spec.Egress, egressRule)
-				if Cfg.DiscoveryPolicyTypes&Egress > 0 {
+				if Cfg.DiscoveryPolicyTypes&EGRESS > 0 {
 					networkPolicies = append(networkPolicies, egressPolicy)
 				}
 
 				// check ingress
-				if Cfg.DiscoveryPolicyTypes&Ingress > 0 && dst.Namespace != "kube-system" {
+				if Cfg.DiscoveryPolicyTypes&INGRESS > 0 && dst.Namespace != "kube-system" {
 					ingressPolicy := buildNewIngressPolicyFromEgressPolicy(egressRule, egressPolicy.Spec.Selector)
 					ingressPolicy.Spec.Ingress[0].MatchLabels["k8s:io.kubernetes.pod.namespace"] = namespace
 					ingressPolicy.FlowIDs = egressPolicy.FlowIDs
@@ -1289,24 +1296,24 @@ func buildNetworkPolicy(namespace string, services []types.Service, aggregatedSr
 				}
 
 				// check toCIDRs rule
-				if Cfg.DiscoveryRuleTypes&toCIDRs > 0 {
+				if Cfg.DiscoveryRuleTypes&TO_CIDRS > 0 {
 					egressRule.ToCIDRs = []types.SpecCIDR{cidr}
 				}
 
 				// check toPorts rule
-				if len(dst.ToPorts) > 0 && Cfg.DiscoveryRuleTypes&toPorts > 0 {
+				if len(dst.ToPorts) > 0 && Cfg.DiscoveryRuleTypes&TO_PORTS > 0 {
 					egressPolicy.Metadata["rule"] = egressPolicy.Metadata["rule"] + "+toPorts"
 					egressRule.ToPorts = dst.ToPorts
 				}
 
 				// check egress
 				egressPolicy.Spec.Egress = append(egressPolicy.Spec.Egress, egressRule)
-				if Cfg.DiscoveryPolicyTypes&Egress > 0 {
+				if Cfg.DiscoveryPolicyTypes&EGRESS > 0 {
 					networkPolicies = append(networkPolicies, egressPolicy)
 				}
 
 				// check ingress & fromCIDRs rule
-				if Cfg.DiscoveryPolicyTypes&Ingress > 0 && Cfg.DiscoveryRuleTypes&fromCIDRs > 0 {
+				if Cfg.DiscoveryPolicyTypes&INGRESS > 0 && Cfg.DiscoveryRuleTypes&FROM_CIDRS > 0 {
 					// add ingress policy
 					ingressPolicy := buildNewIngressPolicyFromSameSelector(namespace, egressPolicy.Spec.Selector)
 					ingressPolicy.Metadata["rule"] = "toCIDRs"
@@ -1329,7 +1336,7 @@ func buildNetworkPolicy(namespace string, services []types.Service, aggregatedSr
 				// =============== //
 
 				// check egress & toFQDNs rule
-				if Cfg.DiscoveryPolicyTypes&Egress > 0 && Cfg.DiscoveryRuleTypes&toFQDNs > 0 {
+				if Cfg.DiscoveryPolicyTypes&EGRESS > 0 && Cfg.DiscoveryRuleTypes&TO_FQDNS > 0 {
 
 					sort.Strings(dst.Additionals)
 					fqdn := types.SpecFQDN{
@@ -1358,12 +1365,12 @@ func buildNetworkPolicy(namespace string, services []types.Service, aggregatedSr
 				egressPolicy.Spec.Egress = append(egressPolicy.Spec.Egress, egressRule)
 
 				// check egress & toEntities rule
-				if Cfg.DiscoveryPolicyTypes&Egress > 0 && Cfg.DiscoveryRuleTypes&toEntities > 0 {
+				if Cfg.DiscoveryPolicyTypes&EGRESS > 0 && Cfg.DiscoveryRuleTypes&TO_ENTITIES > 0 {
 					networkPolicies = append(networkPolicies, egressPolicy)
 				}
 
 				// check ingress & fromEntities rule
-				if Cfg.DiscoveryPolicyTypes&Ingress > 0 && Cfg.DiscoveryRuleTypes&fromEntities > 0 {
+				if Cfg.DiscoveryPolicyTypes&INGRESS > 0 && Cfg.DiscoveryRuleTypes&FROM_ENTITIES > 0 {
 					ingressPolicy := buildNewIngressPolicyFromSameSelector(namespace, egressPolicy.Spec.Selector)
 					ingressPolicy.Metadata["rule"] = "fromEntities"
 					ingressPolicy.FlowIDs = egressPolicy.FlowIDs
@@ -1378,7 +1385,7 @@ func buildNetworkPolicy(namespace string, services []types.Service, aggregatedSr
 				// ================== //
 				// build Service rule //
 				// ================== //
-				if Cfg.DiscoveryPolicyTypes&Egress > 0 && Cfg.DiscoveryRuleTypes&toServices > 0 {
+				if Cfg.DiscoveryPolicyTypes&EGRESS > 0 && Cfg.DiscoveryRuleTypes&TO_SERVICES > 0 {
 					// to external services (NOT internal k8s service)
 					// to affect this policy, we need a service, an endpoint respectively
 					service := types.SpecService{
@@ -1395,7 +1402,7 @@ func buildNetworkPolicy(namespace string, services []types.Service, aggregatedSr
 	}
 
 	// double check ingress entities for dropped packet
-	if Cfg.DiscoveryPolicyTypes&Ingress > 0 {
+	if Cfg.DiscoveryPolicyTypes&INGRESS > 0 {
 		networkPolicies = checkIngressEntities(namespace, aggregatedSrcPerAggregatedDst, networkPolicies)
 	}
 
@@ -1562,8 +1569,8 @@ func StartToDiscoveryWorker() {
 	// get network logs
 	networkLogs := getNetworkLogs()
 	if networkLogs == nil {
-		if Cfg.OperationMode == 2 && Status == StatusRunning {
-			Status = StatusIdle
+		if Cfg.OperationMode == OP_MODE_ONETIME && Status == STATUS_RUNNING {
+			Status = STATUS_IDLE
 		}
 
 		return
@@ -1605,7 +1612,7 @@ func StartToDiscoveryWorker() {
 
 		log.Info().Msgf("Policy discovery started for namespace: [%s]", namespace)
 
-		// reset flow id track every target namespace
+		// reset flow id track at each target namespace
 		clearTrackFlowID()
 
 		// discover network policies based on the network logs
@@ -1643,8 +1650,8 @@ func StartToDiscoveryWorker() {
 		}
 	}
 
-	if Cfg.OperationMode == 2 && Status == StatusRunning {
-		Status = StatusIdle
+	if Cfg.OperationMode == OP_MODE_ONETIME && Status == STATUS_RUNNING {
+		Status = STATUS_IDLE
 	}
 }
 
@@ -1693,13 +1700,13 @@ func StopCronJob() {
 
 // StartWorker function
 func StartWorker() {
-	if Status != StatusIdle {
+	if Status != STATUS_IDLE {
 		log.Info().Msg("There is no idle discovery worker")
 		return
 	}
-	Status = StatusRunning
+	Status = STATUS_RUNNING
 
-	if Cfg.OperationMode == 1 { // every time intervals
+	if Cfg.OperationMode == OP_MODE_CRONJOB { // every time intervals
 		StartCronJob()
 	} else { // one-time generation
 		StartToDiscoveryWorker()
@@ -1709,13 +1716,13 @@ func StartWorker() {
 
 // StopWorker function
 func StopWorker() {
-	if Status != StatusRunning {
+	if Status != STATUS_RUNNING {
 		log.Info().Msg("There is no running discovery worker")
 		return
 	}
-	Status = StatusIdle
+	Status = STATUS_IDLE
 
-	if Cfg.OperationMode == 1 { // every time intervals
+	if Cfg.OperationMode == OP_MODE_CRONJOB { // every time intervals
 		StopCronJob()
 	}
 }

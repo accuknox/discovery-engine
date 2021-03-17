@@ -201,12 +201,6 @@ func updateDstLabels(dsts []MergedPortDst, pods []types.Pod) []MergedPortDst {
 // == Flow ID Tracking == //
 // ====================== //
 
-// clearTrackFlowID function
-func clearTrackFlowID() {
-	FlowIDTracker = map[FlowIDTracking][]int{}
-	FlowIDTracker2 = map[FlowIDTracking2][]int{}
-}
-
 // trackFlowID function
 func trackFlowID(src SrcSimple, dst Dst, flowID int) {
 	trackKey := FlowIDTracking{Src: src, Dst: dst}
@@ -457,6 +451,11 @@ func updateServiceEndpoint(services []types.Service, endpoints []types.Endpoint,
 // =============== //
 // == Clearance == //
 // =============== //
+
+func clearTrackFlowID() {
+	FlowIDTracker = map[FlowIDTracking][]int{}
+	FlowIDTracker2 = map[FlowIDTracking2][]int{}
+}
 
 func clearDomainToIPs() {
 	DomainToIPs = map[string][]string{}
