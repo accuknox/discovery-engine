@@ -2,9 +2,7 @@
 
 AUTOPOL_HOME=`dirname $(realpath "$0")`/..
 
-cd $AUTOPOL_HOME/knoxAutoPolicy
-
-## == ##
+cd $AUTOPOL_HOME/src
 
 echo
 echo "[INFO] Test KnoxAutoPolicy"

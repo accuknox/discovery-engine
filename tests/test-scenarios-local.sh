@@ -16,51 +16,11 @@ TEST_SCRIPTS=`dirname $(realpath "$0")`/scripts
 
 PASSED_TESTS=()
 FAILED_TESTS=()
+COUNT_TESTS=0
 
-## ====================== ##   
-## == Helper Functions == ##
-## ====================== ##
-
-# Checks if element "$1" is in array "$2"
-# @NOTE:
-#   Be sure that array is passed in the form:
-#       "${ARR[@]}"
-# Usage:
-# list=(11 22 33)
-# item=22
-
-# if elementIn "$item" "${list[@]}"; then
-#     echo TRUE;
-# else
-#     echo FALSE
-# fi
-function elementIn() {
-    local e
-    for e in "${@:2}"; do [[ "$e" == "$1" ]] && return 0; done
-    return 1
-}
-
-function start_and_wait_for_mysql_initialization() {
-    cd $TEST_HOME/mysql
-    docker-compose up -d
-
-    for (( ; ; ))
-    do
-        docker logs mysql-example > ./logs 2>&1
-        log=$(cat $TEST_HOME/mysql/logs)
-        if [[ $log == *"Ready for start up"* ]]; then
-            break
-        fi
-
-        sleep 1
-    done
-}
-
-function stop_and_wait_for_mysql_termination() {
-    cd $TEST_HOME/mysql
-    docker-compose down -v
-    rm $TEST_HOME/mysql/logs
-}
+## ==================== ##   
+## == KnoxAutoPolicy == ##
+## ==================== ##
 
 res_start_service=0
 
@@ -94,8 +54,51 @@ function stop_and_wait_for_KnoxAutoPolicy_termination() {
     done
 }
 
+function replace_discovery_mode() {
+    if [[ $1 == *"_egress_ingress_"* ]]; then
+        sed -i "s/DISCOVERY_POLICY_TYPES=1/DISCOVERY_POLICY_TYPES=3/" $AUTOPOL_HOME/scripts/startService.sh
+        sed -i "s/DISCOVERY_POLICY_TYPES=2/DISCOVERY_POLICY_TYPES=3/" $AUTOPOL_HOME/scripts/startService.sh
+    elif [[ $1 == *"_egress_"* ]]; then
+        sed -i "s/DISCOVERY_POLICY_TYPES=2/DISCOVERY_POLICY_TYPES=1/" $AUTOPOL_HOME/scripts/startService.sh
+        sed -i "s/DISCOVERY_POLICY_TYPES=3/DISCOVERY_POLICY_TYPES=1/" $AUTOPOL_HOME/scripts/startService.sh
+    else
+        sed -i "s/DISCOVERY_POLICY_TYPES=1/DISCOVERY_POLICY_TYPES=2/" $AUTOPOL_HOME/scripts/startService.sh
+        sed -i "s/DISCOVERY_POLICY_TYPES=3/DISCOVERY_POLICY_TYPES=2/" $AUTOPOL_HOME/scripts/startService.sh
+    fi
+}
+
+## ============== ##
+## == Database == ##
+## ============== ##
+
+function start_and_wait_for_mysql_initialization() {
+    cd $TEST_HOME/mysql
+    docker-compose up -d
+
+    for (( ; ; ))
+    do
+        docker logs mysql-example > ./logs 2>&1
+        log=$(cat $TEST_HOME/mysql/logs)
+        if [[ $log == *"Ready for start up"* ]]; then
+            break
+        fi
+
+        sleep 1
+    done
+}
+
+function stop_and_wait_for_mysql_termination() {
+    cd $TEST_HOME/mysql
+    docker-compose down -v
+    rm $TEST_HOME/mysql/logs
+}
+
+## ================== ##
+## == Microservice == ##
+## ================== ##
+
 function apply_and_wait_for_microservice_creation() {
-    cd $TEST_HOME/multiubuntu/k8s
+    cd $TEST_HOME/$1/deployment_k8s
 
     kubectl apply -f .
     if [ $? != 0 ]; then
@@ -120,7 +123,7 @@ function apply_and_wait_for_microservice_creation() {
 }
 
 function delete_and_wait_for_microserivce_deletion() {
-    cd $TEST_HOME/multiubuntu/k8s
+    cd $TEST_HOME/$1/deployment_k8s
 
     kubectl delete -f .
     if [ $? != 0 ]; then
@@ -129,102 +132,113 @@ function delete_and_wait_for_microserivce_deletion() {
     fi
 }
 
-function replace_discovery_mode() {
-    if [[ $1 == *"_egress_ingress_"* ]]; then
-        sed -i "s/DISCOVERY_POLICY_TYPES=1/DISCOVERY_POLICY_TYPES=3/" $AUTOPOL_HOME/scripts/startService.sh
-        sed -i "s/DISCOVERY_POLICY_TYPES=2/DISCOVERY_POLICY_TYPES=3/" $AUTOPOL_HOME/scripts/startService.sh
-    elif [[ $1 == *"_egress_"* ]]; then
-        sed -i "s/DISCOVERY_POLICY_TYPES=2/DISCOVERY_POLICY_TYPES=1/" $AUTOPOL_HOME/scripts/startService.sh
-        sed -i "s/DISCOVERY_POLICY_TYPES=3/DISCOVERY_POLICY_TYPES=1/" $AUTOPOL_HOME/scripts/startService.sh
-    else
-        sed -i "s/DISCOVERY_POLICY_TYPES=1/DISCOVERY_POLICY_TYPES=2/" $AUTOPOL_HOME/scripts/startService.sh
-        sed -i "s/DISCOVERY_POLICY_TYPES=3/DISCOVERY_POLICY_TYPES=2/" $AUTOPOL_HOME/scripts/startService.sh
+## ==================== ##
+## == Test Functions == ##
+## ==================== ##
+
+function add_label_pods() {
+    if [[ $2 == "TC_16" ]] || [[ $2 == "TC_30" ]]; then
+        cd $1
+        /bin/bash ./add_label.sh $> /dev/null
+    fi
+}
+
+function del_label_pods() {
+    if [[ $2 == "TC_16" ]] || [[ $2 == "TC_30" ]]; then
+        cd $1
+        /bin/bash ./del_label.sh $> /dev/null
     fi
 }
 
 function run_test_case() {
     cd $1
 
-    JSON_FILE=$(ls *.json)
-    EXPECTED_YAML_FILE=$(ls *.yaml)
     ACTUAL_YAML_FILE=cilium_policies_$2.yaml
 
-    # replace configuration
-    replace_discovery_mode $JSON_FILE
+    for JSON_FILE in $(ls -r $TC_*.json)
+    do
+        for EXPECTED_YAML_FILE in $(ls -r $TC_*.yaml)
+        do
+            # check before / after
+            if [[ $JSON_FILE == *"before"* ]] && [[ $EXPECTED_YAML_FILE != *"before"* ]]; then
+                continue
+            elif [[ $JSON_FILE == *"after"* ]] && [[ $EXPECTED_YAML_FILE != *"after"* ]]; then
+                continue
+            fi
 
-    echo -e "${GREEN}[INFO] Discovering from $JSON_FILE"
-    $TEST_SCRIPTS/startTest.sh $1/$JSON_FILE clear &> /dev/null
-    if [ $? != 0 ]; then
-        echo -e "${RED}[FAIL] Failed to discover policies from $JSON_FILE${NC}"
-        res_case=1
-        return
-    fi
-    echo "[INFO] Discovered policies from $JSON_FILE"
+            echo -e "${GREEN}[INFO] Discovering from $JSON_FILE"
+            if [[ $JSON_FILE == *"after"* ]]; then
+                $TEST_SCRIPTS/startTest.sh $1/$JSON_FILE &> /dev/null
+            else
+                $TEST_SCRIPTS/startTest.sh $1/$JSON_FILE clear &> /dev/null
+            fi
 
-    echo -e "${GREEN}[INFO] Comparing $EXPECTED_YAML_FILE and $ACTUAL_YAML_FILE${NC}"
-    python3 $TEST_SCRIPTS/diff.py $AUTOPOL_POLICY/$ACTUAL_YAML_FILE $1/$EXPECTED_YAML_FILE
+            if [ $? != 0 ]; then
+                echo -e "${RED}[FAIL] Failed to discover policies from $JSON_FILE${NC}"
+                res_case=1
+                return
+            fi
+            echo "[INFO] Discovered policies from $JSON_FILE"
 
-    if [ $? != 0 ]; then
-        echo -e "${RED}[FAIL] Failed $3${NC}"
-        res_case=1
-    else
-        echo -e "${BLUE}[PASS] Passed $3${NC}"
-    fi
+            echo -e "${GREEN}[INFO] Comparing $EXPECTED_YAML_FILE and $ACTUAL_YAML_FILE${NC}"
+            python3 $TEST_SCRIPTS/diff.py $AUTOPOL_POLICY/$ACTUAL_YAML_FILE $1/$EXPECTED_YAML_FILE
+            if [ $? != 0 ]; then
+                echo -e "${RED}[FAIL] Failed $3${NC}"
+                FAILED_TESTS+=($testcase)
+                return
+            fi
+        done
+    done
+
+    echo -e "${BLUE}[PASS] Passed $3${NC}"
+    PASSED_TESTS+=($testcase)
 }
 
-## ========================s== ##
-## == Build KnoxAutoPolicy == ##
-## ========================== ##
+## ==================== ##
+## == Test Procedure == ##
+## ==================== ##
+
+## Step 1. Build KnoxAutoPolicy
 
 cd $AUTOPOL_SRC_HOME
 
 if [ ! -f KnoxAutoPolicy ]; then
     echo -e "${ORANGE}[INFO] Building KnoxAutoPolicy${NC}"
-    make clean; make
+    make clean > /dev/null ; make > /dev/null
     echo "[INFO] Built KnoxAutoPolicy"
 fi
 
-## ========================== ##
-## == Start MySQL database == ##
-## ========================== ##
+## Step 2. Start MySQL database
 
 echo -e "${ORANGE}[INFO] Starting MySQL database${NC}"
 start_and_wait_for_mysql_initialization
 echo "[INFO] Started MySQL database"
 
-# echo -e "${ORANGE}[INFO] Starting KnoxAutoPolicy${NC}"
-# start_and_wait_for_KnoxAutoPolicy_initialization
-# if [ $res_start_service != 0 ]; then
-#     echo -e "${RED}[FAIL] Failed to start KnoxAutoPolicy${NC}"
-#     exit 1
-# else
-#     echo "[INFO] Started KnoxAutoPolicy"
-# fi
-
-# echo -e "${ORANGE}[INFO] Stopping KnoxAutoPolicy${NC}"
-# stop_and_wait_for_KnoxAutoPolicy_termination
-# echo "[INFO] Stopped KnoxAutoPolicy"
-
-## =============== ##
-## == Test Main == ##
-## =============== ##
+## Step 3. Deploy microservice
 
 microservice=multiubuntu
 
 res_microservice=0
-# echo -e "${ORANGE}[INFO] Applying $microservice${NC}"
-# apply_and_wait_for_microservice_creation $microservice
+echo -e "${ORANGE}[INFO] Applying $microservice${NC}"
+apply_and_wait_for_microservice_creation $microservice
 
 if [ $res_microservice == 0 ]; then
     echo "[INFO] Applied $microservice"
 
-    # echo "[INFO] Wait for initialization"
-    # sleep 30
-    # echo "[INFO] Started to run testcases"
+    echo "[INFO] Wait for initialization"
+    sleep 30
+    echo "[INFO] Started to run testcases"
 
+## Step 4. Run all the test cases
     cd $TEST_HOME/$microservice/test-cases
     for testcase in $(ls -d $TC_*)
     do
+        add_label_pods $TEST_HOME/$microservice/test-cases/$testcase $testcase
+
+        # replace configuration
+        JSON_FILE=$(ls $TEST_HOME/$microservice/test-cases/$testcase/*.json)
+        replace_discovery_mode $JSON_FILE
+
         # start knoxAutoPolicy
         echo -e "${ORANGE}[INFO] Starting KnoxAutoPolicy${NC}"
         start_and_wait_for_KnoxAutoPolicy_initialization
@@ -240,17 +254,10 @@ if [ $res_microservice == 0 ]; then
         echo -e "${ORANGE}[INFO] Testing $testcase${NC}"
         run_test_case $TEST_HOME/$microservice/test-cases/$testcase $microservice $testcase
         if [ $res_case != 0 ]; then
-            FAILED_TESTS+=($testcase)
             echo "[INFO] Not tested $testcase"
         else
-            PASSED_TESTS+=($testcase)
             echo "[INFO] Tested $testcase"
-        fi
-
-        if elementIn "$testcase" "${PASSED_TESTS[@]}"; then
-            echo TRUE;
-        else
-            echo FALSE
+            ((COUNT_TESTS++))
         fi
 
         # stop knoxAutoPolicy
@@ -258,22 +265,39 @@ if [ $res_microservice == 0 ]; then
         stop_and_wait_for_KnoxAutoPolicy_termination
         echo "[INFO] Stopped KnoxAutoPolicy"
 
-        break
+        del_label_pods $TEST_HOME/$microservice/test-cases/$testcase $testcase
     done
 
-    # res_delete=0
-    # echo -e "${ORANGE}[INFO] Deleting $microservice${NC}"
-    # delete_and_wait_for_microserivce_deletion $microservice
-
-    # if [ $res_delete == 0 ]; then
-    #     echo "[INFO] Deleted $microservice"
-    # fi
+## Step 6. Delete Microservice
+    res_delete=0
+    echo -e "${ORANGE}[INFO] Deleting $microservice${NC}"
+    delete_and_wait_for_microserivce_deletion $microservice
+    if [ $res_delete == 0 ]; then
+        echo "[INFO] Deleted $microservice"
+    fi
 fi
 
-## ============== ##
-## == Database == ##
-## ============== ##
+## Step 7. Stop MySQL Database
 
 echo -e "${ORANGE}[INFO] Stopping MySQL database${NC}"
 stop_and_wait_for_mysql_termination
 echo "[INFO] Stopped MySQL database"
+
+## Step 8. Show Test Results
+
+echo ""
+echo -e "${ORANGE}[INFO] Test Results${NC}"
+echo "       - Completed Cases: " $COUNT_TESTS
+echo "       - Passed    Cases: " ${#PASSED_TESTS[@]}
+echo -n "       - Failed    Cases: " ${#FAILED_TESTS[@]}
+
+if (( ${#FAILED_TESTS[@]} > 0 )); then
+    echo -n " ("
+    for casenumber in ${FAILED_TESTS[@]}
+    do
+        echo -n " "$casenumber
+    done
+    echo ")"
+fi
+
+echo ""

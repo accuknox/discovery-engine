@@ -34,7 +34,7 @@ export POLICY_DIR=$AUTOPOL_HOME/policies/
 # discovery policy types: egress only   : 1
 #                         ingress only  : 2
 #                         all           : 3
-export DISCOVERY_POLICY_TYPES=1
+export DISCOVERY_POLICY_TYPES=3
 
 # discovery rule types: matchLabels: matchLabels: 1
 #                                    toPorts    : 2
