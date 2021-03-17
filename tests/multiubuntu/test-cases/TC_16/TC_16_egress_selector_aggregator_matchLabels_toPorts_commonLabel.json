@@ -1,0 +1,160 @@
+[{
+		"verdict": "FORWARDED",
+		"IP": {
+			"source": "10.12.6.126",
+			"destination": "10.12.2.92",
+			"ipVersion": "IPv4"
+		},
+		"l4": {
+			"UDP": {
+				"source_port": 56740,
+				"destination_port": 53
+			}
+		},
+		"source": {
+			"namespace": "multiubuntu",
+			"labels": [
+				"k8s:container=ubuntu-4",
+				"k8s:group=group-2",
+				"k8s:common:commonselector"
+			],
+			"pod_name": "ubuntu-4-deployment-7bd47f78d5-7sk2w"
+		},
+		"destination": {
+			"namespace": "kube-system",
+			"labels": [
+				"k8s:io.kubernetes.pod.namespace=kube-system",
+				"k8s:k8s-app=kube-dns"
+			],
+			"pod_name": "kube-dns-66d6b7c877-cpn98"
+		}
+	},
+	{
+		"verdict": "FORWARDED",
+		"IP": {
+			"source": "10.12.6.126",
+			"destination": "10.12.4.154",
+			"ipVersion": "IPv4"
+		},
+		"l4": {
+			"TCP": {
+				"source_port": 42908,
+				"destination_port": 8080
+			}
+		},
+		"source": {
+			"namespace": "multiubuntu",
+			"labels": [
+				"k8s:container=ubuntu-1",
+				"k8s:group=group-1",
+				"k8s:common:commonselector"
+			],
+			"pod_name": "ubuntu-1-deployment-7bd47f78d5-7sk2w"
+		},
+		"destination": {
+			"namespace": "multiubuntu",
+			"labels": [
+				"k8s:container=ubuntu-4",
+				"k8s:group=group-2",
+				"k8s:common:commonselector"
+			],
+			"pod_name": "ubuntu-4-deployment-77675c466d-9chzq"
+		}
+	},
+	{
+		"verdict": "FORWARDED",
+		"IP": {
+			"source": "10.12.6.126",
+			"destination": "10.12.4.154",
+			"ipVersion": "IPv4"
+		},
+		"l4": {
+			"TCP": {
+				"source_port": 42908,
+				"destination_port": 8080
+			}
+		},
+		"source": {
+			"namespace": "multiubuntu",
+			"labels": [
+				"k8s:container=ubuntu-2",
+				"k8s:group=group-1",
+				"k8s:common:commonselector"
+			],
+			"pod_name": "ubuntu-2-deployment-7bd47f78d5-7sk2w"
+		},
+		"destination": {
+			"namespace": "multiubuntu",
+			"labels": [
+				"k8s:container=ubuntu-4",
+				"k8s:group=group-2",
+				"k8s:common:commonselector"
+			],
+			"pod_name": "ubuntu-4-deployment-77675c466d-9chzq"
+		}
+	},
+	{
+		"verdict": "FORWARDED",
+		"IP": {
+			"source": "10.12.6.126",
+			"destination": "10.12.4.154",
+			"ipVersion": "IPv4"
+		},
+		"l4": {
+			"TCP": {
+				"source_port": 42908,
+				"destination_port": 8080
+			}
+		},
+		"source": {
+			"namespace": "multiubuntu",
+			"labels": [
+				"k8s:container=ubuntu-3",
+				"k8s:group=group-1",
+				"k8s:common:commonselector"
+			],
+			"pod_name": "ubuntu-3-deployment-7bd47f78d5-7sk2w"
+		},
+		"destination": {
+			"namespace": "multiubuntu",
+			"labels": [
+				"k8s:container=ubuntu-4",
+				"k8s:group=group-2",
+				"k8s:common:commonselector"
+			],
+			"pod_name": "ubuntu-4-deployment-77675c466d-9chzq"
+		}
+	},
+	{
+		"verdict": "FORWARDED",
+		"IP": {
+			"source": "10.12.6.126",
+			"destination": "10.12.4.154",
+			"ipVersion": "IPv4"
+		},
+		"l4": {
+			"TCP": {
+				"source_port": 42908,
+				"destination_port": 8080
+			}
+		},
+		"source": {
+			"namespace": "multiubuntu",
+			"labels": [
+				"k8s:container=ubuntu-5",
+				"k8s:group=group-2",
+				"k8s:common:commonselector"
+			],
+			"pod_name": "ubuntu-5-deployment-7bd47f78d5-7sk2w"
+		},
+		"destination": {
+			"namespace": "multiubuntu",
+			"labels": [
+				"k8s:container=ubuntu-4",
+				"k8s:group=group-2",
+				"k8s:common:commonselector"
+			],
+			"pod_name": "ubuntu-4-deployment-77675c466d-9chzq"
+		}
+	}
+]

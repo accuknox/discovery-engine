@@ -1613,6 +1613,9 @@ func StartToDiscoveryWorker() {
 
 		// remove duplicated policy
 		newPolicies := UpdateDuplicatedPolicy(existingPolicies, discoveredPolicies, DomainToIPs)
+		sort.Slice(newPolicies, func(i, j int) bool {
+			return newPolicies[i].Metadata["name"] < newPolicies[j].Metadata["name"]
+		})
 
 		if len(newPolicies) > 0 {
 			// insert discovered policies to db

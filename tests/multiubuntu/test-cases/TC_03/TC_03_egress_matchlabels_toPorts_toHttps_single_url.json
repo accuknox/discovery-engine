@@ -1,0 +1,59 @@
+[{
+    "verdict": "FORWARDED",
+    "IP": {
+      "source": "10.12.6.126",
+      "destination": "10.12.4.154",
+      "ipVersion": "IPv4"
+    },
+    "l4": {
+      "TCP": {
+        "source_port": 42908,
+        "destination_port": 8080
+      }
+    },
+    "source": {
+    "namespace": "multiubuntu",
+      "labels": [
+        "k8s:container=ubuntu-1",
+        "k8s:group=group-1"
+      ],
+      "pod_name": "ubuntu-1-deployment-7bd47f78d5-7sk2w"
+    },
+    "destination": {
+     "namespace": "multiubuntu",
+      "labels": [
+        "k8s:container=ubuntu-4",
+        "k8s:group=group-2"
+      ],
+      "pod_name": "ubuntu-4-deployment-77675c466d-9chzq"
+    },
+    "Type": "L7",
+    "node_name": "gke-darkload-darkload-nodepool-b53fdd70-zqk6",
+    "l7": {
+      "type": "REQUEST",
+      "http": {
+        "method": "GET",
+        "url": "http://ubuntu-4-service:8080/test1",
+        "protocol": "HTTP/1.1",
+        "headers": [
+          {
+            "key": "Accept",
+            "value": "*/*"
+          },
+          {
+            "key": "User-Agent",
+            "value": "curl/7.47.0"
+          },
+          {
+            "key": "X-Request-Id",
+            "value": "b1647b05-30e7-4623-a1f4-2a87c9a9664f"
+          }
+        ]
+      }
+    },
+    "event_type": {
+      "type": 129
+    },
+    "traffic_direction": "EGRESS",
+    "Summary": "HTTP/1.1 GET http://ubuntu-4-service:8080/test1"
+  }]

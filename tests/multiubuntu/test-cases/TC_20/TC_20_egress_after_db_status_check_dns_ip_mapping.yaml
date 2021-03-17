@@ -1,0 +1,33 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autopol-egress-whthctcuaxhxkqf
+  namespace: multiubuntu
+spec:
+  endpointSelector:
+    matchLabels:
+      container: ubuntu-3
+      group: group-1
+  egress:
+  - toPorts:
+    - ports:
+      - port: "8000"
+        protocol: TCP
+    toFQDNs:
+    - matchName: seungsoo.net
+  - toEndpoints:
+    - matchLabels:
+        k8s-app: kube-dns
+        k8s:io.kubernetes.pod.namespace: kube-system
+    toPorts:
+    - ports:
+      - port: "53"
+        protocol: UDP
+      - port: "53"
+        protocol: TCP
+      - port: "9153"
+        protocol: TCP
+      rules:
+        dns:
+        - matchPattern: '*'
+---

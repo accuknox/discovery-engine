@@ -1,0 +1,28 @@
+[{
+        "verdict": "FORWARDED",
+        "IP": {
+                "source": "10.0.1.10",
+                "destination": "143.248.36.38",
+                "ipVersion": "IPv4"
+        },
+        "l4": {
+                "TCP": {
+                        "source_port": 52612,
+                        "destination_port": 8000
+                }
+        },
+        "source": {
+                "namespace": "multiubuntu",
+                "labels": [
+                        "k8s:container=ubuntu-3",
+                        "k8s:group=group-1"
+                ],
+                "pod_name": "ubuntu-3-deployment-6c57bbb46f-ggbl6"
+        },
+        "destination": {
+                "identity": 2,
+                "labels": [
+                        "reserved:world"
+                ]
+        }
+}]
