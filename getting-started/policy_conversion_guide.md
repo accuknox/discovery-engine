@@ -62,12 +62,6 @@
 |-----------------|-------------------|
 |<pre>egress:<br />  - matchLabels:<br />      [key1]: [value1]<br />      [keyN]: [valueN]</pre>|<pre>egress:<br />- fromEndpoints:<br />  - matchLabels:<br />      [key1]: [value1]<br />      [keyN]: [valueN]</pre>|
 
-- fromCIDRs
-
-|KnoxNetworkPolicy|CiliumNetworkPolicy|
-|-----------------|-------------------|
-|<pre>egress:<br />  - fromCIDRs:<br />    - cidrs:<br />      - [ip addr]/[cidr bits]</pre>|<pre>egress:<br />- fromCIDR:<br />  - [ip addr]/[cidr bits]</pre>|
-
 - fromEntities (the same)
 
 |KnoxNetworkPolicy|CiliumNetworkPolicy|
