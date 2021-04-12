@@ -64,11 +64,7 @@ spec:
       - method: [http method]
         path: [http path]
         aggregated: [true/false]
-        
-      fromCIDRs:
-      - cidrs:
-        - [ip addr]/[cidr bits]
-        
+              
       fromEntities:
       - [entity]
         
@@ -165,12 +161,7 @@ Here, we will briefly explain how to define the knox network policy.
         [keyN]: [valueN]        
       toPorts:
       - port: [port number]
-        protocol: [protocol]        
-      fromCIDRs:
-      - cidrs:
-        - [ip addr]/[cidr bits]
-        except:
-        - [ip addr]/[cidr bits]        
+        protocol: [protocol]   
       fromEntities:
       - [entity]
     ```
