@@ -10,7 +10,7 @@ metadata:
   name: [policy name]
   namespace: [namespace name]
   type: [egress|ingress]
-  rule: [matchLabels|toPorts|toCIDRs|fromCIDRs|toEntities|fromEntities|toServices|toFQDNs|toHTTPs]
+  rule: [matchLabels|toPorts|toCIDRs|toEntities|fromEntities|toServices|toFQDNs|toHTTPs]
   status: [outdated|latest]
   
 outdated: [overlapped policy name]
@@ -90,7 +90,7 @@ Here, we will briefly explain how to define the knox network policy.
       name: [policy name]
       namespace: [namespace name]
       type: [egress|ingress]
-      rule: [matchLabels|toPorts|toCIDRs|fromCIDRs|toEntities|fromEntities|toServices|toFQDNs|toHTTPs]
+      rule: [matchLabels|toPorts|toCIDRs|toEntities|fromEntities|toServices|toFQDNs|toHTTPs]
       status: [outdated|latest]
     outdated: [overlapped policy name]
     generatedTime: [unix time second]
@@ -152,7 +152,7 @@ Here, we will briefly explain how to define the knox network policy.
     
 - Ingress
 
-    In the ingress rule, we have 4 different types; matchLables, toPorts, fromCIDRs, fromEntities. And these are working as the egress does. ToPorts rules in the ingress mean the destination port information that the selector exposes.
+    In the ingress rule, we have 4 different types; matchLables, toPorts, fromEntities. And these are working as the egress does. ToPorts rules in the ingress mean the destination port information that the selector exposes.
     
     ```
     ingress:

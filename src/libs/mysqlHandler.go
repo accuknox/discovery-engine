@@ -143,7 +143,7 @@ func GetNetworkPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) (
 	var results *sql.Rows
 	var err error
 
-	query := "SELECT apiVersion,kind,flow_ids,name,cluster_name,namespace,type,rule,status,outdated,spec,generatedTime FROM " + cfg.TableDiscoveredPolicy
+	query := "SELECT apiVersion,kind,flow_ids,name,cluster_name,namespace,type,rule,status,outdated,spec,generatedTime FROM " + cfg.TableDiscoveredPolicies
 	if namespace != "" && status != "" {
 		query = query + " WHERE namespace = ? and status = ? "
 		results, err = db.Query(query, namespace, status)
@@ -225,7 +225,7 @@ func UpdateOutdatedPolicyFromMySQL(cfg types.ConfigDB, outdatedPolicy string, la
 	var err error
 
 	// set status -> outdated
-	stmt1, err := db.Prepare("UPDATE " + cfg.TableDiscoveredPolicy + " SET status=? WHERE name=?")
+	stmt1, err := db.Prepare("UPDATE " + cfg.TableDiscoveredPolicies + " SET status=? WHERE name=?")
 	if err != nil {
 		return err
 	}
@@ -237,7 +237,7 @@ func UpdateOutdatedPolicyFromMySQL(cfg types.ConfigDB, outdatedPolicy string, la
 	}
 
 	// set outdated -> latest' name
-	stmt2, err := db.Prepare("UPDATE " + cfg.TableDiscoveredPolicy + " SET outdated=? WHERE name=?")
+	stmt2, err := db.Prepare("UPDATE " + cfg.TableDiscoveredPolicies + " SET outdated=? WHERE name=?")
 	if err != nil {
 		return err
 	}
@@ -253,7 +253,7 @@ func UpdateOutdatedPolicyFromMySQL(cfg types.ConfigDB, outdatedPolicy string, la
 
 // insertDiscoveredPolicy function
 func insertDiscoveredPolicy(cfg types.ConfigDB, db *sql.DB, policy types.KnoxNetworkPolicy) error {
-	stmt, err := db.Prepare("INSERT INTO " + cfg.TableDiscoveredPolicy + "(apiVersion,kind,flow_ids,name,cluster_name,namespace,type,rule,status,outdated,spec,generatedTime) values(?,?,?,?,?,?,?,?,?,?,?,?)")
+	stmt, err := db.Prepare("INSERT INTO " + cfg.TableDiscoveredPolicies + "(apiVersion,kind,flow_ids,name,cluster_name,namespace,type,rule,status,outdated,spec,generatedTime) values(?,?,?,?,?,?,?,?,?,?,?,?)")
 	if err != nil {
 		return err
 	}
@@ -309,7 +309,7 @@ func ClearDBTablesMySQL(cfg types.ConfigDB) error {
 	db := ConnectMySQL(cfg)
 	defer db.Close()
 
-	query := "DELETE FROM " + cfg.TableDiscoveredPolicy
+	query := "DELETE FROM " + cfg.TableDiscoveredPolicies
 	if _, err := db.Query(query); err != nil {
 		return err
 	}

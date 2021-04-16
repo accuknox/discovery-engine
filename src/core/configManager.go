@@ -56,7 +56,7 @@ func LoadConfigDB() types.ConfigDB {
 	cfgDB.DBPort = libs.GetEnv("DB_PORT", "3306")
 
 	cfgDB.TableNetworkFlow = libs.GetEnv("TB_NETWORK_FLOW", "network_flow")
-	cfgDB.TableDiscoveredPolicy = libs.GetEnv("TB_DISCOVERED_POLICY", "discovered_policy")
+	cfgDB.TableDiscoveredPolicies = libs.GetEnv("TB_DISCOVERED_POLICIES", "discovered_policies")
 	cfgDB.TableConfiguration = libs.GetEnv("TB_CONFIGURATION", "auto_policy_config")
 
 	PlugIn = "cilium" // for now, cilium only supported
