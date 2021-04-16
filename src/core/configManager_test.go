@@ -18,7 +18,7 @@ func TestLoadConfigDB(t *testing.T) {
 	assert.NotEmpty(t, cfg.DBPort, "db host should not be empty")
 
 	assert.NotEmpty(t, cfg.TableNetworkFlow, "table networkf_flow should not be empty")
-	assert.NotEmpty(t, cfg.TableDiscoveredPolicy, "table discovered_policy should not be empty")
+	assert.NotEmpty(t, cfg.TableDiscoveredPolicies, "table discovered_policy should not be empty")
 	assert.NotEmpty(t, cfg.TableConfiguration, "table auto_policy_config should not be empty")
 }
 

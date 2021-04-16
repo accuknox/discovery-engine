@@ -9,9 +9,9 @@ type ConfigDB struct {
 	DBPass   string `json:"db_pass,omitempty" bson:"db_pass,omitempty"`
 	DBName   string `json:"db_name,omitempty" bson:"db_name,omitempty"`
 
-	TableNetworkFlow      string `json:"table_network_flow,omitempty" bson:"table_network_flow,omitempty"`
-	TableDiscoveredPolicy string `json:"table_discovered_policy,omitempty" bson:"table_discovered_policy,omitempty"`
-	TableConfiguration    string `json:"table_auto_policy_config,omitempty" bson:"table_auto_policy_config,omitempty"`
+	TableNetworkFlow        string `json:"table_network_flow,omitempty" bson:"table_network_flow,omitempty"`
+	TableDiscoveredPolicies string `json:"table_discovered_policies,omitempty" bson:"table_discovered_policies,omitempty"`
+	TableConfiguration      string `json:"table_auto_policy_config,omitempty" bson:"table_auto_policy_config,omitempty"`
 }
 
 // ConfigCiliumHubble ...

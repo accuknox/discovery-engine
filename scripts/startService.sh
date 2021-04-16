@@ -12,7 +12,7 @@ export DB_NAME=flow_management
 
 # database table info
 export TB_NETWORK_FLOW=network_flow
-export TB_DISCOVERED_POLICY=discovered_policy
+export TB_DISCOVERED_POLICIES=discovered_policies
 export TB_CONFIGURATION=auto_policy_config
 
 # cilium hubble info (if want to connect with hubble relay directly)
@@ -21,11 +21,11 @@ export HUBBLE_PORT=4245
 
 # operation mode: cronjob: 1
 #                 onetime job: 2
-export OPERATION_MODE=2
-export CRON_JOB_TIME_INTERVAL="@every 0h0m5s"
+export OPERATION_MODE=1
+export CRON_JOB_TIME_INTERVAL="@every 0h0m10s"
 
 # network log source: hubble | db | file (for testing functionalities)
-export NETWORK_LOG_FROM=file
+export NETWORK_LOG_FROM=hubble
 
 # discovered policy output: db or db|file
 export DISCOVERED_POLICY_TO="db|file"
@@ -49,7 +49,7 @@ export DISCOVERY_POLICY_TYPES=3
 export DISCOVERY_RULE_TYPES=511
 
 # skip namepsace info
-export IGNORING_NAMESPACES="kube-system|knox-auto-policy|cilium|hipster"
+export IGNORING_NAMESPACES="kube-system|knox-auto-policy|cilium"
 
 $AUTOPOL_HOME/src/knoxAutoPolicy
 echo $?

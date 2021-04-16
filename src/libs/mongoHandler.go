@@ -34,7 +34,7 @@ func InsertDiscoveredPoliciesToMongoDB(cfg types.ConfigDB, policies []types.Knox
 	client, db := ConnectMongoDB(cfg)
 	defer client.Disconnect(context.Background())
 
-	col := db.Collection(cfg.TableDiscoveredPolicy)
+	col := db.Collection(cfg.TableDiscoveredPolicies)
 
 	for _, policy := range policies {
 		if _, err := col.InsertOne(context.Background(), policy); err != nil {
@@ -73,7 +73,7 @@ func GetDocsByFilter(col *mongo.Collection, filter primitive.M) ([]map[string]in
 func GetNetworkPoliciesFromMongo(cfg types.ConfigDB, namespace, status string) ([]types.KnoxNetworkPolicy, error) {
 	client, db := ConnectMongoDB(cfg)
 	defer client.Disconnect(context.Background())
-	col := db.Collection(cfg.TableDiscoveredPolicy)
+	col := db.Collection(cfg.TableDiscoveredPolicies)
 
 	docs, _ := GetDocsByFilter(col, bson.M{
 		"namespace": namespace,
@@ -115,7 +115,7 @@ func UpdateTimeFilters(filter primitive.M, tsStart, tsEnd int64) {
 func UpdateOutdatedPolicyFromMongo(cfg types.ConfigDB, outdatedPolicy string, latestPolicy string) error {
 	client, db := ConnectMongoDB(cfg)
 	defer client.Disconnect(context.Background())
-	col := db.Collection(cfg.TableDiscoveredPolicy)
+	col := db.Collection(cfg.TableDiscoveredPolicies)
 
 	filter := bson.M{}
 	filter["metadata.name"] = outdatedPolicy

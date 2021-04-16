@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS `network_flow` (
   PRIMARY KEY (`id`)
 );
 
-CREATE TABLE IF NOT EXISTS `discovered_policy` (
+CREATE TABLE IF NOT EXISTS `discovered_policies` (
   `id` int NOT NULL AUTO_INCREMENT,
   `apiVersion` varchar(20) DEFAULT NULL,
   `kind` varchar(20) DEFAULT NULL,
