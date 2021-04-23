@@ -7,7 +7,24 @@ import (
 
 	"github.com/accuknox/knoxAutoPolicy/src/libs"
 	types "github.com/accuknox/knoxAutoPolicy/src/types"
+	"github.com/spf13/viper"
 )
+
+// operation mode: 		   cronjob: 1
+//                 		   onetime job: 2
+// discovery policy types: egress only   : 1
+//                         ingress only  : 2
+//                         all           : 3
+// discovery rule types:   matchLabels: 1
+//                         toPorts    : 2
+//                         toHTTPs    : 4
+//                         toCIDRs    : 8
+//                         toEntities : 16
+//                         toServices : 32
+//                         toFQDNs    : 64
+//                         fromCIDRs  : 128
+//                         fromEntities : 256
+//                         all        : 511
 
 // Cfg ...
 var Cfg types.Configuration
@@ -21,43 +38,27 @@ var HTTPUrlThreshold int
 // PlugIn ...
 var PlugIn string
 
-func init() {
-	// initially, default -> applied
-	LoadDefaultConfig()
-	libs.AddConfiguration(Cfg.ConfigDB, Cfg)
-}
-
 // LoadConfigDB ...
 func LoadConfigDB() types.ConfigDB {
 	cfgDB := types.ConfigDB{}
 
-	cfgDB.DBDriver = libs.GetEnv("DB_DRIVER", "mysql")
-	cfgDB.DBUser = libs.GetEnv("DB_USER", "root")
-	cfgDB.DBPass = libs.GetEnv("DB_PASS", "password")
-	cfgDB.DBName = libs.GetEnv("DB_NAME", "flow_management")
+	cfgDB.DBDriver = viper.GetString("database.driver")
+	cfgDB.DBUser = viper.GetString("database.user")
+	cfgDB.DBPass = viper.GetString("database.password")
+	cfgDB.DBName = viper.GetString("database.dbname")
 
-	if libs.IsK8sEnv() {
-		cfgDB.DBHost = libs.GetEnv("DB_HOST", "database.knox-auto-policy.svc.cluster.local")
-		dbAddr, err := net.LookupIP(cfgDB.DBHost)
-		if err == nil {
-			cfgDB.DBHost = dbAddr[0].String()
-		} else {
-			cfgDB.DBHost = libs.GetExternalIPAddr()
-		}
+	cfgDB.DBHost = viper.GetString("database.host")
+	dbAddr, err := net.LookupIP(cfgDB.DBHost)
+	if err == nil {
+		cfgDB.DBHost = dbAddr[0].String()
 	} else {
-		cfgDB.DBHost = libs.GetEnv("DB_HOST", "database") // for docker-compose
-		dbAddr, err := net.LookupIP(cfgDB.DBHost)
-		if err == nil {
-			cfgDB.DBHost = dbAddr[0].String()
-		} else {
-			cfgDB.DBHost = libs.GetExternalIPAddr()
-		}
+		cfgDB.DBHost = libs.GetExternalIPAddr()
 	}
-	cfgDB.DBPort = libs.GetEnv("DB_PORT", "3306")
+	cfgDB.DBPort = viper.GetString("database.port")
 
-	cfgDB.TableNetworkFlow = libs.GetEnv("TB_NETWORK_FLOW", "network_flow")
-	cfgDB.TableDiscoveredPolicies = libs.GetEnv("TB_DISCOVERED_POLICIES", "discovered_policies")
-	cfgDB.TableConfiguration = libs.GetEnv("TB_CONFIGURATION", "auto_policy_config")
+	cfgDB.TableNetworkFlow = viper.GetString("database.table-network-flow")
+	cfgDB.TableDiscoveredPolicies = viper.GetString("database.table-discovered-policies")
+	cfgDB.TableConfiguration = viper.GetString("database.table-configuration")
 
 	PlugIn = "cilium" // for now, cilium only supported
 
@@ -68,24 +69,15 @@ func LoadConfigDB() types.ConfigDB {
 func LoadConfigCiliumHubble() types.ConfigCiliumHubble {
 	cfgHubble := types.ConfigCiliumHubble{}
 
-	if libs.IsK8sEnv() {
-		cfgHubble.HubbleURL = libs.GetEnv("HUBBLE_URL", "hubble-relay.cilium.svc.cluster.local")
-		addr, err := net.LookupIP(cfgHubble.HubbleURL)
-		if err == nil {
-			cfgHubble.HubbleURL = addr[0].String()
-		} else {
-			cfgHubble.HubbleURL = libs.GetExternalIPAddr()
-		}
+	cfgHubble.HubbleURL = viper.GetString("cilium-hubble.url")
+	addr, err := net.LookupIP(cfgHubble.HubbleURL)
+	if err == nil {
+		cfgHubble.HubbleURL = addr[0].String()
 	} else {
-		cfgHubble.HubbleURL = libs.GetEnv("HUBBLE_URL", "127.0.0.1")
-		addr, err := net.LookupIP(cfgHubble.HubbleURL)
-		if err == nil {
-			cfgHubble.HubbleURL = addr[0].String()
-		} else {
-			cfgHubble.HubbleURL = libs.GetExternalIPAddr()
-		}
+		cfgHubble.HubbleURL = libs.GetExternalIPAddr()
 	}
-	cfgHubble.HubblePort = libs.GetEnv("HUBBLE_PORT", "80")
+
+	cfgHubble.HubblePort = viper.GetString("cilium-hubble.port")
 
 	return cfgHubble
 }
@@ -102,27 +94,27 @@ func LoadDefaultConfig() {
 	Cfg.ConfigCiliumHubble = LoadConfigCiliumHubble()
 
 	// set worker
-	Cfg.OperationMode = libs.GetEnvInt("OPERATION_MODE", 1)
-	Cfg.CronJobTimeInterval = libs.GetEnv("CRON_JOB_TIME_INTERVAL", "@every 0h0m5s")
+	Cfg.OperationMode = viper.GetInt("autopolicy.operation-mode")
+	Cfg.CronJobTimeInterval = viper.GetString("autopolicy.cron-job-time-interval")
 	Cfg.OneTimeJobTimeSelection = "" // e.g., 2021-01-20 07:00:23|2021-01-20 07:00:25
 
 	// input
-	Cfg.NetworkLogFrom = libs.GetEnv("NETWORK_LOG_FROM", "db")
-	Cfg.NetworkLogFile = libs.GetEnv("NETWORK_LOG_FILE", "./flows.json")
+	Cfg.NetworkLogFrom = viper.GetString("autopolicy.network-log-from")
+	Cfg.NetworkLogFile = "./flows.json" // for just local testing
 
 	// output
-	Cfg.DiscoveredPolicyTo = libs.GetEnv("DISCOVERED_POLICY_TO", "db")
-	Cfg.PolicyDir = libs.GetEnv("POLICY_DIR", "./")
+	Cfg.DiscoveredPolicyTo = viper.GetString("autopolicy.discovered-policy-to")
+	Cfg.PolicyDir = viper.GetString("autopolicy.policy-dir")
 
 	// discovery types
-	Cfg.DiscoveryPolicyTypes = libs.GetEnvInt("DISCOVERY_POLICY_TYPES", 3) // 3: all types
-	Cfg.DiscoveryRuleTypes = libs.GetEnvInt("DISCOVERY_RULE_TYPES", 511)   // 511: all rules
+	Cfg.DiscoveryPolicyTypes = viper.GetInt("autopolicy.discovery-policy-types") // 3: all types
+	Cfg.DiscoveryRuleTypes = viper.GetInt("autopolicy.discovery-rule-types")     // 511: all rules
 
 	// cidr bits
 	Cfg.CIDRBits = 32
 
 	// ignoring flows
-	skipNamespacesStr := libs.GetEnv("IGNORING_NAMESPACES", "")
+	skipNamespacesStr := viper.GetString("autopolicy.ignoring-namespaces")
 	SkipNamespaces = strings.Split(skipNamespacesStr, "|")
 
 	// aggregation level
@@ -135,6 +127,8 @@ func LoadDefaultConfig() {
 	} else if Cfg.L7AggregationLevel == 2 {
 		HTTPUrlThreshold = 5
 	}
+
+	libs.AddConfiguration(Cfg.ConfigDB, Cfg)
 }
 
 // SetLogFile for testing

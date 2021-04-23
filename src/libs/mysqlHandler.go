@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/accuknox/knoxAutoPolicy/src/types"
@@ -24,9 +25,9 @@ func ConnectMySQL(cfg types.ConfigDB) (db *sql.DB) {
 	return db
 }
 
-// ===================== //
-// == Network Traffic == //
-// ===================== //
+// ======================== //
+// == Network Flow Event == //
+// ======================== //
 
 // QueryBaseSimple ...
 var QueryBaseSimple string = "select id,time,traffic_direction,verdict,policy_match_type,drop_reason,event_type,source,destination,ip,l4,l7 from "
@@ -37,7 +38,9 @@ func flowScannerToCiliumFlow(results *sql.Rows) ([]map[string]interface{}, error
 	var err error
 
 	for results.Next() {
-		var id, time, verdict, policyMatchType, dropReason, direction uint32
+		var id, time, policyMatchTypeInt, dropReasonInt uint32
+		var policyMatchType, dropReason sql.NullInt32
+		var verdict, direction string
 		var srcByte, destByte, eventTypeByte []byte
 		var ipByte, l4Byte, l7Byte []byte
 
@@ -56,6 +59,14 @@ func flowScannerToCiliumFlow(results *sql.Rows) ([]map[string]interface{}, error
 			&l7Byte,
 		)
 
+		if policyMatchType.Valid {
+			policyMatchTypeInt = uint32(policyMatchType.Int32)
+		}
+
+		if dropReason.Valid {
+			dropReasonInt = uint32(dropReason.Int32)
+		}
+
 		if err != nil {
 			log.Error().Msg("Error while scanning traffic flows :" + err.Error())
 			return nil, err
@@ -66,8 +77,8 @@ func flowScannerToCiliumFlow(results *sql.Rows) ([]map[string]interface{}, error
 			"time":              time,
 			"traffic_direction": direction,
 			"verdict":           verdict,
-			"policy_match_type": policyMatchType,
-			"drop_reason":       dropReason,
+			"policy_match_type": policyMatchTypeInt,
+			"drop_reason":       dropReasonInt,
 			"event_type":        eventTypeByte,
 			"source":            srcByte,
 			"destination":       destByte,
@@ -128,6 +139,76 @@ func GetTrafficFlow(cfg types.ConfigDB) ([]map[string]interface{}, error) {
 	defer rows.Close()
 
 	return flowScannerToCiliumFlow(rows)
+}
+
+func convertDateTimeToUnix(dateTime string) (int64, error) {
+	thetime, err := time.Parse(time.RFC3339, dateTime)
+	if err != nil {
+		return 0, err
+	}
+	return thetime.Unix(), nil
+}
+
+func convertJSONRawToString(raw json.RawMessage) string {
+	j, _ := json.Marshal(&raw)
+	return string(j)
+}
+
+// InsertNetworkFlowToMySQLDB function
+func InsertNetworkFlowToMySQLDB(cfg types.ConfigDB, nfe []types.NetworkFlowEvent) error {
+	db := ConnectMySQL(cfg)
+	defer db.Close()
+
+	sqlStr := "INSERT INTO " + cfg.TableNetworkFlow + "(time,cluster_name,verdict,drop_reason,ethernet,ip,l4,l7,reply,source,destination,type,node_name,event_type,source_service,destination_service,traffic_direction,policy_match_type,trace_observation_point,summary) VALUES "
+	vals := []interface{}{}
+
+	for _, e := range nfe {
+		sqlStr += "(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?),"
+		unixTime, err := convertDateTimeToUnix(e.Time)
+		if err != nil {
+			log.Error().Msgf("Error converting date time to timestamp: %s", err.Error())
+		}
+
+		vals = append(vals,
+			unixTime,
+			e.ClusterName,
+			e.Verdict,
+			e.DropReason,
+			convertJSONRawToString(e.Ethernet),
+			convertJSONRawToString(e.IP),
+			convertJSONRawToString(e.L4),
+			convertJSONRawToString(e.L7),
+			e.Reply,
+			convertJSONRawToString(e.Source),
+			convertJSONRawToString(e.Destination),
+			e.Type,
+			e.NodeName,
+			convertJSONRawToString(e.EventType),
+			convertJSONRawToString(e.SourceService),
+			convertJSONRawToString(e.DestinationService),
+			e.TrafficDirection,
+			e.PolicyMatchType,
+			e.TraceObservationPoint,
+			e.Summary)
+	}
+
+	//trim the last ','
+	sqlStr = strings.TrimSuffix(sqlStr, ",")
+
+	//prepare the statement
+	stmt, err := db.Prepare(sqlStr)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	//format all vals at once
+	_, err = stmt.Exec(vals...)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // ==================== //
@@ -299,24 +380,6 @@ func InsertDiscoveredPoliciesToMySQL(cfg types.ConfigDB, policies []types.KnoxNe
 		if err := insertDiscoveredPolicy(cfg, db, policy); err != nil {
 			return err
 		}
-	}
-
-	return nil
-}
-
-// ClearDBTablesMySQL function
-func ClearDBTablesMySQL(cfg types.ConfigDB) error {
-	db := ConnectMySQL(cfg)
-	defer db.Close()
-
-	query := "DELETE FROM " + cfg.TableDiscoveredPolicies
-	if _, err := db.Query(query); err != nil {
-		return err
-	}
-
-	query = "DELETE FROM " + cfg.TableNetworkFlow
-	if _, err := db.Query(query); err != nil {
-		return err
 	}
 
 	return nil
@@ -612,6 +675,137 @@ func ApplyConfiguration(cfg types.ConfigDB, oldConfigName, configName string) er
 
 	_, err = stmt2.Exec(1, configName)
 	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// =========== //
+// == Table == //
+// =========== //
+
+// ClearDBTablesMySQL function
+func ClearDBTablesMySQL(cfg types.ConfigDB) error {
+	db := ConnectMySQL(cfg)
+	defer db.Close()
+
+	query := "DELETE FROM " + cfg.TableDiscoveredPolicies
+	if _, err := db.Query(query); err != nil {
+		return err
+	}
+
+	query = "DELETE FROM " + cfg.TableNetworkFlow
+	if _, err := db.Query(query); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// CreateTableNetworkFlowMySQL function
+func CreateTableNetworkFlowMySQL(cfg types.ConfigDB) error {
+	db := ConnectMySQL(cfg)
+	defer db.Close()
+
+	tableName := cfg.TableNetworkFlow
+
+	query :=
+		"CREATE TABLE IF NOT EXISTS `" + tableName + "` (" +
+			"	`id` int NOT NULL AUTO_INCREMENT," +
+			"	`time` int DEFAULT NULL," +
+			"	`cluster_name` varchar(100) DEFAULT NULL," +
+			"	`verdict` varchar(50) DEFAULT NULL," +
+			"	`drop_reason` INT DEFAULT NULL," +
+			"	`ethernet` JSON DEFAULT NULL," +
+			"	`ip` JSON DEFAULT NULL," +
+			"	`l4` JSON DEFAULT NULL," +
+			"	`l7` JSON DEFAULT NULL," +
+			"	`reply` BOOLEAN," +
+			"	`source` JSON DEFAULT NULL," +
+			"	`destination` JSON DEFAULT NULL," +
+			"	`type` varchar(50) DEFAULT NULL," +
+			"	`node_name` varchar(100) DEFAULT NULL," +
+			"	`event_type` JSON DEFAULT NULL," +
+			"	`source_service` JSON DEFAULT NULL," +
+			"	`destination_service` JSON DEFAULT NULL," +
+			"	`traffic_direction` varchar(50) DEFAULT NULL," +
+			"	`policy_match_type` int DEFAULT NULL," +
+			"	`trace_observation_point` varchar(100) DEFAULT NULL," +
+			"	`summary` varchar(1000) DEFAULT NULL," +
+			"	PRIMARY KEY (`id`)" +
+			");"
+
+	if _, err := db.Query(query); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// CreateTableDiscoveredPoliciesMySQL function
+func CreateTableDiscoveredPoliciesMySQL(cfg types.ConfigDB) error {
+	db := ConnectMySQL(cfg)
+	defer db.Close()
+
+	tableName := cfg.TableDiscoveredPolicies
+
+	query :=
+		"CREATE TABLE IF NOT EXISTS `" + tableName + "` (" +
+			"	`id` int NOT NULL AUTO_INCREMENT," +
+			"	`apiVersion` varchar(20) DEFAULT NULL," +
+			"	`kind` varchar(20) DEFAULT NULL," +
+			"	`flow_ids` JSON DEFAULT NULL," +
+			"	`name` varchar(50) DEFAULT NULL," +
+			"	`cluster_name` varchar(50) DEFAULT NULL," +
+			"	`namespace` varchar(50) DEFAULT NULL," +
+			"	`type` varchar(10) DEFAULT NULL," +
+			"	`rule` varchar(30) DEFAULT NULL," +
+			"	`status` varchar(10) DEFAULT NULL," +
+			"	`outdated` varchar(50) DEFAULT NULL," +
+			"	`spec` JSON DEFAULT NULL," +
+			"	`generatedTime` int DEFAULT NULL," +
+			"	PRIMARY KEY (`id`)" +
+			"  );"
+
+	if _, err := db.Query(query); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// CreateTableConfigurationMySQL function
+func CreateTableConfigurationMySQL(cfg types.ConfigDB) error {
+	db := ConnectMySQL(cfg)
+	defer db.Close()
+
+	tableName := cfg.TableConfiguration
+
+	query :=
+		"CREATE TABLE IF NOT EXISTS `" + tableName + "` (" +
+			"	`id` int NOT NULL AUTO_INCREMENT," +
+			"	`config_name` varchar(50) DEFAULT NULL," +
+			"	`status` int DEFAULT '0'," +
+			"	`config_db` JSON DEFAULT NULL," +
+			"	`config_cilium_hubble` JSON DEFAULT NULL," +
+			"	`operation_mode` int DEFAULT NULL," +
+			"	`cronjob_time_interval` varchar(50) DEFAULT NULL," +
+			"	`one_time_job_time_selection` varchar(50) DEFAULT NULL," +
+			"	`network_log_from` varchar(50) DEFAULT NULL," +
+			"	`discovered_policy_to` varchar(50) DEFAULT NULL," +
+			"	`policy_dir` varchar(50) DEFAULT NULL," +
+			"	`discovery_policy_types` int DEFAULT NULL," +
+			"	`discovery_rule_types` int DEFAULT NULL," +
+			"	`cidr_bits` int DEFAULT NULL," +
+			"	`ignoring_flows` JSON DEFAULT NULL," +
+			"	`l3_aggregation_level` int DEFAULT NULL," +
+			"	`l4_aggregation_level` int DEFAULT NULL," +
+			"	`l7_aggregation_level` int DEFAULT NULL," +
+			"	PRIMARY KEY (`id`)" +
+			"  );"
+
+	if _, err := db.Query(query); err != nil {
 		return err
 	}
 

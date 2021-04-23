@@ -1602,6 +1602,8 @@ func StartToDiscoveryWorker() {
 		// skip uninterested namespaces
 		if libs.ContainsElement(SkipNamespaces, namespace) {
 			continue
+		} else if strings.HasPrefix(namespace, "accuknox-") {
+			continue
 		}
 
 		// filter network logs by target namespace
@@ -1609,7 +1611,6 @@ func StartToDiscoveryWorker() {
 		if len(nsFilteredLogs) == 0 {
 			continue
 		}
-
 		log.Info().Msgf("Policy discovery started for namespace: [%s]", namespace)
 
 		// reset flow id track at each target namespace

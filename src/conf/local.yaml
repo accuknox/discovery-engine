@@ -1,0 +1,48 @@
+autopolicy:
+  name: cilium-feeds-consumer
+  operation-mode: 1
+  cron-job-time-interval: "@every 0h0m10s"
+  network-log-from: db
+  discovered-policy-to: "db|file"
+  policy-dir: "./"
+  discovery-policy-types: 3
+  discovery-rule-types: 511
+  ignoring-namespaces: "kube-system"
+
+logging:
+  level: INFO
+
+kafka:
+  broker-address-family: v4
+  session-timeout-ms: 6000
+  auto-offset-reset: "earliest"
+  bootstrap-servers: "127.0.0.1:9092"
+  group-id: policy.cilium
+  topics: 
+    - cilium-telemetry-test
+  ssl:
+    enabled: false
+  events:
+    buffer: 50
+
+database:
+  driver: mysql
+  host: 127.0.0.1
+  port: 3306
+  user: root
+  password: password
+  dbname: networkflowdb
+  table-network-flow: network_flow_events
+  table-discovered-policies: discovered_policies
+  table-configuration: auto_policy_config
+
+cilium-hubble:
+  url: 10.4.41.240
+  port: 80 
+
+accuknox-cluster-mgmt:
+  project-id: "accuknox"
+  location: "us-central1-c"
+  username: "barath@accuknox.com"
+  password: "Barath@27"
+  url-auth: "https://api-dev.accuknox.com/usermanagement/api/v1/auth/login"

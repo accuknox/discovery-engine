@@ -8,8 +8,11 @@ import (
 	"github.com/rs/zerolog/log"
 
 	core "github.com/accuknox/knoxAutoPolicy/src/core"
+	"github.com/accuknox/knoxAutoPolicy/src/feedconsumer"
+
 	"github.com/accuknox/knoxAutoPolicy/src/libs"
 	cpb "github.com/accuknox/knoxAutoPolicy/src/protobuf/v1/config"
+	fpb "github.com/accuknox/knoxAutoPolicy/src/protobuf/v1/consumer"
 	wpb "github.com/accuknox/knoxAutoPolicy/src/protobuf/v1/worker"
 	"github.com/accuknox/knoxAutoPolicy/src/types"
 
@@ -146,6 +149,31 @@ func (s *workerServer) GetWorkerStatus(ctx context.Context, in *wpb.WorkerReques
 	return &wpb.WorkerResponse{Res: core.Status}, nil
 }
 
+// ====================== //
+// == Consumer Service == //
+// ====================== //
+
+type consumerServer struct {
+	fpb.ConsumerServer
+}
+
+func (s *consumerServer) Start(ctx context.Context, in *fpb.ConsumerRequest) (*fpb.ConsumerResponse, error) {
+	log.Info().Msg("Start consumer called")
+	feedconsumer.StartConsumer()
+	return &fpb.ConsumerResponse{Res: "ok"}, nil
+}
+
+func (s *consumerServer) Stop(ctx context.Context, in *fpb.ConsumerRequest) (*fpb.ConsumerResponse, error) {
+	log.Info().Msg("Stop consumer called")
+	feedconsumer.StopConsumer()
+	return &fpb.ConsumerResponse{Res: "ok"}, nil
+}
+
+func (s *consumerServer) GetWorkerStatus(ctx context.Context, in *fpb.ConsumerRequest) (*fpb.ConsumerResponse, error) {
+	log.Info().Msg("Get consumer status called")
+	return &fpb.ConsumerResponse{Res: feedconsumer.Status}, nil
+}
+
 // ================= //
 // == gRPC server == //
 // ================= //
@@ -158,6 +186,7 @@ func GetNewServer() *grpc.Server {
 
 	cpb.RegisterConfigStoreServer(s, &configServer{})
 	wpb.RegisterWorkerServer(s, &workerServer{})
+	fpb.RegisterConsumerServer(s, &consumerServer{})
 
 	return s
 }
