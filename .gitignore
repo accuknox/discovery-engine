@@ -1,6 +1,9 @@
 .vscode/
 src/knoxAutoPolicy
 src/go.sum
+script/log
+src/log
+log
 policies/*.yaml
 !policies/.keep
 tests/mysql/logs

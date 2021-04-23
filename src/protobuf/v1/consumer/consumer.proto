@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package v1.consumer;
+
+option go_package = "github.com/accuknox/knoxAutoPolicy/protos/v1/consumer";
+
+service Consumer {
+    rpc GetConsumerStatus (ConsumerRequest) returns (ConsumerResponse);
+    rpc Start (ConsumerRequest) returns (ConsumerResponse);
+    rpc Stop (ConsumerRequest) returns (ConsumerResponse);
+}
+
+message ConsumerRequest {
+    string req = 1;
+}
+
+message ConsumerResponse {
+    string res = 1;
+}

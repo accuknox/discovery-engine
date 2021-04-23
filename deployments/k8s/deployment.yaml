@@ -1,13 +1,8 @@
 apiVersion: v1
-kind: Namespace
-metadata:
-  name: knox-auto-policy
----
-apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: knoxautopolicy
-  namespace: knox-auto-policy
+  namespace: accuknox-autopolicy
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -20,13 +15,12 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: knoxautopolicy
-  namespace: knox-auto-policy
+  namespace: accuknox-autopolicy
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: knoxautopolicy
-  namespace: knox-auto-policy
   labels:
     service: knoxautopolicy
 spec:
@@ -41,7 +35,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: knoxautopolicy
-  namespace: knox-auto-policy
   labels:
     deployment: knoxautopolicy
 spec:
@@ -60,103 +53,12 @@ spec:
         ports:
         - containerPort: 9089
           protocol: TCP
-        env:
-        - name: DB_DRIVER
-          value: "mysql"
-        - name: DB_PORT
-          value: "3306"
-        - name: DB_USER
-          value: "root"
-        - name: DB_PASS
-          value: "password"
-        - name: DB_NAME
-          value: "flow_management"
-        - name: TB_NETWORK_FLOW
-          value: "network_flow"
-        - name: TB_DISCOVERED_POLICIES
-          value: "discovered_policies"
-        - name: TB_CONFIGURATION
-          value: "auto_policy_config"
-        - name: HUBBLE_URL
-          value: "10.4.41.240"
-        - name: HUBBLE_PORT
-          value: "80"
-        - name: OPERATION_MODE
-          value: "1"
-        - name: CRON_JOB_TIME_INTERVAL
-          value: "@every 0h0m5s"
-        - name: NETWORK_LOG_FROM
-          value: "db"
-        - name: DISCOVERED_POLICY_TO
-          value: "db|file"
-        - name: POLICY_DIR
-          value: ./
-        - name: DISCOVERY_POLICY_TYPES
-          value: "3"
-        - name: DISCOVERY_RULE_TYPES
-          value: "511"
-        - name: IGNORING_NAMESPACES
-          value: "kube-system|knox-auto-policy"
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: database
-  namespace: knox-auto-policy
-  labels:
-    service: database
-spec:
-  ports:
-  - port: 3306
-    targetPort: 3306
-    protocol: TCP
-  selector:
-    container: database
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: mysql-initdb-config
-  namespace: knox-auto-policy
-data:
-  initdb.sql: |
-    CREATE DATABASE IF NOT EXISTS `flow_management`;
-    USE `flow_management`;
-    CREATE TABLE IF NOT EXISTS `discovered_policies` (`id` int NOT NULL AUTO_INCREMENT,`apiVersion` varchar(20) DEFAULT NULL,`kind` varchar(20) DEFAULT NULL,`flow_ids` JSON DEFAULT NULL,`name` varchar(50) DEFAULT NULL,`cluster_name` varchar(50) DEFAULT NULL,`namespace` varchar(50) DEFAULT NULL,`type` varchar(10) DEFAULT NULL,`rule` varchar(30) DEFAULT NULL,`status` varchar(10) DEFAULT NULL,`outdated` varchar(50) DEFAULT NULL,`spec` JSON DEFAULT NULL,`generatedTime` int DEFAULT NULL,PRIMARY KEY (`id`));
-    CREATE TABLE IF NOT EXISTS `auto_policy_config` (`id` int NOT NULL AUTO_INCREMENT,`config_name` varchar(50) DEFAULT NULL,`status` int DEFAULT '0',`config_db` JSON DEFAULT NULL,`config_cilium_hubble` JSON DEFAULT NULL,`operation_mode` int DEFAULT NULL,`cronjob_time_interval` varchar(50) DEFAULT NULL,`one_time_job_time_selection` varchar(50) DEFAULT NULL,`network_log_from` varchar(50) DEFAULT NULL,`discovered_policy_to` varchar(50) DEFAULT NULL,`policy_dir` varchar(50) DEFAULT NULL,`discovery_policy_types` int DEFAULT NULL,`discovery_rule_types` int DEFAULT NULL,`cidr_bits` int DEFAULT NULL,`ignoring_flows` JSON DEFAULT NULL,`l3_aggregation_level` int DEFAULT NULL,`l4_aggregation_level` int DEFAULT NULL,`l7_aggregation_level` int DEFAULT NULL,PRIMARY KEY (`id`));
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: database
-  namespace: knox-auto-policy
-  labels:
-    deployment: database
-spec:
-  selector:
-    matchLabels:
-      container: database
-  template:
-    metadata:
-      labels:
-        container: database
-    spec:
-      containers:
-      - image: mysql:8.0.17
-        name: database
-        ports:
-        - containerPort: 3306
-        env:
-        - name: MYSQL_USER
-          value: "root"
-        - name: MYSQL_ROOT_PASSWORD
-          value: "password"
-        - name: MYSQL_DATABASE
-          value: "flow_management"
         volumeMounts:
-          - name: mysql-initdb
-            mountPath: /docker-entrypoint-initdb.d/
+          - mountPath: /conf
+            name: config-volume
+            readOnly: true
       volumes:
-        - name: mysql-initdb
+        - name: config-volume
           configMap:
-            name: mysql-initdb-config
+            name: knoxautopolicy-config
+---

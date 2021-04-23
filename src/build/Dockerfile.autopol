@@ -1,28 +1,29 @@
 ### Builder
 
-FROM golang:1.15.2-alpine3.12 as builder
-
-RUN apk update
+FROM golang:1.15.2-buster as builder
 
 WORKDIR /usr/src/knox
 
 COPY ./libs ./libs
+COPY ./logging ./logging
+COPY ./feedconsumer ./feedconsumer
 COPY ./core ./core
 COPY ./types ./types
 COPY ./plugin ./plugin
 COPY ./protobuf ./protobuf
 COPY ./server ./server
+
 COPY ./main.go ./main.go
 COPY ./go.mod ./go.mod
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -ldflags '-s -w' -o knoxAutoPolicy main.go
+RUN go mod download
+RUN go build -o knoxAutoPolicy main.go
 
 ### Make executable image
 
-FROM alpine:3.12
+FROM debian:buster
 
-RUN apk add --no-cache bash
-
+COPY conf/conf.yaml conf/conf.yaml
 COPY --from=builder /usr/src/knox/knoxAutoPolicy /knoxAutoPolicy
 
 ENTRYPOINT ["/knoxAutoPolicy"]

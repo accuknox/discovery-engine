@@ -9,6 +9,10 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+// ======================== //
+// == Network Flow Event == //
+// ======================== //
+
 // LastFlowID network flow between [ startTime <= time < endTime ]
 var LastFlowID int64 = 0
 var startTime int64 = 0
@@ -84,6 +88,23 @@ func GetNetworkFlowFromDB(cfg types.ConfigDB, timeSelection string) []map[string
 	startTime = endTime + 1
 	return results
 }
+
+// InsertNetworkFlowToDB function
+func InsertNetworkFlowToDB(cfg types.ConfigDB, nfe []types.NetworkFlowEvent) error {
+	if cfg.DBDriver == "mysql" {
+		if err := InsertNetworkFlowToMySQLDB(cfg, nfe); err != nil {
+			return err
+		}
+	} else if cfg.DBDriver == "mongodb" {
+		// TODO: MongoDB
+	}
+
+	return nil
+}
+
+// ==================== //
+// == Network Policy == //
+// ==================== //
 
 // GetNetworkPolicies Function
 func GetNetworkPolicies(cfg types.ConfigDB, namespace, status string) []types.KnoxNetworkPolicy {
@@ -177,6 +198,10 @@ func InsertDiscoveredPolicies(cfg types.ConfigDB, policies []types.KnoxNetworkPo
 	}
 }
 
+// =========== //
+// == Table == //
+// =========== //
+
 // ClearDBTables function
 func ClearDBTables(cfg types.ConfigDB) {
 	if cfg.DBDriver == "mysql" {
@@ -184,6 +209,23 @@ func ClearDBTables(cfg types.ConfigDB) {
 			log.Error().Msg(err.Error())
 		}
 	} else if cfg.DBDriver == "mongodb" {
+		// TODO: MongoDB
+	}
+}
 
+// CreateTablesIfNotExist function
+func CreateTablesIfNotExist(cfg types.ConfigDB) {
+	if cfg.DBDriver == "mysql" {
+		if err := CreateTableNetworkFlowMySQL(cfg); err != nil {
+			log.Error().Msg(err.Error())
+		}
+		if err := CreateTableDiscoveredPoliciesMySQL(cfg); err != nil {
+			log.Error().Msg(err.Error())
+		}
+		if err := CreateTableConfigurationMySQL(cfg); err != nil {
+			log.Error().Msg(err.Error())
+		}
+	} else if cfg.DBDriver == "mongodb" {
+		// TODO: MongoDB
 	}
 }

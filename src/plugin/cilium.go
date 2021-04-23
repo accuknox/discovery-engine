@@ -39,9 +39,52 @@ func init() {
 // CiliumReserved ...
 var CiliumReserved string = "reserved:"
 
+// Enum value maps for TrafficDirection.
+var TrafficDirection = map[string]int{
+	"TRAFFIC_DIRECTION_UNKNOWN": 0,
+	"INGRESS":                   1,
+	"EGRESS":                    2,
+}
+
+// Enum value maps for TraceObservationPoint.
+var TraceObservationPoint = map[string]int{
+	"UNKNOWN_POINT": 0,
+	"TO_PROXY":      1,
+	"TO_HOST":       2,
+	"TO_STACK":      3,
+	"TO_OVERLAY":    4,
+	"TO_ENDPOINT":   101,
+	"FROM_ENDPOINT": 5,
+	"FROM_PROXY":    6,
+	"FROM_HOST":     7,
+	"FROM_STACK":    8,
+	"FROM_OVERLAY":  9,
+	"FROM_NETWORK":  10,
+	"TO_NETWORK":    11,
+}
+
+var Verdict = map[string]int{
+	"VERDICT_UNKNOWN": 0,
+	"FORWARDED":       1,
+	"DROPPED":         2,
+	"ERROR":           3,
+}
+
 // ====================== //
 // == Helper Functions == //
 // ====================== //
+
+func convertVerdictToInt(vType interface{}) int {
+	return Verdict[vType.(string)]
+}
+
+func convertTrafficDirectionToInt(tType interface{}) int {
+	return TrafficDirection[tType.(string)]
+}
+
+func convertTraceObservationPointToInt(tType interface{}) int {
+	return TraceObservationPoint[tType.(string)]
+}
 
 // isSynFlagOnly function
 func isSynFlagOnly(tcp *flow.TCP) bool {
@@ -239,8 +282,8 @@ func ConvertMySQLFlowsToNetworkLogs(docs []map[string]interface{}, dnsToIPs map[
 		var err error
 
 		primitiveDoc := map[string]interface{}{
-			"traffic_direction": doc["traffic_direction"],
-			"verdict":           doc["verdict"],
+			"traffic_direction": convertTrafficDirectionToInt(doc["traffic_direction"]),
+			"verdict":           convertVerdictToInt(doc["verdict"]),
 			"policy_match_type": doc["policy_match_type"],
 			"drop_reason":       doc["drop_reason"],
 		}
