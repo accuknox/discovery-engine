@@ -39,3 +39,10 @@ database:
 cilium-hubble:
   url: 10.4.41.240
   port: 80 
+
+accuknox-cluster-mgmt:
+  project-id: "accuknox"
+  location: "us-central1-c"
+  username: "barath@accuknox.com"
+  password: "Barath@27"
+  url-auth: "https://api-dev.accuknox.com/usermanagement/api/v1/auth/login"

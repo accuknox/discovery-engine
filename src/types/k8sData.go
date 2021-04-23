@@ -61,3 +61,18 @@ type Namespace struct {
 	Pods       []string `json:"pods" bson:"pods"`
 	Containers []string `json:"containers" bson:"containers"`
 }
+
+// Cluster Structure
+type Cluster struct {
+	ID              int    `json:"ID" bson:"ID"`
+	ClusterName     string `json:"ClusterName" bson:"ClusterName"`
+	Location        string `json:"Location" bson:"Location"`
+	NodeCount       int    `json:"NodeCount" bson:"NodeCount"`
+	PodCount        int    `json:"PodCount" bson:"PodCount"`
+	NamespaceCount  int    `json:"NamespaceCount" bson:"NamespaceCount"`
+	LabelCount      int    `json:"LabelCount" bson:"LabelCount"`
+	PolicyCount     int    `json:"PolicyCount" bson:"PolicyCount"`
+	AlertsCount     int    `json:"AlertsCount" bson:"AlertsCount"`
+	LastUpdatedTime string `json:"last_updated_time" bson:"last_updated_time"`
+	WorkspaceID     int    `json:"WorkspaceID" bson:"WorkspaceID"`
+}

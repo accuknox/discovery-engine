@@ -10,6 +10,22 @@ import (
 	"github.com/spf13/viper"
 )
 
+// operation mode: 		   cronjob: 1
+//                 		   onetime job: 2
+// discovery policy types: egress only   : 1
+//                         ingress only  : 2
+//                         all           : 3
+// discovery rule types:   matchLabels: 1
+//                         toPorts    : 2
+//                         toHTTPs    : 4
+//                         toCIDRs    : 8
+//                         toEntities : 16
+//                         toServices : 32
+//                         toFQDNs    : 64
+//                         fromCIDRs  : 128
+//                         fromEntities : 256
+//                         all        : 511
+
 // Cfg ...
 var Cfg types.Configuration
 
