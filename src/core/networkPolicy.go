@@ -1,10 +1,7 @@
 package core
 
 import (
-	"encoding/json"
-	"io/ioutil"
 	"net"
-	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -14,7 +11,6 @@ import (
 	"github.com/accuknox/knoxAutoPolicy/src/libs"
 	"github.com/accuknox/knoxAutoPolicy/src/plugin"
 	"github.com/accuknox/knoxAutoPolicy/src/types"
-	"github.com/cilium/cilium/api/v1/flow"
 
 	"github.com/google/go-cmp/cmp"
 
@@ -53,52 +49,70 @@ const (
 	STATUS_IDLE    = "idle"
 )
 
-// ======================= //
-// == Gloabl Variables  == //
-// ======================= //
-
-// Status global worker
-var Status string
-
-var cronJob *cron.Cron
-
-var waitG sync.WaitGroup
-var stopChan chan struct{}
-
-// for k8s service ports
-var exposedTCPPorts = []int{}
-var exposedUDPPorts = []int{}
-var exposedSCTPPorts = []int{}
-
 // if the target IP is in out-of-cluster
-var externals = []string{"reserved:world", "external"}
+var Externals = []string{"reserved:world", "external"}
+
+// ====================== //
+// == Gloabl Variables == //
+// ====================== //
+
+// WorkerStatus global worker
+var WorkerStatus string
+
+// for cron job
+var CronJob *cron.Cron
+var WaitG sync.WaitGroup
+var StopChan chan struct{}
+
+// init Function
+func init() {
+	WorkerStatus = STATUS_IDLE
+	StopChan = make(chan struct{})
+	WaitG = sync.WaitGroup{}
+}
+
+// ============================= //
+// == Multi Cluster Variables == //
+// ============================= //
+
+// k8s service ports
+var K8sServiceTCPPorts []int
+var K8sServiceUDPPorts []int
+var K8sServiceSCTPPorts []int
+
+// K8sDNSServices kube-dns services
+var K8sDNSServices []types.Service
 
 // labeledSrcsPerDstMap [key: simple Dst, value: simple Src]
 type labeledSrcsPerDstMap map[Dst][]SrcSimple
 
-// gLabeledSrcsPerDst [key: namespace, value: LabeledSrcsPerDstMap]
-var gLabeledSrcsPerDst map[string]labeledSrcsPerDstMap
+// LabeledSrcsPerDst [key: namespace, value: LabeledSrcsPerDstMap]
+var LabeledSrcsPerDst map[string]labeledSrcsPerDstMap
 
 // DomainToIPs [key: domain name, value: ip addresses]
 var DomainToIPs map[string][]string
 
-// k8sDNSSvc kube-dns services
-var k8sDNSSvc []types.Service
+// FlowIDTrackerFirst flow ids (stored in DB) tracking
+// To show a discovered policy comes from which network logs
+var FlowIDTrackerFirst map[FlowIDTrackingFirst][]int
+var FlowIDTrackerSecond map[FlowIDTrackingSecond][]int
 
-// FlowIDTracker flow ids (stored in DB) tracking - To show a discovered policy comes from which network logs
-var FlowIDTracker map[FlowIDTracking][]int
-var FlowIDTracker2 map[FlowIDTracking2][]int
+// ClusterVariable Structure
+type ClusterVariable struct {
+	K8sServiceTCPPorts  []int
+	K8sServiceUDPPorts  []int
+	K8sServiceSCTPPorts []int
+	K8sDNSServices      []types.Service
 
-// init Function
-func init() {
-	Status = STATUS_IDLE
+	LabeledSrcsPerDst map[string]labeledSrcsPerDstMap
+	DomainToIPs       map[string][]string
 
-	stopChan = make(chan struct{})
-	waitG = sync.WaitGroup{}
-
-	DomainToIPs = map[string][]string{}
-	gLabeledSrcsPerDst = map[string]labeledSrcsPerDstMap{}
+	FlowIDTrackerFirst  map[FlowIDTrackingFirst][]int
+	FlowIDTrackerSecond map[FlowIDTrackingSecond][]int
 }
+
+// DomainToIPs [key: cluster name, val: cluster variable]
+var ClusterVariableMap = map[string]ClusterVariable{}
 
 // ========================== //
 // == Inner Structure Type == //
@@ -154,14 +168,14 @@ type LabelCount struct {
 	Count float64
 }
 
-// FlowIDTracking structure
-type FlowIDTracking struct {
+// FlowIDTrackingFirst structure
+type FlowIDTrackingFirst struct {
 	Src SrcSimple
 	Dst Dst
 }
 
-// FlowIDTracking2 structure
-type FlowIDTracking2 struct {
+// FlowIDTrackingSecond structure
+type FlowIDTrackingSecond struct {
 	AggreagtedSrc string
 	Dst           Dst
 }
@@ -194,7 +208,7 @@ func getDst(log types.KnoxNetworkLog, endpoints []types.Endpoint, cidrBits int) 
 	}
 
 	// check CIDR (out of cluster)
-	if libs.ContainsElement(externals, log.DstNamespace) && net.ParseIP(log.DstPodName) != nil {
+	if libs.ContainsElement(Externals, log.DstNamespace) && net.ParseIP(log.DstPodName) != nil {
 		if endpoint, valid := checkK8sExternalService(log, endpoints); valid {
 			// 1. check if it is the external service policy
 			log.DstNamespace = endpoint.Namespace
@@ -313,7 +327,7 @@ func extractSrcByLabel(labeledSrcsPerDst map[Dst][]SrcSimple, perDst map[Dst][]t
 			}
 
 			// storing flow IDs per DST before replacing by labels
-			trackFlowID(src, dst, log.FlowID)
+			trackFlowIDFirst(src, dst, log.FlowID)
 
 			// remove redundant
 			if !libs.ContainsElement(srcs, src) {
@@ -444,7 +458,7 @@ func aggregateSrcByLabel(labeledSrcsPerDst map[Dst][]SrcSimple, pods []types.Pod
 					// if 'src' contains the label, remove 'src' from srcs
 					for _, src := range srcs {
 						if containLabel(aggregatedLabel, src.MatchLabels) {
-							trackFlowID2(aggregatedLabel, src, dst)
+							trackFlowIDSecond(aggregatedLabel, src, dst)
 							srcs = removeSrcFromSlice(srcs, src)
 
 							// append the label (the removed src included) to the dst
@@ -459,7 +473,7 @@ func aggregateSrcByLabel(labeledSrcsPerDst map[Dst][]SrcSimple, pods []types.Pod
 
 		// if there is remained src or l3 aggregate level 1, append it
 		for _, src := range srcs {
-			trackFlowID2(src.MatchLabels, src, dst)
+			trackFlowIDSecond(src.MatchLabels, src, dst)
 			aggregatedSrcsPerDst[dst] = append(aggregatedSrcsPerDst[dst], src.MatchLabels)
 		}
 	}
@@ -1440,6 +1454,17 @@ func updateLabeledSrcPerDst(labeledSrcsPerDst map[Dst][]SrcSimple) map[Dst][]Src
 // == Discover Network Policy  == //
 // ============================== //
 
+func skipNamespace(namespace string) bool {
+	// skip uninterested namespaces
+	if libs.ContainsElement(SkipNamespaces, namespace) {
+		return true
+	} else if strings.HasPrefix(namespace, "accuknox-") {
+		return true
+	}
+
+	return false
+}
+
 // DiscoverNetworkPolicy Function
 func DiscoverNetworkPolicy(namespace string,
 	networkLogs []types.KnoxNetworkLog,
@@ -1456,7 +1481,7 @@ func DiscoverNetworkPolicy(namespace string,
 		we keep labeledSrcsPerDst map for aggregating the merged policy set in the future
 	*/
 	labeledSrcsPerDst := map[Dst][]SrcSimple{}
-	if val, ok := gLabeledSrcsPerDst[namespace]; ok {
+	if val, ok := LabeledSrcsPerDst[namespace]; ok {
 		labeledSrcsPerDst = extractSrcByLabel(val, originLogsPerDst, pods)
 	} else {
 		labeledSrcsPerDst = extractSrcByLabel(labeledSrcsPerDst, originLogsPerDst, pods)
@@ -1478,250 +1503,171 @@ func DiscoverNetworkPolicy(namespace string,
 	networkPolicies := buildNetworkPolicy(namespace, services, aggregatedSrcPerAggregatedDst)
 
 	// step 8: update labeledSrcsPerDst map (remove cidr dst/additionals)
-	gLabeledSrcsPerDst[namespace] = updateLabeledSrcPerDst(labeledSrcsPerDst)
+	LabeledSrcsPerDst[namespace] = updateLabeledSrcPerDst(labeledSrcsPerDst)
 
 	return networkPolicies
 }
 
-// ==================== //
-// == Preprocessing  == //
-// ==================== //
-
-// getNetworkLogs function
-func getNetworkLogs() []types.KnoxNetworkLog {
-	networkLogs := []types.KnoxNetworkLog{}
-
-	if Cfg.NetworkLogFrom == "db" {
-		log.Info().Msg("Get network flow from the database")
-
-		// get flows from db
-		flows := libs.GetNetworkFlowFromDB(Cfg.ConfigDB, Cfg.OneTimeJobTimeSelection)
-		if len(flows) == 0 {
-			return nil
-		}
-
-		// convert db flows -> network logs
-		networkLogs = plugin.ConvertCiliumFlowsToKnoxNetworkLogs(Cfg.ConfigDB.DBDriver, flows, DomainToIPs)
-	} else if Cfg.NetworkLogFrom == "hubble" { // from hubble directly
-		log.Info().Msg("Get network flow from the Cilium Hubble directly")
-
-		// get flows from hubble relay
-		flows := plugin.GetCiliumFlowsFromHubble()
-		if len(flows) == 0 {
-			return nil
-		}
-
-		// convert hubble flows -> network logs (but, in this case, no flow id..)
-		for _, flow := range flows {
-			if log, valid := plugin.ConvertCiliumFlowToKnoxNetworkLog(flow); valid {
-				networkLogs = append(networkLogs, log)
-			}
-		}
-	} else if Cfg.NetworkLogFrom == "file" { // from json file for testing
-		log.Info().Msg("Get network flow from the json file : " + Cfg.NetworkLogFile)
-		flows := []*flow.Flow{}
-
-		// Open our jsonFile
-		logFile, err := os.Open(Cfg.NetworkLogFile)
-		if err != nil {
-			log.Error().Msg(err.Error())
-			return nil
-		}
-		defer logFile.Close()
-
-		byteValue, _ := ioutil.ReadAll(logFile)
-		json.Unmarshal(byteValue, &flows)
-
-		// replace the pod names in prepared-flows with the working pod names
-		pods := libs.GetPods()
-		ReplaceMultiubuntuPodName(flows, pods)
-
-		// convert file flows -> network logs (but, in this case, no flow id..)
-		for _, flow := range flows {
-			// update dns maps
-			plugin.UpdateDomainToIPMapFromCiliumFlow(flow, DomainToIPs)
-			if log, valid := plugin.ConvertCiliumFlowToKnoxNetworkLog(flow); valid {
-				networkLogs = append(networkLogs, log)
-			}
-		}
-	} else {
-		log.Error().Msgf("Network log source not correct: %s", Cfg.NetworkLogFrom)
-		return nil
-	}
-
-	// update dns query logs
-	for i, log := range networkLogs {
-		// traffic go to the outside of the cluster,
-		if log.DstNamespace == "reserved:world" {
-			// filter if the ip is from the DNS query
-			dns := getDomainNameFromDNSToIP(log)
-			if dns != "" {
-				networkLogs[i].DNSQuery = dns
-			}
-		}
-	}
-
-	return networkLogs
-}
-
-// StartToDiscoveryWorker function
-func StartToDiscoveryWorker() {
+// Preprocessing function
+func Preprocessing() {
 	// get network logs
-	networkLogs := getNetworkLogs()
-	if networkLogs == nil {
-		if Cfg.OperationMode == OP_MODE_ONETIME && Status == STATUS_RUNNING {
-			Status = STATUS_IDLE
+	allNetworkLogs := getNetworkLogs()
+	if allNetworkLogs == nil {
+		if Cfg.OperationMode == OP_MODE_ONETIME && WorkerStatus == STATUS_RUNNING {
+			WorkerStatus = STATUS_IDLE
 		}
-
 		return
 	}
 
-	// get k8s services
-	services := libs.GetServices()
+	// get cluster names
+	clusteredLogs := clusteringNetworkLogs(allNetworkLogs)
+	for clusterName, networkLogs := range clusteredLogs {
+		// set cluster variables
+		initClusterVariables(clusterName)
 
-	// get k8s endpoints
-	endpoints := libs.GetEndpoints()
+		// get k8s services
+		services := libs.GetServices()
 
-	// get k8s pods
-	pods := libs.GetPods()
+		// get k8s endpoints
+		endpoints := libs.GetEndpoints()
 
-	// get k8s namespaces
-	namespaces := libs.GetNamespaces()
+		// get k8s pods
+		pods := libs.GetPods()
 
-	// update exposed ports (k8s service, docker-compose portbinding)
-	updateServiceEndpoint(services, endpoints, pods)
+		// get k8s namespaces
+		namespaces := libs.GetNamespaces()
 
-	// get existing policies in db
-	existingPolicies := libs.GetNetworkPolicies(Cfg.ConfigDB, "", "")
+		// update DNS flows, DNSToIPs map
+		updateDNSFlows(networkLogs)
 
-	// filter ignoring network logs from configuration
-	configFilteredLogs := FilterNetworkLogsByConfig(networkLogs, pods)
+		// update service ports (k8s service, endpoint, kube-dns)
+		updateServiceEndpoint(services, endpoints, pods)
 
-	// iterate each namespace
-	for _, namespace := range namespaces {
-		// skip uninterested namespaces
-		if libs.ContainsElement(SkipNamespaces, namespace) {
-			continue
-		} else if strings.HasPrefix(namespace, "accuknox-") {
-			continue
-		}
+		// get existing policies in db
+		existingPolicies := libs.GetNetworkPolicies(Cfg.ConfigDB, "", "")
 
-		// filter network logs by target namespace
-		nsFilteredLogs := FilterNetworkLogsByNamespace(namespace, configFilteredLogs)
-		if len(nsFilteredLogs) == 0 {
-			continue
-		}
-		log.Info().Msgf("Policy discovery started for namespace: [%s]", namespace)
+		// filter ignoring network logs from configuration
+		configFilteredLogs := FilterNetworkLogsByConfig(networkLogs, pods)
 
-		// reset flow id track at each target namespace
-		clearTrackFlowID()
-
-		// discover network policies based on the network logs
-		discoveredPolicies := DiscoverNetworkPolicy(namespace, nsFilteredLogs, services, endpoints, pods)
-
-		// remove duplicated policy
-		newPolicies := UpdateDuplicatedPolicy(existingPolicies, discoveredPolicies, DomainToIPs)
-		sort.Slice(newPolicies, func(i, j int) bool {
-			return newPolicies[i].Metadata["name"] < newPolicies[j].Metadata["name"]
-		})
-
-		if len(newPolicies) > 0 {
-			// insert discovered policies to db
-			if strings.Contains(Cfg.DiscoveredPolicyTo, "db") {
-				libs.InsertDiscoveredPolicies(Cfg.ConfigDB, newPolicies)
+		// iterate each namespace
+		for _, namespace := range namespaces {
+			if skipNamespace(namespace) {
+				continue
 			}
 
-			if strings.Contains(Cfg.DiscoveredPolicyTo, "file") {
-				// retrieve the latest policies from the db
-				latestPolicies := libs.GetNetworkPolicies(Cfg.ConfigDB, namespace, "latest")
-
-				// write discovered policies to files
-				libs.WriteKnoxPolicyToYamlFile(namespace, latestPolicies)
-
-				// convert knoxPolicy to CiliumPolicy
-				ciliumPolicies := plugin.ConvertKnoxPoliciesToCiliumPolicies(services, latestPolicies)
-
-				// write discovered policies to files
-				libs.WriteCiliumPolicyToYamlFile(namespace, ciliumPolicies)
+			// filter network logs by target namespace
+			nsFilteredLogs := FilterNetworkLogsByNamespace(namespace, configFilteredLogs)
+			if len(nsFilteredLogs) == 0 {
+				continue
 			}
+			log.Info().Msgf("Policy discovery started for namespace: [%s]", namespace)
 
-			log.Info().Msgf("Policy discovery done for namespace: [%s], [%d] policies discovered", namespace, len(newPolicies))
-		} else {
-			log.Info().Msgf("Policy discovery done for namespace: [%s], no policy discovered", namespace)
+			// reset flow id track at each target namespace
+			clearTrackFlowID()
+
+			// discover network policies based on the network logs
+			discoveredPolicies := DiscoverNetworkPolicy(namespace, nsFilteredLogs, services, endpoints, pods)
+
+			// remove duplicated policy
+			newPolicies := UpdateDuplicatedPolicy(existingPolicies, discoveredPolicies, DomainToIPs)
+			sort.Slice(newPolicies, func(i, j int) bool {
+				return newPolicies[i].Metadata["name"] < newPolicies[j].Metadata["name"]
+			})
+
+			if len(newPolicies) > 0 {
+				// insert discovered policies to db
+				if strings.Contains(Cfg.DiscoveredPolicyTo, "db") {
+					libs.InsertDiscoveredPolicies(Cfg.ConfigDB, newPolicies)
+				}
+
+				if strings.Contains(Cfg.DiscoveredPolicyTo, "file") {
+					// retrieve the latest policies from the db
+					latestPolicies := libs.GetNetworkPolicies(Cfg.ConfigDB, namespace, "latest")
+
+					// write discovered policies to files
+					libs.WriteKnoxPolicyToYamlFile(namespace, latestPolicies)
+
+					// convert knoxPolicy to CiliumPolicy
+					ciliumPolicies := plugin.ConvertKnoxPoliciesToCiliumPolicies(services, latestPolicies)
+
+					// write discovered policies to files
+					libs.WriteCiliumPolicyToYamlFile(namespace, ciliumPolicies)
+				}
+
+				log.Info().Msgf("Policy discovery done for namespace: [%s], [%d] policies discovered", namespace, len(newPolicies))
+			} else {
+				log.Info().Msgf("Policy discovery done for namespace: [%s], no policy discovered", namespace)
+			}
 		}
-	}
 
-	if Cfg.OperationMode == OP_MODE_ONETIME && Status == STATUS_RUNNING {
-		Status = STATUS_IDLE
+		// update cluster variables
+		updateClusterVariables(clusterName)
 	}
 }
 
-// ============== //
-// == Cron Job == //
-// ============== //
+// ===================================== //
+// == Network Policy Discovery Worker == //
+// ===================================== //
 
 // StartCronJob function
 func StartCronJob() {
 	// if network from hubble
 	if Cfg.NetworkLogFrom == "hubble" {
-		go plugin.StartHubbleRelay(stopChan, &waitG, Cfg.ConfigCiliumHubble)
-		waitG.Add(1)
+		go plugin.StartHubbleRelay(StopChan, &WaitG, Cfg.ConfigCiliumHubble)
+		WaitG.Add(1)
 	}
 
 	// init cron job
-	cronJob = cron.New()
-	err := cronJob.AddFunc(Cfg.CronJobTimeInterval, StartToDiscoveryWorker) // time interval
+	CronJob = cron.New()
+	err := CronJob.AddFunc(Cfg.CronJobTimeInterval, Preprocessing) // time interval
 	if err != nil {
 		log.Error().Msg(err.Error())
 		return
 	}
-
-	cronJob.Start()
+	CronJob.Start()
 
 	log.Info().Msg("Auto discovery cron job started")
 }
 
 // StopCronJob function
 func StopCronJob() {
-	if cronJob != nil {
+	if CronJob != nil {
 		log.Info().Msg("Got a signal to terminate the auto policy discovery")
 
-		close(stopChan)
-		waitG.Wait()
+		close(StopChan)
+		WaitG.Wait()
 
-		cronJob.Stop() // Stop the scheduler (does not stop any jobs already running).
+		CronJob.Stop() // Stop the scheduler (does not stop any jobs already running).
 
-		cronJob = nil
+		CronJob = nil
 	}
 }
 
-// ====================== //
-// == Discovery Worker == //
-// ====================== //
-
 // StartWorker function
 func StartWorker() {
-	if Status != STATUS_IDLE {
+	if WorkerStatus != STATUS_IDLE {
 		log.Info().Msg("There is no idle discovery worker")
 		return
 	}
-	Status = STATUS_RUNNING
+	WorkerStatus = STATUS_RUNNING
 
 	if Cfg.OperationMode == OP_MODE_CRONJOB { // every time intervals
 		StartCronJob()
 	} else { // one-time generation
-		StartToDiscoveryWorker()
+		Preprocessing()
 		log.Info().Msgf("Auto discovery onetime job done")
+
+		WorkerStatus = STATUS_IDLE
 	}
 }
 
 // StopWorker function
 func StopWorker() {
-	if Status != STATUS_RUNNING {
+	if WorkerStatus != STATUS_RUNNING {
 		log.Info().Msg("There is no running discovery worker")
 		return
 	}
-	Status = STATUS_IDLE
+	WorkerStatus = STATUS_IDLE
 
 	if Cfg.OperationMode == OP_MODE_CRONJOB { // every time intervals
 		StopCronJob()

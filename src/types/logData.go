@@ -4,6 +4,8 @@ package types
 type KnoxNetworkLog struct {
 	FlowID int `json:"flow_id,omitempty" bson:"flow_id"`
 
+	CluserName string `json:"cluster_name,omitempty" bson:"cluster_name"`
+
 	SrcNamespace string `json:"src_namespace,omitempty" bson:"src_namespace"`
 	SrcPodName   string `json:"src_pod_name,omitempty" bson:"src_pod_name"`
 
@@ -20,7 +22,9 @@ type KnoxNetworkLog struct {
 
 	SynFlag bool `json:"syn_flag,omitempty" bson:"syn_flag"` // for tcp
 
-	DNSQuery string `json:"dns_query,omitempty" bson:"dns_query"` // for L7 dns
+	DNSQuery  string   `json:"dns_query,omitempty" bson:"dns_query"`       // for L7 dns
+	DNSRes    string   `json:"dns_response,omitempty" bson:"dns_response"` // for L7 dns
+	DNSResIPs []string `json:"dns_res_ips,omitempty" bson:"dns_res_ips"`   // for L7 dns
 
 	HTTPMethod string `json:"http_method,omitempty" bson:"http_method"` // for L7 http
 	HTTPPath   string `json:"http_path,omitempty" bson:"http_path"`     // for L7 http
