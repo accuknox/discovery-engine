@@ -146,7 +146,7 @@ func (s *workerServer) Stop(ctx context.Context, in *wpb.WorkerRequest) (*wpb.Wo
 
 func (s *workerServer) GetWorkerStatus(ctx context.Context, in *wpb.WorkerRequest) (*wpb.WorkerResponse, error) {
 	log.Info().Msg("Get worker status called")
-	return &wpb.WorkerResponse{Res: core.Status}, nil
+	return &wpb.WorkerResponse{Res: core.WorkerStatus}, nil
 }
 
 // ====================== //

@@ -25,10 +25,10 @@ import (
 // == Gloabl Variables  == //
 // ======================= //
 
-// CiliumFlows list
+// CiliumFlows list for directly hubble connections
 var CiliumFlows []*flow.Flow
 
-// CiliumFlowsMutex mutext
+// CiliumFlowsMutex mutext for directly hubble connections
 var CiliumFlowsMutex *sync.Mutex
 
 func init() {
@@ -240,41 +240,31 @@ func ConvertCiliumFlowToKnoxNetworkLog(flow *flow.Flow) (types.KnoxNetworkLog, b
 		}
 	}
 
-	return log, true
-}
-
-// UpdateDomainToIPMapFromCiliumFlow func
-func UpdateDomainToIPMapFromCiliumFlow(flow *flow.Flow, dnsToIPs map[string][]string) {
 	// get L7 DNS
 	if flow.GetL7() != nil && flow.L7.GetDns() != nil {
 		// if DSN response includes IPs
 		if flow.L7.GetType() == 2 && len(flow.L7.GetDns().Ips) > 0 {
 			// if internal services, skip
 			if strings.HasSuffix(flow.L7.GetDns().GetQuery(), "svc.cluster.local.") {
-				return
+				return log, false
 			}
 
 			query := strings.TrimSuffix(flow.L7.GetDns().GetQuery(), ".")
 			ips := flow.L7.GetDns().GetIps()
 
-			// udpate DNS to IPs map
-			if val, ok := dnsToIPs[query]; ok {
-				for _, ip := range ips {
-					if !libs.ContainsElement(val, ip) {
-						val = append(val, ip)
-					}
-				}
-
-				dnsToIPs[query] = val
-			} else {
-				dnsToIPs[query] = ips
+			log.DNSRes = query
+			log.DNSResIPs = []string{}
+			for _, ip := range ips {
+				log.DNSResIPs = append(log.DNSResIPs, ip)
 			}
 		}
 	}
+
+	return log, true
 }
 
 // ConvertMySQLFlowsToNetworkLogs function
-func ConvertMySQLFlowsToNetworkLogs(docs []map[string]interface{}, dnsToIPs map[string][]string) []types.KnoxNetworkLog {
+func ConvertMySQLFlowsToNetworkLogs(docs []map[string]interface{}) []types.KnoxNetworkLog {
 	logs := []types.KnoxNetworkLog{}
 
 	for _, doc := range docs {
@@ -351,12 +341,13 @@ func ConvertMySQLFlowsToNetworkLogs(docs []map[string]interface{}, dnsToIPs map[
 			}
 		}
 
-		// update dns maps
-		UpdateDomainToIPMapFromCiliumFlow(ciliumFlow, dnsToIPs)
-
 		if log, valid := ConvertCiliumFlowToKnoxNetworkLog(ciliumFlow); valid {
 			// get flow id
 			log.FlowID = int(doc["id"].(uint32))
+
+			// get cluster name
+			log.CluserName = doc["cluster_name"].(string)
+
 			logs = append(logs, log)
 		}
 	}
@@ -382,9 +373,9 @@ func ConvertMongoFlowsToNetworkLogs(docs []map[string]interface{}) []types.KnoxN
 }
 
 // ConvertCiliumFlowsToKnoxNetworkLogs function
-func ConvertCiliumFlowsToKnoxNetworkLogs(dbDriver string, docs []map[string]interface{}, dnsToIPs map[string][]string) []types.KnoxNetworkLog {
+func ConvertCiliumFlowsToKnoxNetworkLogs(dbDriver string, docs []map[string]interface{}) []types.KnoxNetworkLog {
 	if dbDriver == "mysql" {
-		return ConvertMySQLFlowsToNetworkLogs(docs, dnsToIPs)
+		return ConvertMySQLFlowsToNetworkLogs(docs)
 	} else if dbDriver == "mongo" {
 		return ConvertMongoFlowsToNetworkLogs(docs)
 	} else {

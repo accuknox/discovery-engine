@@ -1,16 +1,164 @@
 package core
 
 import (
+	"encoding/json"
+	"io/ioutil"
 	"math/bits"
+	"os"
 	"reflect"
 	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/accuknox/knoxAutoPolicy/src/libs"
+	"github.com/accuknox/knoxAutoPolicy/src/plugin"
 	types "github.com/accuknox/knoxAutoPolicy/src/types"
 	"github.com/cilium/cilium/api/v1/flow"
+	"github.com/rs/zerolog/log"
 )
+
+// ======================= //
+// == Cluster Variables == //
+// ======================= //
+
+func initClusterVariables(clusterName string) {
+	val := ClusterVariable{
+		K8sServiceTCPPorts:  []int{},
+		K8sServiceUDPPorts:  []int{},
+		K8sServiceSCTPPorts: []int{},
+
+		LabeledSrcsPerDst: map[string]labeledSrcsPerDstMap{},
+		DomainToIPs:       map[string][]string{},
+		K8sDNSServices:    []types.Service{},
+
+		FlowIDTrackerFirst:  map[FlowIDTrackingFirst][]int{},
+		FlowIDTrackerSecond: map[FlowIDTrackingSecond][]int{},
+	}
+
+	if exist, ok := ClusterVariableMap[clusterName]; ok {
+		val = exist
+	}
+
+	K8sServiceTCPPorts = val.K8sServiceTCPPorts
+	K8sServiceUDPPorts = val.K8sServiceUDPPorts
+	K8sServiceSCTPPorts = val.K8sServiceSCTPPorts
+
+	LabeledSrcsPerDst = val.LabeledSrcsPerDst
+	DomainToIPs = val.DomainToIPs
+
+	K8sDNSServices = val.K8sDNSServices
+
+	FlowIDTrackerFirst = val.FlowIDTrackerFirst
+	FlowIDTrackerSecond = val.FlowIDTrackerSecond
+}
+
+func updateClusterVariables(clusterName string) {
+	if exist, ok := ClusterVariableMap[clusterName]; ok {
+		exist.K8sServiceTCPPorts = K8sServiceTCPPorts
+		exist.K8sServiceUDPPorts = K8sServiceUDPPorts
+		exist.K8sServiceSCTPPorts = K8sServiceSCTPPorts
+
+		exist.LabeledSrcsPerDst = LabeledSrcsPerDst
+		exist.DomainToIPs = DomainToIPs
+
+		exist.K8sDNSServices = K8sDNSServices
+
+		exist.FlowIDTrackerFirst = FlowIDTrackerFirst
+		exist.FlowIDTrackerSecond = FlowIDTrackerSecond
+
+		ClusterVariableMap[clusterName] = exist
+	}
+}
+
+// ================= //
+// == Network Log == //
+// ================= //
+
+// getNetworkLogs function
+func getNetworkLogs() []types.KnoxNetworkLog {
+	networkLogs := []types.KnoxNetworkLog{}
+
+	// =============== //
+	// == Database  == //
+	// =============== //
+	if Cfg.NetworkLogFrom == "db" {
+		log.Info().Msg("Get network flow from the database")
+
+		// get flows from db
+		flows := libs.GetNetworkFlowFromDB(Cfg.ConfigDB, Cfg.OneTimeJobTimeSelection)
+		if len(flows) == 0 {
+			return nil
+		}
+
+		// convert db flows -> network logs
+		networkLogs = plugin.ConvertCiliumFlowsToKnoxNetworkLogs(Cfg.ConfigDB.DBDriver, flows)
+	} else if Cfg.NetworkLogFrom == "hubble" {
+		// ========================== //
+		// == Cilium Hubble Relay  == //
+		// ========================== //
+		log.Info().Msg("Get network flow from the Cilium Hubble directly")
+
+		// get flows from hubble relay
+		flows := plugin.GetCiliumFlowsFromHubble()
+		if len(flows) == 0 {
+			return nil
+		}
+
+		// convert hubble flows -> network logs (but, in this case, no flow id)
+		for _, flow := range flows {
+			if log, valid := plugin.ConvertCiliumFlowToKnoxNetworkLog(flow); valid {
+				networkLogs = append(networkLogs, log)
+			}
+		}
+	} else if Cfg.NetworkLogFrom == "file" {
+		// =============================== //
+		// == File (.json) for testing  == //
+		// =============================== //
+		log.Info().Msg("Get network flow from the json file : " + Cfg.NetworkLogFile)
+		flows := []*flow.Flow{}
+
+		// Open our jsonFile
+		logFile, err := os.Open(Cfg.NetworkLogFile)
+		if err != nil {
+			log.Error().Msg(err.Error())
+			return nil
+		}
+		defer logFile.Close()
+
+		byteValue, _ := ioutil.ReadAll(logFile)
+		json.Unmarshal(byteValue, &flows)
+
+		// replace the pod names in prepared-flows with the working pod names
+		pods := libs.GetPods()
+		ReplaceMultiubuntuPodName(flows, pods)
+
+		// convert file flows -> network logs (but, in this case, no flow id..)
+		for _, flow := range flows {
+			if log, valid := plugin.ConvertCiliumFlowToKnoxNetworkLog(flow); valid {
+				networkLogs = append(networkLogs, log)
+			}
+		}
+	} else {
+		log.Error().Msgf("Network log source not correct: %s", Cfg.NetworkLogFrom)
+		return nil
+	}
+
+	return networkLogs
+}
+
+func clusteringNetworkLogs(networkLogs []types.KnoxNetworkLog) map[string][]types.KnoxNetworkLog {
+	clusterNameMap := map[string][]types.KnoxNetworkLog{}
+
+	for _, log := range networkLogs {
+		if _, ok := clusterNameMap[log.CluserName]; ok {
+			clusterNameMap[log.CluserName] = append(clusterNameMap[log.CluserName], log)
+		} else {
+			clusterNameMap[log.CluserName] = []types.KnoxNetworkLog{log}
+		}
+	}
+
+	return clusterNameMap
+}
 
 // =========== //
 // == Label == //
@@ -201,34 +349,34 @@ func updateDstLabels(dsts []MergedPortDst, pods []types.Pod) []MergedPortDst {
 // == Flow ID Tracking == //
 // ====================== //
 
-// trackFlowID function
-func trackFlowID(src SrcSimple, dst Dst, flowID int) {
-	trackKey := FlowIDTracking{Src: src, Dst: dst}
+// trackFlowIDFirst function
+func trackFlowIDFirst(src SrcSimple, dst Dst, flowID int) {
+	trackKey := FlowIDTrackingFirst{Src: src, Dst: dst}
 
-	if flowIDs, ok := FlowIDTracker[trackKey]; !ok {
-		FlowIDTracker[trackKey] = []int{flowID}
+	if flowIDs, ok := FlowIDTrackerFirst[trackKey]; !ok {
+		FlowIDTrackerFirst[trackKey] = []int{flowID}
 	} else {
 		if !libs.ContainsElement(flowIDs, flowID) {
 			flowIDs = append(flowIDs, flowID)
-			FlowIDTracker[trackKey] = flowIDs
+			FlowIDTrackerFirst[trackKey] = flowIDs
 		}
 	}
 }
 
-// trackFlowID2 function
-func trackFlowID2(label string, src SrcSimple, dst Dst) {
+// trackFlowIDSecond function
+func trackFlowIDSecond(label string, src SrcSimple, dst Dst) {
 	// get ids from step 1
-	idFromTrack1 := FlowIDTracker[FlowIDTracking{Src: src, Dst: dst}]
+	idFromTrack1 := FlowIDTrackerFirst[FlowIDTrackingFirst{Src: src, Dst: dst}]
 
-	track2Key := FlowIDTracking2{AggreagtedSrc: label, Dst: dst}
+	track2Key := FlowIDTrackingSecond{AggreagtedSrc: label, Dst: dst}
 
-	if flowIDs, ok := FlowIDTracker2[track2Key]; !ok {
-		FlowIDTracker2[track2Key] = idFromTrack1
+	if flowIDs, ok := FlowIDTrackerSecond[track2Key]; !ok {
+		FlowIDTrackerSecond[track2Key] = idFromTrack1
 	} else {
 		for _, id := range idFromTrack1 {
 			if !libs.ContainsElement(flowIDs, id) {
 				flowIDs = append(flowIDs, id)
-				FlowIDTracker2[track2Key] = flowIDs
+				FlowIDTrackerSecond[track2Key] = flowIDs
 			}
 		}
 	}
@@ -236,8 +384,8 @@ func trackFlowID2(label string, src SrcSimple, dst Dst) {
 
 // getFlowIDFromTrackMap2 function
 func getFlowIDFromTrackMap2(aggregatedLabel string, dst Dst) []int {
-	track2Key := FlowIDTracking2{AggreagtedSrc: aggregatedLabel, Dst: dst}
-	if val, ok := FlowIDTracker2[track2Key]; ok {
+	track2Key := FlowIDTrackingSecond{AggreagtedSrc: aggregatedLabel, Dst: dst}
+	if val, ok := FlowIDTrackerSecond[track2Key]; ok {
 		return val
 	}
 
@@ -247,6 +395,41 @@ func getFlowIDFromTrackMap2(aggregatedLabel string, dst Dst) []int {
 // ======================== //
 // == Domain To IP addrs == //
 // ======================== //
+
+// updateDNSFlows function
+func updateDNSFlows(networkLogs []types.KnoxNetworkLog) {
+	// step 1: update dnsToIPs map
+	for _, log := range networkLogs {
+		if log.DNSRes != "" && log.DNSResIPs != nil {
+			domainName := log.DNSRes
+
+			// udpate DNS to IPs map
+			if ips, ok := DomainToIPs[domainName]; ok {
+				for _, ip := range ips {
+					if !libs.ContainsElement(ips, ip) {
+						ips = append(ips, ip)
+					}
+				}
+
+				DomainToIPs[domainName] = ips
+			} else {
+				DomainToIPs[domainName] = ips
+			}
+		}
+	}
+
+	// step 2: update dns query logs
+	for i, log := range networkLogs {
+		// traffic go to the outside of the cluster,
+		if log.DstNamespace == "reserved:world" {
+			// filter if the ip is from the DNS query
+			dns := getDomainNameFromDNSToIP(log)
+			if dns != "" {
+				networkLogs[i].DNSQuery = dns
+			}
+		}
+	}
+}
 
 // getDomainNameFromDNSToIP func
 func getDomainNameFromDNSToIP(log types.KnoxNetworkLog) string {
@@ -340,15 +523,15 @@ func checkK8sExternalService(log types.KnoxNetworkLog, endpoints []types.Endpoin
 // isExposedPort Function
 func isExposedPort(protocol int, port int) bool {
 	if protocol == 6 { // tcp
-		if libs.ContainsElement(exposedTCPPorts, port) {
+		if libs.ContainsElement(K8sServiceTCPPorts, port) {
 			return true
 		}
 	} else if protocol == 17 { // udp
-		if libs.ContainsElement(exposedUDPPorts, port) {
+		if libs.ContainsElement(K8sServiceUDPPorts, port) {
 			return true
 		}
 	} else if protocol == 132 { // sctp
-		if libs.ContainsElement(exposedSCTPPorts, port) {
+		if libs.ContainsElement(K8sServiceSCTPPorts, port) {
 			return true
 		}
 	}
@@ -362,7 +545,7 @@ func removeKubeDNSPort(toPorts []types.SpecPort) []types.SpecPort {
 
 	for _, toPort := range toPorts {
 		isDNS := false
-		for _, dnsSvc := range k8sDNSSvc {
+		for _, dnsSvc := range K8sDNSServices {
 			if toPort.Port == strconv.Itoa(dnsSvc.ServicePort) &&
 				toPort.Protocol == strings.ToLower(dnsSvc.Protocol) {
 				isDNS = true
@@ -387,34 +570,34 @@ func updateServiceEndpoint(services []types.Service, endpoints []types.Endpoint,
 	// step 1: service port update
 	for _, service := range services {
 		if strings.ToLower(service.Protocol) == "tcp" { // TCP
-			if !libs.ContainsElement(exposedTCPPorts, service.ServicePort) {
-				exposedTCPPorts = append(exposedTCPPorts, service.ServicePort)
+			if !libs.ContainsElement(K8sServiceTCPPorts, service.ServicePort) {
+				K8sServiceTCPPorts = append(K8sServiceTCPPorts, service.ServicePort)
 			}
-			if !libs.ContainsElement(exposedTCPPorts, service.NodePort) {
-				exposedTCPPorts = append(exposedTCPPorts, service.NodePort)
+			if !libs.ContainsElement(K8sServiceTCPPorts, service.NodePort) {
+				K8sServiceTCPPorts = append(K8sServiceTCPPorts, service.NodePort)
 			}
-			if !libs.ContainsElement(exposedTCPPorts, service.TargetPort) {
-				exposedTCPPorts = append(exposedTCPPorts, service.TargetPort)
+			if !libs.ContainsElement(K8sServiceTCPPorts, service.TargetPort) {
+				K8sServiceTCPPorts = append(K8sServiceTCPPorts, service.TargetPort)
 			}
 		} else if strings.ToLower(service.Protocol) == "udp" { // UDP
-			if !libs.ContainsElement(exposedUDPPorts, service.ServicePort) {
-				exposedUDPPorts = append(exposedUDPPorts, service.ServicePort)
+			if !libs.ContainsElement(K8sServiceUDPPorts, service.ServicePort) {
+				K8sServiceUDPPorts = append(K8sServiceUDPPorts, service.ServicePort)
 			}
-			if !libs.ContainsElement(exposedUDPPorts, service.NodePort) {
-				exposedUDPPorts = append(exposedUDPPorts, service.NodePort)
+			if !libs.ContainsElement(K8sServiceUDPPorts, service.NodePort) {
+				K8sServiceUDPPorts = append(K8sServiceUDPPorts, service.NodePort)
 			}
-			if !libs.ContainsElement(exposedUDPPorts, service.TargetPort) {
-				exposedUDPPorts = append(exposedUDPPorts, service.TargetPort)
+			if !libs.ContainsElement(K8sServiceUDPPorts, service.TargetPort) {
+				K8sServiceUDPPorts = append(K8sServiceUDPPorts, service.TargetPort)
 			}
 		} else if strings.ToLower(service.Protocol) == "sctp" { // SCTP
-			if !libs.ContainsElement(exposedSCTPPorts, service.ServicePort) {
-				exposedSCTPPorts = append(exposedSCTPPorts, service.ServicePort)
+			if !libs.ContainsElement(K8sServiceSCTPPorts, service.ServicePort) {
+				K8sServiceSCTPPorts = append(K8sServiceSCTPPorts, service.ServicePort)
 			}
-			if !libs.ContainsElement(exposedSCTPPorts, service.NodePort) {
-				exposedSCTPPorts = append(exposedSCTPPorts, service.NodePort)
+			if !libs.ContainsElement(K8sServiceSCTPPorts, service.NodePort) {
+				K8sServiceSCTPPorts = append(K8sServiceSCTPPorts, service.NodePort)
 			}
-			if !libs.ContainsElement(exposedSCTPPorts, service.TargetPort) {
-				exposedSCTPPorts = append(exposedSCTPPorts, service.TargetPort)
+			if !libs.ContainsElement(K8sServiceSCTPPorts, service.TargetPort) {
+				K8sServiceSCTPPorts = append(K8sServiceSCTPPorts, service.TargetPort)
 			}
 		}
 	}
@@ -423,16 +606,16 @@ func updateServiceEndpoint(services []types.Service, endpoints []types.Endpoint,
 	for _, endpoint := range endpoints {
 		for _, ep := range endpoint.Endpoints {
 			if strings.ToLower(ep.Protocol) == "tcp" { // TCP
-				if !libs.ContainsElement(exposedTCPPorts, ep.Port) {
-					exposedTCPPorts = append(exposedTCPPorts, ep.Port)
+				if !libs.ContainsElement(K8sServiceTCPPorts, ep.Port) {
+					K8sServiceTCPPorts = append(K8sServiceTCPPorts, ep.Port)
 				}
 			} else if strings.ToLower(ep.Protocol) == "udp" { // UDP
-				if !libs.ContainsElement(exposedUDPPorts, ep.Port) {
-					exposedUDPPorts = append(exposedUDPPorts, ep.Port)
+				if !libs.ContainsElement(K8sServiceUDPPorts, ep.Port) {
+					K8sServiceUDPPorts = append(K8sServiceUDPPorts, ep.Port)
 				}
 			} else if strings.ToLower(ep.Protocol) == "sctp" { // SCTP
-				if !libs.ContainsElement(exposedSCTPPorts, ep.Port) {
-					exposedSCTPPorts = append(exposedSCTPPorts, ep.Port)
+				if !libs.ContainsElement(K8sServiceSCTPPorts, ep.Port) {
+					K8sServiceSCTPPorts = append(K8sServiceSCTPPorts, ep.Port)
 				}
 			}
 		}
@@ -441,9 +624,9 @@ func updateServiceEndpoint(services []types.Service, endpoints []types.Endpoint,
 	// step 3: save kube-dns to the global variable
 	for _, svc := range services {
 		if svc.Namespace == "kube-system" && svc.ServiceName == "kube-dns" && svc.Protocol == "UDP" {
-			k8sDNSSvc = append(k8sDNSSvc, svc)
+			K8sDNSServices = append(K8sDNSServices, svc)
 		} else if svc.Namespace == "kube-system" && svc.ServiceName == "kube-dns" && svc.Protocol == "TCP" {
-			k8sDNSSvc = append(k8sDNSSvc, svc)
+			K8sDNSServices = append(K8sDNSServices, svc)
 		}
 	}
 }
@@ -453,8 +636,8 @@ func updateServiceEndpoint(services []types.Service, endpoints []types.Endpoint,
 // =============== //
 
 func clearTrackFlowID() {
-	FlowIDTracker = map[FlowIDTracking][]int{}
-	FlowIDTracker2 = map[FlowIDTracking2][]int{}
+	FlowIDTrackerFirst = map[FlowIDTrackingFirst][]int{}
+	FlowIDTrackerSecond = map[FlowIDTrackingSecond][]int{}
 }
 
 func clearDomainToIPs() {
@@ -462,7 +645,7 @@ func clearDomainToIPs() {
 }
 
 func cleargLabeledSrcsPerDst() {
-	gLabeledSrcsPerDst = map[string]labeledSrcsPerDstMap{}
+	LabeledSrcsPerDst = map[string]labeledSrcsPerDstMap{}
 }
 
 func clearHTTPAggregator() {

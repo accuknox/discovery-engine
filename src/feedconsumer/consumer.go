@@ -14,9 +14,9 @@ import (
 	types "github.com/accuknox/knoxAutoPolicy/src/types"
 )
 
-// ======================= //
-// == Gloabl Variables  == //
-// ======================= //
+// ====================== //
+// == Gloabl Variables == //
+// ====================== //
 
 var consumer *CiliumFeedsConsumer
 
