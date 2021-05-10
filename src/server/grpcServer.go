@@ -5,10 +5,11 @@ import (
 	"encoding/json"
 
 	"github.com/gogo/protobuf/jsonpb"
-	"github.com/rs/zerolog/log"
+	"github.com/rs/zerolog"
 
 	core "github.com/accuknox/knoxAutoPolicy/src/core"
 	"github.com/accuknox/knoxAutoPolicy/src/feedconsumer"
+	logger "github.com/accuknox/knoxAutoPolicy/src/logging"
 
 	"github.com/accuknox/knoxAutoPolicy/src/libs"
 	cpb "github.com/accuknox/knoxAutoPolicy/src/protobuf/v1/config"
@@ -19,6 +20,12 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
+
+var log *zerolog.Logger
+
+func init() {
+	log = logger.GetInstance()
+}
 
 // PortNumber ...
 const PortNumber = "9089"

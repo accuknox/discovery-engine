@@ -37,42 +37,7 @@ type Service struct {
 
 // Pod Structure
 type Pod struct {
-	Namespace string `json:"namespace" bson:"namespace"`
-
-	PodUID  string `json:"pod_uid" bson:"pod_uid"`
-	PodName string `json:"pod_name" bson:"pod_name"`
-
-	HostID   string `json:"host_id" bson:"host_id"`
-	HostName string `json:"host_name" bson:"host_name"`
-	HostIP   string `json:"host_ip" bson:"host_ip"`
-
-	Labels []string `json:"labels" bson:"labels"`
-}
-
-// Namespace Structure
-type Namespace struct {
-	NamespaceUID  string `json:"namespace_uid" bson:"namespace_uid"`
-	NamespaceName string `json:"namespace_name" bson:"namespace_name"`
-
-	Status string `json:"status" bson:"status"`
-
-	Labels []string `json:"labels" bson:"labels"`
-
-	Pods       []string `json:"pods" bson:"pods"`
-	Containers []string `json:"containers" bson:"containers"`
-}
-
-// Cluster Structure
-type Cluster struct {
-	ID              int    `json:"ID" bson:"ID"`
-	ClusterName     string `json:"ClusterName" bson:"ClusterName"`
-	Location        string `json:"Location" bson:"Location"`
-	NodeCount       int    `json:"NodeCount" bson:"NodeCount"`
-	PodCount        int    `json:"PodCount" bson:"PodCount"`
-	NamespaceCount  int    `json:"NamespaceCount" bson:"NamespaceCount"`
-	LabelCount      int    `json:"LabelCount" bson:"LabelCount"`
-	PolicyCount     int    `json:"PolicyCount" bson:"PolicyCount"`
-	AlertsCount     int    `json:"AlertsCount" bson:"AlertsCount"`
-	LastUpdatedTime string `json:"last_updated_time" bson:"last_updated_time"`
-	WorkspaceID     int    `json:"WorkspaceID" bson:"WorkspaceID"`
+	Namespace string   `json:"namespace" bson:"namespace"`
+	PodName   string   `json:"pod_name" bson:"pod_name"`
+	Labels    []string `json:"labels" bson:"labels"`
 }

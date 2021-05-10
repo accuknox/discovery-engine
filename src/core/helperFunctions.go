@@ -14,8 +14,18 @@ import (
 	"github.com/accuknox/knoxAutoPolicy/src/plugin"
 	types "github.com/accuknox/knoxAutoPolicy/src/types"
 	"github.com/cilium/cilium/api/v1/flow"
-	"github.com/rs/zerolog/log"
 )
+
+func SkipNamespace(namespace string) bool {
+	// skip uninterested namespaces
+	if libs.ContainsElement(SkipNamespaces, namespace) {
+		return true
+	} else if strings.HasPrefix(namespace, "accuknox-") {
+		return true
+	}
+
+	return false
+}
 
 // ======================= //
 // == Cluster Variables == //
@@ -129,7 +139,7 @@ func getNetworkLogs() []types.KnoxNetworkLog {
 		json.Unmarshal(byteValue, &flows)
 
 		// replace the pod names in prepared-flows with the working pod names
-		pods := libs.GetPods()
+		pods := libs.GetPodsK8s()
 		ReplaceMultiubuntuPodName(flows, pods)
 
 		// convert file flows -> network logs (but, in this case, no flow id..)
@@ -635,7 +645,7 @@ func updateServiceEndpoint(services []types.Service, endpoints []types.Endpoint,
 // == Clearance == //
 // =============== //
 
-func clearTrackFlowID() {
+func clearTrackFlowIDMaps() {
 	FlowIDTrackerFirst = map[FlowIDTrackingFirst][]int{}
 	FlowIDTrackerSecond = map[FlowIDTrackingSecond][]int{}
 }
@@ -657,7 +667,25 @@ func clearGlobalVariabels() {
 	clearDomainToIPs()
 	cleargLabeledSrcsPerDst()
 	clearHTTPAggregator()
-	clearTrackFlowID()
+	clearTrackFlowIDMaps()
+}
+
+// ================== //
+// == File Outputs == //
+// ================== //
+
+func InsertDiscoveredPoliciesToFile(namespace string, services []types.Service) {
+	// retrieve the latest policies from the db
+	latestPolicies := libs.GetNetworkPolicies(Cfg.ConfigDB, namespace, "latest")
+
+	// write discovered policies to files
+	libs.WriteKnoxPolicyToYamlFile(namespace, latestPolicies)
+
+	// convert knoxPolicy to CiliumPolicy
+	ciliumPolicies := plugin.ConvertKnoxPoliciesToCiliumPolicies(services, latestPolicies)
+
+	// write discovered policies to files
+	libs.WriteCiliumPolicyToYamlFile(namespace, ciliumPolicies)
 }
 
 // ============= //

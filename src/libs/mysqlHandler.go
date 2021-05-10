@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/accuknox/knoxAutoPolicy/src/types"
-	"github.com/rs/zerolog/log"
 
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -30,7 +29,7 @@ func ConnectMySQL(cfg types.ConfigDB) (db *sql.DB) {
 // ======================== //
 
 // QueryBaseSimple ...
-var QueryBaseSimple string = "select id,time,traffic_direction,verdict,policy_match_type,drop_reason,event_type,source,destination,ip,l4,l7 from "
+var QueryBaseSimple string = "select id,time,cluster_name,traffic_direction,verdict,policy_match_type,drop_reason,event_type,source,destination,ip,l4,l7 from "
 
 // flowScannerToCiliumFlow scans the trafficflow.
 func flowScannerToCiliumFlow(results *sql.Rows) ([]map[string]interface{}, error) {
@@ -40,13 +39,14 @@ func flowScannerToCiliumFlow(results *sql.Rows) ([]map[string]interface{}, error
 	for results.Next() {
 		var id, time, policyMatchTypeInt, dropReasonInt uint32
 		var policyMatchType, dropReason sql.NullInt32
-		var verdict, direction string
+		var verdict, direction, clusterName string
 		var srcByte, destByte, eventTypeByte []byte
 		var ipByte, l4Byte, l7Byte []byte
 
 		err = results.Scan(
 			&id,
 			&time,
+			&clusterName,
 			&direction,
 			&verdict,
 			&policyMatchType,
@@ -75,6 +75,7 @@ func flowScannerToCiliumFlow(results *sql.Rows) ([]map[string]interface{}, error
 		flow := map[string]interface{}{
 			"id":                id,
 			"time":              time,
+			"cluster_name":      clusterName,
 			"traffic_direction": direction,
 			"verdict":           verdict,
 			"policy_match_type": policyMatchTypeInt,

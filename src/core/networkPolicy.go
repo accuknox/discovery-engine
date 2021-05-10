@@ -9,14 +9,22 @@ import (
 	"time"
 
 	"github.com/accuknox/knoxAutoPolicy/src/libs"
+	logger "github.com/accuknox/knoxAutoPolicy/src/logging"
 	"github.com/accuknox/knoxAutoPolicy/src/plugin"
 	"github.com/accuknox/knoxAutoPolicy/src/types"
+
+	"github.com/rs/zerolog"
 
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/robfig/cron"
-	"github.com/rs/zerolog/log"
 )
+
+var log *zerolog.Logger
+
+func init() {
+	log = logger.GetInstance()
+}
 
 // ================================== //
 // == Discovery Policy/Rule Types  == //
@@ -62,7 +70,7 @@ var WorkerStatus string
 // for cron job
 var CronJob *cron.Cron
 var WaitG sync.WaitGroup
-var StopChan chan struct{}
+var StopChan chan struct{} // for hubble
 
 // init Function
 func init() {
@@ -1454,17 +1462,6 @@ func updateLabeledSrcPerDst(labeledSrcsPerDst map[Dst][]SrcSimple) map[Dst][]Src
 // == Discover Network Policy  == //
 // ============================== //
 
-func skipNamespace(namespace string) bool {
-	// skip uninterested namespaces
-	if libs.ContainsElement(SkipNamespaces, namespace) {
-		return true
-	} else if strings.HasPrefix(namespace, "accuknox-") {
-		return true
-	}
-
-	return false
-}
-
 // DiscoverNetworkPolicy Function
 func DiscoverNetworkPolicy(namespace string,
 	networkLogs []types.KnoxNetworkLog,
@@ -1508,36 +1505,43 @@ func DiscoverNetworkPolicy(namespace string,
 	return networkPolicies
 }
 
-// Preprocessing function
-func Preprocessing() {
+// DiscoverNetworkPolicyMain function
+func DiscoverNetworkPolicyMain() {
+	if WorkerStatus == STATUS_RUNNING {
+		return
+	} else {
+		WorkerStatus = STATUS_RUNNING
+	}
+
+	defer func() {
+		WorkerStatus = STATUS_IDLE
+	}()
+
 	// get network logs
 	allNetworkLogs := getNetworkLogs()
 	if allNetworkLogs == nil {
-		if Cfg.OperationMode == OP_MODE_ONETIME && WorkerStatus == STATUS_RUNNING {
-			WorkerStatus = STATUS_IDLE
-		}
 		return
 	}
 
-	// get cluster names
+	// get cluster names, iterate each cluster
 	clusteredLogs := clusteringNetworkLogs(allNetworkLogs)
 	for clusterName, networkLogs := range clusteredLogs {
-		// set cluster variables
+		if clusterName != "accuknox-qa" {
+			continue
+		}
+
+		clusterInstance := libs.GetClusterFromClusterName(clusterName)
+		if clusterInstance.ClusterID == 0 { // cluster not onboarded
+			continue
+		}
+
+		// set cluster global variables
 		initClusterVariables(clusterName)
 
-		// get k8s services
-		services := libs.GetServices()
+		// get k8s resources
+		namespaces, services, endpoints, pods := libs.GetClusterResources(clusterInstance)
 
-		// get k8s endpoints
-		endpoints := libs.GetEndpoints()
-
-		// get k8s pods
-		pods := libs.GetPods()
-
-		// get k8s namespaces
-		namespaces := libs.GetNamespaces()
-
-		// update DNS flows, DNSToIPs map
+		// update DNS req. flows, DNSToIPs map
 		updateDNSFlows(networkLogs)
 
 		// update service ports (k8s service, endpoint, kube-dns)
@@ -1551,25 +1555,28 @@ func Preprocessing() {
 
 		// iterate each namespace
 		for _, namespace := range namespaces {
-			if skipNamespace(namespace) {
+			if SkipNamespace(namespace) {
 				continue
 			}
 
 			// filter network logs by target namespace
-			nsFilteredLogs := FilterNetworkLogsByNamespace(namespace, configFilteredLogs)
-			if len(nsFilteredLogs) == 0 {
+			namespaceFilteredLogs := FilterNetworkLogsByNamespace(namespace, configFilteredLogs)
+			if len(namespaceFilteredLogs) == 0 {
 				continue
 			}
+
 			log.Info().Msgf("Policy discovery started for namespace: [%s]", namespace)
 
 			// reset flow id track at each target namespace
-			clearTrackFlowID()
+			clearTrackFlowIDMaps()
 
-			// discover network policies based on the network logs
-			discoveredPolicies := DiscoverNetworkPolicy(namespace, nsFilteredLogs, services, endpoints, pods)
+			// ========================================================= //
+			// == discover network policies based on the network logs == //
+			// ========================================================= //
+			discoveredPolicies := DiscoverNetworkPolicy(namespace, namespaceFilteredLogs, services, endpoints, pods)
 
-			// remove duplicated policy
-			newPolicies := UpdateDuplicatedPolicy(existingPolicies, discoveredPolicies, DomainToIPs)
+			// update duplicated policy
+			newPolicies := UpdateDuplicatedPolicy(existingPolicies, discoveredPolicies, DomainToIPs, clusterName)
 			sort.Slice(newPolicies, func(i, j int) bool {
 				return newPolicies[i].Metadata["name"] < newPolicies[j].Metadata["name"]
 			})
@@ -1580,27 +1587,16 @@ func Preprocessing() {
 					libs.InsertDiscoveredPolicies(Cfg.ConfigDB, newPolicies)
 				}
 
+				// insert discovered policies to file
 				if strings.Contains(Cfg.DiscoveredPolicyTo, "file") {
-					// retrieve the latest policies from the db
-					latestPolicies := libs.GetNetworkPolicies(Cfg.ConfigDB, namespace, "latest")
-
-					// write discovered policies to files
-					libs.WriteKnoxPolicyToYamlFile(namespace, latestPolicies)
-
-					// convert knoxPolicy to CiliumPolicy
-					ciliumPolicies := plugin.ConvertKnoxPoliciesToCiliumPolicies(services, latestPolicies)
-
-					// write discovered policies to files
-					libs.WriteCiliumPolicyToYamlFile(namespace, ciliumPolicies)
+					InsertDiscoveredPoliciesToFile(namespace, services)
 				}
-
-				log.Info().Msgf("Policy discovery done for namespace: [%s], [%d] policies discovered", namespace, len(newPolicies))
-			} else {
-				log.Info().Msgf("Policy discovery done for namespace: [%s], no policy discovered", namespace)
 			}
+
+			log.Info().Msgf("Policy discovery done for namespace: [%s], [%d] policies discovered", namespace, len(newPolicies))
 		}
 
-		// update cluster variables
+		// update cluster global variables
 		updateClusterVariables(clusterName)
 	}
 }
@@ -1619,7 +1615,7 @@ func StartCronJob() {
 
 	// init cron job
 	CronJob = cron.New()
-	err := CronJob.AddFunc(Cfg.CronJobTimeInterval, Preprocessing) // time interval
+	err := CronJob.AddFunc(Cfg.CronJobTimeInterval, DiscoverNetworkPolicyMain) // time interval
 	if err != nil {
 		log.Error().Msg(err.Error())
 		return
@@ -1649,27 +1645,23 @@ func StartWorker() {
 		log.Info().Msg("There is no idle discovery worker")
 		return
 	}
-	WorkerStatus = STATUS_RUNNING
 
 	if Cfg.OperationMode == OP_MODE_CRONJOB { // every time intervals
 		StartCronJob()
 	} else { // one-time generation
-		Preprocessing()
+		DiscoverNetworkPolicyMain()
 		log.Info().Msgf("Auto discovery onetime job done")
-
-		WorkerStatus = STATUS_IDLE
 	}
 }
 
 // StopWorker function
 func StopWorker() {
-	if WorkerStatus != STATUS_RUNNING {
-		log.Info().Msg("There is no running discovery worker")
-		return
-	}
-	WorkerStatus = STATUS_IDLE
-
 	if Cfg.OperationMode == OP_MODE_CRONJOB { // every time intervals
 		StopCronJob()
+	} else {
+		if WorkerStatus != STATUS_RUNNING {
+			log.Info().Msg("There is no running discovery worker")
+			return
+		}
 	}
 }

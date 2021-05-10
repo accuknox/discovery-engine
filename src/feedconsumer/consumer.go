@@ -6,13 +6,21 @@ import (
 	"sync"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
-	"github.com/rs/zerolog/log"
+	"github.com/rs/zerolog"
+
 	"github.com/spf13/viper"
 
 	"github.com/accuknox/knoxAutoPolicy/src/core"
 	"github.com/accuknox/knoxAutoPolicy/src/libs"
+	logger "github.com/accuknox/knoxAutoPolicy/src/logging"
 	types "github.com/accuknox/knoxAutoPolicy/src/types"
 )
+
+var log *zerolog.Logger
+
+func init() {
+	log = logger.GetInstance()
+}
 
 // ====================== //
 // == Gloabl Variables == //
@@ -99,7 +107,7 @@ func (cfc *CiliumFeedsConsumer) startConsumer() {
 	for run == true {
 		select {
 		case sig := <-stopChan:
-			log.Info().Msgf("Got a signal to terminate the consumer %v", sig)
+			log.Info().Msgf("Got a signal to terminate the consumer")
 			run = false
 
 		default:

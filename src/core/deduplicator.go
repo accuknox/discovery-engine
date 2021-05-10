@@ -690,7 +690,7 @@ func existPolicyName(policyNamesMap map[string]bool, name string) bool {
 }
 
 // GeneratePolicyName function
-func GeneratePolicyName(policyNamesMap map[string]bool, policy types.KnoxNetworkPolicy) types.KnoxNetworkPolicy {
+func GeneratePolicyName(policyNamesMap map[string]bool, policy types.KnoxNetworkPolicy, clusterName string) types.KnoxNetworkPolicy {
 	egressPrefix := "autopol-egress-"
 	ingressPrefix := "autopol-ingress-"
 
@@ -708,7 +708,7 @@ func GeneratePolicyName(policyNamesMap map[string]bool, policy types.KnoxNetwork
 	policyNamesMap[name] = true
 
 	policy.Metadata["name"] = name
-	policy.Metadata["cluster_name"] = libs.GetClusterName()
+	policy.Metadata["cluster_name"] = clusterName
 
 	return policy
 }
@@ -830,7 +830,7 @@ func IsExistingPolicy(existingPolicies []types.KnoxNetworkPolicy, newPolicy type
 // ======================================== //
 
 // UpdateDuplicatedPolicy function
-func UpdateDuplicatedPolicy(existingPolicies []types.KnoxNetworkPolicy, discoveredPolicies []types.KnoxNetworkPolicy, dnsToIPs map[string][]string) []types.KnoxNetworkPolicy {
+func UpdateDuplicatedPolicy(existingPolicies []types.KnoxNetworkPolicy, discoveredPolicies []types.KnoxNetworkPolicy, dnsToIPs map[string][]string, clusterName string) []types.KnoxNetworkPolicy {
 	newPolicies := []types.KnoxNetworkPolicy{}
 
 	// update policy name map
@@ -847,7 +847,7 @@ func UpdateDuplicatedPolicy(existingPolicies []types.KnoxNetworkPolicy, discover
 		}
 
 		// step 2: generate policy name
-		namedPolicy := GeneratePolicyName(policyNamesMap, policy)
+		namedPolicy := GeneratePolicyName(policyNamesMap, policy, clusterName)
 
 		// step 3-1: update existing HTTP rules: egress or ingress
 		if strings.Contains(policy.Metadata["rule"], "toHTTPs") {
