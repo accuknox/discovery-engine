@@ -59,6 +59,7 @@ func LoadConfigDB() types.ConfigDB {
 	cfgDB.TableNetworkFlow = viper.GetString("database.table-network-flow")
 	cfgDB.TableDiscoveredPolicies = viper.GetString("database.table-discovered-policies")
 	cfgDB.TableConfiguration = viper.GetString("database.table-configuration")
+	cfgDB.TableSystemLog = viper.GetString("database.table-system-log")
 
 	PlugIn = "cilium" // for now, cilium only supported
 
