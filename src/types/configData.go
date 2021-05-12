@@ -12,6 +12,7 @@ type ConfigDB struct {
 	TableNetworkFlow        string `json:"table_network_flow,omitempty" bson:"table_network_flow,omitempty"`
 	TableDiscoveredPolicies string `json:"table_discovered_policies,omitempty" bson:"table_discovered_policies,omitempty"`
 	TableConfiguration      string `json:"table_auto_policy_config,omitempty" bson:"table_auto_policy_config,omitempty"`
+	TableSystemLog          string `json:"table_system_log,omitempty" bson:"table_system_log,omitempty"`
 }
 
 // ConfigCiliumHubble ...
