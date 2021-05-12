@@ -64,3 +64,25 @@ CREATE TABLE IF NOT EXISTS `auto_policy_config` (
   `l7_aggregation_level` int DEFAULT NULL,
   PRIMARY KEY (`id`)
 );
+
+CREATE TABLE IF NOT EXISTS `system_log_events` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `time` int DEFAULT NULL,
+  `cluster_name` varchar(100) DEFAULT NULL,
+  `node_name` varchar(100) DEFAULT NULL,
+  `namespace_name` varchar(100) DEFAULT NULL,
+  `pod_name` varchar(100) DEFAULT NULL,
+  `container_id` varchar(100) DEFAULT NULL,
+  `container_name` varchar(100) DEFAULT NULL,
+  `host_pid` int DEFAULT NULL,
+  `ppid` int DEFAULT NULL,
+  `pid` int DEFAULT NULL,
+  `uid` int DEFAULT NULL,
+  `type` varchar(20) DEFAULT NULL,
+  `source` varchar(200) DEFAULT NULL,
+  `operation` varchar(20) DEFAULT NULL,
+  `resource` varchar(200) DEFAULT NULL,
+  `data` varchar(100) DEFAULT NULL,
+  `result` varchar(100) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+)
