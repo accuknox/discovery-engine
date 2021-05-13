@@ -102,6 +102,84 @@ func InsertNetworkFlowToDB(cfg types.ConfigDB, nfe []types.NetworkFlowEvent) err
 	return nil
 }
 
+// ====================== //
+// == System Log Event == //
+// ====================== //
+
+// LastSyslogID system log between [ startTime <= time < endTime ]
+var LastSyslogID int64 = 0
+var syslogStartTime int64 = 0
+var syslogEndTime int64 = 0
+
+// GetSystemLogFromDB function
+func GetSystemLogFromDB(cfg types.ConfigDB, timeSelection string) []map[string]interface{} {
+	results := []map[string]interface{}{}
+
+	endTime = time.Now().Unix()
+
+	if cfg.DBDriver == "mysql" {
+		if timeSelection == "" {
+			docs, err := GetSystemLogByIDTime(cfg, LastSyslogID, endTime)
+			if err != nil {
+				log.Error().Msg(err.Error())
+				return results
+			}
+			results = docs
+		} else {
+			// given time selection from ~ to
+			times := strings.Split(timeSelection, "|")
+			from := ConvertStrToUnixTime(times[0])
+			to := ConvertStrToUnixTime(times[1])
+
+			docs, err := GetSystemLogByTime(cfg, from, to)
+			if err != nil {
+				log.Error().Msg(err.Error())
+				return results
+			}
+			results = docs
+		}
+	} else if cfg.DBDriver == "mongodb" {
+		// TODO: MongoDB
+	} else {
+		return results
+	}
+
+	if len(results) == 0 {
+		log.Info().Msgf("System logs not exist: from %s ~ to %s",
+			time.Unix(syslogStartTime, 0).Format(TimeFormSimple),
+			time.Unix(syslogEndTime, 0).Format(TimeFormSimple))
+
+		return results
+	}
+
+	lastDoc := results[len(results)-1]
+
+	// id update for mysql
+	if cfg.DBDriver == "mysql" {
+		LastSyslogID = int64(lastDoc["id"].(uint32))
+	}
+
+	log.Info().Msgf("The total number of system logs: [%d] from %s ~ to %s", len(results),
+		time.Unix(syslogStartTime, 0).Format(TimeFormSimple),
+		time.Unix(syslogEndTime, 0).Format(TimeFormSimple))
+
+	syslogStartTime = syslogEndTime + 1
+	return results
+}
+
+// InsertSystemLogToDB function
+func InsertSystemLogToDB(cfg types.ConfigDB, sle []types.SystemLogEvent) error {
+	if cfg.DBDriver == "mysql" {
+		if err := InsertSystemLogToMySQLDB(cfg, sle); err != nil {
+			return err
+		}
+	} else if cfg.DBDriver == "mongodb" {
+		// TODO: MongoDB
+	}
+
+	return nil
+}
+
 // ==================== //
 // == Network Policy == //
 // ==================== //
@@ -223,6 +301,9 @@ func CreateTablesIfNotExist(cfg types.ConfigDB) {
 			log.Error().Msg(err.Error())
 		}
 		if err := CreateTableConfigurationMySQL(cfg); err != nil {
+			log.Error().Msg(err.Error())
+		}
+		if err := CreateTableSystemLogMySQL(cfg); err != nil {
 			log.Error().Msg(err.Error())
 		}
 	} else if cfg.DBDriver == "mongodb" {
