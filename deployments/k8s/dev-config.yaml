@@ -26,7 +26,8 @@ data:
       bootstrap-servers: "dev-kafka-kafka-bootstrap.accuknox-dev-kafka.svc.cluster.local:9092"
       group-id: policy.cilium
       topics: 
-        - cilium-telemetry
+        - cilium-telemetry-test
+        - kubearmor-syslogs
       ssl:
         enabled: false
       events:
@@ -42,6 +43,7 @@ data:
       table-network-flow: network_flow_events
       table-discovered-policies: discovered_policies
       table-configuration: auto_policy_config
+      table-system-log: system_log_events
 
     cilium-hubble:
       url: 10.4.41.240

@@ -212,6 +212,92 @@ func InsertNetworkFlowToMySQLDB(cfg types.ConfigDB, nfe []types.NetworkFlowEvent
 	return nil
 }
 
+// ====================== //
+// == System Log Event == //
+// ====================== //
+
+// GetSystemLogByTime function
+func GetSystemLogByTime(cfg types.ConfigDB, startTime, endTime int64) ([]map[string]interface{}, error) {
+	db := ConnectMySQL(cfg)
+	defer db.Close()
+
+	QueryBase := QueryBaseSimple + cfg.TableSystemLog
+
+	rows, err := db.Query(QueryBase+" WHERE time >= ? and time <= ?", int(startTime), int(endTime))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return flowScannerToCiliumFlow(rows)
+}
+
+// GetSystemLogByIDTime function
+func GetSystemLogByIDTime(cfg types.ConfigDB, id, endTime int64) ([]map[string]interface{}, error) {
+	db := ConnectMySQL(cfg)
+	defer db.Close()
+
+	QueryBase := QueryBaseSimple + cfg.TableSystemLog
+
+	rows, err := db.Query(QueryBase+" WHERE id > ? ORDER BY id ASC ", id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return flowScannerToCiliumFlow(rows)
+}
+
+// InsertSystemLogToMySQLDB function
+func InsertSystemLogToMySQLDB(cfg types.ConfigDB, sle []types.SystemLogEvent) error {
+	db := ConnectMySQL(cfg)
+	defer db.Close()
+
+	sqlStr := "INSERT INTO " + cfg.TableSystemLog + "(time,cluster_name,node_name,namespace_name,pod_name,container_id,container_name,hostpid,ppid,pid,uid,type,source,operation,resource,data,result) VALUES "
+	vals := []interface{}{}
+
+	for _, e := range sle {
+		sqlStr += "(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?),"
+
+		vals = append(vals,
+			e.Timestamp,
+			e.ClusterName,
+			e.HostName,
+			e.NamespaceName,
+			e.PodName,
+			e.ContainerID,
+			e.ContainerName,
+			e.HostPID,
+			e.PPID,
+			e.PID,
+			e.UID,
+			e.Type,
+			e.Source,
+			e.Operation,
+			e.Resource,
+			e.Data,
+			e.Result)
+	}
+
+	//trim the last ','
+	sqlStr = strings.TrimSuffix(sqlStr, ",")
+
+	//prepare the statement
+	stmt, err := db.Prepare(sqlStr)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	//format all vals at once
+	_, err = stmt.Exec(vals...)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // ==================== //
 // == Network Policy == //
 // ==================== //
@@ -701,6 +787,11 @@ func ClearDBTablesMySQL(cfg types.ConfigDB) error {
 		return err
 	}
 
+	query = "DELETE FROM " + cfg.TableSystemLog
+	if _, err := db.Query(query); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -805,6 +896,43 @@ func CreateTableConfigurationMySQL(cfg types.ConfigDB) error {
 			"	`l7_aggregation_level` int DEFAULT NULL," +
 			"	PRIMARY KEY (`id`)" +
 			"  );"
+
+	if _, err := db.Query(query); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// CreateTableSystemLogMySQL function
+func CreateTableSystemLogMySQL(cfg types.ConfigDB) error {
+	db := ConnectMySQL(cfg)
+	defer db.Close()
+
+	tableName := cfg.TableSystemLog
+
+	query :=
+		"CREATE TABLE IF NOT EXISTS `" + tableName + "` (" +
+			"`id` int NOT NULL AUTO_INCREMENT," +
+			"`time` int DEFAULT NULL," +
+			"`cluster_name` varchar(100) DEFAULT NULL," +
+			"`node_name` varchar(100) DEFAULT NULL," +
+			"`namespace_name` varchar(100) DEFAULT NULL," +
+			"`pod_name` varchar(100) DEFAULT NULL," +
+			"`container_id` varchar(100) DEFAULT NULL," +
+			"`container_name` varchar(100) DEFAULT NULL," +
+			"`host_pid` int DEFAULT NULL," +
+			"`ppid` int DEFAULT NULL," +
+			"`pid` int DEFAULT NULL," +
+			"`uid` int DEFAULT NULL," +
+			"`type` varchar(20) DEFAULT NULL," +
+			"`source` varchar(200) DEFAULT NULL," +
+			"`operation` varchar(20) DEFAULT NULL," +
+			"`resource` varchar(200) DEFAULT NULL," +
+			"`data` varchar(100) DEFAULT NULL," +
+			"`result` varchar(100) DEFAULT NULL," +
+			"	PRIMARY KEY (`id`)" +
+			");"
 
 	if _, err := db.Query(query); err != nil {
 		return err

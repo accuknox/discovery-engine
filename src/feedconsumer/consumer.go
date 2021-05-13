@@ -47,6 +47,9 @@ var stopChan chan struct{}
 var events []types.NetworkFlowEvent
 var eventsCount int
 
+var syslogEvents []types.SystemLogEvent
+var syslogEventsCount int
+
 // Consumer - Consumes Cilium Feeds
 type CiliumFeedsConsumer struct {
 	kafkaConfig  kafka.ConfigMap
@@ -64,7 +67,9 @@ func (cfc *CiliumFeedsConsumer) setupKafkaConfig() {
 	cfc.topics = viper.GetStringSlice("kafka.topics")
 
 	cfc.eventsBuffer = viper.GetInt("kafka.events.buffer")
+
 	events = make([]types.NetworkFlowEvent, 0, cfc.eventsBuffer)
+	syslogEvents = make([]types.SystemLogEvent, 0, cfc.eventsBuffer)
 
 	sslEnabled := viper.GetBool("kafka.ssl.enabled")
 	securityProtocol := viper.GetString("kafka.security.protocol")
@@ -123,9 +128,16 @@ func (cfc *CiliumFeedsConsumer) startConsumer() {
 
 			switch e := ev.(type) {
 			case *kafka.Message:
-				cfc.processMessage(e.Value)
-				if e.Headers != nil {
-					log.Debug().Msgf("Headers: %v", e.Headers)
+				if *e.TopicPartition.Topic != "kubearmor-syslogs" { // cilium-hubble
+					cfc.processMessage(e.Value)
+					if e.Headers != nil {
+						log.Debug().Msgf("Headers: %v", e.Headers)
+					}
+				} else { // kubearmor-syslogs
+					cfc.processSystemLogMessage(e.Value)
+					if e.Headers != nil {
+						log.Debug().Msgf("Headers: %v", e.Headers)
+					}
 				}
 			case kafka.Error:
 				// Errors should generally be considered
@@ -192,6 +204,43 @@ func (cfc *CiliumFeedsConsumer) processMessage(message []byte) error {
 func (cfc *CiliumFeedsConsumer) PushToDB() bool {
 	if err := libs.InsertNetworkFlowToDB(core.Cfg.ConfigDB, events); err != nil {
 		log.Error().Msgf("InsertNetworkFlowToDB err: %s", err.Error())
+		return false
+	}
+
+	return true
+}
+
+func (cfc *CiliumFeedsConsumer) processSystemLogMessage(message []byte) error {
+	syslogEvent := types.SystemLogEvent{}
+
+	err := json.Unmarshal(message, &syslogEvent)
+	if err != nil {
+		log.Error().Msgf("Error unumarshaling event: %s\n", err.Error())
+		return err
+	}
+
+	syslogEvents = append(syslogEvents, syslogEvent)
+	syslogEventsCount++
+
+	if syslogEventsCount == cfc.eventsBuffer {
+		if len(syslogEvents) > 0 {
+			isSuccess := cfc.PushSystemLogToDB()
+			if !isSuccess {
+				return errors.New("Error saving to DB")
+			}
+			syslogEvents = nil
+			syslogEvents = make([]types.SystemLogEvent, 0, cfc.eventsBuffer)
+		}
+
+		syslogEventsCount = 0
+	}
+
+	return nil
+}
+
+func (cfc *CiliumFeedsConsumer) PushSystemLogToDB() bool {
+	if err := libs.InsertSystemLogToDB(core.Cfg.ConfigDB, syslogEvents); err != nil {
+		log.Error().Msgf("InsertSystemLogToDB err: %s", err.Error())
 		return false
 	}
 

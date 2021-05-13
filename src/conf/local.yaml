@@ -1,5 +1,5 @@
-application:
-  name: knoxautopolicy
+autopolicy:
+  name: cilium-feeds-consumer
   operation-mode: 1
   cron-job-time-interval: "@every 0h0m10s"
   network-log-from: db
@@ -8,8 +8,6 @@ application:
   discovery-policy-types: 3
   discovery-rule-types: 511
   ignoring-namespaces: "kube-system"
-  #accuknox-cluster-mgmt: "http://cluster-management-service.accuknox-dev-cluster-mgmt.svc.cluster.local/cm"
-  accuknox-cluster-mgmt: "http://localhost:8080"
 
 logging:
   level: INFO
@@ -18,7 +16,7 @@ kafka:
   broker-address-family: v4
   session-timeout-ms: 6000
   auto-offset-reset: "earliest"
-  bootstrap-servers: "dev-kafka-kafka-bootstrap.accuknox-dev-kafka.svc.cluster.local:9092"
+  bootstrap-servers: "127.0.0.1:9092"
   group-id: policy.cilium
   topics: 
     - cilium-telemetry-test
@@ -30,10 +28,10 @@ kafka:
 
 database:
   driver: mysql
-  host: mysql.accuknox-dev-mysql.svc.cluster.local
+  host: 127.0.0.1
   port: 3306
-  user: networkflowdb_user
-  password: EAy5Kq4uhc5Gkws
+  user: root
+  password: password
   dbname: networkflowdb
   table-network-flow: network_flow_events
   table-discovered-policies: discovered_policies
@@ -43,3 +41,10 @@ database:
 cilium-hubble:
   url: 10.4.41.240
   port: 80 
+
+accuknox-cluster-mgmt:
+  project-id: "accuknox"
+  location: "us-central1-c"
+  username: "barath@accuknox.com"
+  password: "Barath@27"
+  url-auth: "https://api-dev.accuknox.com/usermanagement/api/v1/auth/login"

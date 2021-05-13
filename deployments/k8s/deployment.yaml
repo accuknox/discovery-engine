@@ -41,4 +41,3 @@ spec:
         - name: config-volume
           configMap:
             name: knoxautopolicy-config
----
