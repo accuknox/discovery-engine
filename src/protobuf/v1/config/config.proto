@@ -35,6 +35,7 @@ message ConfigDB {
 
     string table_network_flow = 7;
     string table_discovered_policy = 8;
+    string table_system_log = 9;
 }
 
 message ConfigCiliumHubble {
