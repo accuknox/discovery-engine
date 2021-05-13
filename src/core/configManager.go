@@ -95,27 +95,27 @@ func LoadDefaultConfig() {
 	Cfg.ConfigCiliumHubble = LoadConfigCiliumHubble()
 
 	// set worker
-	Cfg.OperationMode = viper.GetInt("autopolicy.operation-mode")
-	Cfg.CronJobTimeInterval = viper.GetString("autopolicy.cron-job-time-interval")
+	Cfg.OperationMode = viper.GetInt("application.operation-mode")
+	Cfg.CronJobTimeInterval = viper.GetString("application.cron-job-time-interval")
 	Cfg.OneTimeJobTimeSelection = "" // e.g., 2021-01-20 07:00:23|2021-01-20 07:00:25
 
 	// input
-	Cfg.NetworkLogFrom = viper.GetString("autopolicy.network-log-from")
+	Cfg.NetworkLogFrom = viper.GetString("application.network-log-from")
 	Cfg.NetworkLogFile = "./flows.json" // for just local testing
 
 	// output
-	Cfg.DiscoveredPolicyTo = viper.GetString("autopolicy.discovered-policy-to")
-	Cfg.PolicyDir = viper.GetString("autopolicy.policy-dir")
+	Cfg.DiscoveredPolicyTo = viper.GetString("application.discovered-policy-to")
+	Cfg.PolicyDir = viper.GetString("application.policy-dir")
 
 	// discovery types
-	Cfg.DiscoveryPolicyTypes = viper.GetInt("autopolicy.discovery-policy-types") // 3: all types
-	Cfg.DiscoveryRuleTypes = viper.GetInt("autopolicy.discovery-rule-types")     // 511: all rules
+	Cfg.DiscoveryPolicyTypes = viper.GetInt("application.discovery-policy-types") // 3: all types
+	Cfg.DiscoveryRuleTypes = viper.GetInt("application.discovery-rule-types")     // 511: all rules
 
 	// cidr bits
 	Cfg.CIDRBits = 32
 
 	// ignoring flows
-	skipNamespacesStr := viper.GetString("autopolicy.ignoring-namespaces")
+	skipNamespacesStr := viper.GetString("application.ignoring-namespaces")
 	SkipNamespaces = strings.Split(skipNamespacesStr, "|")
 
 	// aggregation level

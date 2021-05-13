@@ -7,13 +7,13 @@ import (
 )
 
 func TestGetK8sNamespaces(t *testing.T) {
-	actual := GetNamespaces()
+	actual := GetNamespacesK8s()
 
 	assert.Contains(t, actual, "kube-system")
 }
 
 func TestGetConGroups(t *testing.T) {
-	actual := GetPods()
+	actual := GetPodsK8s()
 
 	for _, pod := range actual {
 		if pod.PodName == "" {
@@ -23,7 +23,7 @@ func TestGetConGroups(t *testing.T) {
 }
 
 func TestGetServices(t *testing.T) {
-	actual := GetServices()
+	actual := GetServicesK8s()
 
 	for _, svc := range actual {
 		if svc.ServiceName == "" {
@@ -33,7 +33,7 @@ func TestGetServices(t *testing.T) {
 }
 
 func TestGetEndpoints(t *testing.T) {
-	actual := GetEndpoints()
+	actual := GetEndpointsK8s()
 
 	for _, endpoint := range actual {
 		if endpoint.EndpointName == "" {

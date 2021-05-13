@@ -6,13 +6,31 @@ import (
 	"sync"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
-	"github.com/rs/zerolog/log"
+	"github.com/rs/zerolog"
+
 	"github.com/spf13/viper"
 
 	"github.com/accuknox/knoxAutoPolicy/src/core"
 	"github.com/accuknox/knoxAutoPolicy/src/libs"
+	logger "github.com/accuknox/knoxAutoPolicy/src/logging"
 	types "github.com/accuknox/knoxAutoPolicy/src/types"
 )
+
+const ( // status
+	STATUS_RUNNING = "running"
+	STATUS_IDLE    = "idle"
+)
+
+var log *zerolog.Logger
+
+func init() {
+	log = logger.GetInstance()
+
+	waitG = sync.WaitGroup{}
+	consumer = &CiliumFeedsConsumer{}
+
+	Status = STATUS_IDLE
+}
 
 // ====================== //
 // == Gloabl Variables == //
@@ -31,11 +49,6 @@ var eventsCount int
 
 var syslogEvents []types.SystemLogEvent
 var syslogEventsCount int
-
-const ( // status
-	STATUS_RUNNING = "running"
-	STATUS_IDLE    = "idle"
-)
 
 // Consumer - Consumes Cilium Feeds
 type CiliumFeedsConsumer struct {
@@ -103,8 +116,8 @@ func (cfc *CiliumFeedsConsumer) startConsumer() {
 	run := true
 	for run == true {
 		select {
-		case sig := <-stopChan:
-			log.Info().Msgf("Got a signal to terminate the consumer %v", sig)
+		case <-stopChan:
+			log.Info().Msgf("Got a signal to terminate the consumer")
 			run = false
 
 		default:
@@ -240,24 +253,16 @@ func (cfc *CiliumFeedsConsumer) PushSystemLogToDB() bool {
 
 // StartConsumer function
 func StartConsumer() {
-	if consumer == nil {
-		stopChan = make(chan struct{})
-		waitG = sync.WaitGroup{}
-		waitG.Add(1)
-
-		consumer = &CiliumFeedsConsumer{}
-		consumer.setupKafkaConfig()
-		Status = STATUS_IDLE
-	}
-
 	if Status != STATUS_IDLE {
 		log.Info().Msg("There is no idle consumer")
 		return
 	}
 
+	consumer.setupKafkaConfig()
+	stopChan = make(chan struct{})
 	go consumer.startConsumer()
 	Status = STATUS_RUNNING
-
+	waitG.Add(1)
 	log.Info().Msg("Cilium feeds consumer started")
 }
 
@@ -269,7 +274,6 @@ func StopConsumer() {
 	}
 
 	Status = STATUS_IDLE
-
 	close(stopChan)
 	waitG.Wait()
 

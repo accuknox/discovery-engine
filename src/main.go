@@ -8,6 +8,7 @@ import (
 	"github.com/accuknox/knoxAutoPolicy/src/core"
 	"github.com/accuknox/knoxAutoPolicy/src/libs"
 	logger "github.com/accuknox/knoxAutoPolicy/src/logging"
+
 	gserver "github.com/accuknox/knoxAutoPolicy/src/server"
 
 	"github.com/rs/zerolog"
@@ -15,6 +16,7 @@ import (
 )
 
 var configFilePath *string
+var log *zerolog.Logger
 
 // setupLogger
 func setupLogger() {
@@ -45,23 +47,25 @@ func setupDB() {
 	libs.CreateTablesIfNotExist(core.Cfg.ConfigDB)
 }
 
-// ========== //
-// == Main == //
-// ========== //
-
-func main() {
-	// csetup onfiguration
+func init() {
+	// setup configuration
 	configFilePath = flag.String("config-path", "conf/", "conf/")
 	flag.Parse()
 	loadConfig()
 
 	// setup logger
 	setupLogger()
-	var log *zerolog.Logger = logger.GetInstance()
+	log = logger.GetInstance()
 
-	// db setup
+	// setup db
 	setupDB()
+}
 
+// ========== //
+// == Main == //
+// ========== //
+
+func main() {
 	// server listen
 	lis, err := net.Listen("tcp", ":"+gserver.PortNumber)
 	if err != nil {

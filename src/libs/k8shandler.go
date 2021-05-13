@@ -1,22 +1,16 @@
 package libs
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"flag"
-	"fmt"
 	"io/ioutil"
-	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 
 	"github.com/accuknox/knoxAutoPolicy/src/types"
-	"github.com/rs/zerolog/log"
-	"github.com/spf13/viper"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	rest "k8s.io/client-go/rest"
@@ -25,10 +19,8 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 )
 
-var kubeconfig *string
 var parsed bool = false
-
-var BearerToken string
+var kubeconfig *string
 
 // isInCluster Function
 func isInCluster() bool {
@@ -46,31 +38,6 @@ func ConnectK8sClient() *kubernetes.Clientset {
 	}
 
 	return ConnectLocalAPIClient()
-}
-
-func authLogin() error {
-	user := viper.GetString("accuknox-cluster-mgmt.username")
-	password := viper.GetString("accuknox-cluster-mgmt.password")
-	autourl := viper.GetString("accuknox-cluster-mgmt.url-auth")
-
-	values := map[string]string{"username": user, "password": password}
-	json_data, err := json.Marshal(values)
-	if err != nil {
-		return err
-	}
-
-	resp, err := http.Post(autourl, "application/json",
-		bytes.NewBuffer(json_data))
-
-	if err != nil {
-		return err
-	}
-
-	var res map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&res)
-	BearerToken = res["access_token"].(string)
-
-	return nil
 }
 
 // ConnectLocalAPIClient Function
@@ -153,72 +120,12 @@ func ConnectInClusterAPIClient() *kubernetes.Clientset {
 	}
 }
 
-// ============= //
-// == Cluster == //
-// ============= //
-
-// GetClusters Function
-func GetClusters() []string {
-	if BearerToken == "" {
-		authLogin()
-	}
-
-	base := "https://api-dev.accuknox.com"
-	url := base + "/cm/api/v1/cluster-management/get-clusters"
-	token := "Bearer " + BearerToken
-
-	values := map[string]interface{}{
-		"workspaces": []map[string]string{
-			map[string]string{
-				"workspace_name": "",
-				"project_id":     viper.GetString("accuknox-cluster-mgmt.project-id"),
-				"location":       viper.GetString("accuknox-cluster-mgmt.location"),
-			},
-		},
-	}
-
-	jsonData, err := json.Marshal(values)
-	if err != nil {
-		return nil
-	}
-
-	// Create a new request using http
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
-	if err != nil {
-		log.Error().Msgf("Error:", err)
-		return nil
-	}
-
-	// add authorization header to the req
-	req.Header.Add("Authorization", token)
-	req.Header.Add("Accept", "application/json")
-
-	// Send req using http Client
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		log.Error().Msgf("Error on response.\n[ERROR] - %s", err)
-		return nil
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Error().Msgf("Error while reading the response bytes: %s", err)
-		return nil
-	}
-
-	fmt.Println(string(body))
-
-	return nil
-}
-
 // ============================== //
 // == Microservice (Namespace) == //
 // ============================== //
 
-// GetNamespaces Function
-func GetNamespaces() []string {
+// GetNamespacesK8s Function
+func GetNamespacesK8s() []string {
 	results := []string{}
 
 	client := ConnectK8sClient()
@@ -252,8 +159,8 @@ var skipLabelKey []string = []string{"pod-template-hash", // common k8s hash lab
 	"controller-revision-hash",           // from istana robot-shop
 	"statefulset.kubernetes.io/pod-name"} // from istana robot-shop
 
-// GetPods Function
-func GetPods() []types.Pod {
+// GetPodsK8s Function
+func GetPodsK8s() []types.Pod {
 	results := []types.Pod{}
 
 	client := ConnectK8sClient()
@@ -271,7 +178,6 @@ func GetPods() []types.Pod {
 	for _, pod := range pods.Items {
 		group := types.Pod{
 			Namespace: pod.Namespace,
-			PodUID:    string(pod.UID),
 			PodName:   pod.Name,
 			Labels:    []string{},
 		}
@@ -291,8 +197,8 @@ func GetPods() []types.Pod {
 	return results
 }
 
-// SetAnnotationsToPodsInNamespace Function
-func SetAnnotationsToPodsInNamespace(namespace string, annotation map[string]string) error {
+// SetAnnotationsToPodsInNamespaceK8s Function
+func SetAnnotationsToPodsInNamespaceK8s(namespace string, annotation map[string]string) error {
 	client := ConnectK8sClient()
 	if client == nil {
 		return errors.New("no client")
@@ -323,8 +229,8 @@ func SetAnnotationsToPodsInNamespace(namespace string, annotation map[string]str
 	return nil
 }
 
-// SetAnnotationsToPod Function
-func SetAnnotationsToPod(podName string, annotation map[string]string) error {
+// SetAnnotationsToPodK8s Function
+func SetAnnotationsToPodK8s(podName string, annotation map[string]string) error {
 	client := ConnectK8sClient()
 	if client == nil {
 		return errors.New("no client")
@@ -357,12 +263,12 @@ func SetAnnotationsToPod(podName string, annotation map[string]string) error {
 	return nil
 }
 
-// ============== //
-// == Services == //
-// ============== //
+// ============= //
+// == Service == //
+// ============= //
 
-// GetServices Function
-func GetServices() []types.Service {
+// GetServicesK8s Function
+func GetServicesK8s() []types.Service {
 	results := []types.Service{}
 
 	client := ConnectK8sClient()
@@ -378,23 +284,20 @@ func GetServices() []types.Service {
 	}
 
 	for _, svc := range svcs.Items {
-
 		k8sService := types.Service{}
 
 		k8sService.Namespace = svc.Namespace
 		k8sService.ServiceName = svc.Name
 		k8sService.Labels = []string{}
+		k8sService.Type = string(svc.Spec.Type)
 
 		for k, v := range svc.Labels {
 			k8sService.Labels = append(k8sService.Labels, k+"="+v)
 		}
 
-		k8sService.Type = string(svc.Spec.Type)
-
 		for _, port := range svc.Spec.Ports {
 			k8sService.ClusterIP = string(svc.Spec.ClusterIP)
 			k8sService.Protocol = string(port.Protocol)
-
 			k8sService.ServicePort = int(port.Port)
 			k8sService.NodePort = int(port.NodePort)
 			k8sService.TargetPort = port.TargetPort.IntValue()
@@ -415,8 +318,8 @@ func GetServices() []types.Service {
 // == Endpoint == //
 // ============== //
 
-// GetEndpoints Function
-func GetEndpoints() []types.Endpoint {
+// GetEndpointsK8s Function
+func GetEndpointsK8s() []types.Endpoint {
 	results := []types.Endpoint{}
 
 	client := ConnectK8sClient()
@@ -485,8 +388,8 @@ func GetEndpoints() []types.Endpoint {
 	return results
 }
 
-// GetClusterName ... (GKE only)
-func GetClusterName() string {
+// GetClusterNameK8s ... (GKE only)
+func GetClusterNameK8s() string {
 	client := ConnectK8sClient()
 	if client == nil {
 		return "default"

@@ -11,8 +11,9 @@ import (
 	"time"
 
 	"github.com/accuknox/knoxAutoPolicy/src/libs"
+	logger "github.com/accuknox/knoxAutoPolicy/src/logging"
 	"github.com/accuknox/knoxAutoPolicy/src/types"
-	"github.com/rs/zerolog/log"
+	"github.com/rs/zerolog"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -20,6 +21,12 @@ import (
 	flow "github.com/cilium/cilium/api/v1/flow"
 	"github.com/cilium/cilium/api/v1/observer"
 )
+
+var log *zerolog.Logger
+
+func init() {
+	log = logger.GetInstance()
+}
 
 // ======================= //
 // == Gloabl Variables  == //
