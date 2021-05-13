@@ -115,7 +115,7 @@ func (cfc *CiliumFeedsConsumer) startConsumer() {
 
 			switch e := ev.(type) {
 			case *kafka.Message:
-				if e.TopicPartition.Topic != "kubearmor-syslogs" { // cilium-hubble
+				if *e.TopicPartition.Topic != "kubearmor-syslogs" { // cilium-hubble
 					cfc.processMessage(e.Value)
 					if e.Headers != nil {
 						log.Debug().Msgf("Headers: %v", e.Headers)
