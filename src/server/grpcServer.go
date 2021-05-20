@@ -141,19 +141,19 @@ func (s *workerServer) Start(ctx context.Context, in *wpb.WorkerRequest) (*wpb.W
 		core.SetLogFile(in.GetLogfile())
 	}
 
-	core.StartWorker()
+	core.StartNetworkWorker()
 	return &wpb.WorkerResponse{Res: "ok"}, nil
 }
 
 func (s *workerServer) Stop(ctx context.Context, in *wpb.WorkerRequest) (*wpb.WorkerResponse, error) {
 	log.Info().Msg("Stop worker called")
-	core.StopWorker()
+	core.StopNetworkWorker()
 	return &wpb.WorkerResponse{Res: "ok"}, nil
 }
 
 func (s *workerServer) GetWorkerStatus(ctx context.Context, in *wpb.WorkerRequest) (*wpb.WorkerResponse, error) {
 	log.Info().Msg("Get worker status called")
-	return &wpb.WorkerResponse{Res: core.WorkerStatus}, nil
+	return &wpb.WorkerResponse{Res: core.NetworkWorkerStatus}, nil
 }
 
 // ====================== //

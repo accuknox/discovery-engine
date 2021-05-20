@@ -296,7 +296,7 @@ func updateOutdatedPolicy(outdatedPolicy types.KnoxNetworkPolicy, newPolicy *typ
 		}
 	}
 
-	libs.UpdateOutdatedPolicy(Cfg.ConfigDB, outdatedPolicy.Metadata["name"], newPolicy.Metadata["name"])
+	libs.UpdateOutdatedNetworkPolicy(Cfg.ConfigDB, outdatedPolicy.Metadata["name"], newPolicy.Metadata["name"])
 }
 
 // includedHTTPPath function
@@ -801,7 +801,7 @@ func updateExistCIDRtoNewFQDN(existingPolicies []types.KnoxNetworkPolicy, newPol
 							}
 						}
 
-						libs.UpdateOutdatedPolicy(Cfg.ConfigDB, existCIDR.Metadata["name"], fqdnPolicy.Metadata["name"])
+						libs.UpdateOutdatedNetworkPolicy(Cfg.ConfigDB, existCIDR.Metadata["name"], fqdnPolicy.Metadata["name"])
 					}
 				}
 			}

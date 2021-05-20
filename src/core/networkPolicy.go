@@ -64,19 +64,19 @@ var Externals = []string{"reserved:world", "external"}
 // == Gloabl Variables == //
 // ====================== //
 
-// WorkerStatus global worker
-var WorkerStatus string
+// NetworkWorkerStatus global worker
+var NetworkWorkerStatus string
 
 // for cron job
-var CronJob *cron.Cron
-var WaitG sync.WaitGroup
-var StopChan chan struct{} // for hubble
+var NetworkCronJob *cron.Cron
+var NetworkWaitG sync.WaitGroup
+var NetworkStopChan chan struct{} // for hubble
 
 // init Function
 func init() {
-	WorkerStatus = STATUS_IDLE
-	StopChan = make(chan struct{})
-	WaitG = sync.WaitGroup{}
+	NetworkWorkerStatus = STATUS_IDLE
+	NetworkStopChan = make(chan struct{})
+	NetworkWaitG = sync.WaitGroup{}
 }
 
 // ============================= //
@@ -160,14 +160,6 @@ type MergedPortDst struct {
 	MatchLabels string
 	ToPorts     []types.SpecPort
 	HTTPTree    map[string]*Node
-}
-
-// HTTPDst Structure
-type HTTPDst struct {
-	Namespace   string
-	MatchLabels string
-	ToPorts     []types.SpecPort
-	HTTPTree    map[string]map[string]*Node
 }
 
 // LabelCount Structure
@@ -1507,14 +1499,14 @@ func DiscoverNetworkPolicy(namespace string,
 
 // DiscoverNetworkPolicyMain function
 func DiscoverNetworkPolicyMain() {
-	if WorkerStatus == STATUS_RUNNING {
+	if NetworkWorkerStatus == STATUS_RUNNING {
 		return
 	} else {
-		WorkerStatus = STATUS_RUNNING
+		NetworkWorkerStatus = STATUS_RUNNING
 	}
 
 	defer func() {
-		WorkerStatus = STATUS_IDLE
+		NetworkWorkerStatus = STATUS_IDLE
 	}()
 
 	// get network logs
@@ -1583,12 +1575,12 @@ func DiscoverNetworkPolicyMain() {
 
 			if len(newPolicies) > 0 {
 				// insert discovered policies to db
-				if strings.Contains(Cfg.DiscoveredPolicyTo, "db") {
-					libs.InsertDiscoveredPolicies(Cfg.ConfigDB, newPolicies)
+				if strings.Contains(Cfg.NetworkPolicyTo, "db") {
+					libs.InsertNetworkPolicies(Cfg.ConfigDB, newPolicies)
 				}
 
 				// insert discovered policies to file
-				if strings.Contains(Cfg.DiscoveredPolicyTo, "file") {
+				if strings.Contains(Cfg.NetworkPolicyTo, "file") {
 					InsertDiscoveredPoliciesToFile(namespace, services)
 				}
 			}
@@ -1605,62 +1597,62 @@ func DiscoverNetworkPolicyMain() {
 // == Network Policy Discovery Worker == //
 // ===================================== //
 
-// StartCronJob function
-func StartCronJob() {
+// StartNetworkCronJob function
+func StartNetworkCronJob() {
 	// if network from hubble
 	if Cfg.NetworkLogFrom == "hubble" {
-		go plugin.StartHubbleRelay(StopChan, &WaitG, Cfg.ConfigCiliumHubble)
-		WaitG.Add(1)
+		go plugin.StartHubbleRelay(NetworkStopChan, &NetworkWaitG, Cfg.ConfigCiliumHubble)
+		NetworkWaitG.Add(1)
 	}
 
 	// init cron job
-	CronJob = cron.New()
-	err := CronJob.AddFunc(Cfg.CronJobTimeInterval, DiscoverNetworkPolicyMain) // time interval
+	NetworkCronJob = cron.New()
+	err := NetworkCronJob.AddFunc(Cfg.CronJobTimeInterval, DiscoverNetworkPolicyMain) // time interval
 	if err != nil {
 		log.Error().Msg(err.Error())
 		return
 	}
-	CronJob.Start()
+	NetworkCronJob.Start()
 
-	log.Info().Msg("Auto discovery cron job started")
+	log.Info().Msg("Auto network policy discovery cron job started")
 }
 
-// StopCronJob function
-func StopCronJob() {
-	if CronJob != nil {
-		log.Info().Msg("Got a signal to terminate the auto policy discovery")
+// StopNetworkCronJob function
+func StopNetworkCronJob() {
+	if NetworkCronJob != nil {
+		log.Info().Msg("Got a signal to terminate the auto network policy discovery")
 
-		close(StopChan)
-		WaitG.Wait()
+		close(NetworkStopChan)
+		NetworkWaitG.Wait()
 
-		CronJob.Stop() // Stop the scheduler (does not stop any jobs already running).
+		NetworkCronJob.Stop() // Stop the scheduler (does not stop any jobs already running).
 
-		CronJob = nil
+		NetworkCronJob = nil
 	}
 }
 
-// StartWorker function
-func StartWorker() {
-	if WorkerStatus != STATUS_IDLE {
-		log.Info().Msg("There is no idle discovery worker")
+// StartNetworkWorker function
+func StartNetworkWorker() {
+	if NetworkWorkerStatus != STATUS_IDLE {
+		log.Info().Msg("There is no idle network policy discovery worker")
 		return
 	}
 
 	if Cfg.OperationMode == OP_MODE_CRONJOB { // every time intervals
-		StartCronJob()
+		StartNetworkCronJob()
 	} else { // one-time generation
 		DiscoverNetworkPolicyMain()
-		log.Info().Msgf("Auto discovery onetime job done")
+		log.Info().Msgf("Auto network policy onetime job done")
 	}
 }
 
-// StopWorker function
-func StopWorker() {
+// StopNetworkWorker function
+func StopNetworkWorker() {
 	if Cfg.OperationMode == OP_MODE_CRONJOB { // every time intervals
-		StopCronJob()
+		StopNetworkCronJob()
 	} else {
-		if WorkerStatus != STATUS_RUNNING {
-			log.Info().Msg("There is no running discovery worker")
+		if NetworkWorkerStatus != STATUS_RUNNING {
+			log.Info().Msg("There is no running network policy discovery worker")
 			return
 		}
 	}

@@ -43,11 +43,11 @@ type Configuration struct {
 	CronJobTimeInterval     string `json:"cronjob_time_interval,omitempty" bson:"cronjob_time_interval,omitempty"`
 	OneTimeJobTimeSelection string `json:"one_time_job_time_selection,omitempty" bson:"one_time_job_time_selection,omitempty"`
 
-	NetworkLogFrom string `json:"network_log_from,omitempty" bson:"network_log_from,omitempty"`
-	NetworkLogFile string `json:"network_log_file,omitempty" bson:"network_log_file,omitempty"`
-
-	DiscoveredPolicyTo string `json:"discovered_policy_to,omitempty" bson:"discovered_policy_to,omitempty"`
-	PolicyDir          string `json:"policy_dir,omitempty" bson:"policy_dir,omitempty"`
+	// network policy discovery
+	NetworkLogFrom   string `json:"network_log_from,omitempty" bson:"network_log_from,omitempty"`
+	NetworkLogFile   string `json:"network_log_file,omitempty" bson:"network_log_file,omitempty"`
+	NetworkPolicyTo  string `json:"discovered_policy_to,omitempty" bson:"discovered_policy_to,omitempty"`
+	NetworkPolicyDir string `json:"policy_dir,omitempty" bson:"policy_dir,omitempty"`
 
 	DiscoveryPolicyTypes int `json:"discovery_policy_types,omitempty" bson:"discovery_policy_types,omitempty"`
 	DiscoveryRuleTypes   int `json:"discovery_rule_types,omitempty" bson:"discovery_rule_types,omitempty"`
@@ -58,4 +58,8 @@ type Configuration struct {
 	L3AggregationLevel int `json:"l3_aggregation_level,omitempty" bson:"l3_aggregation_level,omitempty"`
 	L4Compression      int `json:"l4_compression,omitempty" bson:"l4_compression,omitempty"`
 	L7AggregationLevel int `json:"l7_aggregation_level,omitempty" bson:"l7_aggregation_level,omitempty"`
+
+	// system policy discovery
+	SystemLogFrom string `json:"system_log_from,omitempty" bson:"system_log_from,omitempty"`
+	SystemLogFile string `json:"system_log_file,omitempty" bson:"system_log_file,omitempty"`
 }

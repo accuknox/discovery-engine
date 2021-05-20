@@ -94,14 +94,14 @@ func getNetworkLogs() []types.KnoxNetworkLog {
 	if Cfg.NetworkLogFrom == "db" {
 		log.Info().Msg("Get network flow from the database")
 
-		// get flows from db
-		flows := libs.GetNetworkFlowFromDB(Cfg.ConfigDB, Cfg.OneTimeJobTimeSelection)
-		if len(flows) == 0 {
+		// get network logs from db
+		netLogs := libs.GetNetworkLogsFromDB(Cfg.ConfigDB, Cfg.OneTimeJobTimeSelection)
+		if len(netLogs) == 0 {
 			return nil
 		}
 
-		// convert db flows -> network logs
-		networkLogs = plugin.ConvertCiliumFlowsToKnoxNetworkLogs(Cfg.ConfigDB.DBDriver, flows)
+		// convert cilium network logs -> knox network logs
+		networkLogs = plugin.ConvertCiliumNetworkLogsToKnoxNetworkLogs(Cfg.ConfigDB.DBDriver, netLogs)
 	} else if Cfg.NetworkLogFrom == "hubble" {
 		// ========================== //
 		// == Cilium Hubble Relay  == //

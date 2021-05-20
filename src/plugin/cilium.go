@@ -18,7 +18,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	// "github.com/cilium/cilium/pkg/policy/api"
-	flow "github.com/cilium/cilium/api/v1/flow"
+	cilium "github.com/cilium/cilium/api/v1/flow"
 	"github.com/cilium/cilium/api/v1/observer"
 )
 
@@ -33,7 +33,7 @@ func init() {
 // ======================= //
 
 // CiliumFlows list for directly hubble connections
-var CiliumFlows []*flow.Flow
+var CiliumFlows []*cilium.Flow
 
 // CiliumFlowsMutex mutext for directly hubble connections
 var CiliumFlowsMutex *sync.Mutex
@@ -94,7 +94,7 @@ func convertTraceObservationPointToInt(tType interface{}) int {
 }
 
 // isSynFlagOnly function
-func isSynFlagOnly(tcp *flow.TCP) bool {
+func isSynFlagOnly(tcp *cilium.TCP) bool {
 	if tcp.Flags != nil && tcp.Flags.SYN && !tcp.Flags.ACK {
 		return true
 	}
@@ -102,7 +102,7 @@ func isSynFlagOnly(tcp *flow.TCP) bool {
 }
 
 // getL4Ports function
-func getL4Ports(l4 *flow.Layer4) (int, int) {
+func getL4Ports(l4 *cilium.Layer4) (int, int) {
 	if l4.GetTCP() != nil {
 		return int(l4.GetTCP().SourcePort), int(l4.GetTCP().DestinationPort)
 	} else if l4.GetUDP() != nil {
@@ -114,8 +114,8 @@ func getL4Ports(l4 *flow.Layer4) (int, int) {
 	}
 }
 
-// GetProtocol function
-func GetProtocol(l4 *flow.Layer4) int {
+// getProtocol function
+func getProtocol(l4 *cilium.Layer4) int {
 	if l4.GetTCP() != nil {
 		return 6
 	} else if l4.GetUDP() != nil {
@@ -127,8 +127,8 @@ func GetProtocol(l4 *flow.Layer4) int {
 	}
 }
 
-// GetProtocolStr function
-func GetProtocolStr(l4 *flow.Layer4) string {
+// getProtocolStr function
+func getProtocolStr(l4 *cilium.Layer4) string {
 	if l4.GetTCP() != nil {
 		return "tcp"
 	} else if l4.GetUDP() != nil {
@@ -152,7 +152,7 @@ func getReservedLabelIfExist(labels []string) string {
 }
 
 // getHTTP function
-func getHTTP(flow *flow.Flow) (string, string) {
+func getHTTP(flow *cilium.Flow) (string, string) {
 	if flow.L7 != nil && flow.L7.GetHttp() != nil {
 		if flow.L7.GetType() == 1 { // REQUEST only
 			method := flow.L7.GetHttp().GetMethod()
@@ -175,89 +175,89 @@ func getHTTP(flow *flow.Flow) (string, string) {
 // ============================ //
 
 // ConvertCiliumFlowToKnoxNetworkLog function
-func ConvertCiliumFlowToKnoxNetworkLog(flow *flow.Flow) (types.KnoxNetworkLog, bool) {
+func ConvertCiliumFlowToKnoxNetworkLog(ciliumFlow *cilium.Flow) (types.KnoxNetworkLog, bool) {
 	log := types.KnoxNetworkLog{}
 
 	// TODO: packet is dropped (flow.Verdict == 2) and drop reason == 181 (Flows denied by deny policy)?
-	if flow.Verdict == 2 && flow.DropReason == 181 {
+	if ciliumFlow.Verdict == cilium.Verdict_DROPPED && ciliumFlow.DropReason == 181 {
 		return log, false
 	}
 
 	// set action
-	if flow.Verdict == 2 {
+	if ciliumFlow.Verdict == 2 {
 		log.Action = "deny"
 	} else {
 		log.Action = "allow"
 	}
 
 	// set EGRESS / INGRESS
-	log.Direction = flow.GetTrafficDirection().String()
+	log.Direction = ciliumFlow.GetTrafficDirection().String()
 
 	// set namespace
-	if flow.Source.Namespace == "" {
-		log.SrcNamespace = getReservedLabelIfExist(flow.Source.Labels)
+	if ciliumFlow.Source.Namespace == "" {
+		log.SrcNamespace = getReservedLabelIfExist(ciliumFlow.Source.Labels)
 	} else {
-		log.SrcNamespace = flow.Source.Namespace
+		log.SrcNamespace = ciliumFlow.Source.Namespace
 	}
 
-	if flow.Destination.Namespace == "" {
-		log.DstNamespace = getReservedLabelIfExist(flow.Destination.Labels)
+	if ciliumFlow.Destination.Namespace == "" {
+		log.DstNamespace = getReservedLabelIfExist(ciliumFlow.Destination.Labels)
 	} else {
-		log.DstNamespace = flow.Destination.Namespace
+		log.DstNamespace = ciliumFlow.Destination.Namespace
 	}
 
 	// set pod
-	if flow.Source.PodName == "" {
-		log.SrcPodName = flow.IP.Source
+	if ciliumFlow.Source.PodName == "" {
+		log.SrcPodName = ciliumFlow.IP.Source
 	} else {
-		log.SrcPodName = flow.Source.GetPodName()
+		log.SrcPodName = ciliumFlow.Source.GetPodName()
 	}
 
-	if flow.Destination.PodName == "" {
-		log.DstPodName = flow.IP.Destination
+	if ciliumFlow.Destination.PodName == "" {
+		log.DstPodName = ciliumFlow.IP.Destination
 	} else {
-		log.DstPodName = flow.Destination.GetPodName()
+		log.DstPodName = ciliumFlow.Destination.GetPodName()
 	}
 
 	// get L3
-	if flow.IP != nil {
-		log.SrcIP = flow.IP.Source
-		log.DstIP = flow.IP.Destination
+	if ciliumFlow.IP != nil {
+		log.SrcIP = ciliumFlow.IP.Source
+		log.DstIP = ciliumFlow.IP.Destination
 	} else {
 		return log, false
 	}
 
 	// get L4
-	if flow.L4 != nil {
-		log.Protocol = GetProtocol(flow.L4)
-		if log.Protocol == 6 && flow.L4.GetTCP() != nil { // if tcp,
-			log.SynFlag = isSynFlagOnly(flow.L4.GetTCP())
+	if ciliumFlow.L4 != nil {
+		log.Protocol = getProtocol(ciliumFlow.L4)
+		if log.Protocol == 6 && ciliumFlow.L4.GetTCP() != nil { // if tcp,
+			log.SynFlag = isSynFlagOnly(ciliumFlow.L4.GetTCP())
 		}
 
-		log.SrcPort, log.DstPort = getL4Ports(flow.L4)
+		log.SrcPort, log.DstPort = getL4Ports(ciliumFlow.L4)
 	} else {
 		return log, false
 	}
 
 	// get L7 HTTP
-	if flow.GetL7() != nil && flow.L7.GetHttp() != nil {
-		log.HTTPMethod, log.HTTPPath = getHTTP(flow)
+	if ciliumFlow.GetL7() != nil && ciliumFlow.L7.GetHttp() != nil {
+		log.HTTPMethod, log.HTTPPath = getHTTP(ciliumFlow)
 		if log.HTTPMethod == "" && log.HTTPPath == "" {
 			return log, false
 		}
 	}
 
 	// get L7 DNS
-	if flow.GetL7() != nil && flow.L7.GetDns() != nil {
+	if ciliumFlow.GetL7() != nil && ciliumFlow.L7.GetDns() != nil {
 		// if DSN response includes IPs
-		if flow.L7.GetType() == 2 && len(flow.L7.GetDns().Ips) > 0 {
+		if ciliumFlow.L7.GetType() == 2 && len(ciliumFlow.L7.GetDns().Ips) > 0 {
 			// if internal services, skip
-			if strings.HasSuffix(flow.L7.GetDns().GetQuery(), "svc.cluster.local.") {
+			if strings.HasSuffix(ciliumFlow.L7.GetDns().GetQuery(), "svc.cluster.local.") {
 				return log, false
 			}
 
-			query := strings.TrimSuffix(flow.L7.GetDns().GetQuery(), ".")
-			ips := flow.L7.GetDns().GetIps()
+			query := strings.TrimSuffix(ciliumFlow.L7.GetDns().GetQuery(), ".")
+			ips := ciliumFlow.L7.GetDns().GetIps()
 
 			log.DNSRes = query
 			log.DNSResIPs = []string{}
@@ -270,12 +270,12 @@ func ConvertCiliumFlowToKnoxNetworkLog(flow *flow.Flow) (types.KnoxNetworkLog, b
 	return log, true
 }
 
-// ConvertMySQLFlowsToNetworkLogs function
-func ConvertMySQLFlowsToNetworkLogs(docs []map[string]interface{}) []types.KnoxNetworkLog {
+// ConvertMySQLCiliumLogsToKnoxNetworkLogs function
+func ConvertMySQLCiliumLogsToKnoxNetworkLogs(docs []map[string]interface{}) []types.KnoxNetworkLog {
 	logs := []types.KnoxNetworkLog{}
 
 	for _, doc := range docs {
-		ciliumFlow := &flow.Flow{}
+		ciliumFlow := &cilium.Flow{}
 		var err error
 
 		primitiveDoc := map[string]interface{}{
@@ -362,12 +362,12 @@ func ConvertMySQLFlowsToNetworkLogs(docs []map[string]interface{}) []types.KnoxN
 	return logs
 }
 
-// ConvertMongoFlowsToNetworkLogs function
-func ConvertMongoFlowsToNetworkLogs(docs []map[string]interface{}) []types.KnoxNetworkLog {
+// ConvertMongodCiliumLogsToKnoxNetworkLogs function
+func ConvertMongodCiliumLogsToKnoxNetworkLogs(docs []map[string]interface{}) []types.KnoxNetworkLog {
 	logs := []types.KnoxNetworkLog{}
 
 	for _, doc := range docs {
-		flow := &flow.Flow{}
+		flow := &cilium.Flow{}
 		flowByte, _ := json.Marshal(doc)
 		json.Unmarshal(flowByte, flow)
 
@@ -379,12 +379,12 @@ func ConvertMongoFlowsToNetworkLogs(docs []map[string]interface{}) []types.KnoxN
 	return logs
 }
 
-// ConvertCiliumFlowsToKnoxNetworkLogs function
-func ConvertCiliumFlowsToKnoxNetworkLogs(dbDriver string, docs []map[string]interface{}) []types.KnoxNetworkLog {
+// ConvertCiliumNetworkLogsToKnoxNetworkLogs function
+func ConvertCiliumNetworkLogsToKnoxNetworkLogs(dbDriver string, docs []map[string]interface{}) []types.KnoxNetworkLog {
 	if dbDriver == "mysql" {
-		return ConvertMySQLFlowsToNetworkLogs(docs)
+		return ConvertMySQLCiliumLogsToKnoxNetworkLogs(docs)
 	} else if dbDriver == "mongo" {
-		return ConvertMongoFlowsToNetworkLogs(docs)
+		return ConvertMongodCiliumLogsToKnoxNetworkLogs(docs)
 	} else {
 		return []types.KnoxNetworkLog{}
 	}
@@ -393,25 +393,6 @@ func ConvertCiliumFlowsToKnoxNetworkLogs(dbDriver string, docs []map[string]inte
 // ============================== //
 // == Network Policy Convertor == //
 // ============================== //
-
-// buildNewCiliumNetworkPolicy function
-func buildNewCiliumNetworkPolicy(inPolicy types.KnoxNetworkPolicy) types.CiliumNetworkPolicy {
-	ciliumPolicy := types.CiliumNetworkPolicy{}
-
-	ciliumPolicy.APIVersion = "cilium.io/v2"
-	ciliumPolicy.Kind = "CiliumNetworkPolicy"
-	ciliumPolicy.Metadata = map[string]string{}
-	for k, v := range inPolicy.Metadata {
-		if k == "name" || k == "namespace" {
-			ciliumPolicy.Metadata[k] = v
-		}
-	}
-
-	// update selector matchLabels
-	ciliumPolicy.Spec.Selector.MatchLabels = inPolicy.Spec.Selector.MatchLabels
-
-	return ciliumPolicy
-}
 
 // TODO: search core-dns? or statically return dns pod
 // getCoreDNSEndpoint function
@@ -442,8 +423,27 @@ func getCoreDNSEndpoint(services []types.Service) ([]types.CiliumEndpoint, []typ
 	return coreDNS, toPorts
 }
 
-// ConvertKnoxPolicyToCiliumPolicy function
-func ConvertKnoxPolicyToCiliumPolicy(services []types.Service, inPolicy types.KnoxNetworkPolicy) types.CiliumNetworkPolicy {
+// buildNewCiliumNetworkPolicy function
+func buildNewCiliumNetworkPolicy(inPolicy types.KnoxNetworkPolicy) types.CiliumNetworkPolicy {
+	ciliumPolicy := types.CiliumNetworkPolicy{}
+
+	ciliumPolicy.APIVersion = "cilium.io/v2"
+	ciliumPolicy.Kind = "CiliumNetworkPolicy"
+	ciliumPolicy.Metadata = map[string]string{}
+	for k, v := range inPolicy.Metadata {
+		if k == "name" || k == "namespace" {
+			ciliumPolicy.Metadata[k] = v
+		}
+	}
+
+	// update selector matchLabels
+	ciliumPolicy.Spec.Selector.MatchLabels = inPolicy.Spec.Selector.MatchLabels
+
+	return ciliumPolicy
+}
+
+// ConvertKnoxNetworkPolicyToCiliumPolicy function
+func ConvertKnoxNetworkPolicyToCiliumPolicy(services []types.Service, inPolicy types.KnoxNetworkPolicy) types.CiliumNetworkPolicy {
 	ciliumPolicy := buildNewCiliumNetworkPolicy(inPolicy)
 
 	// ====== //
@@ -668,7 +668,7 @@ func ConvertKnoxPoliciesToCiliumPolicies(services []types.Service, policies []ty
 	ciliumPolicies := []types.CiliumNetworkPolicy{}
 
 	for _, policy := range policies {
-		ciliumPolicy := ConvertKnoxPolicyToCiliumPolicy(services, policy)
+		ciliumPolicy := ConvertKnoxNetworkPolicyToCiliumPolicy(services, policy)
 		ciliumPolicies = append(ciliumPolicies, ciliumPolicy)
 	}
 
@@ -694,11 +694,11 @@ func ConnectHubbleRelay(cfg types.ConfigCiliumHubble) *grpc.ClientConn {
 }
 
 // GetCiliumFlowsFromHubble function
-func GetCiliumFlowsFromHubble() []*flow.Flow {
+func GetCiliumFlowsFromHubble() []*cilium.Flow {
 	results := CiliumFlows
 
 	CiliumFlowsMutex.Lock()
-	CiliumFlows = []*flow.Flow{} // reset
+	CiliumFlows = []*cilium.Flow{} // reset
 	CiliumFlowsMutex.Unlock()
 
 	if len(results) == 0 {

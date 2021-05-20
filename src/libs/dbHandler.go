@@ -8,9 +8,9 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-// ======================== //
-// == Network Flow Event == //
-// ======================== //
+// ================= //
+// == Network Log == //
+// ================= //
 
 // LastFlowID network flow between [ startTime <= time < endTime ]
 var LastFlowID int64 = 0
@@ -27,15 +27,15 @@ func updateTimeInterval(lastDoc map[string]interface{}) {
 	}
 }
 
-// GetNetworkFlowFromDB function
-func GetNetworkFlowFromDB(cfg types.ConfigDB, timeSelection string) []map[string]interface{} {
+// GetNetworkLogsFromDB function
+func GetNetworkLogsFromDB(cfg types.ConfigDB, timeSelection string) []map[string]interface{} {
 	results := []map[string]interface{}{}
 
 	endTime = time.Now().Unix()
 
 	if cfg.DBDriver == "mysql" {
 		if timeSelection == "" {
-			docs, err := GetTrafficFlowByIDTime(cfg, LastFlowID, endTime)
+			docs, err := GetNetworkLogByIDTimeFromMySQL(cfg, LastFlowID, endTime)
 			if err != nil {
 				log.Error().Msg(err.Error())
 				return results
@@ -47,7 +47,7 @@ func GetNetworkFlowFromDB(cfg types.ConfigDB, timeSelection string) []map[string
 			from := ConvertStrToUnixTime(times[0])
 			to := ConvertStrToUnixTime(times[1])
 
-			docs, err := GetTrafficFlowByTime(cfg, from, to)
+			docs, err := GetNetworkLogByTimeFromMySQL(cfg, from, to)
 			if err != nil {
 				log.Error().Msg(err.Error())
 				return results
@@ -55,7 +55,7 @@ func GetNetworkFlowFromDB(cfg types.ConfigDB, timeSelection string) []map[string
 			results = docs
 		}
 	} else if cfg.DBDriver == "mongodb" {
-		docs, err := GetTrafficFlowFromMongo(cfg, startTime, endTime)
+		docs, err := GetNetworkLogByTimeFromMongo(cfg, startTime, endTime)
 		if err != nil {
 			log.Error().Msg(err.Error())
 			return results
@@ -66,7 +66,7 @@ func GetNetworkFlowFromDB(cfg types.ConfigDB, timeSelection string) []map[string
 	}
 
 	if len(results) == 0 {
-		log.Info().Msgf("Traffic flow not exist: from %s ~ to %s",
+		log.Info().Msgf("Network logs not exist: from %s ~ to %s",
 			time.Unix(startTime, 0).Format(TimeFormSimple),
 			time.Unix(endTime, 0).Format(TimeFormSimple))
 
@@ -80,18 +80,19 @@ func GetNetworkFlowFromDB(cfg types.ConfigDB, timeSelection string) []map[string
 		LastFlowID = int64(lastDoc["id"].(uint32))
 	}
 
-	log.Info().Msgf("The total number of traffic flow: [%d] from %s ~ to %s", len(results),
+	log.Info().Msgf("The total number of network logs: [%d] from %s ~ to %s", len(results),
 		time.Unix(startTime, 0).Format(TimeFormSimple),
 		time.Unix(endTime, 0).Format(TimeFormSimple))
 
 	startTime = endTime + 1
+
 	return results
 }
 
-// InsertNetworkFlowToDB function
-func InsertNetworkFlowToDB(cfg types.ConfigDB, nfe []types.NetworkFlowEvent) error {
+// InsertNetworkLogToDB function
+func InsertNetworkLogToDB(cfg types.ConfigDB, nfe []types.NetworkFlowEvent) error {
 	if cfg.DBDriver == "mysql" {
-		if err := InsertNetworkFlowToMySQLDB(cfg, nfe); err != nil {
+		if err := InsertNetworkLogToMySQL(cfg, nfe); err != nil {
 			return err
 		}
 	} else if cfg.DBDriver == "mongodb" {
@@ -101,24 +102,24 @@ func InsertNetworkFlowToDB(cfg types.ConfigDB, nfe []types.NetworkFlowEvent) err
 	return nil
 }
 
-// ====================== //
-// == System Log Event == //
-// ====================== //
+// ================ //
+// == System Log == //
+// ================ //
 
 // LastSyslogID system log between [ startTime <= time < endTime ]
 var LastSyslogID int64 = 0
 var syslogStartTime int64 = 0
 var syslogEndTime int64 = 0
 
-// GetSystemLogFromDB function
-func GetSystemLogFromDB(cfg types.ConfigDB, timeSelection string) []map[string]interface{} {
+// GetSystemLogsFromDB function
+func GetSystemLogsFromDB(cfg types.ConfigDB, timeSelection string) []map[string]interface{} {
 	results := []map[string]interface{}{}
 
 	endTime = time.Now().Unix()
 
 	if cfg.DBDriver == "mysql" {
 		if timeSelection == "" {
-			docs, err := GetSystemLogByIDTime(cfg, LastSyslogID, endTime)
+			docs, err := GetSystemLogByIDTimeFromMySQL(cfg, LastSyslogID, endTime)
 			if err != nil {
 				log.Error().Msg(err.Error())
 				return results
@@ -130,7 +131,7 @@ func GetSystemLogFromDB(cfg types.ConfigDB, timeSelection string) []map[string]i
 			from := ConvertStrToUnixTime(times[0])
 			to := ConvertStrToUnixTime(times[1])
 
-			docs, err := GetSystemLogByTime(cfg, from, to)
+			docs, err := GetSystemLogByTimeFromMySQL(cfg, from, to)
 			if err != nil {
 				log.Error().Msg(err.Error())
 				return results
@@ -163,13 +164,14 @@ func GetSystemLogFromDB(cfg types.ConfigDB, timeSelection string) []map[string]i
 		time.Unix(syslogEndTime, 0).Format(TimeFormSimple))
 
 	syslogStartTime = syslogEndTime + 1
+
 	return results
 }
 
 // InsertSystemLogToDB function
 func InsertSystemLogToDB(cfg types.ConfigDB, sle []types.SystemLogEvent) error {
 	if cfg.DBDriver == "mysql" {
-		if err := InsertSystemLogToMySQLDB(cfg, sle); err != nil {
+		if err := InsertSystemLogToMySQL(cfg, sle); err != nil {
 			return err
 		}
 	} else if cfg.DBDriver == "mongodb" {
@@ -249,8 +251,8 @@ func GetNetworkPoliciesBySelector(cfg types.ConfigDB, namespace, status string, 
 	return filtered, nil
 }
 
-// UpdateOutdatedPolicy function
-func UpdateOutdatedPolicy(cfg types.ConfigDB, outdatedPolicy string, latestPolicy string) {
+// UpdateOutdatedNetworkPolicy function
+func UpdateOutdatedNetworkPolicy(cfg types.ConfigDB, outdatedPolicy string, latestPolicy string) {
 	if cfg.DBDriver == "mysql" {
 		if err := UpdateOutdatedPolicyFromMySQL(cfg, outdatedPolicy, latestPolicy); err != nil {
 			log.Error().Msg(err.Error())
@@ -262,18 +264,22 @@ func UpdateOutdatedPolicy(cfg types.ConfigDB, outdatedPolicy string, latestPolic
 	}
 }
 
-// InsertDiscoveredPolicies function
-func InsertDiscoveredPolicies(cfg types.ConfigDB, policies []types.KnoxNetworkPolicy) {
+// InsertNetworkPolicies function
+func InsertNetworkPolicies(cfg types.ConfigDB, policies []types.KnoxNetworkPolicy) {
 	if cfg.DBDriver == "mysql" {
-		if err := InsertDiscoveredPoliciesToMySQL(cfg, policies); err != nil {
+		if err := InsertNetworkPoliciesToMySQL(cfg, policies); err != nil {
 			log.Error().Msg(err.Error())
 		}
 	} else if cfg.DBDriver == "mongodb" {
-		if err := InsertDiscoveredPoliciesToMongoDB(cfg, policies); err != nil {
+		if err := InsertNetworkPoliciesToMongoDB(cfg, policies); err != nil {
 			log.Error().Msg(err.Error())
 		}
 	}
 }
+
+// =================== //
+// == System Policy == //
+// =================== //
 
 // =========== //
 // == Table == //

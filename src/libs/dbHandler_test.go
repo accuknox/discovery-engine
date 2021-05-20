@@ -95,7 +95,7 @@ func TestGetNetworkPolicies(t *testing.T) {
 
 	discovered := []types.KnoxNetworkPolicy{cidrPolicy}
 
-	err := InsertDiscoveredPoliciesToMySQL(cfgDB, discovered)
+	err := InsertNetworkPoliciesToMySQL(cfgDB, discovered)
 	assert.NoError(t, err)
 
 	results, err := GetNetworkPoliciesFromMySQL(cfgDB, "multiubuntu", "latest")
@@ -141,6 +141,6 @@ func TestInsertDiscoveredPolicies(t *testing.T) {
 
 	discovered := []types.KnoxNetworkPolicy{cidrPolicy}
 
-	err := InsertDiscoveredPoliciesToMySQL(cfgDB, discovered)
+	err := InsertNetworkPoliciesToMySQL(cfgDB, discovered)
 	assert.NoError(t, err)
 }

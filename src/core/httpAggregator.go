@@ -99,7 +99,16 @@ func setHTTPTree(targetSrc string, targetDst MergedPortDst, tree map[string]map[
 // == PathNode and functions == //
 // ============================ //
 
-// MergedNode ...
+// Node Structure
+type Node struct {
+	path string
+
+	depth      int
+	touchCount int
+	childNodes []*Node
+}
+
+// MergedNode Structure
 type MergedNode struct {
 	path string
 
@@ -107,13 +116,12 @@ type MergedNode struct {
 	touchCount int
 }
 
-// Node ...
-type Node struct {
-	path string
-
-	depth      int
-	touchCount int
-	childNodes []*Node
+// HTTPDst Structure
+type HTTPDst struct {
+	Namespace   string
+	MatchLabels string
+	ToPorts     []types.SpecPort
+	HTTPTree    map[string]map[string]*Node
 }
 
 func (n *Node) getChildNodesCount() int {

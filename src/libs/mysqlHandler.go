@@ -24,16 +24,28 @@ func ConnectMySQL(cfg types.ConfigDB) (db *sql.DB) {
 	return db
 }
 
-// ======================== //
-// == Network Flow Event == //
-// ======================== //
+// ================= //
+// == Network Log == //
+// ================= //
 
-// QueryBaseSimple ...
-var QueryBaseSimple string = "select id,time,cluster_name,traffic_direction,verdict,policy_match_type,drop_reason,event_type,source,destination,ip,l4,l7 from "
+var networkLogQueryBase string = "select id,time,cluster_name,traffic_direction,verdict,policy_match_type,drop_reason,event_type,source,destination,ip,l4,l7 from "
 
-// flowScannerToCiliumFlow scans the trafficflow.
-func flowScannerToCiliumFlow(results *sql.Rows) ([]map[string]interface{}, error) {
-	trafficFlows := []map[string]interface{}{}
+func convertDateTimeToUnix(dateTime string) (int64, error) {
+	thetime, err := time.Parse(time.RFC3339, dateTime)
+	if err != nil {
+		return 0, err
+	}
+	return thetime.Unix(), nil
+}
+
+func convertJSONRawToString(raw json.RawMessage) string {
+	j, _ := json.Marshal(&raw)
+	return string(j)
+}
+
+// ScanNetworkLogs scans the db records
+func ScanNetworkLogs(results *sql.Rows) ([]map[string]interface{}, error) {
+	networkLogs := []map[string]interface{}{}
 	var err error
 
 	for results.Next() {
@@ -68,11 +80,11 @@ func flowScannerToCiliumFlow(results *sql.Rows) ([]map[string]interface{}, error
 		}
 
 		if err != nil {
-			log.Error().Msg("Error while scanning traffic flows :" + err.Error())
+			log.Error().Msg("Error while scanning network logs :" + err.Error())
 			return nil, err
 		}
 
-		flow := map[string]interface{}{
+		log := map[string]interface{}{
 			"id":                id,
 			"time":              time,
 			"cluster_name":      clusterName,
@@ -88,18 +100,18 @@ func flowScannerToCiliumFlow(results *sql.Rows) ([]map[string]interface{}, error
 			"l7":                l7Byte,
 		}
 
-		trafficFlows = append(trafficFlows, flow)
+		networkLogs = append(networkLogs, log)
 	}
 
-	return trafficFlows, nil
+	return networkLogs, nil
 }
 
-// GetTrafficFlowByTime function
-func GetTrafficFlowByTime(cfg types.ConfigDB, startTime, endTime int64) ([]map[string]interface{}, error) {
+// GetNetworkLogByTimeFromMySQL function
+func GetNetworkLogByTimeFromMySQL(cfg types.ConfigDB, startTime, endTime int64) ([]map[string]interface{}, error) {
 	db := ConnectMySQL(cfg)
 	defer db.Close()
 
-	QueryBase := QueryBaseSimple + cfg.TableNetworkFlow
+	QueryBase := networkLogQueryBase + cfg.TableNetworkFlow
 
 	rows, err := db.Query(QueryBase+" WHERE time >= ? and time <= ?", int(startTime), int(endTime))
 	if err != nil {
@@ -107,15 +119,15 @@ func GetTrafficFlowByTime(cfg types.ConfigDB, startTime, endTime int64) ([]map[s
 	}
 	defer rows.Close()
 
-	return flowScannerToCiliumFlow(rows)
+	return ScanNetworkLogs(rows)
 }
 
-// GetTrafficFlowByIDTime function
-func GetTrafficFlowByIDTime(cfg types.ConfigDB, id, endTime int64) ([]map[string]interface{}, error) {
+// GetNetworkLogByIDTimeFromMySQL function
+func GetNetworkLogByIDTimeFromMySQL(cfg types.ConfigDB, id, endTime int64) ([]map[string]interface{}, error) {
 	db := ConnectMySQL(cfg)
 	defer db.Close()
 
-	QueryBase := QueryBaseSimple + cfg.TableNetworkFlow
+	QueryBase := networkLogQueryBase + cfg.TableNetworkFlow
 
 	rows, err := db.Query(QueryBase+" WHERE id > ? ORDER BY id ASC ", id)
 	if err != nil {
@@ -123,40 +135,11 @@ func GetTrafficFlowByIDTime(cfg types.ConfigDB, id, endTime int64) ([]map[string
 	}
 	defer rows.Close()
 
-	return flowScannerToCiliumFlow(rows)
+	return ScanNetworkLogs(rows)
 }
 
-// GetTrafficFlow function
-func GetTrafficFlow(cfg types.ConfigDB) ([]map[string]interface{}, error) {
-	db := ConnectMySQL(cfg)
-	defer db.Close()
-
-	QueryBase := QueryBaseSimple + cfg.TableNetworkFlow
-
-	rows, err := db.Query(QueryBase)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	return flowScannerToCiliumFlow(rows)
-}
-
-func convertDateTimeToUnix(dateTime string) (int64, error) {
-	thetime, err := time.Parse(time.RFC3339, dateTime)
-	if err != nil {
-		return 0, err
-	}
-	return thetime.Unix(), nil
-}
-
-func convertJSONRawToString(raw json.RawMessage) string {
-	j, _ := json.Marshal(&raw)
-	return string(j)
-}
-
-// InsertNetworkFlowToMySQLDB function
-func InsertNetworkFlowToMySQLDB(cfg types.ConfigDB, nfe []types.NetworkFlowEvent) error {
+// InsertNetworkLogToMySQL function
+func InsertNetworkLogToMySQL(cfg types.ConfigDB, nfe []types.NetworkFlowEvent) error {
 	db := ConnectMySQL(cfg)
 	defer db.Close()
 
@@ -212,16 +195,65 @@ func InsertNetworkFlowToMySQLDB(cfg types.ConfigDB, nfe []types.NetworkFlowEvent
 	return nil
 }
 
-// ====================== //
-// == System Log Event == //
-// ====================== //
+// ================ //
+// == System Log == //
+// ================ //
 
-// GetSystemLogByTime function
-func GetSystemLogByTime(cfg types.ConfigDB, startTime, endTime int64) ([]map[string]interface{}, error) {
+var systemLogQueryBase string = "select id,time,cluster_name,traffic_direction,verdict,policy_match_type,drop_reason,event_type,source,destination,ip,l4,l7 from "
+
+// ScanSystemLogs scans the db records
+func ScanSystemLogs(results *sql.Rows) ([]map[string]interface{}, error) {
+	systemLogs := []map[string]interface{}{}
+	var err error
+
+	for results.Next() {
+		var id, time, hostPid, ppid, pid, uid uint32
+		var clusterName, nodeName, namespace, podName, containerID, containerName, types, source, operation, resource, data, result string
+
+		err = results.Scan(
+			&id,
+			&time,
+			&clusterName,
+			&nodeName,
+			&namespace,
+			&podName,
+			&containerID,
+			&containerName,
+			&hostPid,
+			&ppid,
+			&pid,
+			&uid,
+			&types,
+			&source,
+			&operation,
+			&resource,
+			&data,
+			&result,
+		)
+
+		if err != nil {
+			log.Error().Msg("Error while scanning system logs :" + err.Error())
+			return nil, err
+		}
+
+		log := map[string]interface{}{
+			"id":           id,
+			"time":         time,
+			"cluster_name": clusterName,
+		}
+
+		systemLogs = append(systemLogs, log)
+	}
+
+	return systemLogs, nil
+}
+
+// GetSystemLogByTimeFromMySQL function
+func GetSystemLogByTimeFromMySQL(cfg types.ConfigDB, startTime, endTime int64) ([]map[string]interface{}, error) {
 	db := ConnectMySQL(cfg)
 	defer db.Close()
 
-	QueryBase := QueryBaseSimple + cfg.TableSystemLog
+	QueryBase := systemLogQueryBase + cfg.TableSystemLog
 
 	rows, err := db.Query(QueryBase+" WHERE time >= ? and time <= ?", int(startTime), int(endTime))
 	if err != nil {
@@ -229,15 +261,15 @@ func GetSystemLogByTime(cfg types.ConfigDB, startTime, endTime int64) ([]map[str
 	}
 	defer rows.Close()
 
-	return flowScannerToCiliumFlow(rows)
+	return ScanSystemLogs(rows)
 }
 
-// GetSystemLogByIDTime function
-func GetSystemLogByIDTime(cfg types.ConfigDB, id, endTime int64) ([]map[string]interface{}, error) {
+// GetSystemLogByIDTimeFromMySQL function
+func GetSystemLogByIDTimeFromMySQL(cfg types.ConfigDB, id, endTime int64) ([]map[string]interface{}, error) {
 	db := ConnectMySQL(cfg)
 	defer db.Close()
 
-	QueryBase := QueryBaseSimple + cfg.TableSystemLog
+	QueryBase := systemLogQueryBase + cfg.TableSystemLog
 
 	rows, err := db.Query(QueryBase+" WHERE id > ? ORDER BY id ASC ", id)
 	if err != nil {
@@ -245,11 +277,11 @@ func GetSystemLogByIDTime(cfg types.ConfigDB, id, endTime int64) ([]map[string]i
 	}
 	defer rows.Close()
 
-	return flowScannerToCiliumFlow(rows)
+	return ScanSystemLogs(rows)
 }
 
-// InsertSystemLogToMySQLDB function
-func InsertSystemLogToMySQLDB(cfg types.ConfigDB, sle []types.SystemLogEvent) error {
+// InsertSystemLogToMySQL function
+func InsertSystemLogToMySQL(cfg types.ConfigDB, sle []types.SystemLogEvent) error {
 	db := ConnectMySQL(cfg)
 	defer db.Close()
 
@@ -419,8 +451,8 @@ func UpdateOutdatedPolicyFromMySQL(cfg types.ConfigDB, outdatedPolicy string, la
 	return nil
 }
 
-// insertDiscoveredPolicy function
-func insertDiscoveredPolicy(cfg types.ConfigDB, db *sql.DB, policy types.KnoxNetworkPolicy) error {
+// insertNetworkPolicy function
+func insertNetworkPolicy(cfg types.ConfigDB, db *sql.DB, policy types.KnoxNetworkPolicy) error {
 	stmt, err := db.Prepare("INSERT INTO " + cfg.TableDiscoveredPolicies + "(apiVersion,kind,flow_ids,name,cluster_name,namespace,type,rule,status,outdated,spec,generatedTime) values(?,?,?,?,?,?,?,?,?,?,?,?)")
 	if err != nil {
 		return err
@@ -458,13 +490,13 @@ func insertDiscoveredPolicy(cfg types.ConfigDB, db *sql.DB, policy types.KnoxNet
 	return nil
 }
 
-// InsertDiscoveredPoliciesToMySQL function
-func InsertDiscoveredPoliciesToMySQL(cfg types.ConfigDB, policies []types.KnoxNetworkPolicy) error {
+// InsertNetworkPoliciesToMySQL function
+func InsertNetworkPoliciesToMySQL(cfg types.ConfigDB, policies []types.KnoxNetworkPolicy) error {
 	db := ConnectMySQL(cfg)
 	defer db.Close()
 
 	for _, policy := range policies {
-		if err := insertDiscoveredPolicy(cfg, db, policy); err != nil {
+		if err := insertNetworkPolicy(cfg, db, policy); err != nil {
 			return err
 		}
 	}
@@ -545,8 +577,8 @@ func AddConfiguration(cfg types.ConfigDB, newConfig types.Configuration) error {
 		newConfig.CronJobTimeInterval,
 		newConfig.OneTimeJobTimeSelection,
 		newConfig.NetworkLogFrom,
-		newConfig.DiscoveredPolicyTo,
-		newConfig.PolicyDir,
+		newConfig.NetworkPolicyTo,
+		newConfig.NetworkPolicyDir,
 		newConfig.DiscoveryPolicyTypes,
 		newConfig.DiscoveryRuleTypes,
 		newConfig.CIDRBits,
@@ -608,8 +640,8 @@ func GetConfigurations(cfg types.ConfigDB, configName string) ([]types.Configura
 			&cfg.CronJobTimeInterval,
 			&cfg.OneTimeJobTimeSelection,
 			&cfg.NetworkLogFrom,
-			&cfg.DiscoveredPolicyTo,
-			&cfg.PolicyDir,
+			&cfg.NetworkPolicyTo,
+			&cfg.NetworkPolicyDir,
 			&cfg.DiscoveryPolicyTypes,
 			&cfg.DiscoveryRuleTypes,
 			&cfg.CIDRBits,
@@ -699,8 +731,8 @@ func UpdateConfiguration(cfg types.ConfigDB, configName string, updateConfig typ
 		updateConfig.CronJobTimeInterval,
 		updateConfig.OneTimeJobTimeSelection,
 		updateConfig.NetworkLogFrom,
-		updateConfig.DiscoveredPolicyTo,
-		updateConfig.PolicyDir,
+		updateConfig.NetworkPolicyTo,
+		updateConfig.NetworkPolicyDir,
 		updateConfig.DiscoveryPolicyTypes,
 		updateConfig.DiscoveryRuleTypes,
 		updateConfig.CIDRBits,
