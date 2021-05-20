@@ -1,4 +1,4 @@
-package core
+package config
 
 import (
 	"errors"
@@ -35,8 +35,8 @@ var SkipNamespaces []string
 // HTTPUrlThreshold ...
 var HTTPUrlThreshold int
 
-// PlugIn ...
-var PlugIn string
+// NetworkPlugIn ...
+var NetworkPlugIn string
 
 // LoadConfigDB ...
 func LoadConfigDB() types.ConfigDB {
@@ -61,7 +61,7 @@ func LoadConfigDB() types.ConfigDB {
 	cfgDB.TableConfiguration = viper.GetString("database.table-configuration")
 	cfgDB.TableSystemLog = viper.GetString("database.table-system-log")
 
-	PlugIn = "cilium" // for now, cilium only supported
+	NetworkPlugIn = "cilium" // for now, cilium only supported
 
 	return cfgDB
 }
@@ -182,4 +182,80 @@ func ApplyConfiguration(configName string) error {
 	Cfg = appliedCfg
 
 	return nil
+}
+
+// ============================ //
+// == Get Configuration Info == //
+// ============================ //
+
+func GetCfgSystemLogFrom() string {
+	return Cfg.SystemLogFrom
+}
+
+func GetCfgDB() types.ConfigDB {
+	return Cfg.ConfigDB
+}
+
+func GetCfgOneTime() string {
+	return Cfg.OneTimeJobTimeSelection
+}
+
+func GetCfgCronJobTime() string {
+	return Cfg.CronJobTimeInterval
+}
+
+func GetCfgOperationMode() int {
+	return Cfg.OperationMode
+}
+
+func GetCfgNetworkLogFrom() string {
+	return Cfg.NetworkLogFrom
+}
+
+func GetCfgNetworkLogFile() string {
+	return Cfg.NetworkLogFile
+}
+
+func GetCfgCiliumHubble() types.ConfigCiliumHubble {
+	return Cfg.ConfigCiliumHubble
+}
+
+func GetCfgNetworkPolicyTo() string {
+	return Cfg.NetworkPolicyTo
+}
+
+func GetCfgCIDRBits() int {
+	return Cfg.CIDRBits
+}
+
+func GetCfgNetworkPolicyTypes() int {
+	return Cfg.DiscoveryPolicyTypes
+}
+
+func GetCfgNetworkRuleTypes() int {
+	return Cfg.DiscoveryRuleTypes
+}
+
+func GetCfgNetworkL3Level() int {
+	return Cfg.L3AggregationLevel
+}
+
+func GetCfgNetworkL4Level() int {
+	return Cfg.L4Compression
+}
+
+func GetCfgNetworkL7Level() int {
+	return Cfg.L7AggregationLevel
+}
+
+func GetCfgNetworkHTTPThreshold() int {
+	return HTTPUrlThreshold
+}
+
+func GetCfgNetworkSkipNamespaces() []string {
+	return SkipNamespaces
+}
+
+func GetCfgNetworkIgnoreFlows() []types.IgnoringFlows {
+	return Cfg.IgnoringFlows
 }

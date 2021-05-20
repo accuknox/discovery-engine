@@ -1,4 +1,4 @@
-package core
+package networkpolicy
 
 import (
 	"net"
@@ -8,16 +8,15 @@ import (
 	"sync"
 	"time"
 
+	cfg "github.com/accuknox/knoxAutoPolicy/src/config"
 	"github.com/accuknox/knoxAutoPolicy/src/libs"
 	logger "github.com/accuknox/knoxAutoPolicy/src/logging"
 	"github.com/accuknox/knoxAutoPolicy/src/plugin"
 	"github.com/accuknox/knoxAutoPolicy/src/types"
 
-	"github.com/rs/zerolog"
-
 	"github.com/google/go-cmp/cmp"
-
 	"github.com/robfig/cron"
+	"github.com/rs/zerolog"
 )
 
 var log *zerolog.Logger
@@ -25,6 +24,17 @@ var log *zerolog.Logger
 func init() {
 	log = logger.GetInstance()
 }
+
+// const values
+const (
+	// operation mode
+	OP_MODE_CRONJOB = 1
+	OP_MODE_ONETIME = 2
+
+	// status
+	STATUS_RUNNING = "running"
+	STATUS_IDLE    = "idle"
+)
 
 // ================================== //
 // == Discovery Policy/Rule Types  == //
@@ -47,14 +57,6 @@ const (
 	TO_FQDNS      = 1 << 6 // 64
 	FROM_CIDRS    = 1 << 7 // 128
 	FROM_ENTITIES = 1 << 8 // 256
-
-	// operation mode
-	OP_MODE_CRONJOB = 1
-	OP_MODE_ONETIME = 2
-
-	// status
-	STATUS_RUNNING = "running"
-	STATUS_IDLE    = "idle"
 )
 
 // if the target IP is in out-of-cluster
@@ -71,6 +73,24 @@ var NetworkWorkerStatus string
 var NetworkCronJob *cron.Cron
 var NetworkWaitG sync.WaitGroup
 var NetworkStopChan chan struct{} // for hubble
+
+var CfgDB types.ConfigDB
+
+var OneTimeJobTime string
+
+var NetworkLogFrom string
+var NetworkLogFile string
+var NetworkPolicyTo string
+
+var CIDRBits int
+var HTTPThreshold int
+
+var L3DiscoveryLevel int
+var L4DiscoveryLevel int
+var L7DiscoveryLevel int
+
+var IgnoringFlows []types.IgnoringFlows
+var IgnoringNamespaces []string
 
 // init Function
 func init() {
@@ -433,7 +453,7 @@ func aggregateSrcByLabel(labeledSrcsPerDst map[Dst][]SrcSimple, pods []types.Pod
 
 		// srcs namespace is target namespace except for the reserved:
 		// if l3 aggregation level 2 or 3, aggregate labels
-		if Cfg.L3AggregationLevel >= 2 {
+		if L3DiscoveryLevel >= 2 {
 			// first, count each src label (a=b:1 a=b,c=d:2 e=f:1, ... )
 			labelCountMap := map[string]int{}
 			for _, src := range srcs {
@@ -451,7 +471,7 @@ func aggregateSrcByLabel(labeledSrcsPerDst map[Dst][]SrcSimple, pods []types.Pod
 					aggregatedLabel := countPerLabel.Label
 
 					// if the level 2, the super set of labels should be included in all the pods to be aggregated
-					if Cfg.L3AggregationLevel == 2 && !checkIncludeAllSrcPods(aggregatedLabel, srcs, pods) {
+					if L3DiscoveryLevel == 2 && !checkIncludeAllSrcPods(aggregatedLabel, srcs, pods) {
 						continue
 					}
 
@@ -742,7 +762,7 @@ func mergeDstByProtoPort(aggregatedSrcsPerDst map[Dst][]string) map[string][]Mer
 	}
 
 	// if l4 compression on, do this
-	if Cfg.L4Compression == 1 {
+	if L4DiscoveryLevel == 1 {
 		for aggregatedSrc, dsts := range dstsPerAggregatedSrc {
 			if aggregatedSrcPerMergedDst[aggregatedSrc] == nil {
 				aggregatedSrcPerMergedDst[aggregatedSrc] = []MergedPortDst{}
@@ -815,7 +835,7 @@ func mergeDstByProtoPort(aggregatedSrcsPerDst map[Dst][]string) map[string][]Mer
 		}
 	}
 
-	if Cfg.L4Compression == 1 {
+	if L4DiscoveryLevel == 1 {
 		// fqdn merging
 		mergeFQDN(aggregatedSrcPerMergedDst)
 
@@ -973,7 +993,7 @@ func aggregateDstByLabel(aggregatedSrcPerMergedDst map[string][]MergedPortDst, p
 			mergedDsts = updateDstLabels(mergedDsts, pods)
 
 			// if level 2 or 3, aggregate labels
-			if Cfg.L3AggregationLevel >= 2 {
+			if L3DiscoveryLevel >= 2 {
 				// count each dst label
 				labelCountMap := map[string]int{}
 				for _, dst := range mergedDsts {
@@ -994,7 +1014,7 @@ func aggregateDstByLabel(aggregatedSrcPerMergedDst map[string][]MergedPortDst, p
 						label := labelCount.Label
 
 						// if level 2, the super set of labels should be included in all the pods to be aggregated
-						if Cfg.L3AggregationLevel == 2 && !checkIncludeAllDstPods(label, mergedDsts, pods) {
+						if L3DiscoveryLevel == 2 && !checkIncludeAllDstPods(label, mergedDsts, pods) {
 							continue
 						}
 
@@ -1172,6 +1192,9 @@ func checkIngressEntities(namespace string, mergedSrcPerMergedDst map[string][]M
 func buildNetworkPolicy(namespace string, services []types.Service, aggregatedSrcPerAggregatedDst map[string][]MergedPortDst) []types.KnoxNetworkPolicy {
 	networkPolicies := []types.KnoxNetworkPolicy{}
 
+	discoverPolicyTypes := cfg.GetCfgNetworkPolicyTypes()
+	discoverRuleTypes := cfg.GetCfgNetworkRuleTypes()
+
 	for aggregatedSrc, aggregatedMergedDsts := range aggregatedSrcPerAggregatedDst {
 		// if src inlcudes "reserved" prefix, process later
 		if strings.Contains(aggregatedSrc, "reserved") {
@@ -1210,7 +1233,7 @@ func buildNetworkPolicy(namespace string, services []types.Service, aggregatedSr
 			// ==================== //
 			if dst.MatchLabels != "" {
 				// check matchLabels rule
-				if Cfg.DiscoveryRuleTypes&MATCH_LABELS == 0 {
+				if discoverRuleTypes&MATCH_LABELS == 0 {
 					continue
 				}
 
@@ -1267,7 +1290,7 @@ func buildNetworkPolicy(namespace string, services []types.Service, aggregatedSr
 								}
 
 								// check toHTTPs rule
-								if Cfg.DiscoveryRuleTypes&TO_HTTPS > 0 {
+								if discoverRuleTypes&TO_HTTPS > 0 {
 									egressRule.ToHTTPs = append(egressRule.ToHTTPs, httpRule)
 								}
 							}
@@ -1279,19 +1302,19 @@ func buildNetworkPolicy(namespace string, services []types.Service, aggregatedSr
 					}
 
 					// check toPorts rule
-					if Cfg.DiscoveryRuleTypes&TO_PORTS > 0 {
+					if discoverRuleTypes&TO_PORTS > 0 {
 						egressRule.ToPorts = dst.ToPorts
 					}
 				}
 
 				// check egress
 				egressPolicy.Spec.Egress = append(egressPolicy.Spec.Egress, egressRule)
-				if Cfg.DiscoveryPolicyTypes&EGRESS > 0 {
+				if discoverPolicyTypes&EGRESS > 0 {
 					networkPolicies = append(networkPolicies, egressPolicy)
 				}
 
 				// check ingress
-				if Cfg.DiscoveryPolicyTypes&INGRESS > 0 && dst.Namespace != "kube-system" {
+				if discoverPolicyTypes&INGRESS > 0 && dst.Namespace != "kube-system" {
 					ingressPolicy := buildNewIngressPolicyFromEgressPolicy(egressRule, egressPolicy.Spec.Selector)
 					ingressPolicy.Spec.Ingress[0].MatchLabels["k8s:io.kubernetes.pod.namespace"] = namespace
 					ingressPolicy.FlowIDs = egressPolicy.FlowIDs
@@ -1310,24 +1333,24 @@ func buildNetworkPolicy(namespace string, services []types.Service, aggregatedSr
 				}
 
 				// check toCIDRs rule
-				if Cfg.DiscoveryRuleTypes&TO_CIDRS > 0 {
+				if discoverRuleTypes&TO_CIDRS > 0 {
 					egressRule.ToCIDRs = []types.SpecCIDR{cidr}
 				}
 
 				// check toPorts rule
-				if len(dst.ToPorts) > 0 && Cfg.DiscoveryRuleTypes&TO_PORTS > 0 {
+				if len(dst.ToPorts) > 0 && discoverRuleTypes&TO_PORTS > 0 {
 					egressPolicy.Metadata["rule"] = egressPolicy.Metadata["rule"] + "+toPorts"
 					egressRule.ToPorts = dst.ToPorts
 				}
 
 				// check egress
 				egressPolicy.Spec.Egress = append(egressPolicy.Spec.Egress, egressRule)
-				if Cfg.DiscoveryPolicyTypes&EGRESS > 0 {
+				if discoverPolicyTypes&EGRESS > 0 {
 					networkPolicies = append(networkPolicies, egressPolicy)
 				}
 
 				// check ingress & fromCIDRs rule
-				if Cfg.DiscoveryPolicyTypes&INGRESS > 0 && Cfg.DiscoveryRuleTypes&FROM_CIDRS > 0 {
+				if discoverPolicyTypes&INGRESS > 0 && discoverRuleTypes&FROM_CIDRS > 0 {
 					// add ingress policy
 					ingressPolicy := buildNewIngressPolicyFromSameSelector(namespace, egressPolicy.Spec.Selector)
 					ingressPolicy.Metadata["rule"] = "toCIDRs"
@@ -1350,7 +1373,7 @@ func buildNetworkPolicy(namespace string, services []types.Service, aggregatedSr
 				// =============== //
 
 				// check egress & toFQDNs rule
-				if Cfg.DiscoveryPolicyTypes&EGRESS > 0 && Cfg.DiscoveryRuleTypes&TO_FQDNS > 0 {
+				if discoverPolicyTypes&EGRESS > 0 && discoverRuleTypes&TO_FQDNS > 0 {
 
 					sort.Strings(dst.Additionals)
 					fqdn := types.SpecFQDN{
@@ -1379,12 +1402,12 @@ func buildNetworkPolicy(namespace string, services []types.Service, aggregatedSr
 				egressPolicy.Spec.Egress = append(egressPolicy.Spec.Egress, egressRule)
 
 				// check egress & toEntities rule
-				if Cfg.DiscoveryPolicyTypes&EGRESS > 0 && Cfg.DiscoveryRuleTypes&TO_ENTITIES > 0 {
+				if discoverPolicyTypes&EGRESS > 0 && discoverRuleTypes&TO_ENTITIES > 0 {
 					networkPolicies = append(networkPolicies, egressPolicy)
 				}
 
 				// check ingress & fromEntities rule
-				if Cfg.DiscoveryPolicyTypes&INGRESS > 0 && Cfg.DiscoveryRuleTypes&FROM_ENTITIES > 0 {
+				if discoverPolicyTypes&INGRESS > 0 && discoverRuleTypes&FROM_ENTITIES > 0 {
 					ingressPolicy := buildNewIngressPolicyFromSameSelector(namespace, egressPolicy.Spec.Selector)
 					ingressPolicy.Metadata["rule"] = "fromEntities"
 					ingressPolicy.FlowIDs = egressPolicy.FlowIDs
@@ -1399,7 +1422,7 @@ func buildNetworkPolicy(namespace string, services []types.Service, aggregatedSr
 				// ================== //
 				// build Service rule //
 				// ================== //
-				if Cfg.DiscoveryPolicyTypes&EGRESS > 0 && Cfg.DiscoveryRuleTypes&TO_SERVICES > 0 {
+				if discoverPolicyTypes&EGRESS > 0 && discoverRuleTypes&TO_SERVICES > 0 {
 					// to external services (NOT internal k8s service)
 					// to affect this policy, we need a service, an endpoint respectively
 					service := types.SpecService{
@@ -1416,7 +1439,7 @@ func buildNetworkPolicy(namespace string, services []types.Service, aggregatedSr
 	}
 
 	// double check ingress entities for dropped packet
-	if Cfg.DiscoveryPolicyTypes&INGRESS > 0 {
+	if discoverPolicyTypes&INGRESS > 0 {
 		networkPolicies = checkIngressEntities(namespace, aggregatedSrcPerAggregatedDst, networkPolicies)
 	}
 
@@ -1462,7 +1485,7 @@ func DiscoverNetworkPolicy(namespace string,
 	pods []types.Pod) []types.KnoxNetworkPolicy {
 
 	// step 1: [network logs] -> {dst: [network logs (src+dst)]}
-	originLogsPerDst := groupNetworkLogPerDst(networkLogs, endpoints, Cfg.CIDRBits)
+	originLogsPerDst := groupNetworkLogPerDst(networkLogs, endpoints, CIDRBits)
 
 	/*
 		step 2: {dst: [network logs (src+dst)]} -> {dst: [srcs (labeled)]}
@@ -1497,6 +1520,26 @@ func DiscoverNetworkPolicy(namespace string,
 	return networkPolicies
 }
 
+func initDiscoveryConfiguration() {
+	CfgDB = cfg.GetCfgDB()
+
+	OneTimeJobTime = cfg.GetCfgOneTime()
+
+	NetworkLogFrom = cfg.GetCfgNetworkLogFrom()
+	NetworkLogFile = cfg.GetCfgNetworkLogFile()
+	NetworkPolicyTo = cfg.GetCfgNetworkPolicyTo()
+
+	L3DiscoveryLevel = cfg.GetCfgNetworkL3Level()
+	L4DiscoveryLevel = cfg.GetCfgNetworkL4Level()
+	L7DiscoveryLevel = cfg.GetCfgNetworkL7Level()
+
+	CIDRBits = cfg.GetCfgCIDRBits()
+	HTTPThreshold = cfg.GetCfgNetworkHTTPThreshold()
+
+	IgnoringFlows = cfg.GetCfgNetworkIgnoreFlows()
+	IgnoringNamespaces = cfg.GetCfgNetworkSkipNamespaces()
+}
+
 // DiscoverNetworkPolicyMain function
 func DiscoverNetworkPolicyMain() {
 	if NetworkWorkerStatus == STATUS_RUNNING {
@@ -1508,6 +1551,9 @@ func DiscoverNetworkPolicyMain() {
 	defer func() {
 		NetworkWorkerStatus = STATUS_IDLE
 	}()
+
+	// init the configuration related to the network policy
+	initDiscoveryConfiguration()
 
 	// get network logs
 	allNetworkLogs := getNetworkLogs()
@@ -1540,14 +1586,14 @@ func DiscoverNetworkPolicyMain() {
 		updateServiceEndpoint(services, endpoints, pods)
 
 		// get existing policies in db
-		existingPolicies := libs.GetNetworkPolicies(Cfg.ConfigDB, "", "")
+		existingPolicies := libs.GetNetworkPolicies(CfgDB, "", "")
 
 		// filter ignoring network logs from configuration
 		configFilteredLogs := FilterNetworkLogsByConfig(networkLogs, pods)
 
 		// iterate each namespace
 		for _, namespace := range namespaces {
-			if SkipNamespace(namespace) {
+			if SkipNamespaceForNetworkPolicy(namespace) {
 				continue
 			}
 
@@ -1575,12 +1621,12 @@ func DiscoverNetworkPolicyMain() {
 
 			if len(newPolicies) > 0 {
 				// insert discovered policies to db
-				if strings.Contains(Cfg.NetworkPolicyTo, "db") {
-					libs.InsertNetworkPolicies(Cfg.ConfigDB, newPolicies)
+				if strings.Contains(NetworkPolicyTo, "db") {
+					libs.InsertNetworkPolicies(CfgDB, newPolicies)
 				}
 
 				// insert discovered policies to file
-				if strings.Contains(Cfg.NetworkPolicyTo, "file") {
+				if strings.Contains(NetworkPolicyTo, "file") {
 					InsertDiscoveredPoliciesToFile(namespace, services)
 				}
 			}
@@ -1600,14 +1646,14 @@ func DiscoverNetworkPolicyMain() {
 // StartNetworkCronJob function
 func StartNetworkCronJob() {
 	// if network from hubble
-	if Cfg.NetworkLogFrom == "hubble" {
-		go plugin.StartHubbleRelay(NetworkStopChan, &NetworkWaitG, Cfg.ConfigCiliumHubble)
+	if cfg.GetCfgNetworkLogFrom() == "hubble" {
+		go plugin.StartHubbleRelay(NetworkStopChan, &NetworkWaitG, cfg.GetCfgCiliumHubble())
 		NetworkWaitG.Add(1)
 	}
 
 	// init cron job
 	NetworkCronJob = cron.New()
-	err := NetworkCronJob.AddFunc(Cfg.CronJobTimeInterval, DiscoverNetworkPolicyMain) // time interval
+	err := NetworkCronJob.AddFunc(cfg.GetCfgCronJobTime(), DiscoverNetworkPolicyMain) // time interval
 	if err != nil {
 		log.Error().Msg(err.Error())
 		return
@@ -1638,7 +1684,7 @@ func StartNetworkWorker() {
 		return
 	}
 
-	if Cfg.OperationMode == OP_MODE_CRONJOB { // every time intervals
+	if cfg.GetCfgOperationMode() == OP_MODE_CRONJOB { // every time intervals
 		StartNetworkCronJob()
 	} else { // one-time generation
 		DiscoverNetworkPolicyMain()
@@ -1648,7 +1694,7 @@ func StartNetworkWorker() {
 
 // StopNetworkWorker function
 func StopNetworkWorker() {
-	if Cfg.OperationMode == OP_MODE_CRONJOB { // every time intervals
+	if cfg.GetCfgOperationMode() == OP_MODE_CRONJOB { // every time intervals
 		StopNetworkCronJob()
 	} else {
 		if NetworkWorkerStatus != STATUS_RUNNING {

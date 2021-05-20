@@ -1,4 +1,4 @@
-package core
+package networkpolicy
 
 import (
 	"encoding/json"
@@ -16,9 +16,9 @@ import (
 	"github.com/cilium/cilium/api/v1/flow"
 )
 
-func SkipNamespace(namespace string) bool {
+func SkipNamespaceForNetworkPolicy(namespace string) bool {
 	// skip uninterested namespaces
-	if libs.ContainsElement(SkipNamespaces, namespace) {
+	if libs.ContainsElement(IgnoringNamespaces, namespace) {
 		return true
 	} else if strings.HasPrefix(namespace, "accuknox-") {
 		return true
@@ -80,6 +80,119 @@ func updateClusterVariables(clusterName string) {
 	}
 }
 
+// ========================= //
+// == Network Log Filter  == //
+// ========================= //
+
+// getHaveToCheckItems func
+func getHaveToCheckItems(igFlows types.IgnoringFlows) int {
+	check := 0
+
+	if igFlows.IgSourceNamespace != "" {
+		check = check | 1<<0 // 1
+	}
+
+	if len(igFlows.IgSourceLabels) > 0 {
+		check = check | 1<<1 // 2
+	}
+
+	if igFlows.IgDestinationNamespace != "" {
+		check = check | 1<<2 // 4
+	}
+
+	if len(igFlows.IgDestinationLabels) > 0 {
+		check = check | 1<<3 // 8
+	}
+
+	if igFlows.IgProtocol != "" {
+		check = check | 1<<4 // 16
+	}
+
+	if igFlows.IgPortNumber != "" {
+		check = check | 1<<5 // 32
+	}
+
+	return check
+}
+
+// FilterNetworkLogsByConfig func
+func FilterNetworkLogsByConfig(logs []types.KnoxNetworkLog, pods []types.Pod) []types.KnoxNetworkLog {
+	filteredLogs := []types.KnoxNetworkLog{}
+
+	for _, log := range logs {
+		ignored := false
+
+		for _, igFlow := range IgnoringFlows {
+			checkItems := getHaveToCheckItems(igFlow)
+
+			checkedItems := 0
+
+			// 1. check src namespace
+			if (checkItems&1 > 0) && igFlow.IgSourceNamespace == log.SrcNamespace {
+				checkedItems = checkedItems | 1<<0
+			}
+
+			// 2. check src pod labels
+			if (checkItems&2 > 0) && containLabelByConfiguration("cilium", igFlow.IgSourceLabels, getLabelsFromPod(log.SrcPodName, pods)) {
+				checkedItems = checkedItems | 1<<1
+			}
+
+			// 3. check dest namespace
+			if (checkItems&4 > 0) && igFlow.IgDestinationNamespace == log.DstNamespace {
+				checkedItems = checkedItems | 1<<2
+			}
+
+			// 4. check dest pod labels
+			if (checkItems&8 > 0) && containLabelByConfiguration("cilium", igFlow.IgDestinationLabels, getLabelsFromPod(log.DstPodName, pods)) {
+				checkedItems = checkedItems | 1<<3
+			}
+
+			// 5. check protocol
+			if (checkItems&16 > 0) && libs.GetProtocol(log.Protocol) == strings.ToLower(igFlow.IgProtocol) {
+				checkedItems = checkedItems | 1<<4
+			}
+
+			// 6. check port number (src or dst)
+			if checkItems&32 > 0 {
+				if strconv.Itoa(log.SrcPort) == igFlow.IgPortNumber || strconv.Itoa(log.DstPort) == igFlow.IgPortNumber {
+					checkedItems = checkedItems | 1<<5
+				}
+			}
+
+			if checkItems == checkedItems {
+				ignored = true
+				break
+			}
+		}
+
+		if !ignored {
+			filteredLogs = append(filteredLogs, log)
+		}
+	}
+
+	return filteredLogs
+}
+
+// FilterNetworkLogsByNamespace function
+func FilterNetworkLogsByNamespace(targetNamespace string, logs []types.KnoxNetworkLog) []types.KnoxNetworkLog {
+	filteredLogs := []types.KnoxNetworkLog{}
+
+	// case 1: src namespace == target namespace
+	// case 2: dst namespace == target namespace && src namespace == reserved: or kube-system or cilium
+	for _, log := range logs {
+		if log.SrcNamespace == targetNamespace {
+			filteredLogs = append(filteredLogs, log)
+
+		} else if log.DstNamespace == targetNamespace {
+			if strings.Contains(log.SrcNamespace, "reserved:") {
+				filteredLogs = append(filteredLogs, log)
+			}
+		}
+	}
+
+	return filteredLogs
+}
+
 // ================= //
 // == Network Log == //
 // ================= //
@@ -91,18 +204,18 @@ func getNetworkLogs() []types.KnoxNetworkLog {
 	// =============== //
 	// == Database  == //
 	// =============== //
-	if Cfg.NetworkLogFrom == "db" {
+	if NetworkLogFrom == "db" {
 		log.Info().Msg("Get network flow from the database")
 
 		// get network logs from db
-		netLogs := libs.GetNetworkLogsFromDB(Cfg.ConfigDB, Cfg.OneTimeJobTimeSelection)
+		netLogs := libs.GetNetworkLogsFromDB(CfgDB, OneTimeJobTime)
 		if len(netLogs) == 0 {
 			return nil
 		}
 
 		// convert cilium network logs -> knox network logs
-		networkLogs = plugin.ConvertCiliumNetworkLogsToKnoxNetworkLogs(Cfg.ConfigDB.DBDriver, netLogs)
-	} else if Cfg.NetworkLogFrom == "hubble" {
+		networkLogs = plugin.ConvertCiliumNetworkLogsToKnoxNetworkLogs(CfgDB.DBDriver, netLogs)
+	} else if NetworkLogFrom == "hubble" {
 		// ========================== //
 		// == Cilium Hubble Relay  == //
 		// ========================== //
@@ -120,15 +233,15 @@ func getNetworkLogs() []types.KnoxNetworkLog {
 				networkLogs = append(networkLogs, log)
 			}
 		}
-	} else if Cfg.NetworkLogFrom == "file" {
+	} else if NetworkLogFrom == "file" {
 		// =============================== //
 		// == File (.json) for testing  == //
 		// =============================== //
-		log.Info().Msg("Get network flow from the json file : " + Cfg.NetworkLogFile)
+		log.Info().Msg("Get network flow from the json file : " + NetworkLogFile)
 		flows := []*flow.Flow{}
 
 		// Open our jsonFile
-		logFile, err := os.Open(Cfg.NetworkLogFile)
+		logFile, err := os.Open(NetworkLogFile)
 		if err != nil {
 			log.Error().Msg(err.Error())
 			return nil
@@ -149,7 +262,7 @@ func getNetworkLogs() []types.KnoxNetworkLog {
 			}
 		}
 	} else {
-		log.Error().Msgf("Network log source not correct: %s", Cfg.NetworkLogFrom)
+		log.Error().Msgf("Network log source not correct: %s", NetworkLogFrom)
 		return nil
 	}
 
@@ -676,7 +789,7 @@ func clearGlobalVariabels() {
 
 func InsertDiscoveredPoliciesToFile(namespace string, services []types.Service) {
 	// retrieve the latest policies from the db
-	latestPolicies := libs.GetNetworkPolicies(Cfg.ConfigDB, namespace, "latest")
+	latestPolicies := libs.GetNetworkPolicies(CfgDB, namespace, "latest")
 
 	// write discovered policies to files
 	libs.WriteKnoxPolicyToYamlFile(namespace, latestPolicies)
@@ -688,9 +801,9 @@ func InsertDiscoveredPoliciesToFile(namespace string, services []types.Service) 
 	libs.WriteCiliumPolicyToYamlFile(namespace, ciliumPolicies)
 }
 
-// ============= //
-// == Testing == //
-// ============= //
+// ====================== //
+// == Internal Testing == //
+// ====================== //
 
 // ReplaceMultiubuntuPodName ...
 func ReplaceMultiubuntuPodName(flows []*flow.Flow, pods []types.Pod) {

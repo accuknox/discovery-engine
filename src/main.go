@@ -5,10 +5,9 @@ import (
 	"net"
 	"os"
 
-	"github.com/accuknox/knoxAutoPolicy/src/core"
-	"github.com/accuknox/knoxAutoPolicy/src/libs"
+	core "github.com/accuknox/knoxAutoPolicy/src/config"
+	libs "github.com/accuknox/knoxAutoPolicy/src/libs"
 	logger "github.com/accuknox/knoxAutoPolicy/src/logging"
-
 	gserver "github.com/accuknox/knoxAutoPolicy/src/server"
 
 	"github.com/rs/zerolog"
@@ -16,6 +15,7 @@ import (
 )
 
 var configFilePath *string
+
 var log *zerolog.Logger
 
 // setupLogger

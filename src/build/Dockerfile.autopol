@@ -7,7 +7,9 @@ WORKDIR /usr/src/knox
 COPY ./libs ./libs
 COPY ./logging ./logging
 COPY ./feedconsumer ./feedconsumer
-COPY ./core ./core
+COPY ./config ./config
+COPY ./networkpolicy ./networkpolicy
+COPY ./systempolicy ./systempolicy
 COPY ./types ./types
 COPY ./plugin ./plugin
 COPY ./protobuf ./protobuf
