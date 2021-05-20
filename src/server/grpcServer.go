@@ -7,9 +7,10 @@ import (
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/rs/zerolog"
 
-	core "github.com/accuknox/knoxAutoPolicy/src/core"
+	core "github.com/accuknox/knoxAutoPolicy/src/config"
 	"github.com/accuknox/knoxAutoPolicy/src/feedconsumer"
 	logger "github.com/accuknox/knoxAutoPolicy/src/logging"
+	networker "github.com/accuknox/knoxAutoPolicy/src/networkpolicy"
 
 	"github.com/accuknox/knoxAutoPolicy/src/libs"
 	cpb "github.com/accuknox/knoxAutoPolicy/src/protobuf/v1/config"
@@ -141,19 +142,19 @@ func (s *workerServer) Start(ctx context.Context, in *wpb.WorkerRequest) (*wpb.W
 		core.SetLogFile(in.GetLogfile())
 	}
 
-	core.StartNetworkWorker()
+	networker.StartNetworkWorker()
 	return &wpb.WorkerResponse{Res: "ok"}, nil
 }
 
 func (s *workerServer) Stop(ctx context.Context, in *wpb.WorkerRequest) (*wpb.WorkerResponse, error) {
 	log.Info().Msg("Stop worker called")
-	core.StopNetworkWorker()
+	networker.StopNetworkWorker()
 	return &wpb.WorkerResponse{Res: "ok"}, nil
 }
 
 func (s *workerServer) GetWorkerStatus(ctx context.Context, in *wpb.WorkerRequest) (*wpb.WorkerResponse, error) {
 	log.Info().Msg("Get worker status called")
-	return &wpb.WorkerResponse{Res: core.NetworkWorkerStatus}, nil
+	return &wpb.WorkerResponse{Res: networker.NetworkWorkerStatus}, nil
 }
 
 // ====================== //

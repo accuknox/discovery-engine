@@ -1,12 +1,33 @@
-package core
+package systempolicy
 
 import (
 	"sync"
 
+	cfg "github.com/accuknox/knoxAutoPolicy/src/config"
 	"github.com/accuknox/knoxAutoPolicy/src/libs"
+	logger "github.com/accuknox/knoxAutoPolicy/src/logging"
 	"github.com/accuknox/knoxAutoPolicy/src/plugin"
 	types "github.com/accuknox/knoxAutoPolicy/src/types"
+	"github.com/rs/zerolog"
+
 	"github.com/robfig/cron"
+)
+
+var log *zerolog.Logger
+
+func init() {
+	log = logger.GetInstance()
+}
+
+// const values
+const (
+	// operation mode
+	OP_MODE_CRONJOB = 1
+	OP_MODE_ONETIME = 2
+
+	// status
+	STATUS_RUNNING = "running"
+	STATUS_IDLE    = "idle"
 )
 
 // ====================== //
@@ -39,19 +60,19 @@ func getSystemLogs() []types.KnoxSystemLog {
 	// =============== //
 	// == Database  == //
 	// =============== //
-	if Cfg.NetworkLogFrom == "db" {
+	if cfg.GetCfgSystemLogFrom() == "db" {
 		log.Info().Msg("Get network flow from the database")
 
 		// get system logs from db
-		sysLogs := libs.GetSystemLogsFromDB(Cfg.ConfigDB, Cfg.OneTimeJobTimeSelection)
+		sysLogs := libs.GetSystemLogsFromDB(cfg.GetCfgDB(), cfg.GetCfgOneTime())
 		if len(sysLogs) == 0 {
 			return nil
 		}
 
 		// convert kubearmor system logs -> knox system logs
-		systemLogs = plugin.ConvertKubeArmorSystemLogsToKnoxSystemLogs(Cfg.ConfigDB.DBDriver, sysLogs)
+		systemLogs = plugin.ConvertKubeArmorSystemLogsToKnoxSystemLogs(cfg.GetCfgDB().DBDriver, sysLogs)
 	} else {
-		log.Error().Msgf("System log source not correct: %s", Cfg.NetworkLogFrom)
+		log.Error().Msgf("System log source not correct: %s", cfg.GetCfgSystemLogFrom())
 		return nil
 	}
 
@@ -89,7 +110,7 @@ func DiscoverSystemPolicyMain() {
 func StartSystemCronJob() {
 	// init cron job
 	SystemCronJob = cron.New()
-	err := SystemCronJob.AddFunc(Cfg.CronJobTimeInterval, DiscoverSystemPolicyMain) // time interval
+	err := SystemCronJob.AddFunc(cfg.GetCfgCronJobTime(), DiscoverSystemPolicyMain) // time interval
 	if err != nil {
 		log.Error().Msg(err.Error())
 		return
@@ -120,7 +141,7 @@ func StartSystemWorker() {
 		return
 	}
 
-	if Cfg.OperationMode == OP_MODE_CRONJOB { // every time intervals
+	if cfg.GetCfgOperationMode() == OP_MODE_CRONJOB { // every time intervals
 		StartSystemCronJob()
 	} else { // one-time generation
 		DiscoverSystemPolicyMain()
@@ -130,7 +151,7 @@ func StartSystemWorker() {
 
 // StopSystemWorker function
 func StopSystemWorker() {
-	if Cfg.OperationMode == OP_MODE_CRONJOB { // every time intervals
+	if cfg.GetCfgOperationMode() == OP_MODE_CRONJOB { // every time intervals
 		StopSystemCronJob()
 	} else {
 		if SystemWorkerStatus != STATUS_RUNNING {

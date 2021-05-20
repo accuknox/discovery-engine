@@ -10,7 +10,7 @@ import (
 
 	"github.com/spf13/viper"
 
-	"github.com/accuknox/knoxAutoPolicy/src/core"
+	cfg "github.com/accuknox/knoxAutoPolicy/src/config"
 	"github.com/accuknox/knoxAutoPolicy/src/libs"
 	logger "github.com/accuknox/knoxAutoPolicy/src/logging"
 	types "github.com/accuknox/knoxAutoPolicy/src/types"
@@ -202,7 +202,7 @@ func (cfc *CiliumFeedsConsumer) processMessage(message []byte) error {
 }
 
 func (cfc *CiliumFeedsConsumer) PushToDB() bool {
-	if err := libs.InsertNetworkLogToDB(core.Cfg.ConfigDB, events); err != nil {
+	if err := libs.InsertNetworkLogToDB(cfg.GetCfgDB(), events); err != nil {
 		log.Error().Msgf("InsertNetworkFlowToDB err: %s", err.Error())
 		return false
 	}
@@ -239,7 +239,7 @@ func (cfc *CiliumFeedsConsumer) processSystemLogMessage(message []byte) error {
 }
 
 func (cfc *CiliumFeedsConsumer) PushSystemLogToDB() bool {
-	if err := libs.InsertSystemLogToDB(core.Cfg.ConfigDB, syslogEvents); err != nil {
+	if err := libs.InsertSystemLogToDB(cfg.GetCfgDB(), syslogEvents); err != nil {
 		log.Error().Msgf("InsertSystemLogToDB err: %s", err.Error())
 		return false
 	}

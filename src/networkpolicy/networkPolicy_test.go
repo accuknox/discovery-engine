@@ -1,4 +1,4 @@
-package core
+package networkpolicy
 
 import (
 	"encoding/json"
