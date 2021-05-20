@@ -33,3 +33,22 @@ type KnoxNetworkLog struct {
 
 	Action string `json:"action,omitempty" bson:"action"`
 }
+
+// KnoxSystemLog Structure
+type KnoxSystemLog struct {
+	FlowID int `json:"flow_id,omitempty"`
+
+	ClusterName string `json:"cluster_name,omitempty"`
+
+	HostName  string `json:"host_name,omitempty"`
+	Namespace string `json:"namespace_name,omitempty"`
+	PodName   string `json:"pod_name,omitempty"`
+
+	Source    string `json:"source,omitempty"`
+	Operation string `json:"operation,omitempty"`
+	Resource  string `json:"resource,omitempty"`
+	Data      string `json:"data,omitempty"`
+
+	Action string `json:"action,omitempty"`
+	Result string `json:"result,omitempty"`
+}

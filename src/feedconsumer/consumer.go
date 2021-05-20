@@ -202,7 +202,7 @@ func (cfc *CiliumFeedsConsumer) processMessage(message []byte) error {
 }
 
 func (cfc *CiliumFeedsConsumer) PushToDB() bool {
-	if err := libs.InsertNetworkFlowToDB(core.Cfg.ConfigDB, events); err != nil {
+	if err := libs.InsertNetworkLogToDB(core.Cfg.ConfigDB, events); err != nil {
 		log.Error().Msgf("InsertNetworkFlowToDB err: %s", err.Error())
 		return false
 	}

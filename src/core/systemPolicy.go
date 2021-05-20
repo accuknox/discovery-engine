@@ -3,6 +3,8 @@ package core
 import (
 	"sync"
 
+	"github.com/accuknox/knoxAutoPolicy/src/libs"
+	types "github.com/accuknox/knoxAutoPolicy/src/types"
 	"github.com/robfig/cron"
 )
 
@@ -25,6 +27,33 @@ func init() {
 	SystemWaitG = sync.WaitGroup{}
 }
 
+// ================ //
+// == System Log == //
+// ================ //
+
+// getSystemLogs function
+func getSystemLogs() []types.KnoxSystemLog {
+	systemLogs := []types.KnoxSystemLog{}
+
+	// =============== //
+	// == Database  == //
+	// =============== //
+	if Cfg.NetworkLogFrom == "db" {
+		log.Info().Msg("Get network flow from the database")
+
+		// get flows from db
+		flows := libs.GetSystemLogFromDB(Cfg.ConfigDB, Cfg.OneTimeJobTimeSelection)
+		if len(flows) == 0 {
+			return nil
+		}
+
+		// convert db flows -> network logs
+		// systemLogs = plugin.ConvertCiliumFlowsToKnoxNetworkLogs(Cfg.ConfigDB.DBDriver, flows)
+	}
+
+	return systemLogs
+}
+
 // ============================== //
 // == Discover System Policy  == //
 // ============================== //
@@ -41,6 +70,11 @@ func DiscoverSystemPolicyMain() {
 		SystemWorkerStatus = STATUS_IDLE
 	}()
 
+	// // get system logs
+	// allSystemkLogs := getSystemkLogs()
+	// if allNetworkLogs == nil {
+	// 	return
+	// }
 }
 
 // ==================================== //

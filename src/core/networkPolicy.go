@@ -1575,12 +1575,12 @@ func DiscoverNetworkPolicyMain() {
 
 			if len(newPolicies) > 0 {
 				// insert discovered policies to db
-				if strings.Contains(Cfg.DiscoveredPolicyTo, "db") {
-					libs.InsertDiscoveredPolicies(Cfg.ConfigDB, newPolicies)
+				if strings.Contains(Cfg.NetworkPolicyTo, "db") {
+					libs.InsertNetworkPolicies(Cfg.ConfigDB, newPolicies)
 				}
 
 				// insert discovered policies to file
-				if strings.Contains(Cfg.DiscoveredPolicyTo, "file") {
+				if strings.Contains(Cfg.NetworkPolicyTo, "file") {
 					InsertDiscoveredPoliciesToFile(namespace, services)
 				}
 			}

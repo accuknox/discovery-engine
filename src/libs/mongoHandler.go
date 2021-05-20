@@ -29,8 +29,8 @@ func ConnectMongoDB(cfg types.ConfigDB) (*mongo.Client, *mongo.Database) {
 	return client, client.Database(cfg.DBName)
 }
 
-// InsertDiscoveredPoliciesToMongoDB function
-func InsertDiscoveredPoliciesToMongoDB(cfg types.ConfigDB, policies []types.KnoxNetworkPolicy) error {
+// InsertNetworkPoliciesToMongoDB function
+func InsertNetworkPoliciesToMongoDB(cfg types.ConfigDB, policies []types.KnoxNetworkPolicy) error {
 	client, db := ConnectMongoDB(cfg)
 	defer client.Disconnect(context.Background())
 
@@ -136,8 +136,8 @@ func UpdateOutdatedPolicyFromMongo(cfg types.ConfigDB, outdatedPolicy string, la
 	return nil
 }
 
-// GetTrafficFlowFromMongo function
-func GetTrafficFlowFromMongo(cfg types.ConfigDB, startTime, endTime int64) ([]map[string]interface{}, error) {
+// GetNetworkLogByTimeFromMongo function
+func GetNetworkLogByTimeFromMongo(cfg types.ConfigDB, startTime, endTime int64) ([]map[string]interface{}, error) {
 	client, db := ConnectMongoDB(cfg)
 	defer client.Disconnect(context.Background())
 	col := db.Collection(cfg.TableNetworkFlow)

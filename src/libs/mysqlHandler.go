@@ -24,9 +24,9 @@ func ConnectMySQL(cfg types.ConfigDB) (db *sql.DB) {
 	return db
 }
 
-// ======================== //
-// == Network Flow Event == //
-// ======================== //
+// ================= //
+// == Network Log == //
+// ================= //
 
 // QueryBaseSimple ...
 var QueryBaseSimple string = "select id,time,cluster_name,traffic_direction,verdict,policy_match_type,drop_reason,event_type,source,destination,ip,l4,l7 from "
@@ -94,8 +94,8 @@ func flowScannerToCiliumFlow(results *sql.Rows) ([]map[string]interface{}, error
 	return trafficFlows, nil
 }
 
-// GetTrafficFlowByTime function
-func GetTrafficFlowByTime(cfg types.ConfigDB, startTime, endTime int64) ([]map[string]interface{}, error) {
+// GetNetworkLogByTimeFromMySQL function
+func GetNetworkLogByTimeFromMySQL(cfg types.ConfigDB, startTime, endTime int64) ([]map[string]interface{}, error) {
 	db := ConnectMySQL(cfg)
 	defer db.Close()
 
@@ -110,8 +110,8 @@ func GetTrafficFlowByTime(cfg types.ConfigDB, startTime, endTime int64) ([]map[s
 	return flowScannerToCiliumFlow(rows)
 }
 
-// GetTrafficFlowByIDTime function
-func GetTrafficFlowByIDTime(cfg types.ConfigDB, id, endTime int64) ([]map[string]interface{}, error) {
+// GetNetworkLogByIDTimeFromMySQL function
+func GetNetworkLogByIDTimeFromMySQL(cfg types.ConfigDB, id, endTime int64) ([]map[string]interface{}, error) {
 	db := ConnectMySQL(cfg)
 	defer db.Close()
 
@@ -155,8 +155,8 @@ func convertJSONRawToString(raw json.RawMessage) string {
 	return string(j)
 }
 
-// InsertNetworkFlowToMySQLDB function
-func InsertNetworkFlowToMySQLDB(cfg types.ConfigDB, nfe []types.NetworkFlowEvent) error {
+// InsertNetworkLogToMySQL function
+func InsertNetworkLogToMySQL(cfg types.ConfigDB, nfe []types.NetworkFlowEvent) error {
 	db := ConnectMySQL(cfg)
 	defer db.Close()
 
@@ -212,12 +212,12 @@ func InsertNetworkFlowToMySQLDB(cfg types.ConfigDB, nfe []types.NetworkFlowEvent
 	return nil
 }
 
-// ====================== //
-// == System Log Event == //
-// ====================== //
+// ================ //
+// == System Log == //
+// ================ //
 
-// GetSystemLogByTime function
-func GetSystemLogByTime(cfg types.ConfigDB, startTime, endTime int64) ([]map[string]interface{}, error) {
+// GetSystemLogByTimeFromMySQL function
+func GetSystemLogByTimeFromMySQL(cfg types.ConfigDB, startTime, endTime int64) ([]map[string]interface{}, error) {
 	db := ConnectMySQL(cfg)
 	defer db.Close()
 
@@ -232,8 +232,8 @@ func GetSystemLogByTime(cfg types.ConfigDB, startTime, endTime int64) ([]map[str
 	return flowScannerToCiliumFlow(rows)
 }
 
-// GetSystemLogByIDTime function
-func GetSystemLogByIDTime(cfg types.ConfigDB, id, endTime int64) ([]map[string]interface{}, error) {
+// GetSystemLogByIDTimeFromMySQL function
+func GetSystemLogByIDTimeFromMySQL(cfg types.ConfigDB, id, endTime int64) ([]map[string]interface{}, error) {
 	db := ConnectMySQL(cfg)
 	defer db.Close()
 
@@ -248,8 +248,8 @@ func GetSystemLogByIDTime(cfg types.ConfigDB, id, endTime int64) ([]map[string]i
 	return flowScannerToCiliumFlow(rows)
 }
 
-// InsertSystemLogToMySQLDB function
-func InsertSystemLogToMySQLDB(cfg types.ConfigDB, sle []types.SystemLogEvent) error {
+// InsertSystemLogToMySQL function
+func InsertSystemLogToMySQL(cfg types.ConfigDB, sle []types.SystemLogEvent) error {
 	db := ConnectMySQL(cfg)
 	defer db.Close()
 
@@ -458,8 +458,8 @@ func insertDiscoveredPolicy(cfg types.ConfigDB, db *sql.DB, policy types.KnoxNet
 	return nil
 }
 
-// InsertDiscoveredPoliciesToMySQL function
-func InsertDiscoveredPoliciesToMySQL(cfg types.ConfigDB, policies []types.KnoxNetworkPolicy) error {
+// InsertNetworkPoliciesToMySQL function
+func InsertNetworkPoliciesToMySQL(cfg types.ConfigDB, policies []types.KnoxNetworkPolicy) error {
 	db := ConnectMySQL(cfg)
 	defer db.Close()
 
@@ -545,8 +545,8 @@ func AddConfiguration(cfg types.ConfigDB, newConfig types.Configuration) error {
 		newConfig.CronJobTimeInterval,
 		newConfig.OneTimeJobTimeSelection,
 		newConfig.NetworkLogFrom,
-		newConfig.DiscoveredPolicyTo,
-		newConfig.PolicyDir,
+		newConfig.NetworkPolicyTo,
+		newConfig.NetworkPolicyDir,
 		newConfig.DiscoveryPolicyTypes,
 		newConfig.DiscoveryRuleTypes,
 		newConfig.CIDRBits,
@@ -608,8 +608,8 @@ func GetConfigurations(cfg types.ConfigDB, configName string) ([]types.Configura
 			&cfg.CronJobTimeInterval,
 			&cfg.OneTimeJobTimeSelection,
 			&cfg.NetworkLogFrom,
-			&cfg.DiscoveredPolicyTo,
-			&cfg.PolicyDir,
+			&cfg.NetworkPolicyTo,
+			&cfg.NetworkPolicyDir,
 			&cfg.DiscoveryPolicyTypes,
 			&cfg.DiscoveryRuleTypes,
 			&cfg.CIDRBits,
@@ -699,8 +699,8 @@ func UpdateConfiguration(cfg types.ConfigDB, configName string, updateConfig typ
 		updateConfig.CronJobTimeInterval,
 		updateConfig.OneTimeJobTimeSelection,
 		updateConfig.NetworkLogFrom,
-		updateConfig.DiscoveredPolicyTo,
-		updateConfig.PolicyDir,
+		updateConfig.NetworkPolicyTo,
+		updateConfig.NetworkPolicyDir,
 		updateConfig.DiscoveryPolicyTypes,
 		updateConfig.DiscoveryRuleTypes,
 		updateConfig.CIDRBits,

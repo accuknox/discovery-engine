@@ -31,7 +31,7 @@ func TestLoadDefaultConfig(t *testing.T) {
 	assert.NotEmpty(t, Cfg.NetworkLogFrom, "network log from should not be empty")
 	assert.NotEmpty(t, Cfg.NetworkLogFile, "network log file should not be empty")
 
-	assert.NotEmpty(t, Cfg.DiscoveredPolicyTo, "discovery policy to should not be empty")
+	assert.NotEmpty(t, Cfg.NetworkPolicyTo, "discovery policy to should not be empty")
 
 	assert.NotEmpty(t, Cfg.DiscoveryPolicyTypes, "discovery policy types should not be empty")
 	assert.NotEmpty(t, Cfg.DiscoveryRuleTypes, "discovery rule types should not be empty")

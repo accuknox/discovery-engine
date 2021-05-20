@@ -104,8 +104,8 @@ func LoadDefaultConfig() {
 	Cfg.NetworkLogFile = "./flows.json" // for just local testing
 
 	// output
-	Cfg.DiscoveredPolicyTo = viper.GetString("application.discovered-policy-to")
-	Cfg.PolicyDir = viper.GetString("application.policy-dir")
+	Cfg.NetworkPolicyTo = viper.GetString("application.discovered-policy-to")
+	Cfg.NetworkPolicyDir = viper.GetString("application.policy-dir")
 
 	// discovery types
 	Cfg.DiscoveryPolicyTypes = viper.GetInt("application.discovery-policy-types") // 3: all types

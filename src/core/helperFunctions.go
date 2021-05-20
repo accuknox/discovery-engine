@@ -95,7 +95,7 @@ func getNetworkLogs() []types.KnoxNetworkLog {
 		log.Info().Msg("Get network flow from the database")
 
 		// get flows from db
-		flows := libs.GetNetworkFlowFromDB(Cfg.ConfigDB, Cfg.OneTimeJobTimeSelection)
+		flows := libs.GetNetworkLogFromDB(Cfg.ConfigDB, Cfg.OneTimeJobTimeSelection)
 		if len(flows) == 0 {
 			return nil
 		}
