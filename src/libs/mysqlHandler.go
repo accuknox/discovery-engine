@@ -28,12 +28,24 @@ func ConnectMySQL(cfg types.ConfigDB) (db *sql.DB) {
 // == Network Log == //
 // ================= //
 
-// QueryBaseSimple ...
-var QueryBaseSimple string = "select id,time,cluster_name,traffic_direction,verdict,policy_match_type,drop_reason,event_type,source,destination,ip,l4,l7 from "
+var networkLogQueryBase string = "select id,time,cluster_name,traffic_direction,verdict,policy_match_type,drop_reason,event_type,source,destination,ip,l4,l7 from "
 
-// flowScannerToCiliumFlow scans the trafficflow.
-func flowScannerToCiliumFlow(results *sql.Rows) ([]map[string]interface{}, error) {
-	trafficFlows := []map[string]interface{}{}
+func convertDateTimeToUnix(dateTime string) (int64, error) {
+	thetime, err := time.Parse(time.RFC3339, dateTime)
+	if err != nil {
+		return 0, err
+	}
+	return thetime.Unix(), nil
+}
+
+func convertJSONRawToString(raw json.RawMessage) string {
+	j, _ := json.Marshal(&raw)
+	return string(j)
+}
+
+// ScanNetworkLogs scans the db records
+func ScanNetworkLogs(results *sql.Rows) ([]map[string]interface{}, error) {
+	networkLogs := []map[string]interface{}{}
 	var err error
 
 	for results.Next() {
@@ -68,11 +80,11 @@ func flowScannerToCiliumFlow(results *sql.Rows) ([]map[string]interface{}, error
 		}
 
 		if err != nil {
-			log.Error().Msg("Error while scanning traffic flows :" + err.Error())
+			log.Error().Msg("Error while scanning network logs :" + err.Error())
 			return nil, err
 		}
 
-		flow := map[string]interface{}{
+		log := map[string]interface{}{
 			"id":                id,
 			"time":              time,
 			"cluster_name":      clusterName,
@@ -88,10 +100,10 @@ func flowScannerToCiliumFlow(results *sql.Rows) ([]map[string]interface{}, error
 			"l7":                l7Byte,
 		}
 
-		trafficFlows = append(trafficFlows, flow)
+		networkLogs = append(networkLogs, log)
 	}
 
-	return trafficFlows, nil
+	return networkLogs, nil
 }
 
 // GetNetworkLogByTimeFromMySQL function
@@ -99,7 +111,7 @@ func GetNetworkLogByTimeFromMySQL(cfg types.ConfigDB, startTime, endTime int64) 
 	db := ConnectMySQL(cfg)
 	defer db.Close()
 
-	QueryBase := QueryBaseSimple + cfg.TableNetworkFlow
+	QueryBase := networkLogQueryBase + cfg.TableNetworkFlow
 
 	rows, err := db.Query(QueryBase+" WHERE time >= ? and time <= ?", int(startTime), int(endTime))
 	if err != nil {
@@ -107,7 +119,7 @@ func GetNetworkLogByTimeFromMySQL(cfg types.ConfigDB, startTime, endTime int64) 
 	}
 	defer rows.Close()
 
-	return flowScannerToCiliumFlow(rows)
+	return ScanNetworkLogs(rows)
 }
 
 // GetNetworkLogByIDTimeFromMySQL function
@@ -115,7 +127,7 @@ func GetNetworkLogByIDTimeFromMySQL(cfg types.ConfigDB, id, endTime int64) ([]ma
 	db := ConnectMySQL(cfg)
 	defer db.Close()
 
-	QueryBase := QueryBaseSimple + cfg.TableNetworkFlow
+	QueryBase := networkLogQueryBase + cfg.TableNetworkFlow
 
 	rows, err := db.Query(QueryBase+" WHERE id > ? ORDER BY id ASC ", id)
 	if err != nil {
@@ -123,36 +135,7 @@ func GetNetworkLogByIDTimeFromMySQL(cfg types.ConfigDB, id, endTime int64) ([]ma
 	}
 	defer rows.Close()
 
-	return flowScannerToCiliumFlow(rows)
-}
-
-// GetTrafficFlow function
-func GetTrafficFlow(cfg types.ConfigDB) ([]map[string]interface{}, error) {
-	db := ConnectMySQL(cfg)
-	defer db.Close()
-
-	QueryBase := QueryBaseSimple + cfg.TableNetworkFlow
-
-	rows, err := db.Query(QueryBase)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	return flowScannerToCiliumFlow(rows)
-}
-
-func convertDateTimeToUnix(dateTime string) (int64, error) {
-	thetime, err := time.Parse(time.RFC3339, dateTime)
-	if err != nil {
-		return 0, err
-	}
-	return thetime.Unix(), nil
-}
-
-func convertJSONRawToString(raw json.RawMessage) string {
-	j, _ := json.Marshal(&raw)
-	return string(j)
+	return ScanNetworkLogs(rows)
 }
 
 // InsertNetworkLogToMySQL function
@@ -216,12 +199,61 @@ func InsertNetworkLogToMySQL(cfg types.ConfigDB, nfe []types.NetworkFlowEvent) e
 // == System Log == //
 // ================ //
 
+var systemLogQueryBase string = "select id,time,cluster_name,traffic_direction,verdict,policy_match_type,drop_reason,event_type,source,destination,ip,l4,l7 from "
+
+// ScanSystemLogs scans the db records
+func ScanSystemLogs(results *sql.Rows) ([]map[string]interface{}, error) {
+	systemLogs := []map[string]interface{}{}
+	var err error
+
+	for results.Next() {
+		var id, time, hostPid, ppid, pid, uid uint32
+		var clusterName, nodeName, namespace, podName, containerID, containerName, types, source, operation, resource, data, result string
+
+		err = results.Scan(
+			&id,
+			&time,
+			&clusterName,
+			&nodeName,
+			&namespace,
+			&podName,
+			&containerID,
+			&containerName,
+			&hostPid,
+			&ppid,
+			&pid,
+			&uid,
+			&types,
+			&source,
+			&operation,
+			&resource,
+			&data,
+			&result,
+		)
+
+		if err != nil {
+			log.Error().Msg("Error while scanning system logs :" + err.Error())
+			return nil, err
+		}
+
+		log := map[string]interface{}{
+			"id":           id,
+			"time":         time,
+			"cluster_name": clusterName,
+		}
+
+		systemLogs = append(systemLogs, log)
+	}
+
+	return systemLogs, nil
+}
+
 // GetSystemLogByTimeFromMySQL function
 func GetSystemLogByTimeFromMySQL(cfg types.ConfigDB, startTime, endTime int64) ([]map[string]interface{}, error) {
 	db := ConnectMySQL(cfg)
 	defer db.Close()
 
-	QueryBase := QueryBaseSimple + cfg.TableSystemLog
+	QueryBase := systemLogQueryBase + cfg.TableSystemLog
 
 	rows, err := db.Query(QueryBase+" WHERE time >= ? and time <= ?", int(startTime), int(endTime))
 	if err != nil {
@@ -229,7 +261,7 @@ func GetSystemLogByTimeFromMySQL(cfg types.ConfigDB, startTime, endTime int64) (
 	}
 	defer rows.Close()
 
-	return flowScannerToCiliumFlow(rows)
+	return ScanSystemLogs(rows)
 }
 
 // GetSystemLogByIDTimeFromMySQL function
@@ -237,7 +269,7 @@ func GetSystemLogByIDTimeFromMySQL(cfg types.ConfigDB, id, endTime int64) ([]map
 	db := ConnectMySQL(cfg)
 	defer db.Close()
 
-	QueryBase := QueryBaseSimple + cfg.TableSystemLog
+	QueryBase := systemLogQueryBase + cfg.TableSystemLog
 
 	rows, err := db.Query(QueryBase+" WHERE id > ? ORDER BY id ASC ", id)
 	if err != nil {
@@ -245,7 +277,7 @@ func GetSystemLogByIDTimeFromMySQL(cfg types.ConfigDB, id, endTime int64) ([]map
 	}
 	defer rows.Close()
 
-	return flowScannerToCiliumFlow(rows)
+	return ScanSystemLogs(rows)
 }
 
 // InsertSystemLogToMySQL function
@@ -419,8 +451,8 @@ func UpdateOutdatedPolicyFromMySQL(cfg types.ConfigDB, outdatedPolicy string, la
 	return nil
 }
 
-// insertDiscoveredPolicy function
-func insertDiscoveredPolicy(cfg types.ConfigDB, db *sql.DB, policy types.KnoxNetworkPolicy) error {
+// insertNetworkPolicy function
+func insertNetworkPolicy(cfg types.ConfigDB, db *sql.DB, policy types.KnoxNetworkPolicy) error {
 	stmt, err := db.Prepare("INSERT INTO " + cfg.TableDiscoveredPolicies + "(apiVersion,kind,flow_ids,name,cluster_name,namespace,type,rule,status,outdated,spec,generatedTime) values(?,?,?,?,?,?,?,?,?,?,?,?)")
 	if err != nil {
 		return err
@@ -464,7 +496,7 @@ func InsertNetworkPoliciesToMySQL(cfg types.ConfigDB, policies []types.KnoxNetwo
 	defer db.Close()
 
 	for _, policy := range policies {
-		if err := insertDiscoveredPolicy(cfg, db, policy); err != nil {
+		if err := insertNetworkPolicy(cfg, db, policy); err != nil {
 			return err
 		}
 	}

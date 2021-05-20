@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/accuknox/knoxAutoPolicy/src/libs"
+	"github.com/accuknox/knoxAutoPolicy/src/plugin"
 	types "github.com/accuknox/knoxAutoPolicy/src/types"
 	"github.com/robfig/cron"
 )
@@ -41,14 +42,17 @@ func getSystemLogs() []types.KnoxSystemLog {
 	if Cfg.NetworkLogFrom == "db" {
 		log.Info().Msg("Get network flow from the database")
 
-		// get flows from db
-		flows := libs.GetSystemLogFromDB(Cfg.ConfigDB, Cfg.OneTimeJobTimeSelection)
-		if len(flows) == 0 {
+		// get system logs from db
+		sysLogs := libs.GetSystemLogsFromDB(Cfg.ConfigDB, Cfg.OneTimeJobTimeSelection)
+		if len(sysLogs) == 0 {
 			return nil
 		}
 
-		// convert db flows -> network logs
-		// systemLogs = plugin.ConvertCiliumFlowsToKnoxNetworkLogs(Cfg.ConfigDB.DBDriver, flows)
+		// convert kubearmor system logs -> knox system logs
+		systemLogs = plugin.ConvertKubeArmorSystemLogsToKnoxSystemLogs(Cfg.ConfigDB.DBDriver, sysLogs)
+	} else {
+		log.Error().Msgf("System log source not correct: %s", Cfg.NetworkLogFrom)
+		return nil
 	}
 
 	return systemLogs

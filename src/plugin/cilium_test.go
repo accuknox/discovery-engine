@@ -178,7 +178,7 @@ func TestConvertKnoxPolicyToCiliumPolicy(t *testing.T) {
 
 	svcs := []types.Service{}
 
-	actual := ConvertKnoxPolicyToCiliumPolicy(svcs, *knoxPolicy)
+	actual := ConvertKnoxNetworkPolicyToCiliumPolicy(svcs, *knoxPolicy)
 	if !cmp.Equal(*expected, actual) {
 		t.Errorf("they should be equal %v %v", expected, actual)
 	}

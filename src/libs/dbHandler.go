@@ -27,8 +27,8 @@ func updateTimeInterval(lastDoc map[string]interface{}) {
 	}
 }
 
-// GetNetworkLogFromDB function
-func GetNetworkLogFromDB(cfg types.ConfigDB, timeSelection string) []map[string]interface{} {
+// GetNetworkLogsFromDB function
+func GetNetworkLogsFromDB(cfg types.ConfigDB, timeSelection string) []map[string]interface{} {
 	results := []map[string]interface{}{}
 
 	endTime = time.Now().Unix()
@@ -66,7 +66,7 @@ func GetNetworkLogFromDB(cfg types.ConfigDB, timeSelection string) []map[string]
 	}
 
 	if len(results) == 0 {
-		log.Info().Msgf("Network log not exist: from %s ~ to %s",
+		log.Info().Msgf("Network logs not exist: from %s ~ to %s",
 			time.Unix(startTime, 0).Format(TimeFormSimple),
 			time.Unix(endTime, 0).Format(TimeFormSimple))
 
@@ -80,7 +80,7 @@ func GetNetworkLogFromDB(cfg types.ConfigDB, timeSelection string) []map[string]
 		LastFlowID = int64(lastDoc["id"].(uint32))
 	}
 
-	log.Info().Msgf("The total number of network log: [%d] from %s ~ to %s", len(results),
+	log.Info().Msgf("The total number of network logs: [%d] from %s ~ to %s", len(results),
 		time.Unix(startTime, 0).Format(TimeFormSimple),
 		time.Unix(endTime, 0).Format(TimeFormSimple))
 
@@ -111,8 +111,8 @@ var LastSyslogID int64 = 0
 var syslogStartTime int64 = 0
 var syslogEndTime int64 = 0
 
-// GetSystemLogFromDB function
-func GetSystemLogFromDB(cfg types.ConfigDB, timeSelection string) []map[string]interface{} {
+// GetSystemLogsFromDB function
+func GetSystemLogsFromDB(cfg types.ConfigDB, timeSelection string) []map[string]interface{} {
 	results := []map[string]interface{}{}
 
 	endTime = time.Now().Unix()
