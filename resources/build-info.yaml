@@ -1,29 +1,38 @@
 #***********************************************************************************************************************************#
 # Build_steps stage used to build the source code of the application
 #***********************************************************************************************************************************#
+
 build_steps:
   - name: Code Compile
     source: "."
     image:
-        name: maven
-        docker_run_params: '-u 0:0 -v /root/.m2:/root/.m2'
+        name: artifactory.accuknox.com/accuknox/golang:1.16-alpine
+        docker_run_params: '-v /root/.m2:/root/.m2'
     commands:
-      - "mvn -v"
+      - "go mod download"
+      - "CGO_ENABLED=0 go build -o bin/server"
+
+    # artifacts step is optional which is used deploy artifacts  
+#    artifacts:
+#      type: mvn
+#      deploy:
+#        command: "mvn deploy -B -DskipTests"
+#        artifactory_id: snapshots
 
 #***********************************************************************************************************************************#
 # Docker_build stage builds the docker image from the Dockerfile
 #Docker build mention the name for docker build. specify the dockerfile dirctory where Dockerfile was stored
 #Mention Dockerfile name and tag for build
 #***********************************************************************************************************************************#
+
 docker_build:
   - name: knoxautopolicy
     Dockerfile_dir: .
-    Dockerfile_name: Dockerfile.knoxautopolicy
+    Dockerfile_name: Dockerfile
     pre_steps:
       - ls -l
       - echo cp
     tag: 1.0
-
 
 #***********************************************************************************************************************************#
 # Image properties is to define the artifactory for pull the respective image
@@ -44,7 +53,7 @@ trivy_properties:
    #Acceptable Values are CRITICAL, HIGH, MEDIUM, LOW
      enabled: "false"
      level: high
-     value: "10"  
+     value: "10"
    image:
        name: artifactory.accuknox.com/accuknox/trivy:latest
        docker_run_params:  --entrypoint='' -v /var/run/docker.sock:/var/run/docker.sock -v /root/.cache/:/root/.cache/
@@ -60,16 +69,16 @@ clair_properties:
     #Acceptable Values are CRITICAL, HIGH, MEDIUM, LOW 
      enabled: "false"
      level: high
-     value: "10" 
-     #pass the clair service url 
+     value: "10"
+     #pass the clair service url
      clair_url : "http://clair:6060"
    image:
-       name: artifactory.accuknox.com/accuknox/clair-scanner:alpine-3.12.4 #nordri/clair-scanner:latest
+       name: nordri/clair-scanner:latest  #nordri/clair-scanner:latest #artifactory.accuknox.com/accuknox/clair-scanner:alpine-3.12.4 
        docker_run_params:  --entrypoint='' -v /var/run/docker.sock:/var/run/docker.sock -v /root/.cache/:/root/.cache/
-      
+
 #***********************************************************************************************************************************#
 #if we need to scan the image with anchore change the status: enable: "true" if need to disable the scan change this to "false" 
-#Pass the anchore cli artifactory image 
+#Pass the anchore cli artifactory image
 #pass the anchore engine user name, password and engine url
 #***********************************************************************************************************************************#
 anchore_properties:
@@ -77,32 +86,31 @@ anchore_properties:
     enabled: "false"
   image:
       name: artifactory.accuknox.com/accuknox/anchore-engine-cli:latest
-      docker_run_params:  --entrypoint='' 
+      docker_run_params:  --entrypoint=''
   anchore_conf:
   -   anchore.user: "admin"
       anchore.pass: "foobar"
-      anchore.url: "http://jenkinsm01.accuknox.com:8228/v1/"
-      
+      anchore.url: "http://35.184.197.198:8228/v1/" #"http://jenkinsm01.accuknox.com:8228/v1/"
 
 #***********************************************************************************************************************************#
-#Pass the sonarqube name and sonarrunner name which is configured in Managed-Jenkins.  
-#qualitygate_timeout is the maximum timeout of qualitygate to 10 Min# 
+#Pass the sonarqube name and sonarrunner name which is configured in Managed-Jenkins.
+#qualitygate_timeout is the maximum timeout of qualitygate to 10 Min#
 #***********************************************************************************************************************************#
 sonar_properties:
   status:
     enabled: "false"
   quality_gate:
     enabled: "false"
-    timeout: "5" 
+    timeout: "3"
   sonarqube_server_name: "sonar-scan"
   sonar_runnner_tools_name: "SonarQubeScanner"
   qualitygate_result_ignore: "no"
 
   image:
       name: artifactory.accuknox.com/accuknox/sonar-scanner-cli:latest
-      docker_run_params:  -v /usr/local/bin:/usr/local/bin 
+      docker_run_params:  -v /usr/local/bin:/usr/local/bin
 #**********************************************************************************************************************************#
-#Below sonar_conf containts properties section to run Sonar, 
+#Below sonar_conf containts properties section to run Sonar,
 #Mention project key and name which was created in sonarqube server
 #Mention the Host url where the sonar server is running
 #for sonar credentials use username/API Token combo which was created in jenkins manage credentials.
@@ -115,14 +123,14 @@ sonar_properties:
       sonar.java.binaries: ./
       sonar.sourcepath: src
       sonar.sourceEncoding : UTF-8
-      sonar.web.host: http://35.232.229.106:8220
+      sonar.web.host: https://sq01.accuknox.com
       sonar.login: sonar-accu-cred
-
 
 kubehunter_properties:
   cluster_ip: "35.188.158.69"
+
 #***********************************************************************************************************************************#
-# Lints and package the helm chart 
+# Lints and package the helm chart
 #helm build mention the name for helm build. specify the helm image and docker parameter to run the helm docker
 #Mention helm dir and tag for build
 #***********************************************************************************************************************************#
@@ -132,11 +140,17 @@ helm_build:
       name: "artifactory.accuknox.com/accuknox/custom-helm-image:latest"
       docker_run_params: ""
     helm_dir: helm
-    tag: 1.0.1
+    tag: 1.0.0
     commands:
       - helm lint
       - helm package .
 
+
+#***********************************************************************************************************************************#
+# publish docker image, helmchart and artifacts to specified artifactory locations
+#for artifactory credentials use username/API Token combo which was created in jenkins manage credentials.
+#Pass the repostiry url for docker helm and artifacts where images need to push
+#***********************************************************************************************************************************#
 publish_config:
     publish_nexus_credentials: "accunoxwithnexus"
     docker:
@@ -149,17 +163,18 @@ publish_config:
       dev: https://artifactory.accuknox.com/repository/helm-dev/
       verify: https://artifactory.accuknox.com/repository/helm-verify/
       prod: https://artifactory.accuknox.com/repository/helm-prod/
-    artifacts:
-      snapshot: https://artifactory.accuknox.com/repository/maven-artifacts/
-      dev: https://artifactory.accuknox.com/repository/maven-artifacts/
-      verify: https://artifactory.accuknox.com/repository/maven-artifacts/
-      prod: https://artifactory.accuknox.com/repository/maven-artifacts/
-      
+#    artifacts:
+#      snapshot: https://artifactory.accuknox.com/repository/maven-artifacts/
+#      dev: https://artifactory.accuknox.com/repository/maven-artifacts/
+#      verify: https://artifactory.accuknox.com/repository/maven-artifacts/
+#      prod: https://artifactory.accuknox.com/repository/maven-artifacts/
+
 #***********************************************************************************************************************************#
 # publish helmchart to specified CD git repository
 #for CD git credentials use username/API Token combo which was created in jenkins manage credentials.
 #Pass the CD git repostiry url for publishing helm chart to CD repo
 #***********************************************************************************************************************************#
+
 deploy_config:
   project: 'accuknox'
   gcr_credentials: 'gcr'
