@@ -4,7 +4,7 @@ package types
 type KnoxNetworkLog struct {
 	FlowID int `json:"flow_id,omitempty" bson:"flow_id"`
 
-	CluserName string `json:"cluster_name,omitempty" bson:"cluster_name"`
+	ClusterName string `json:"cluster_name,omitempty" bson:"cluster_name"`
 
 	SrcNamespace string `json:"src_namespace,omitempty" bson:"src_namespace"`
 	SrcPodName   string `json:"src_pod_name,omitempty" bson:"src_pod_name"`

@@ -24,7 +24,6 @@ func ConvertMySQLKubeArmorLogsToKnoxSystemLogs(docs []map[string]interface{}) []
 		}
 
 		knoxSysLog := types.KnoxSystemLog{
-			LogID:       syslog.ID,
 			ClusterName: syslog.ClusterName,
 			HostName:    syslog.HostName,
 			Namespace:   syslog.NamespaceName,

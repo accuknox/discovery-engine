@@ -158,8 +158,8 @@ func GetClusterFromClusterName(clusterName string) types.Cluster {
 	return types.Cluster{}
 }
 
-// GetClusterResources Function
-func GetClusterResources(cluster types.Cluster) ([]string, []types.Service, []types.Endpoint, []types.Pod) {
+// GetAllClusterResources Function
+func GetAllClusterResources(cluster types.Cluster) ([]string, []types.Service, []types.Endpoint, []types.Pod) {
 	namespaces := GetNamespacesFromCluster(cluster)
 	services := GetServicesFromCluster(cluster)
 	endpoints := GetEndpointsFromCluster(cluster)

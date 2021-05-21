@@ -1570,10 +1570,10 @@ func DiscoverNetworkPolicyMain() {
 		}
 
 		// set cluster global variables
-		initClusterVariables(clusterName)
+		initMultiClusterVariables(clusterName)
 
 		// get k8s resources
-		namespaces, services, endpoints, pods := libs.GetClusterResources(clusterInstance)
+		namespaces, services, endpoints, pods := libs.GetAllClusterResources(clusterInstance)
 
 		// update DNS req. flows, DNSToIPs map
 		updateDNSFlows(networkLogs)
@@ -1581,7 +1581,7 @@ func DiscoverNetworkPolicyMain() {
 		// update service ports (k8s service, endpoint, kube-dns)
 		updateServiceEndpoint(services, endpoints, pods)
 
-		// get existing policies in db
+		// get existing network policies in db
 		existingPolicies := libs.GetNetworkPolicies(CfgDB, "", "")
 
 		// filter ignoring network logs from configuration
@@ -1599,7 +1599,7 @@ func DiscoverNetworkPolicyMain() {
 				continue
 			}
 
-			log.Info().Msgf("Policy discovery started for namespace: [%s]", namespace)
+			log.Info().Msgf("Network policy discovery started for namespace: [%s]", namespace)
 
 			// reset flow id track at each target namespace
 			clearTrackFlowIDMaps()
@@ -1627,11 +1627,11 @@ func DiscoverNetworkPolicyMain() {
 				}
 			}
 
-			log.Info().Msgf("Policy discovery done for namespace: [%s], [%d] policies discovered", namespace, len(newPolicies))
+			log.Info().Msgf("Network policy discovery done for namespace: [%s], [%d] policies discovered", namespace, len(newPolicies))
 		}
 
 		// update cluster global variables
-		updateClusterVariables(clusterName)
+		updateMultiClusterVariables(clusterName)
 	}
 }
 
