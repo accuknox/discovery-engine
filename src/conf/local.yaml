@@ -10,6 +10,7 @@ application:
   network-policy-rule-types: 511
   network-policy-ignoring-namespaces: "kube-system"
   system-log-from: db
+  system-policy-to: "db|file"
   #accuknox-cluster-mgmt: "http://cluster-management-service.accuknox-dev-cluster-mgmt.svc.cluster.local/cm"
   accuknox-cluster-mgmt: "http://localhost:8080"
 

@@ -65,6 +65,7 @@ type Configuration struct {
 	NetPolicyL7Level int `json:"network_policy_l7_level,omitempty" bson:"network_policy_l7_level,omitempty"`
 
 	// system policy discovery
-	SystemLogFrom string `json:"system_log_from,omitempty" bson:"system_log_from,omitempty"`
-	SystemLogFile string `json:"system_log_file,omitempty" bson:"system_log_file,omitempty"`
+	SystemLogFrom  string `json:"system_log_from,omitempty" bson:"system_log_from,omitempty"`
+	SystemLogFile  string `json:"system_log_file,omitempty" bson:"system_log_file,omitempty"`
+	SystemPolicyTo string `json:"system_policy_to,omitempty" bson:"system_policy_to,omitempty"`
 }

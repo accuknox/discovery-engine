@@ -549,16 +549,20 @@ func AddConfiguration(cfg types.ConfigDB, newConfig types.Configuration) error {
 		"operation_mode," +
 		"cronjob_time_interval," +
 		"one_time_job_time_selection," +
+
 		"network_log_from," +
-		"discovered_policy_to," +
-		"policy_dir," +
-		"discovery_policy_types," +
-		"discovery_rule_types," +
-		"cidr_bits," +
-		"ignoring_flows," +
-		"l3_aggregation_level," +
-		"l4_aggregation_level," +
-		"l7_aggregation_level) " +
+		"network_policy_to," +
+		"network_policy_dir," +
+		"network_policy_types," +
+		"network_policy_rule_types," +
+
+		"network_policy_cidr_bits," +
+		"network_policy_ignoring_flows," +
+
+		"network_policy_l3_level," +
+		"network_policy_l4_level," +
+		"network_policy_l7_level) " +
+
 		"values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
 
 	if err != nil {

@@ -124,6 +124,10 @@ func LoadDefaultConfig() {
 		HTTPUrlThreshold = 5
 	}
 
+	// set system policy discovery
+	Cfg.SystemLogFrom = viper.GetString("application.system-log-from")
+	Cfg.SystemPolicyTo = viper.GetString("application.system-policy-to")
+
 	libs.AddConfiguration(Cfg.ConfigDB, Cfg)
 }
 
