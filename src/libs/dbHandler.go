@@ -299,16 +299,19 @@ func ClearDBTables(cfg types.ConfigDB) {
 // CreateTablesIfNotExist function
 func CreateTablesIfNotExist(cfg types.ConfigDB) {
 	if cfg.DBDriver == "mysql" {
-		if err := CreateTableNetworkFlowMySQL(cfg); err != nil {
-			log.Error().Msg(err.Error())
-		}
-		if err := CreateTableDiscoveredPoliciesMySQL(cfg); err != nil {
-			log.Error().Msg(err.Error())
-		}
 		if err := CreateTableConfigurationMySQL(cfg); err != nil {
 			log.Error().Msg(err.Error())
 		}
+		if err := CreateTableNetworkLogMySQL(cfg); err != nil {
+			log.Error().Msg(err.Error())
+		}
+		if err := CreateTableNetworkPolicyMySQL(cfg); err != nil {
+			log.Error().Msg(err.Error())
+		}
 		if err := CreateTableSystemLogMySQL(cfg); err != nil {
+			log.Error().Msg(err.Error())
+		}
+		if err := CreateTableSystemPolicyMySQL(cfg); err != nil {
 			log.Error().Msg(err.Error())
 		}
 	} else if cfg.DBDriver == "mongodb" {

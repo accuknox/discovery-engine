@@ -3,11 +3,13 @@ application:
   operation-mode: 1
   cron-job-time-interval: "@every 0h0m10s"
   network-log-from: db
-  discovered-policy-to: "db|file"
-  policy-dir: "./"
-  discovery-policy-types: 3
-  discovery-rule-types: 511
-  ignoring-namespaces: "kube-system"
+  network-log-from: "./flow.json"
+  network-policy-to: "db|file"
+  network-policy-dir: "./"
+  network-policy-types: 3
+  network-policy-rule-types: 511
+  network-policy-ignoring-namespaces: "kube-system"
+  system-log-from: db
   #accuknox-cluster-mgmt: "http://cluster-management-service.accuknox-dev-cluster-mgmt.svc.cluster.local/cm"
   accuknox-cluster-mgmt: "http://localhost:8080"
 
@@ -35,10 +37,11 @@ database:
   user: root
   password: password
   dbname: networkflowdb
-  table-network-flow: network_flow_events
-  table-discovered-policies: discovered_policies
   table-configuration: auto_policy_config
+  table-network-log: network_log
+  table-network-policy: network_policy
   table-system-log: system_log
+  table-system-policy: system_policy
 
 cilium-hubble:
   url: 10.4.41.240

@@ -29,8 +29,8 @@ import (
 // Cfg ...
 var Cfg types.Configuration
 
-// SkipNamespaces ...
-var SkipNamespaces []string
+// IgnoringNamespaces ...
+var IgnoringNamespaces []string
 
 // HTTPUrlThreshold ...
 var HTTPUrlThreshold int
@@ -56,10 +56,11 @@ func LoadConfigDB() types.ConfigDB {
 	}
 	cfgDB.DBPort = viper.GetString("database.port")
 
-	cfgDB.TableNetworkFlow = viper.GetString("database.table-network-flow")
-	cfgDB.TableDiscoveredPolicies = viper.GetString("database.table-discovered-policies")
 	cfgDB.TableConfiguration = viper.GetString("database.table-configuration")
+	cfgDB.TableNetworkLog = viper.GetString("database.table-network-log")
+	cfgDB.TableNetworkPolicy = viper.GetString("database.table-network-policy")
 	cfgDB.TableSystemLog = viper.GetString("database.table-system-log")
+	cfgDB.TableSystemPolicy = viper.GetString("database.table-system-policy")
 
 	NetworkPlugIn = "cilium" // for now, cilium only supported
 
@@ -99,33 +100,27 @@ func LoadDefaultConfig() {
 	Cfg.CronJobTimeInterval = viper.GetString("application.cron-job-time-interval")
 	Cfg.OneTimeJobTimeSelection = "" // e.g., 2021-01-20 07:00:23|2021-01-20 07:00:25
 
-	// input
+	// set network policy discovery
 	Cfg.NetworkLogFrom = viper.GetString("application.network-log-from")
-	Cfg.NetworkLogFile = "./flows.json" // for just local testing
+	Cfg.NetworkLogFile = viper.GetString("application.network-log-file") // for just local testing
+	Cfg.NetworkPolicyTo = viper.GetString("application.network-policy-to")
+	Cfg.NetworkPolicyDir = viper.GetString("application.network-policy-dir")
 
-	// output
-	Cfg.NetworkPolicyTo = viper.GetString("application.discovered-policy-to")
-	Cfg.NetworkPolicyDir = viper.GetString("application.policy-dir")
+	Cfg.NetPolicyTypes = viper.GetInt("application.network-policy-types")          // 3: all types
+	Cfg.NetPolicyRuleTypes = viper.GetInt("application.network-policy-rule-types") // 511: all rules
+	Cfg.NetPolicyCIDRBits = 32
 
-	// discovery types
-	Cfg.DiscoveryPolicyTypes = viper.GetInt("application.discovery-policy-types") // 3: all types
-	Cfg.DiscoveryRuleTypes = viper.GetInt("application.discovery-rule-types")     // 511: all rules
-
-	// cidr bits
-	Cfg.CIDRBits = 32
-
-	// ignoring flows
-	skipNamespacesStr := viper.GetString("application.ignoring-namespaces")
-	SkipNamespaces = strings.Split(skipNamespacesStr, "|")
+	igNamespaces := viper.GetString("application.network-policy-ignoring-namespaces")
+	IgnoringNamespaces = strings.Split(igNamespaces, "|")
 
 	// aggregation level
-	Cfg.L3AggregationLevel = 3
-	Cfg.L4Compression = 3
-	Cfg.L7AggregationLevel = 3
+	Cfg.NetPolicyL3Level = 3
+	Cfg.NetPolicyL4Level = 3
+	Cfg.NetPolicyL7Level = 3
 
-	if Cfg.L7AggregationLevel == 3 {
+	if Cfg.NetPolicyL7Level == 3 {
 		HTTPUrlThreshold = 3
-	} else if Cfg.L7AggregationLevel == 2 {
+	} else if Cfg.NetPolicyL7Level == 2 {
 		HTTPUrlThreshold = 5
 	}
 
@@ -225,27 +220,27 @@ func GetCfgNetworkPolicyTo() string {
 }
 
 func GetCfgCIDRBits() int {
-	return Cfg.CIDRBits
+	return Cfg.NetPolicyCIDRBits
 }
 
 func GetCfgNetworkPolicyTypes() int {
-	return Cfg.DiscoveryPolicyTypes
+	return Cfg.NetPolicyTypes
 }
 
 func GetCfgNetworkRuleTypes() int {
-	return Cfg.DiscoveryRuleTypes
+	return Cfg.NetPolicyRuleTypes
 }
 
 func GetCfgNetworkL3Level() int {
-	return Cfg.L3AggregationLevel
+	return Cfg.NetPolicyL3Level
 }
 
 func GetCfgNetworkL4Level() int {
-	return Cfg.L4Compression
+	return Cfg.NetPolicyL4Level
 }
 
 func GetCfgNetworkL7Level() int {
-	return Cfg.L7AggregationLevel
+	return Cfg.NetPolicyL7Level
 }
 
 func GetCfgNetworkHTTPThreshold() int {
@@ -253,9 +248,9 @@ func GetCfgNetworkHTTPThreshold() int {
 }
 
 func GetCfgNetworkSkipNamespaces() []string {
-	return SkipNamespaces
+	return IgnoringNamespaces
 }
 
 func GetCfgNetworkIgnoreFlows() []types.IgnoringFlows {
-	return Cfg.IgnoringFlows
+	return Cfg.NetPolicyIgnoringFlows
 }

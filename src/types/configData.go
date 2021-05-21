@@ -9,10 +9,12 @@ type ConfigDB struct {
 	DBPass   string `json:"db_pass,omitempty" bson:"db_pass,omitempty"`
 	DBName   string `json:"db_name,omitempty" bson:"db_name,omitempty"`
 
-	TableNetworkFlow        string `json:"table_network_flow,omitempty" bson:"table_network_flow,omitempty"`
-	TableDiscoveredPolicies string `json:"table_discovered_policies,omitempty" bson:"table_discovered_policies,omitempty"`
-	TableConfiguration      string `json:"table_auto_policy_config,omitempty" bson:"table_auto_policy_config,omitempty"`
-	TableSystemLog          string `json:"table_system_log,omitempty" bson:"table_system_log,omitempty"`
+	TableConfiguration string `json:"table_auto_policy_config,omitempty" bson:"table_auto_policy_config,omitempty"`
+
+	TableNetworkLog    string `json:"table_network_log,omitempty" bson:"table_network_log,omitempty"`
+	TableNetworkPolicy string `json:"table_network_policy,omitempty" bson:"table_network_policy,omitempty"`
+	TableSystemLog     string `json:"table_system_log,omitempty" bson:"table_system_log,omitempty"`
+	TableSystemPolicy  string `json:"table_system_policy,omitempty" bson:"table_system_policy,omitempty"`
 }
 
 // ConfigCiliumHubble ...
@@ -46,18 +48,21 @@ type Configuration struct {
 	// network policy discovery
 	NetworkLogFrom   string `json:"network_log_from,omitempty" bson:"network_log_from,omitempty"`
 	NetworkLogFile   string `json:"network_log_file,omitempty" bson:"network_log_file,omitempty"`
-	NetworkPolicyTo  string `json:"discovered_policy_to,omitempty" bson:"discovered_policy_to,omitempty"`
-	NetworkPolicyDir string `json:"policy_dir,omitempty" bson:"policy_dir,omitempty"`
+	NetworkPolicyTo  string `json:"network_policy_to,omitempty" bson:"network_policy_to,omitempty"`
+	NetworkPolicyDir string `json:"network_policy_dir,omitempty" bson:"network_policy_dir,omitempty"`
 
-	DiscoveryPolicyTypes int `json:"discovery_policy_types,omitempty" bson:"discovery_policy_types,omitempty"`
-	DiscoveryRuleTypes   int `json:"discovery_rule_types,omitempty" bson:"discovery_rule_types,omitempty"`
+	NetPolicyTypes     int `json:"network_policy_types,omitempty" bson:"network_policy_types,omitempty"`
+	NetPolicyRuleTypes int `json:"network_policy_rule_types,omitempty" bson:"network_policy_rule_types,omitempty"`
 
-	CIDRBits      int             `json:"cidr_bits,omitempty" bson:"cidr_bits,omitempty"`
-	IgnoringFlows []IgnoringFlows `json:"ignoring_flows,omitempty" bson:"ignoring_flows,omitempty"`
+	NetPolicyCIDRBits      int             `json:"network_policy_cidrbits,omitempty" bson:"network_policy_cidrbits,omitempty"`
+	NetPolicyIgnoringFlows []IgnoringFlows `json:"network_policy_ignoring_flows,omitempty" bson:"network_policy_ignoring_flows,omitempty"`
 
-	L3AggregationLevel int `json:"l3_aggregation_level,omitempty" bson:"l3_aggregation_level,omitempty"`
-	L4Compression      int `json:"l4_compression,omitempty" bson:"l4_compression,omitempty"`
-	L7AggregationLevel int `json:"l7_aggregation_level,omitempty" bson:"l7_aggregation_level,omitempty"`
+	// L3 aggregation level
+	NetPolicyL3Level int `json:"network_policy_l3_level,omitempty" bson:"network_policy_l3_level,omitempty"`
+	// L4 compression level
+	NetPolicyL4Level int `json:"network_policy_l4_level,omitempty" bson:"network_policy_l4_level,omitempty"`
+	// L7 aggregation level
+	NetPolicyL7Level int `json:"network_policy_l7_level,omitempty" bson:"network_policy_l7_level,omitempty"`
 
 	// system policy discovery
 	SystemLogFrom string `json:"system_log_from,omitempty" bson:"system_log_from,omitempty"`

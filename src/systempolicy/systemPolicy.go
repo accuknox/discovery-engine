@@ -95,11 +95,13 @@ func DiscoverSystemPolicyMain() {
 		SystemWorkerStatus = STATUS_IDLE
 	}()
 
-	// // get system logs
-	// allSystemkLogs := getSystemkLogs()
-	// if allNetworkLogs == nil {
-	// 	return
-	// }
+	// get system logs
+	allSystemkLogs := getSystemLogs()
+	if allSystemkLogs == nil {
+		return
+	}
+
+	log.Info().Msgf("len %d", len(allSystemkLogs))
 }
 
 // ==================================== //

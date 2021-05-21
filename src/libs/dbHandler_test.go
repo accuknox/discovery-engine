@@ -35,10 +35,11 @@ func LoadMockCfgDB() types.ConfigDB {
 	}
 	cfgDB.DBPort = GetEnv("DB_PORT", "3306")
 
-	cfgDB.TableNetworkFlow = GetEnv("TB_NETWORK_FLOW", "network_flow")
-	cfgDB.TableDiscoveredPolicies = GetEnv("TB_DISCOVERED_POLICY", "discovered_policy")
 	cfgDB.TableConfiguration = GetEnv("TB_CONFIGURATION", "auto_policy_config")
+	cfgDB.TableNetworkLog = GetEnv("TB_NETWORK_LOG", "network_log")
+	cfgDB.TableNetworkPolicy = GetEnv("TB_NETWORK_POLICY", "network_policy")
 	cfgDB.TableSystemLog = GetEnv("TB_SYSTEM_LOG", "system_log")
+	cfgDB.TableSystemPolicy = GetEnv("TB_SYSYTEM_POLICY", "system_policy")
 
 	ClearDBTablesMySQL(cfgDB)
 

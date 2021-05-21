@@ -2,7 +2,6 @@ package types
 
 import "encoding/json"
 
-// NetworkFlowEvent - Model for NetworkFlow Table
 type NetworkFlowEvent struct {
 	Time                  string          `json:"time,omitempty"`
 	ClusterName           string          `json:"cluster_name,omitempty"`

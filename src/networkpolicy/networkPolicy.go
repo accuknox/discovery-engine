@@ -1564,10 +1564,6 @@ func DiscoverNetworkPolicyMain() {
 	// get cluster names, iterate each cluster
 	clusteredLogs := clusteringNetworkLogs(allNetworkLogs)
 	for clusterName, networkLogs := range clusteredLogs {
-		if clusterName != "accuknox-qa" {
-			continue
-		}
-
 		clusterInstance := libs.GetClusterFromClusterName(clusterName)
 		if clusterInstance.ClusterID == 0 { // cluster not onboarded
 			continue
