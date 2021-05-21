@@ -11,6 +11,7 @@ import (
 	"github.com/accuknox/knoxAutoPolicy/src/feedconsumer"
 	logger "github.com/accuknox/knoxAutoPolicy/src/logging"
 	networker "github.com/accuknox/knoxAutoPolicy/src/networkpolicy"
+	sysworker "github.com/accuknox/knoxAutoPolicy/src/systempolicy"
 
 	"github.com/accuknox/knoxAutoPolicy/src/libs"
 	cpb "github.com/accuknox/knoxAutoPolicy/src/protobuf/v1/config"
@@ -142,19 +143,45 @@ func (s *workerServer) Start(ctx context.Context, in *wpb.WorkerRequest) (*wpb.W
 		core.SetLogFile(in.GetLogfile())
 	}
 
-	networker.StartNetworkWorker()
-	return &wpb.WorkerResponse{Res: "ok"}, nil
+	if in.GetPolicytype() == "network" {
+		networker.StartNetworkWorker()
+	} else if in.GetPolicytype() == "system" {
+		sysworker.StartSystemWorker()
+	} else {
+		return &wpb.WorkerResponse{Res: "No policy type, choose 'network' or 'system', not [" + in.GetPolicytype() + "]"}, nil
+	}
+
+	return &wpb.WorkerResponse{Res: "ok starting " + in.GetPolicytype() + " policy discovery"}, nil
 }
 
 func (s *workerServer) Stop(ctx context.Context, in *wpb.WorkerRequest) (*wpb.WorkerResponse, error) {
 	log.Info().Msg("Stop worker called")
-	networker.StopNetworkWorker()
-	return &wpb.WorkerResponse{Res: "ok"}, nil
+
+	if in.GetPolicytype() == "network" {
+		networker.StopNetworkWorker()
+	} else if in.GetPolicytype() == "system" {
+		sysworker.StopSystemWorker()
+	} else {
+		return &wpb.WorkerResponse{Res: "No policy type, choose 'network' or 'system', not [" + in.GetPolicytype() + "]"}, nil
+	}
+
+	return &wpb.WorkerResponse{Res: "ok stopping " + in.GetPolicytype() + " policy discovery"}, nil
 }
 
 func (s *workerServer) GetWorkerStatus(ctx context.Context, in *wpb.WorkerRequest) (*wpb.WorkerResponse, error) {
 	log.Info().Msg("Get worker status called")
-	return &wpb.WorkerResponse{Res: networker.NetworkWorkerStatus}, nil
+
+	status := ""
+
+	if in.GetPolicytype() == "network" {
+		status = networker.NetworkWorkerStatus
+	} else if in.GetPolicytype() == "system" {
+		status = sysworker.SystemWorkerStatus
+	} else {
+		return &wpb.WorkerResponse{Res: "No policy type, choose 'network' or 'system', not [" + in.GetPolicytype() + "]"}, nil
+	}
+
+	return &wpb.WorkerResponse{Res: status}, nil
 }
 
 // ====================== //

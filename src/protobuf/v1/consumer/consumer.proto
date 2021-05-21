@@ -11,7 +11,7 @@ service Consumer {
 }
 
 message ConsumerRequest {
-    string req = 1;
+    string feedtype = 1;
 }
 
 message ConsumerResponse {

@@ -61,7 +61,7 @@ func getSystemLogs() []types.KnoxSystemLog {
 	// == Database  == //
 	// =============== //
 	if cfg.GetCfgSystemLogFrom() == "db" {
-		log.Info().Msg("Get network flow from the database")
+		log.Info().Msg("Get system log from the database")
 
 		// get system logs from db
 		sysLogs := libs.GetSystemLogsFromDB(cfg.GetCfgDB(), cfg.GetCfgOneTime())
@@ -72,16 +72,16 @@ func getSystemLogs() []types.KnoxSystemLog {
 		// convert kubearmor system logs -> knox system logs
 		systemLogs = plugin.ConvertKubeArmorSystemLogsToKnoxSystemLogs(cfg.GetCfgDB().DBDriver, sysLogs)
 	} else {
-		log.Error().Msgf("System log source not correct: %s", cfg.GetCfgSystemLogFrom())
+		log.Error().Msgf("System log from not correct: %s", cfg.GetCfgSystemLogFrom())
 		return nil
 	}
 
 	return systemLogs
 }
 
-// ============================== //
+// ============================= //
 // == Discover System Policy  == //
-// ============================== //
+// ============================= //
 
 // DiscoverSystemPolicyMain function
 func DiscoverSystemPolicyMain() {
@@ -95,11 +95,13 @@ func DiscoverSystemPolicyMain() {
 		SystemWorkerStatus = STATUS_IDLE
 	}()
 
-	// // get system logs
-	// allSystemkLogs := getSystemkLogs()
-	// if allNetworkLogs == nil {
-	// 	return
-	// }
+	// get system logs
+	allSystemkLogs := getSystemLogs()
+	if allSystemkLogs == nil {
+		return
+	}
+
+	log.Info().Msgf("len %d", len(allSystemkLogs))
 }
 
 // ==================================== //

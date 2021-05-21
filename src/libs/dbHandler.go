@@ -90,7 +90,7 @@ func GetNetworkLogsFromDB(cfg types.ConfigDB, timeSelection string) []map[string
 }
 
 // InsertNetworkLogToDB function
-func InsertNetworkLogToDB(cfg types.ConfigDB, nfe []types.NetworkFlowEvent) error {
+func InsertNetworkLogToDB(cfg types.ConfigDB, nfe []types.NetworkLogEvent) error {
 	if cfg.DBDriver == "mysql" {
 		if err := InsertNetworkLogToMySQL(cfg, nfe); err != nil {
 			return err
@@ -115,11 +115,11 @@ var syslogEndTime int64 = 0
 func GetSystemLogsFromDB(cfg types.ConfigDB, timeSelection string) []map[string]interface{} {
 	results := []map[string]interface{}{}
 
-	endTime = time.Now().Unix()
+	syslogEndTime = time.Now().Unix()
 
 	if cfg.DBDriver == "mysql" {
 		if timeSelection == "" {
-			docs, err := GetSystemLogByIDTimeFromMySQL(cfg, LastSyslogID, endTime)
+			docs, err := GetSystemLogByIDTimeFromMySQL(cfg, LastSyslogID, syslogEndTime)
 			if err != nil {
 				log.Error().Msg(err.Error())
 				return results
@@ -299,19 +299,22 @@ func ClearDBTables(cfg types.ConfigDB) {
 // CreateTablesIfNotExist function
 func CreateTablesIfNotExist(cfg types.ConfigDB) {
 	if cfg.DBDriver == "mysql" {
-		if err := CreateTableNetworkFlowMySQL(cfg); err != nil {
-			log.Error().Msg(err.Error())
-		}
-		if err := CreateTableDiscoveredPoliciesMySQL(cfg); err != nil {
-			log.Error().Msg(err.Error())
-		}
 		if err := CreateTableConfigurationMySQL(cfg); err != nil {
+			log.Error().Msg(err.Error())
+		}
+		if err := CreateTableNetworkLogMySQL(cfg); err != nil {
+			log.Error().Msg(err.Error())
+		}
+		if err := CreateTableNetworkPolicyMySQL(cfg); err != nil {
 			log.Error().Msg(err.Error())
 		}
 		if err := CreateTableSystemLogMySQL(cfg); err != nil {
 			log.Error().Msg(err.Error())
 		}
+		if err := CreateTableSystemPolicyMySQL(cfg); err != nil {
+			log.Error().Msg(err.Error())
+		}
 	} else if cfg.DBDriver == "mongodb" {
-		// TODO: MongoDB
+		// TODO: mongod
 	}
 }
