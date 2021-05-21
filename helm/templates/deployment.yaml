@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: knoxautopolicy
+  labels:
+    deployment: knoxautopolicy
+spec:
+  selector:
+    matchLabels:
+      container: knoxautopolicy
+  template:
+    metadata:
+      labels:
+        container: knoxautopolicy
+
+    spec:
+      containers:
+      - name: knoxautopolicy 
+        image: "{{ .Values.knoxautopolicy.repository }}:{{ .Values.knoxautopolicy.image.tag | default .Chart.AppVersion }}"
+        ports:
+        - containerPort: 9089
+          protocol: TCP
+        volumeMounts:
+          {{- toYaml .Values.volumemounts | nindent 12 }}
+      volumes: 
+        {{- toYaml .Values.volumes | nindent 12 }}
