@@ -312,6 +312,6 @@ func CreateTablesIfNotExist(cfg types.ConfigDB) {
 			log.Error().Msg(err.Error())
 		}
 	} else if cfg.DBDriver == "mongodb" {
-		// TODO: MongoDB
+		// TODO: mongod
 	}
 }

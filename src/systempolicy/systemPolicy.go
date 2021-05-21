@@ -61,7 +61,7 @@ func getSystemLogs() []types.KnoxSystemLog {
 	// == Database  == //
 	// =============== //
 	if cfg.GetCfgSystemLogFrom() == "db" {
-		log.Info().Msg("Get network flow from the database")
+		log.Info().Msg("Get system log from the database")
 
 		// get system logs from db
 		sysLogs := libs.GetSystemLogsFromDB(cfg.GetCfgDB(), cfg.GetCfgOneTime())
@@ -79,9 +79,9 @@ func getSystemLogs() []types.KnoxSystemLog {
 	return systemLogs
 }
 
-// ============================== //
+// ============================= //
 // == Discover System Policy  == //
-// ============================== //
+// ============================= //
 
 // DiscoverSystemPolicyMain function
 func DiscoverSystemPolicyMain() {

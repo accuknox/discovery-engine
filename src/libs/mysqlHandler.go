@@ -943,28 +943,28 @@ func CreateTableSystemLogMySQL(cfg types.ConfigDB) error {
 
 	tableName := cfg.TableSystemLog
 
-	query :=
-		"CREATE TABLE IF NOT EXISTS `" + tableName + "` (" +
-			"`id` int NOT NULL AUTO_INCREMENT," +
-			"`time` int DEFAULT NULL," +
-			"`cluster_name` varchar(100) DEFAULT NULL," +
-			"`node_name` varchar(100) DEFAULT NULL," +
-			"`namespace_name` varchar(100) DEFAULT NULL," +
-			"`pod_name` varchar(100) DEFAULT NULL," +
-			"`container_id` varchar(100) DEFAULT NULL," +
-			"`container_name` varchar(100) DEFAULT NULL," +
-			"`host_pid` int DEFAULT NULL," +
-			"`ppid` int DEFAULT NULL," +
-			"`pid` int DEFAULT NULL," +
-			"`uid` int DEFAULT NULL," +
-			"`type` varchar(20) DEFAULT NULL," +
-			"`source` varchar(200) DEFAULT NULL," +
-			"`operation` varchar(20) DEFAULT NULL," +
-			"`resource` varchar(200) DEFAULT NULL," +
-			"`data` varchar(100) DEFAULT NULL," +
-			"`result` varchar(100) DEFAULT NULL," +
-			"	PRIMARY KEY (`id`)" +
-			");"
+	query := "CREATE TABLE IF NOT EXISTS `" + tableName + "` (" +
+		"    `id` int NOT NULL AUTO_INCREMENT," +
+		"    `timestamp` int NOT NULL," +
+		"    `updatedTime` varchar(30) NOT NULL," +
+		"    `clusterName` varchar(100) NOT NULL," +
+		"    `hostName` varchar(100) NOT NULL," +
+		"    `namespaceName` varchar(100) NOT NULL," +
+		"    `podName` varchar(200) NOT NULL," +
+		"    `containerID` varchar(200) NOT NULL," +
+		"    `containerName` varchar(200) NOT NULL," +
+		"    `hostPid` int NOT NULL," +
+		"    `ppid` int NOT NULL," +
+		"    `pid` int NOT NULL," +
+		"    `uid` int NOT NULL," +
+		"    `type` varchar(20) NOT NULL," +
+		"    `source` varchar(4000) NOT NULL," +
+		"    `operation` varchar(20) NOT NULL," +
+		"    `resource` varchar(4000) NOT NULL," +
+		"    `data` varchar(1000) DEFAULT NULL," +
+		"    `result` varchar(200) NOT NULL," +
+		"    PRIMARY KEY (`id`)" +
+		");"
 
 	if _, err := db.Query(query); err != nil {
 		return err
