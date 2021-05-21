@@ -83,6 +83,32 @@ func getSystemLogs() []types.KnoxSystemLog {
 // == Discover System Policy  == //
 // ============================= //
 
+func clusteringSystemLogs(systemLogs []types.KnoxSystemLog) map[string][]types.KnoxSystemLog {
+	clusterNameMap := map[string][]types.KnoxSystemLog{}
+
+	for _, log := range systemLogs {
+		if _, ok := clusterNameMap[log.ClusterName]; ok {
+			clusterNameMap[log.ClusterName] = append(clusterNameMap[log.ClusterName], log)
+		} else {
+			clusterNameMap[log.ClusterName] = []types.KnoxSystemLog{log}
+		}
+	}
+
+	return clusterNameMap
+}
+
+func systemLogDeduplication(logs []types.KnoxSystemLog) []types.KnoxSystemLog {
+	deduplicated := []types.KnoxSystemLog{}
+
+	for _, log := range logs {
+		if !libs.ContainsElement(deduplicated, log) {
+			deduplicated = append(deduplicated, log)
+		}
+	}
+
+	return deduplicated
+}
+
 // DiscoverSystemPolicyMain function
 func DiscoverSystemPolicyMain() {
 	if SystemWorkerStatus == STATUS_RUNNING {
@@ -101,7 +127,23 @@ func DiscoverSystemPolicyMain() {
 		return
 	}
 
-	log.Info().Msgf("len %d", len(allSystemkLogs))
+	// deduplicate
+	allSystemkLogs = systemLogDeduplication(allSystemkLogs)
+
+	// get cluster names, iterate each cluster
+	clusteredLogs := clusteringSystemLogs(allSystemkLogs)
+	for clusterName, sysLogs := range clusteredLogs {
+		clusterName = "accuknox-qa" // for test
+
+		clusterInstance := libs.GetClusterFromClusterName(clusterName)
+		if clusterInstance.ClusterID == 0 { // cluster not onboarded
+			continue
+		}
+
+		// get k8s resources
+		// namespaces, _, _, pods := libs.GetAllClusterResources(clusterInstance)
+		log.Info().Msgf("len %d", len(sysLogs))
+	}
 }
 
 // ==================================== //
