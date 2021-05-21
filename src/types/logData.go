@@ -36,7 +36,7 @@ type KnoxNetworkLog struct {
 
 // KnoxSystemLog Structure
 type KnoxSystemLog struct {
-	FlowID int `json:"flow_id,omitempty"`
+	LogID int `json:"id,omitempty"`
 
 	ClusterName string `json:"cluster_name,omitempty"`
 
@@ -49,6 +49,5 @@ type KnoxSystemLog struct {
 	Resource  string `json:"resource,omitempty"`
 	Data      string `json:"data,omitempty"`
 
-	Action string `json:"action,omitempty"`
 	Result string `json:"result,omitempty"`
 }

@@ -11,7 +11,7 @@ func ConvertMySQLKubeArmorLogsToKnoxSystemLogs(docs []map[string]interface{}) []
 	results := []types.KnoxSystemLog{}
 
 	for _, doc := range docs {
-		syslog := types.KnoxSystemLog{}
+		syslog := types.SystemLogEvent{}
 
 		b, err := json.Marshal(doc)
 		if err != nil {
@@ -23,7 +23,20 @@ func ConvertMySQLKubeArmorLogsToKnoxSystemLogs(docs []map[string]interface{}) []
 			log.Error().Msg(err.Error())
 		}
 
-		results = append(results, syslog)
+		knoxSysLog := types.KnoxSystemLog{
+			LogID:       syslog.ID,
+			ClusterName: syslog.ClusterName,
+			HostName:    syslog.HostName,
+			Namespace:   syslog.NamespaceName,
+			PodName:     syslog.PodName,
+			Source:      syslog.Source,
+			Operation:   syslog.Operation,
+			Resource:    syslog.Resource,
+			Data:        syslog.Data,
+			Result:      syslog.Result,
+		}
+
+		results = append(results, knoxSysLog)
 	}
 
 	return results

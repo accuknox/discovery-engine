@@ -72,7 +72,7 @@ func getSystemLogs() []types.KnoxSystemLog {
 		// convert kubearmor system logs -> knox system logs
 		systemLogs = plugin.ConvertKubeArmorSystemLogsToKnoxSystemLogs(cfg.GetCfgDB().DBDriver, sysLogs)
 	} else {
-		log.Error().Msgf("System log source not correct: %s", cfg.GetCfgSystemLogFrom())
+		log.Error().Msgf("System log from not correct: %s", cfg.GetCfgSystemLogFrom())
 		return nil
 	}
 

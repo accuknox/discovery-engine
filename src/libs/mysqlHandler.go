@@ -12,8 +12,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-// ConnectMySQL function
-func ConnectMySQL(cfg types.ConfigDB) (db *sql.DB) {
+func connectMySQL(cfg types.ConfigDB) (db *sql.DB) {
 	db, err := sql.Open(cfg.DBDriver, cfg.DBUser+":"+cfg.DBPass+"@tcp("+cfg.DBHost+":"+cfg.DBPort+")/"+cfg.DBName)
 	for err != nil {
 		log.Error().Msg("connection error :" + err.Error())
@@ -108,7 +107,7 @@ func ScanNetworkLogs(results *sql.Rows) ([]map[string]interface{}, error) {
 
 // GetNetworkLogByTimeFromMySQL function
 func GetNetworkLogByTimeFromMySQL(cfg types.ConfigDB, startTime, endTime int64) ([]map[string]interface{}, error) {
-	db := ConnectMySQL(cfg)
+	db := connectMySQL(cfg)
 	defer db.Close()
 
 	QueryBase := networkLogQueryBase + cfg.TableNetworkLog
@@ -124,7 +123,7 @@ func GetNetworkLogByTimeFromMySQL(cfg types.ConfigDB, startTime, endTime int64) 
 
 // GetNetworkLogByIDTimeFromMySQL function
 func GetNetworkLogByIDTimeFromMySQL(cfg types.ConfigDB, id, endTime int64) ([]map[string]interface{}, error) {
-	db := ConnectMySQL(cfg)
+	db := connectMySQL(cfg)
 	defer db.Close()
 
 	QueryBase := networkLogQueryBase + cfg.TableNetworkLog
@@ -140,7 +139,7 @@ func GetNetworkLogByIDTimeFromMySQL(cfg types.ConfigDB, id, endTime int64) ([]ma
 
 // InsertNetworkLogToMySQL function
 func InsertNetworkLogToMySQL(cfg types.ConfigDB, nfe []types.NetworkLogEvent) error {
-	db := ConnectMySQL(cfg)
+	db := connectMySQL(cfg)
 	defer db.Close()
 
 	sqlStr := "INSERT INTO " + cfg.TableNetworkLog + "(time,cluster_name,verdict,drop_reason,ethernet,ip,l4,l7,reply,source,destination,type,node_name,event_type,source_service,destination_service,traffic_direction,policy_match_type,trace_observation_point,summary) VALUES "
@@ -266,7 +265,7 @@ func ScanSystemLogs(results *sql.Rows) ([]map[string]interface{}, error) {
 
 // GetSystemLogByTimeFromMySQL function
 func GetSystemLogByTimeFromMySQL(cfg types.ConfigDB, startTime, endTime int64) ([]map[string]interface{}, error) {
-	db := ConnectMySQL(cfg)
+	db := connectMySQL(cfg)
 	defer db.Close()
 
 	QueryBase := systemLogQueryBase + cfg.TableSystemLog
@@ -282,7 +281,7 @@ func GetSystemLogByTimeFromMySQL(cfg types.ConfigDB, startTime, endTime int64) (
 
 // GetSystemLogByIDFromMySQL function
 func GetSystemLogByIDFromMySQL(cfg types.ConfigDB, id, endTime int64) ([]map[string]interface{}, error) {
-	db := ConnectMySQL(cfg)
+	db := connectMySQL(cfg)
 	defer db.Close()
 
 	QueryBase := systemLogQueryBase + cfg.TableSystemLog
@@ -298,7 +297,7 @@ func GetSystemLogByIDFromMySQL(cfg types.ConfigDB, id, endTime int64) ([]map[str
 
 // GetSystemLogByIDTimeFromMySQL function
 func GetSystemLogByIDTimeFromMySQL(cfg types.ConfigDB, id, endTime int64) ([]map[string]interface{}, error) {
-	db := ConnectMySQL(cfg)
+	db := connectMySQL(cfg)
 	defer db.Close()
 
 	QueryBase := systemLogQueryBase + cfg.TableSystemLog
@@ -314,7 +313,7 @@ func GetSystemLogByIDTimeFromMySQL(cfg types.ConfigDB, id, endTime int64) ([]map
 
 // InsertSystemLogToMySQL function
 func InsertSystemLogToMySQL(cfg types.ConfigDB, sle []types.SystemLogEvent) error {
-	db := ConnectMySQL(cfg)
+	db := connectMySQL(cfg)
 	defer db.Close()
 
 	sqlStr := "INSERT INTO " + cfg.TableSystemLog + "(time,cluster_name,node_name,namespace_name,pod_name,container_id,container_name,hostpid,ppid,pid,uid,type,source,operation,resource,data,result) VALUES "
@@ -368,7 +367,7 @@ func InsertSystemLogToMySQL(cfg types.ConfigDB, sle []types.SystemLogEvent) erro
 
 // GetNetworkPoliciesFromMySQL function
 func GetNetworkPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) ([]types.KnoxNetworkPolicy, error) {
-	db := ConnectMySQL(cfg)
+	db := connectMySQL(cfg)
 	defer db.Close()
 
 	policies := []types.KnoxNetworkPolicy{}
@@ -451,7 +450,7 @@ func GetNetworkPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) (
 
 // UpdateOutdatedPolicyFromMySQL ...
 func UpdateOutdatedPolicyFromMySQL(cfg types.ConfigDB, outdatedPolicy string, latestPolicy string) error {
-	db := ConnectMySQL(cfg)
+	db := connectMySQL(cfg)
 	defer db.Close()
 
 	var err error
@@ -524,7 +523,7 @@ func insertNetworkPolicy(cfg types.ConfigDB, db *sql.DB, policy types.KnoxNetwor
 
 // InsertNetworkPoliciesToMySQL function
 func InsertNetworkPoliciesToMySQL(cfg types.ConfigDB, policies []types.KnoxNetworkPolicy) error {
-	db := ConnectMySQL(cfg)
+	db := connectMySQL(cfg)
 	defer db.Close()
 
 	for _, policy := range policies {
@@ -549,7 +548,7 @@ func CountConfigByName(db *sql.DB, tableName, configName string) int {
 
 // AddConfiguration function
 func AddConfiguration(cfg types.ConfigDB, newConfig types.Configuration) error {
-	db := ConnectMySQL(cfg)
+	db := connectMySQL(cfg)
 	defer db.Close()
 
 	if CountConfigByName(db, cfg.TableConfiguration, newConfig.ConfigName) > 0 {
@@ -633,7 +632,7 @@ func AddConfiguration(cfg types.ConfigDB, newConfig types.Configuration) error {
 
 // GetConfigurations function
 func GetConfigurations(cfg types.ConfigDB, configName string) ([]types.Configuration, error) {
-	db := ConnectMySQL(cfg)
+	db := connectMySQL(cfg)
 	defer db.Close()
 
 	configs := []types.Configuration{}
@@ -712,7 +711,7 @@ func GetConfigurations(cfg types.ConfigDB, configName string) ([]types.Configura
 
 // UpdateConfiguration ...
 func UpdateConfiguration(cfg types.ConfigDB, configName string, updateConfig types.Configuration) error {
-	db := ConnectMySQL(cfg)
+	db := connectMySQL(cfg)
 	defer db.Close()
 
 	var err error
@@ -788,7 +787,7 @@ func UpdateConfiguration(cfg types.ConfigDB, configName string, updateConfig typ
 
 // DeleteConfiguration ...
 func DeleteConfiguration(cfg types.ConfigDB, configName string) error {
-	db := ConnectMySQL(cfg)
+	db := connectMySQL(cfg)
 	defer db.Close()
 
 	stmt, err := db.Prepare("DELETE FROM " + cfg.TableConfiguration + " WHERE config_name=?")
@@ -807,7 +806,7 @@ func DeleteConfiguration(cfg types.ConfigDB, configName string) error {
 
 // ApplyConfiguration ...
 func ApplyConfiguration(cfg types.ConfigDB, oldConfigName, configName string) error {
-	db := ConnectMySQL(cfg)
+	db := connectMySQL(cfg)
 	defer db.Close()
 
 	var err error
@@ -842,7 +841,7 @@ func ApplyConfiguration(cfg types.ConfigDB, oldConfigName, configName string) er
 
 // ClearDBTablesMySQL function
 func ClearDBTablesMySQL(cfg types.ConfigDB) error {
-	db := ConnectMySQL(cfg)
+	db := connectMySQL(cfg)
 	defer db.Close()
 
 	query := "DELETE FROM " + cfg.TableNetworkLog
@@ -870,7 +869,7 @@ func ClearDBTablesMySQL(cfg types.ConfigDB) error {
 
 // CreateTableConfigurationMySQL function
 func CreateTableConfigurationMySQL(cfg types.ConfigDB) error {
-	db := ConnectMySQL(cfg)
+	db := connectMySQL(cfg)
 	defer db.Close()
 
 	tableName := cfg.TableConfiguration
@@ -912,7 +911,7 @@ func CreateTableConfigurationMySQL(cfg types.ConfigDB) error {
 
 // CreateTableNetworkLogMySQL function
 func CreateTableNetworkLogMySQL(cfg types.ConfigDB) error {
-	db := ConnectMySQL(cfg)
+	db := connectMySQL(cfg)
 	defer db.Close()
 
 	tableName := cfg.TableNetworkLog
@@ -952,7 +951,7 @@ func CreateTableNetworkLogMySQL(cfg types.ConfigDB) error {
 
 // CreateTableNetworkPolicyMySQL function
 func CreateTableNetworkPolicyMySQL(cfg types.ConfigDB) error {
-	db := ConnectMySQL(cfg)
+	db := connectMySQL(cfg)
 	defer db.Close()
 
 	tableName := cfg.TableNetworkPolicy
@@ -984,7 +983,7 @@ func CreateTableNetworkPolicyMySQL(cfg types.ConfigDB) error {
 
 // CreateTableSystemLogMySQL function
 func CreateTableSystemLogMySQL(cfg types.ConfigDB) error {
-	db := ConnectMySQL(cfg)
+	db := connectMySQL(cfg)
 	defer db.Close()
 
 	tableName := cfg.TableSystemLog
@@ -1021,7 +1020,7 @@ func CreateTableSystemLogMySQL(cfg types.ConfigDB) error {
 
 // CreateTableSystemPolicyMySQL function
 func CreateTableSystemPolicyMySQL(cfg types.ConfigDB) error {
-	db := ConnectMySQL(cfg)
+	db := connectMySQL(cfg)
 	defer db.Close()
 
 	tableName := cfg.TableSystemPolicy
