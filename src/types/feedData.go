@@ -2,7 +2,7 @@ package types
 
 import "encoding/json"
 
-type NetworkFlowEvent struct {
+type NetworkLogEvent struct {
 	Time                  string          `json:"time,omitempty"`
 	ClusterName           string          `json:"cluster_name,omitempty"`
 	Verdict               string          `json:"verdict,omitempty"`
@@ -28,16 +28,15 @@ type NetworkFlowEvent struct {
 type SystemLogEvent struct {
 	Timestamp int `json:"timestamp,omitempty"`
 
-	ClusterName string `json:"cluster_name,omitempty"`
-	HostName    string `json:"host_name,omitempty"`
+	ClusterName   string `json:"clusterName,omitempty"`
+	HostName      string `json:"hostName,omitempty"`
+	NamespaceName string `json:"namespaceName,omitempty"`
+	PodName       string `json:"podName,omitempty"`
 
-	NamespaceName string `json:"namespace_name,omitempty"`
-	PodName       string `json:"pod_name,omitempty"`
+	ContainerID   string `json:"containerID,omitempty"`
+	ContainerName string `json:"containerName,omitempty"`
 
-	ContainerID   string `json:"container_id,omitempty"`
-	ContainerName string `json:"container_name,omitempty"`
-
-	HostPID int `json:"host_pid,omitempty"`
+	HostPID int `json:"hostPid,omitempty"`
 	PPID    int `json:"ppid,omitempty"`
 	PID     int `json:"pid,omitempty"`
 	UID     int `json:"uid,omitempty"`

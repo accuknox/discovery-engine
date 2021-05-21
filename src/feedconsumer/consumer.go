@@ -44,7 +44,7 @@ var Status string
 var waitG sync.WaitGroup
 var stopChan chan struct{}
 
-var events []types.NetworkFlowEvent
+var events []types.NetworkLogEvent
 var eventsCount int
 
 var syslogEvents []types.SystemLogEvent
@@ -68,7 +68,7 @@ func (cfc *CiliumFeedsConsumer) setupKafkaConfig() {
 
 	cfc.eventsBuffer = viper.GetInt("kafka.events.buffer")
 
-	events = make([]types.NetworkFlowEvent, 0, cfc.eventsBuffer)
+	events = make([]types.NetworkLogEvent, 0, cfc.eventsBuffer)
 	syslogEvents = make([]types.SystemLogEvent, 0, cfc.eventsBuffer)
 
 	sslEnabled := viper.GetBool("kafka.ssl.enabled")
@@ -160,7 +160,7 @@ func (cfc *CiliumFeedsConsumer) startConsumer() {
 }
 
 func (cfc *CiliumFeedsConsumer) processMessage(message []byte) error {
-	event := types.NetworkFlowEvent{}
+	event := types.NetworkLogEvent{}
 	var eventMap map[string]json.RawMessage
 	err := json.Unmarshal(message, &eventMap)
 	if err != nil {
@@ -192,7 +192,7 @@ func (cfc *CiliumFeedsConsumer) processMessage(message []byte) error {
 				return errors.New("Error saving to DB")
 			}
 			events = nil
-			events = make([]types.NetworkFlowEvent, 0, cfc.eventsBuffer)
+			events = make([]types.NetworkLogEvent, 0, cfc.eventsBuffer)
 		}
 
 		eventsCount = 0

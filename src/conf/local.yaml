@@ -1,6 +1,6 @@
 application:
   name: knoxautopolicy
-  operation-mode: 1
+  operation-mode: 2
   cron-job-time-interval: "@every 0h0m10s"
   network-log-from: db
   network-log-from: "./flow.json"

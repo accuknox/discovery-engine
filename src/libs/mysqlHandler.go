@@ -139,7 +139,7 @@ func GetNetworkLogByIDTimeFromMySQL(cfg types.ConfigDB, id, endTime int64) ([]ma
 }
 
 // InsertNetworkLogToMySQL function
-func InsertNetworkLogToMySQL(cfg types.ConfigDB, nfe []types.NetworkFlowEvent) error {
+func InsertNetworkLogToMySQL(cfg types.ConfigDB, nfe []types.NetworkLogEvent) error {
 	db := ConnectMySQL(cfg)
 	defer db.Close()
 
@@ -199,7 +199,7 @@ func InsertNetworkLogToMySQL(cfg types.ConfigDB, nfe []types.NetworkFlowEvent) e
 // == System Log == //
 // ================ //
 
-var systemLogQueryBase string = "select id,time,cluster_name,traffic_direction,verdict,policy_match_type,drop_reason,event_type,source,destination,ip,l4,l7 from "
+var systemLogQueryBase string = "select id,timestamp,updatedTime,clusterName,hostName,namespaceName,podName,containerID,containerName,hostPid,ppid,pid,uid,type,source,operation,resource,data,result from "
 
 // ScanSystemLogs scans the db records
 func ScanSystemLogs(results *sql.Rows) ([]map[string]interface{}, error) {
@@ -207,14 +207,15 @@ func ScanSystemLogs(results *sql.Rows) ([]map[string]interface{}, error) {
 	var err error
 
 	for results.Next() {
-		var id, time, hostPid, ppid, pid, uid uint32
-		var clusterName, nodeName, namespace, podName, containerID, containerName, types, source, operation, resource, data, result string
+		var id, timestamp, hostPid, ppid, pid, uid uint32
+		var updatedTime, clusterName, hostName, namespace, podName, containerID, containerName, types, source, operation, resource, data, result string
 
 		err = results.Scan(
 			&id,
-			&time,
+			&timestamp,
+			&updatedTime, // skip
 			&clusterName,
-			&nodeName,
+			&hostName,
 			&namespace,
 			&podName,
 			&containerID,
@@ -237,9 +238,24 @@ func ScanSystemLogs(results *sql.Rows) ([]map[string]interface{}, error) {
 		}
 
 		log := map[string]interface{}{
-			"id":           id,
-			"time":         time,
-			"cluster_name": clusterName,
+			"id":            id,
+			"timestamp":     timestamp,
+			"clusterName":   clusterName,
+			"hostName":      hostName,
+			"namespaceName": namespace,
+			"podName":       podName,
+			"containerID":   containerID,
+			"containerName": containerName,
+			"hostPid":       hostPid,
+			"ppid":          ppid,
+			"pid":           pid,
+			"uid":           uid,
+			"type":          types,
+			"source":        source,
+			"operation":     operation,
+			"resource":      resource,
+			"data":          data,
+			"result":        result,
 		}
 
 		systemLogs = append(systemLogs, log)
