@@ -67,7 +67,7 @@ trivy_properties:
 clair_properties:
    status:
     #Acceptable Values are CRITICAL, HIGH, MEDIUM, LOW 
-     enabled: "true"
+     enabled: "false"
      level: high
      value: "10"
      #pass the clair service url
