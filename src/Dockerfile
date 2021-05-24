@@ -23,7 +23,7 @@ RUN go build -o knoxAutoPolicy main.go
 
 ### Make executable image
 
-FROM debian:buster
+FROM debian:latest
 
 COPY ./src/conf/conf.yaml conf/conf.yaml
 COPY --from=builder /usr/src/knox/knoxAutoPolicy /knoxAutoPolicy
