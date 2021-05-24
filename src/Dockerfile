@@ -25,7 +25,7 @@ RUN go build -o knoxAutoPolicy main.go
 
 FROM debian:buster
 
-COPY conf/conf.yaml conf/conf.yaml
+COPY ./src/conf/conf.yaml conf/conf.yaml
 COPY --from=builder /usr/src/knox/knoxAutoPolicy /knoxAutoPolicy
 
 ENTRYPOINT ["/knoxAutoPolicy"]
