@@ -4,19 +4,19 @@ FROM golang:1.15.2-buster as builder
 
 WORKDIR /usr/src/knox
 
-COPY ./libs ./libs
-COPY ./logging ./logging
-COPY ./feedconsumer ./feedconsumer
-COPY ./config ./config
-COPY ./networkpolicy ./networkpolicy
-COPY ./systempolicy ./systempolicy
-COPY ./types ./types
-COPY ./plugin ./plugin
-COPY ./protobuf ./protobuf
-COPY ./server ./server
+COPY ./src/libs ./libs
+COPY ./src/logging ./logging
+COPY ./src/feedconsumer ./feedconsumer
+COPY ./src/config ./config
+COPY ./src/networkpolicy ./networkpolicy
+COPY ./src/systempolicy ./systempolicy
+COPY ./src/types ./types
+COPY ./src/plugin ./plugin
+COPY ./src/protobuf ./protobuf
+COPY ./src/server ./server
 
-COPY ./main.go ./main.go
-COPY ./go.mod ./go.mod
+COPY ./src/main.go ./main.go
+COPY ./src/go.mod ./go.mod
 
 RUN go mod download
 RUN go build -o knoxAutoPolicy main.go
