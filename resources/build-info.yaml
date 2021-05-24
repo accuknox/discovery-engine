@@ -9,15 +9,9 @@
 #        name: artifactory.accuknox.com/accuknox/golang:1.16-alpine
 #        docker_run_params: '-v /root/.m2:/root/.m2'
 #    commands:
-#      - "go mod download"
-#      - "CGO_ENABLED=0 go build -o bin/server"
+#      - ""
+#      - ""
 
-    # artifacts step is optional which is used deploy artifacts  
-#    artifacts:
-#      type: mvn
-#      deploy:
-#        command: "mvn deploy -B -DskipTests"
-#        artifactory_id: snapshots
 
 #***********************************************************************************************************************************#
 # Docker_build stage builds the docker image from the Dockerfile
