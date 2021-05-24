@@ -29,8 +29,8 @@ import (
 // Cfg ...
 var Cfg types.Configuration
 
-// IgnoringNamespaces ...
-var IgnoringNamespaces []string
+// IgnoringNetworkNamespaces ...
+var IgnoringNetworkNamespaces []string
 
 // HTTPUrlThreshold ...
 var HTTPUrlThreshold int
@@ -111,7 +111,7 @@ func LoadDefaultConfig() {
 	Cfg.NetPolicyCIDRBits = 32
 
 	igNamespaces := viper.GetString("application.network-policy-ignoring-namespaces")
-	IgnoringNamespaces = strings.Split(igNamespaces, "|")
+	IgnoringNetworkNamespaces = strings.Split(igNamespaces, "|")
 
 	// aggregation level
 	Cfg.NetPolicyL3Level = 3
@@ -252,7 +252,7 @@ func GetCfgNetworkHTTPThreshold() int {
 }
 
 func GetCfgNetworkSkipNamespaces() []string {
-	return IgnoringNamespaces
+	return IgnoringNetworkNamespaces
 }
 
 func GetCfgNetworkIgnoreFlows() []types.IgnoringFlows {

@@ -1520,7 +1520,7 @@ func DiscoverNetworkPolicy(namespace string,
 	return networkPolicies
 }
 
-func initDiscoveryConfiguration() {
+func initNetPolicyDiscoveryConfiguration() {
 	CfgDB = cfg.GetCfgDB()
 
 	OneTimeJobTime = cfg.GetCfgOneTime()
@@ -1553,7 +1553,7 @@ func DiscoverNetworkPolicyMain() {
 	}()
 
 	// init the configuration related to the network policy
-	initDiscoveryConfiguration()
+	initNetPolicyDiscoveryConfiguration()
 
 	// get network logs
 	allNetworkLogs := getNetworkLogs()

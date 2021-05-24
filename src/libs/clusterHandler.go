@@ -3,7 +3,6 @@ package libs
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strconv"
@@ -288,8 +287,6 @@ func GetEndpointsFromCluster(cluster types.Cluster) []types.Endpoint {
 		epCluster := types.EndpointCluster{}
 		b, _ := json.Marshal(v)
 		json.Unmarshal(b, &epCluster)
-
-		fmt.Println(epCluster)
 	}
 
 	return results
@@ -310,6 +307,8 @@ func GetPodsFromCluster(cluster types.Cluster) []types.Pod {
 		"Time":        0,
 	}
 
+	skippedLabelKeys := []string{"pod-template-hash"}
+
 	res := getResponseBytes("POST", url, data)
 	pods := []map[string]interface{}{}
 	if res != nil {
@@ -328,8 +327,14 @@ func GetPodsFromCluster(cluster types.Cluster) []types.Pod {
 		}
 
 		for _, label := range podCluster.Labels {
+			if ContainsElement(skippedLabelKeys, label["name"]) {
+				continue
+			}
+
 			pod.Labels = append(pod.Labels, label["name"]+"="+label["value"])
 		}
+
+		results = append(results, pod)
 	}
 
 	return results

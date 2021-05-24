@@ -1,6 +1,8 @@
 package systempolicy
 
 import (
+	"errors"
+	"strings"
 	"sync"
 
 	cfg "github.com/accuknox/knoxAutoPolicy/src/config"
@@ -30,9 +32,17 @@ const (
 	STATUS_IDLE    = "idle"
 )
 
+const (
+	SYS_OP_PROCESS = "Process"
+	SYS_OP_FILE    = "File"
+	SYS_OP_NETWORK = "Network"
+)
+
 // ====================== //
 // == Gloabl Variables == //
 // ====================== //
+
+var CfgDB types.ConfigDB
 
 // SystemWorkerStatus global worker
 var SystemWorkerStatus string
@@ -47,6 +57,22 @@ func init() {
 	SystemWorkerStatus = STATUS_IDLE
 	SystemStopChan = make(chan struct{})
 	SystemWaitG = sync.WaitGroup{}
+}
+
+// ========================== //
+// == Inner Structure Type == //
+// ========================== //
+
+// SysLogKey Structure
+type SysLogKey struct {
+	Namespace string
+	PodName   string
+}
+
+// SysPath Structure
+type SysPath struct {
+	Path  string
+	isDir bool
 }
 
 // ================ //
@@ -83,30 +109,177 @@ func getSystemLogs() []types.KnoxSystemLog {
 // == Discover System Policy  == //
 // ============================= //
 
-func clusteringSystemLogs(systemLogs []types.KnoxSystemLog) map[string][]types.KnoxSystemLog {
-	clusterNameMap := map[string][]types.KnoxSystemLog{}
+func clusteringSystemLogsByCluster(logs []types.KnoxSystemLog) map[string][]types.KnoxSystemLog {
+	results := map[string][]types.KnoxSystemLog{} // key: cluster name - val: system logs
 
-	for _, log := range systemLogs {
-		if _, ok := clusterNameMap[log.ClusterName]; ok {
-			clusterNameMap[log.ClusterName] = append(clusterNameMap[log.ClusterName], log)
+	for _, log := range logs {
+		if _, ok := results[log.ClusterName]; ok {
+			results[log.ClusterName] = append(results[log.ClusterName], log)
 		} else {
-			clusterNameMap[log.ClusterName] = []types.KnoxSystemLog{log}
+			results[log.ClusterName] = []types.KnoxSystemLog{log}
 		}
 	}
 
-	return clusterNameMap
+	return results
+}
+
+func clusteringSystemLogsByNamespacePod(logs []types.KnoxSystemLog) map[SysLogKey][]types.KnoxSystemLog {
+	results := map[SysLogKey][]types.KnoxSystemLog{} // key: cluster name - val: system logs
+
+	for _, log := range logs {
+		key := SysLogKey{
+			Namespace: log.Namespace,
+			PodName:   log.PodName,
+		}
+
+		if _, ok := results[key]; ok {
+			results[key] = append(results[key], log)
+		} else {
+			results[key] = []types.KnoxSystemLog{log}
+		}
+	}
+
+	return results
 }
 
 func systemLogDeduplication(logs []types.KnoxSystemLog) []types.KnoxSystemLog {
-	deduplicated := []types.KnoxSystemLog{}
+	results := []types.KnoxSystemLog{}
 
 	for _, log := range logs {
-		if !libs.ContainsElement(deduplicated, log) {
-			deduplicated = append(deduplicated, log)
+		if !libs.ContainsElement(results, log) {
+			results = append(results, log)
 		}
 	}
 
-	return deduplicated
+	return results
+}
+
+func getOperationLogs(operation string, logs []types.KnoxSystemLog) []types.KnoxSystemLog {
+	results := []types.KnoxSystemLog{}
+
+	for _, log := range logs {
+		// operation can be : Process, File, Network
+		if log.Operation == operation {
+			results = append(results, log)
+		}
+	}
+
+	return results
+}
+
+func discoverFileOperationPolicy(results []types.KubeArmorSystemkPolicy, pod types.Pod, logs []types.KnoxSystemLog) []types.KubeArmorSystemkPolicy {
+	// step 1: [system logs] -> {source: []destination(resource)}
+	srcToDest := map[string][]string{}
+	for _, log := range logs {
+		if val, ok := srcToDest[log.Source]; ok {
+			if !libs.ContainsElement(val, log.Resource) {
+				srcToDest[log.Source] = append(srcToDest[log.Source], log.Resource)
+			}
+		} else {
+			srcToDest[log.Source] = []string{log.Resource}
+		}
+	}
+
+	// step 2: aggregate file paths
+	for src, filePaths := range srcToDest {
+		// if the source is not in the absolute path, skip it
+		if !strings.Contains(src, "/") {
+			continue
+		}
+
+		aggreatedFilePaths := AggregatePaths(filePaths)
+
+		// step 3: build system policies
+		policy := buildSystemPolicy()
+		policy.Spec.File = types.KubeArmorSys{}
+		for _, filePath := range aggreatedFilePaths {
+			if filePath.isDir {
+				matchDirs := types.KubeArmorMatchDirectories{
+					Dir: filePath.Path,
+					FromSource: types.KubeArmorFromSource{
+						Path: []string{src},
+					},
+				}
+
+				if len(policy.Spec.File.MatchDirectories) == 0 {
+					policy.Spec.File.MatchDirectories = []types.KubeArmorMatchDirectories{matchDirs}
+				} else {
+					policy.Spec.File.MatchDirectories = append(policy.Spec.File.MatchDirectories, matchDirs)
+				}
+			} else {
+				matchPaths := types.KubeArmorMatchPaths{
+					Path: filePath.Path,
+					FromSource: types.KubeArmorFromSource{
+						Path: []string{src},
+					},
+				}
+
+				if len(policy.Spec.File.MatchPaths) == 0 {
+					policy.Spec.File.MatchPaths = []types.KubeArmorMatchPaths{matchPaths}
+				} else {
+					policy.Spec.File.MatchPaths = append(policy.Spec.File.MatchPaths, matchPaths)
+				}
+			}
+		}
+
+		results = append(results, policy)
+
+	}
+
+	return results
+}
+
+func getPodInstance(key SysLogKey, pods []types.Pod) (types.Pod, error) {
+	for _, pod := range pods {
+		// for test //
+		if strings.Contains(pod.PodName, "ubuntu-1") {
+			return pod, nil
+		}
+
+		if key.Namespace == pod.Namespace && key.PodName == pod.PodName {
+			return pod, nil
+		}
+	}
+
+	return types.Pod{}, errors.New("Not exist: " + key.Namespace + " " + key.PodName)
+}
+
+// ============================ //
+// == Building System Policy == //
+// ============================ //
+
+// buildSystemPolicy Function
+func buildSystemPolicy() types.KubeArmorSystemkPolicy {
+	return types.KubeArmorSystemkPolicy{
+		APIVersion: "security.accuknox.com/v1",
+		Kind:       "KubeArmorPolicy",
+		Metadata:   map[string]string{},
+		Spec: types.KubeArmorSpec{
+			Severity: 1, // by default
+			Selector: types.Selector{
+				MatchLabels: map[string]string{}},
+			Action: "Allow",
+		},
+	}
+}
+
+func updateSelector(clusterName string, pod types.Pod, policies []types.KubeArmorSystemkPolicy) []types.KubeArmorSystemkPolicy {
+	results := []types.KubeArmorSystemkPolicy{}
+
+	for _, policy := range policies {
+		policy.Metadata["clusterName"] = clusterName
+		policy.Metadata["namespace"] = pod.Namespace
+
+		for _, label := range pod.Labels {
+			k := strings.Split(label, "=")[0]
+			v := strings.Split(label, "=")[1]
+			policy.Spec.Selector.MatchLabels[k] = v
+		}
+
+		results = append(results, policy)
+	}
+
+	return results
 }
 
 // DiscoverSystemPolicyMain function
@@ -127,11 +300,11 @@ func DiscoverSystemPolicyMain() {
 		return
 	}
 
-	// deduplicate
+	// delete duplicate logs
 	allSystemkLogs = systemLogDeduplication(allSystemkLogs)
 
 	// get cluster names, iterate each cluster
-	clusteredLogs := clusteringSystemLogs(allSystemkLogs)
+	clusteredLogs := clusteringSystemLogsByCluster(allSystemkLogs)
 	for clusterName, sysLogs := range clusteredLogs {
 		clusterName = "accuknox-qa" // for test
 
@@ -140,9 +313,25 @@ func DiscoverSystemPolicyMain() {
 			continue
 		}
 
-		// get k8s resources
-		// namespaces, _, _, pods := libs.GetAllClusterResources(clusterInstance)
-		log.Info().Msgf("len %d", len(sysLogs))
+		// get k8s pods
+		pods := libs.GetPodsFromCluster(clusterInstance)
+
+		// iterate namespace + pod_name
+		nsPodLogs := clusteringSystemLogsByNamespacePod(sysLogs)
+		for sysKey, perPodlogs := range nsPodLogs {
+			pod, err := getPodInstance(sysKey, pods)
+			if err != nil {
+				log.Error().Msg(err.Error())
+				continue
+			}
+
+			sysPolicies := []types.KubeArmorSystemkPolicy{}
+
+			// discover file operation system policy
+			fileOpLogs := getOperationLogs(SYS_OP_FILE, perPodlogs)
+			sysPolicies = discoverFileOperationPolicy(sysPolicies, pod, fileOpLogs)
+			sysPolicies = updateSelector(clusterName, pod, sysPolicies)
+		}
 	}
 }
 

@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"encoding/json"
+	"strings"
 
 	"github.com/accuknox/knoxAutoPolicy/src/types"
 )
@@ -23,16 +24,23 @@ func ConvertMySQLKubeArmorLogsToKnoxSystemLogs(docs []map[string]interface{}) []
 			log.Error().Msg(err.Error())
 		}
 
+		sources := strings.Split(syslog.Source, " ")
+		source := ""
+		if len(sources) >= 1 {
+			source = sources[0]
+		}
+
 		knoxSysLog := types.KnoxSystemLog{
-			ClusterName: syslog.ClusterName,
-			HostName:    syslog.HostName,
-			Namespace:   syslog.NamespaceName,
-			PodName:     syslog.PodName,
-			Source:      syslog.Source,
-			Operation:   syslog.Operation,
-			Resource:    syslog.Resource,
-			Data:        syslog.Data,
-			Result:      syslog.Result,
+			ClusterName:  syslog.ClusterName,
+			HostName:     syslog.HostName,
+			Namespace:    syslog.NamespaceName,
+			PodName:      syslog.PodName,
+			Source:       source,
+			SourceOrigin: syslog.Source,
+			Operation:    syslog.Operation,
+			Resource:     syslog.Resource,
+			Data:         syslog.Data,
+			Result:       syslog.Result,
 		}
 
 		results = append(results, knoxSysLog)
