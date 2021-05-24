@@ -1,0 +1,31 @@
+### Builder
+
+FROM golang:1.15.2-buster as builder
+
+WORKDIR /usr/src/knox
+
+COPY ./libs ./libs
+COPY ./logging ./logging
+COPY ./feedconsumer ./feedconsumer
+COPY ./config ./config
+COPY ./networkpolicy ./networkpolicy
+COPY ./systempolicy ./systempolicy
+COPY ./types ./types
+COPY ./plugin ./plugin
+COPY ./protobuf ./protobuf
+COPY ./server ./server
+
+COPY ./main.go ./main.go
+COPY ./go.mod ./go.mod
+
+RUN go mod download
+RUN go build -o knoxAutoPolicy main.go
+
+### Make executable image
+
+FROM debian:buster
+
+COPY conf/conf.yaml conf/conf.yaml
+COPY --from=builder /usr/src/knox/knoxAutoPolicy /knoxAutoPolicy
+
+ENTRYPOINT ["/knoxAutoPolicy"]

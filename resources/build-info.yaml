@@ -28,7 +28,7 @@ build_steps:
 docker_build:
   - name: knoxautopolicy
     Dockerfile_dir: .
-    Dockerfile_name: Dockerfile
+    Dockerfile_name: ./src/Dockerfile
     pre_steps:
       - ls -l
       - echo cp
