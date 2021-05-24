@@ -23,7 +23,8 @@ RUN go build -o knoxAutoPolicy main.go
 
 ### Make executable image
 
-FROM debian:latest
+#FROM debian:latest
+FROM artifactory.accuknox.com/accuknox/ubuntu:bionic-20210512 
 
 COPY ./src/conf/conf.yaml conf/conf.yaml
 COPY --from=builder /usr/src/knox/knoxAutoPolicy /knoxAutoPolicy

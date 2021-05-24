@@ -12,7 +12,6 @@ spec:
     metadata:
       labels:
         container: knoxautopolicy
-
     spec:
       containers:
       - image: gcr.io/accuknox/snapshot/knoxautopolicy
@@ -22,6 +21,6 @@ spec:
         - containerPort: 9089
           protocol: TCP
         volumeMounts:
-          {{- toYaml .Values.volumemounts | nindent 12 }}
+          {{- toYaml .Values.volumeMounts | nindent 12 }}
       volumes: 
         {{- toYaml .Values.volumes | nindent 12 }}

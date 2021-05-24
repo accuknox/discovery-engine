@@ -8,7 +8,7 @@ knoxautopolicy:
     repository: gcr.io/accuknox/snapshot/knoxautopolicy
     pullPolicy: Always
     # Overrides the image tag whose default is the chart appVersion.
-    tag: 1.0.12
+    tag: latest
 
 
 volumeMounts:
