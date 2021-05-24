@@ -51,7 +51,7 @@ image_properties:
 trivy_properties:
    status:
    #Acceptable Values are CRITICAL, HIGH, MEDIUM, LOW
-     enabled: "true"
+     enabled: "false"
      level: high
      value: "10"
    image:
