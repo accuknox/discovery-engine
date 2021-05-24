@@ -145,8 +145,8 @@ func longestCommonXfix(strs []string, pre bool) string {
 // == Print Pretty == //
 // ================== //
 
-// PrintKnoxPolicyJSON function
-func PrintKnoxPolicyJSON(data interface{}) (string, error) {
+// PrintPolicyJSON function
+func PrintPolicyJSON(data interface{}) (string, error) {
 	empty := ""
 	tab := "  "
 
@@ -160,6 +160,13 @@ func PrintKnoxPolicyJSON(data interface{}) (string, error) {
 	}
 
 	return buffer.String(), nil
+
+}
+
+// PrintPolicyYaml function
+func PrintPolicyYaml(data interface{}) (string, error) {
+	b, _ := yaml.Marshal(&data)
+	return string(b), nil
 }
 
 // ============= //

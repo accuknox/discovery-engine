@@ -188,18 +188,19 @@ func (n *Node) aggregateChildNodes() {
 		childNode.aggregateChildNodes()
 	}
 
-	// step 1: #child nodes > threshold
+	// #child nodes > threshold
 	if len(n.childNodes) > HTTPThreshold {
 		childPaths := []string{}
 		for _, childNode := range n.childNodes {
 			childPaths = append(childPaths, childNode.path)
 		}
 
-		// step 2: check path length
+		// check path length
 		if !checkSamePathLength(childPaths) {
 			return
 		}
 
+		// replace with wild card path
 		wildPath := ""
 		if checkDigitsOnly(childPaths) {
 			wildPath = WildPathDigit
@@ -214,7 +215,7 @@ func (n *Node) aggregateChildNodes() {
 		}
 
 		//   a     --->   a
-		// b   c         temp
+		// b   c        [temp]
 		// d   e         d  e
 		for _, childNode := range n.childNodes {
 			tempChild.touchCount = tempChild.touchCount + childNode.touchCount
@@ -378,13 +379,18 @@ func checkDigitsOnly(paths []string) bool {
 func buildPathTree(treeMap map[string]*Node, paths []string) {
 	pattern, _ := regexp.Compile("(/.[^/]*)")
 
+	// sorting paths
 	sort.Strings(paths)
 
+	// iterate paths
 	for _, path := range paths {
 		if path == "/" { // rootpath
 			continue
 		}
 
+		// example: /usr/lib/python2.7/UserDict.py
+		// 			--> '/usr', '/lib', '/python2.7', '/UserDict.py'
+		//			in this case, '/usr' is rootNode
 		tokenizedPaths := pattern.FindAllString(path, -1)
 		rootPath := tokenizedPaths[0]
 
@@ -496,52 +502,56 @@ func AggregateHTTPRule(aggregatedSrcPerAggregatedDst map[string][]MergedPortDst)
 	for aggregatedSrc, dsts := range aggregatedSrcPerAggregatedDst {
 		for i, dst := range dsts {
 			// check if dst is for HTTP rules
-			if libs.CheckSpecHTTP(dst.Additionals) {
-				httpTree := getHTTPTree(aggregatedSrc, dst)
-				if httpTree == nil {
-					httpTree = map[string]map[string]*Node{}
-				}
-
-				updatedAdditionals := []string{}
-
-				methodToPaths := map[string][]string{}
-
-				for _, http := range dst.Additionals {
-					if len(strings.Split(http, "|")) != 2 {
-						continue
-					}
-
-					method := strings.Split(http, "|")[0]
-					path := strings.Split(http, "|")[1]
-
-					if val, ok := methodToPaths[method]; ok {
-						if !libs.ContainsElement(val, path) {
-							val = append(val, path)
-						}
-						methodToPaths[method] = val
-					} else {
-						methodToPaths[method] = []string{path}
-					}
-				}
-
-				for method, paths := range methodToPaths {
-					httpPathTree := map[string]*Node{}
-					if existed, ok := httpTree[method]; ok {
-						httpPathTree = existed
-					}
-
-					aggreatedPaths := AggregatePaths(httpPathTree, paths)
-					for _, aggPath := range aggreatedPaths {
-						updatedAdditionals = append(updatedAdditionals, method+"|"+aggPath)
-					}
-
-					httpTree[method] = httpPathTree
-				}
-
-				dsts[i].Additionals = updatedAdditionals
-
-				setHTTPTree(aggregatedSrc, dst, httpTree)
+			if !libs.CheckSpecHTTP(dst.Additionals) {
+				continue
 			}
+
+			// httpTree = key: METHOD - val: Tree
+			httpTree := getHTTPTree(aggregatedSrc, dst)
+			if httpTree == nil {
+				httpTree = map[string]map[string]*Node{}
+			}
+
+			updatedAdditionals := []string{}
+
+			methodToPaths := map[string][]string{}
+
+			for _, http := range dst.Additionals {
+				// http = method + path
+				if len(strings.Split(http, "|")) != 2 {
+					continue
+				}
+
+				method := strings.Split(http, "|")[0]
+				path := strings.Split(http, "|")[1]
+
+				if val, ok := methodToPaths[method]; ok {
+					if !libs.ContainsElement(val, path) {
+						val = append(val, path)
+					}
+					methodToPaths[method] = val
+				} else {
+					methodToPaths[method] = []string{path}
+				}
+			}
+
+			for method, paths := range methodToPaths {
+				httpPathTree := map[string]*Node{}
+				if existed, ok := httpTree[method]; ok {
+					httpPathTree = existed
+				}
+
+				aggreatedPaths := AggregatePaths(httpPathTree, paths)
+				for _, aggPath := range aggreatedPaths {
+					updatedAdditionals = append(updatedAdditionals, method+"|"+aggPath)
+				}
+
+				httpTree[method] = httpPathTree
+			}
+
+			dsts[i].Additionals = updatedAdditionals
+
+			setHTTPTree(aggregatedSrc, dst, httpTree)
 		}
 
 		aggregatedSrcPerAggregatedDst[aggregatedSrc] = dsts
