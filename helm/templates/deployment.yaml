@@ -12,15 +12,15 @@ spec:
     metadata:
       labels:
         container: knoxautopolicy
-
     spec:
       containers:
-      - name: knoxautopolicy 
-        image: "{{ .Values.knoxautopolicy.repository }}:{{ .Values.knoxautopolicy.image.tag | default .Chart.AppVersion }}"
+      - image: gcr.io/accuknox/snapshot/knoxautopolicy
+        #image: "{{ .Values.knoxautopolicy.repository }}:{{ .Values.knoxautopolicy.image.tag | default .Chart.AppVersion }}"
+        name: knoxautopolicy
         ports:
         - containerPort: 9089
           protocol: TCP
         volumeMounts:
-          {{- toYaml .Values.volumemounts | nindent 12 }}
+          {{- toYaml .Values.volumeMounts | nindent 12 }}
       volumes: 
         {{- toYaml .Values.volumes | nindent 12 }}
