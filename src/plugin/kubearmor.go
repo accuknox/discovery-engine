@@ -30,17 +30,30 @@ func ConvertMySQLKubeArmorLogsToKnoxSystemLogs(docs []map[string]interface{}) []
 			source = sources[0]
 		}
 
+		resources := strings.Split(syslog.Resource, " ")
+		resource := ""
+		if len(resources) >= 1 {
+			resource = resources[0]
+		}
+
+		readOnly := false
+		if syslog.Data != "" && strings.Contains(syslog.Data, "O_RDONLY") {
+			readOnly = true
+		}
+
 		knoxSysLog := types.KnoxSystemLog{
-			ClusterName:  syslog.ClusterName,
-			HostName:     syslog.HostName,
-			Namespace:    syslog.NamespaceName,
-			PodName:      syslog.PodName,
-			Source:       source,
-			SourceOrigin: syslog.Source,
-			Operation:    syslog.Operation,
-			Resource:     syslog.Resource,
-			Data:         syslog.Data,
-			Result:       syslog.Result,
+			ClusterName:    syslog.ClusterName,
+			HostName:       syslog.HostName,
+			Namespace:      syslog.NamespaceName,
+			PodName:        syslog.PodName,
+			Source:         source,
+			SourceOrigin:   syslog.Source,
+			Operation:      syslog.Operation,
+			ResourceOrigin: syslog.Resource,
+			Resource:       resource,
+			Data:           syslog.Data,
+			ReadOnly:       readOnly,
+			Result:         syslog.Result,
 		}
 
 		results = append(results, knoxSysLog)

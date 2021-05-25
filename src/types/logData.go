@@ -48,8 +48,12 @@ type KnoxSystemLog struct {
 	Source       string `json:"source,omitempty"`        // --> source: "/usr/bin/iperf3"
 
 	Operation string `json:"operation,omitempty"`
-	Resource  string `json:"resource,omitempty"`
-	Data      string `json:"data,omitempty"`
+
+	ResourceOrigin string `json:"resource_origin,omitempty"`
+	Resource       string `json:"resource,omitempty"`
+	Data           string `json:"data,omitempty"`
+
+	ReadOnly bool `json:"read_only,omitempty"`
 
 	Result string `json:"result,omitempty"`
 }

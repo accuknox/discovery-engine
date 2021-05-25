@@ -419,6 +419,29 @@ func WriteKnoxPolicyToJSONFile(namespace string, policies []types.KnoxNetworkPol
 	f.Close()
 }
 
+// WriteKubeArmorPolicyToYamlFile Function
+func WriteKubeArmorPolicyToYamlFile(namespace string, policies []types.KubeArmorSystemPolicy) {
+	// create policy file
+	fileName := GetEnv("POLICY_DIR", "./") + "kubearmor_policies_" + namespace + ".yaml"
+
+	os.Remove(fileName)
+
+	f, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return
+	}
+
+	for _, policy := range policies {
+		b, _ := yaml.Marshal(&policy)
+		f.Write(b)
+		f.WriteString("---\n")
+		f.Sync()
+	}
+
+	f.Close()
+}
+
 // ======================= //
 // == Command Execution == //
 // ======================= //
