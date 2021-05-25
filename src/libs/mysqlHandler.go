@@ -536,6 +536,124 @@ func InsertNetworkPoliciesToMySQL(cfg types.ConfigDB, policies []types.KnoxNetwo
 }
 
 // =================== //
+// == System Policy == //
+// =================== //
+
+// GetSystemPoliciesFromMySQL function
+func GetSystemPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) ([]types.KubeArmorSystemPolicy, error) {
+	db := connectMySQL(cfg)
+	defer db.Close()
+
+	policies := []types.KubeArmorSystemPolicy{}
+	var results *sql.Rows
+	var err error
+
+	query := "SELECT apiVersion,kind,name,clusterName,namespace,type,spec FROM " +
+		cfg.TableSystemPolicy
+
+	if namespace != "" && status != "" {
+		query = query + " WHERE namespace = ? and status = ? "
+		results, err = db.Query(query, namespace, status)
+	} else if namespace != "" {
+		query = query + " WHERE namespace = ? "
+		results, err = db.Query(query, namespace)
+	} else if status != "" {
+		query = query + " WHERE status = ? "
+		results, err = db.Query(query, status)
+	} else {
+		results, err = db.Query(query)
+	}
+
+	defer results.Close()
+
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return nil, err
+	}
+
+	for results.Next() {
+		policy := types.KubeArmorSystemPolicy{}
+
+		var name, clusterName, namespace, policyType string
+		specByte := []byte{}
+		spec := types.KubeArmorSpec{}
+
+		if err := results.Scan(
+			&policy.APIVersion,
+			&policy.Kind,
+			&name,
+			&clusterName,
+			&namespace,
+			&policyType,
+			&specByte,
+		); err != nil {
+			return nil, err
+		}
+
+		if err := json.Unmarshal(specByte, &spec); err != nil {
+			return nil, err
+		}
+
+		policy.Metadata = map[string]string{
+			"name":        name,
+			"clusterName": clusterName,
+			"namespace":   namespace,
+			"type":        policyType,
+			"status":      status,
+		}
+
+		policy.Spec = spec
+
+		policies = append(policies, policy)
+	}
+
+	return policies, nil
+}
+
+// insertSystemPolicy function
+func insertSystemPolicy(cfg types.ConfigDB, db *sql.DB, policy types.KubeArmorSystemPolicy) error {
+	stmt, err := db.Prepare("INSERT INTO " + cfg.TableSystemPolicy + "(apiVersion,kind,name,clusterName,namespace,type,spec) values(?,?,?,?,?,?,?)")
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	specPointer := &policy.Spec
+	spec, err := json.Marshal(specPointer)
+	if err != nil {
+		return err
+	}
+
+	_, err = stmt.Exec(
+		policy.APIVersion,
+		policy.Kind,
+		policy.Metadata["name"],
+		policy.Metadata["clusterName"],
+		policy.Metadata["namespace"],
+		policy.Metadata["type"],
+		spec)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// InsertSystemPoliciesToMySQL function
+func InsertSystemPoliciesToMySQL(cfg types.ConfigDB, policies []types.KubeArmorSystemPolicy) error {
+	db := connectMySQL(cfg)
+	defer db.Close()
+
+	for _, policy := range policies {
+		if err := insertSystemPolicy(cfg, db, policy); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// =================== //
 // == Configuration == //
 // =================== //
 
@@ -1028,18 +1146,13 @@ func CreateTableSystemPolicyMySQL(cfg types.ConfigDB) error {
 	query :=
 		"CREATE TABLE IF NOT EXISTS `" + tableName + "` (" +
 			"	`id` int NOT NULL AUTO_INCREMENT," +
-			"	`apiVersion` varchar(20) DEFAULT NULL," +
+			"	`apiVersion` varchar(40) DEFAULT NULL," +
 			"	`kind` varchar(20) DEFAULT NULL," +
-			"	`flow_ids` JSON DEFAULT NULL," +
 			"	`name` varchar(50) DEFAULT NULL," +
-			"	`cluster_name` varchar(50) DEFAULT NULL," +
+			"	`clusterName` varchar(50) DEFAULT NULL," +
 			"	`namespace` varchar(50) DEFAULT NULL," +
-			"	`type` varchar(10) DEFAULT NULL," +
-			"	`rule` varchar(30) DEFAULT NULL," +
-			"	`status` varchar(10) DEFAULT NULL," +
-			"	`outdated` varchar(50) DEFAULT NULL," +
+			"   `type` varchar(20) NOT NULL," +
 			"	`spec` JSON DEFAULT NULL," +
-			"	`generatedTime` int DEFAULT NULL," +
 			"	PRIMARY KEY (`id`)" +
 			"  );"
 

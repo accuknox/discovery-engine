@@ -30,6 +30,7 @@ require (
 	google.golang.org/protobuf v1.25.0
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	gopkg.in/yaml.v2 v2.3.0
+	gotest.tools v2.2.0+incompatible
 	k8s.io/api v0.19.4 // indirect
 	k8s.io/apimachinery v0.19.4
 	k8s.io/client-go v11.0.0+incompatible

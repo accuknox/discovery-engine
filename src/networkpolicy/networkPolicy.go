@@ -1607,10 +1607,10 @@ func DiscoverNetworkPolicyMain() {
 			// ========================================================= //
 			// == discover network policies based on the network logs == //
 			// ========================================================= //
-			discoveredPolicies := DiscoverNetworkPolicy(namespace, namespaceFilteredLogs, services, endpoints, pods)
+			discoveredNetPolicies := DiscoverNetworkPolicy(namespace, namespaceFilteredLogs, services, endpoints, pods)
 
 			// update duplicated policy
-			newPolicies := UpdateDuplicatedPolicy(existingPolicies, discoveredPolicies, DomainToIPs, clusterName)
+			newPolicies := UpdateDuplicatedPolicy(existingPolicies, discoveredNetPolicies, DomainToIPs, clusterName)
 			sort.Slice(newPolicies, func(i, j int) bool {
 				return newPolicies[i].Metadata["name"] < newPolicies[j].Metadata["name"]
 			})

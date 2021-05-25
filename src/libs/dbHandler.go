@@ -54,13 +54,6 @@ func GetNetworkLogsFromDB(cfg types.ConfigDB, timeSelection string) []map[string
 			}
 			results = docs
 		}
-	} else if cfg.DBDriver == "mongodb" {
-		docs, err := GetNetworkLogByTimeFromMongo(cfg, startTime, endTime)
-		if err != nil {
-			log.Error().Msg(err.Error())
-			return results
-		}
-		results = docs
 	} else {
 		return results
 	}
@@ -95,11 +88,83 @@ func InsertNetworkLogToDB(cfg types.ConfigDB, nfe []types.NetworkLogEvent) error
 		if err := InsertNetworkLogToMySQL(cfg, nfe); err != nil {
 			return err
 		}
-	} else if cfg.DBDriver == "mongodb" {
-		// TODO: MongoDB
 	}
 
 	return nil
+}
+
+// ==================== //
+// == Network Policy == //
+// ==================== //
+
+// GetNetworkPolicies Function
+func GetNetworkPolicies(cfg types.ConfigDB, namespace, status string) []types.KnoxNetworkPolicy {
+	results := []types.KnoxNetworkPolicy{}
+
+	if cfg.DBDriver == "mysql" {
+		docs, err := GetNetworkPoliciesFromMySQL(cfg, namespace, status)
+		if err != nil {
+			return results
+		}
+		results = docs
+	}
+
+	return results
+}
+
+// GetNetworkPoliciesBySelector Function
+func GetNetworkPoliciesBySelector(cfg types.ConfigDB, namespace, status string, selector map[string]string) ([]types.KnoxNetworkPolicy, error) {
+	results := []types.KnoxNetworkPolicy{}
+
+	if cfg.DBDriver == "mysql" {
+		docs, err := GetNetworkPoliciesFromMySQL(cfg, namespace, status)
+		if err != nil {
+			return nil, err
+		}
+		results = docs
+	} else {
+		return results, nil
+	}
+
+	filtered := []types.KnoxNetworkPolicy{}
+	for _, policy := range results {
+		matched := true
+		for k, v := range selector {
+			if val, ok := policy.Spec.Selector.MatchLabels[k]; !ok { // not exist key
+				matched = false
+				break
+			} else {
+				if val != v { // not matched value
+					matched = false
+					break
+				}
+			}
+		}
+
+		if matched {
+			filtered = append(filtered, policy)
+		}
+	}
+
+	return filtered, nil
+}
+
+// UpdateOutdatedNetworkPolicy function
+func UpdateOutdatedNetworkPolicy(cfg types.ConfigDB, outdatedPolicy string, latestPolicy string) {
+	if cfg.DBDriver == "mysql" {
+		if err := UpdateOutdatedPolicyFromMySQL(cfg, outdatedPolicy, latestPolicy); err != nil {
+			log.Error().Msg(err.Error())
+		}
+	}
+}
+
+// InsertNetworkPolicies function
+func InsertNetworkPolicies(cfg types.ConfigDB, policies []types.KnoxNetworkPolicy) {
+	if cfg.DBDriver == "mysql" {
+		if err := InsertNetworkPoliciesToMySQL(cfg, policies); err != nil {
+			log.Error().Msg(err.Error())
+		}
+	}
 }
 
 // ================ //
@@ -138,8 +203,6 @@ func GetSystemLogsFromDB(cfg types.ConfigDB, timeSelection string) []map[string]
 			}
 			results = docs
 		}
-	} else if cfg.DBDriver == "mongodb" {
-		// TODO: MongoDB
 	} else {
 		return results
 	}
@@ -174,112 +237,38 @@ func InsertSystemLogToDB(cfg types.ConfigDB, sle []types.SystemLogEvent) error {
 		if err := InsertSystemLogToMySQL(cfg, sle); err != nil {
 			return err
 		}
-	} else if cfg.DBDriver == "mongodb" {
-		// TODO: MongoDB
 	}
 
 	return nil
 }
 
-// ==================== //
-// == Network Policy == //
-// ==================== //
+// =================== //
+// == System Policy == //
+// =================== //
 
-// GetNetworkPolicies Function
-func GetNetworkPolicies(cfg types.ConfigDB, namespace, status string) []types.KnoxNetworkPolicy {
-	results := []types.KnoxNetworkPolicy{}
+// GetSystemPolicies Function
+func GetSystemPolicies(cfg types.ConfigDB, namespace, status string) []types.KubeArmorSystemPolicy {
+	results := []types.KubeArmorSystemPolicy{}
 
 	if cfg.DBDriver == "mysql" {
-		docs, err := GetNetworkPoliciesFromMySQL(cfg, namespace, status)
+		docs, err := GetSystemPoliciesFromMySQL(cfg, namespace, status)
 		if err != nil {
 			return results
 		}
 		results = docs
-	} else if cfg.DBDriver == "mongodb" {
-		docs, err := GetNetworkPoliciesFromMongo(cfg, namespace, status)
-		if err != nil {
-			return results
-		}
-		results = docs
-	} else {
-		return results
 	}
 
 	return results
 }
 
-// GetNetworkPoliciesBySelector Function
-func GetNetworkPoliciesBySelector(cfg types.ConfigDB, namespace, status string, selector map[string]string) ([]types.KnoxNetworkPolicy, error) {
-	results := []types.KnoxNetworkPolicy{}
-
+// InsertSystemPolicies function
+func InsertSystemPolicies(cfg types.ConfigDB, policies []types.KubeArmorSystemPolicy) {
 	if cfg.DBDriver == "mysql" {
-		docs, err := GetNetworkPoliciesFromMySQL(cfg, namespace, status)
-		if err != nil {
-			return nil, err
-		}
-		results = docs
-	} else if cfg.DBDriver == "mongodb" {
-		docs, err := GetNetworkPoliciesFromMongo(cfg, namespace, status)
-		if err != nil {
-			return nil, err
-		}
-		results = docs
-	} else {
-		return results, nil
-	}
-
-	filtered := []types.KnoxNetworkPolicy{}
-	for _, policy := range results {
-		matched := true
-		for k, v := range selector {
-			if val, ok := policy.Spec.Selector.MatchLabels[k]; !ok { // not exist key
-				matched = false
-				break
-			} else {
-				if val != v { // not matched value
-					matched = false
-					break
-				}
-			}
-		}
-
-		if matched {
-			filtered = append(filtered, policy)
-		}
-	}
-
-	return filtered, nil
-}
-
-// UpdateOutdatedNetworkPolicy function
-func UpdateOutdatedNetworkPolicy(cfg types.ConfigDB, outdatedPolicy string, latestPolicy string) {
-	if cfg.DBDriver == "mysql" {
-		if err := UpdateOutdatedPolicyFromMySQL(cfg, outdatedPolicy, latestPolicy); err != nil {
-			log.Error().Msg(err.Error())
-		}
-	} else if cfg.DBDriver == "mongodb" {
-		if err := UpdateOutdatedPolicyFromMongo(cfg, outdatedPolicy, latestPolicy); err != nil {
+		if err := InsertSystemPoliciesToMySQL(cfg, policies); err != nil {
 			log.Error().Msg(err.Error())
 		}
 	}
 }
-
-// InsertNetworkPolicies function
-func InsertNetworkPolicies(cfg types.ConfigDB, policies []types.KnoxNetworkPolicy) {
-	if cfg.DBDriver == "mysql" {
-		if err := InsertNetworkPoliciesToMySQL(cfg, policies); err != nil {
-			log.Error().Msg(err.Error())
-		}
-	} else if cfg.DBDriver == "mongodb" {
-		if err := InsertNetworkPoliciesToMongoDB(cfg, policies); err != nil {
-			log.Error().Msg(err.Error())
-		}
-	}
-}
-
-// =================== //
-// == System Policy == //
-// =================== //
 
 // =========== //
 // == Table == //

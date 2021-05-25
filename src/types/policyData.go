@@ -223,8 +223,8 @@ type KubeArmorSpec struct {
 	Action string `json:"action,omitempty" yaml:"action,omitempty"`
 }
 
-// KubeArmorSystemkPolicy Structure
-type KubeArmorSystemkPolicy struct {
+// KubeArmorSystemPolicy Structure
+type KubeArmorSystemPolicy struct {
 	APIVersion string            `json:"apiVersion,omitempty" yaml:"apiVersion,omitempty"`
 	Kind       string            `json:"kind,omitempty" yaml:"kind,omitempty"`
 	Metadata   map[string]string `json:"metadata,omitempty" yaml:"metadata,omitempty"`

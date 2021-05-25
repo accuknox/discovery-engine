@@ -191,6 +191,14 @@ func GetCfgSystemLogFrom() string {
 	return Cfg.SystemLogFrom
 }
 
+func GetCfgSystemLogFile() string {
+	return Cfg.SystemLogFile
+}
+
+func GetCfgSystemPolicyTo() string {
+	return Cfg.SystemPolicyTo
+}
+
 func GetCfgDB() types.ConfigDB {
 	return Cfg.ConfigDB
 }
