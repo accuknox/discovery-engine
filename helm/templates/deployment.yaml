@@ -14,7 +14,7 @@ spec:
         container: knoxautopolicy
     spec:
       containers:
-      - image: "{{ .Values.knoxautopolicy.repository }}:{{ .Values.knoxautopolicy.image.tag | default .Chart.AppVersion }}"
+      - image: "{{ .Values.knoxautopolicy.image.repository }}:{{ .Values.knoxautopolicy.image.tag | default .Chart.AppVersion }}"
         name: knoxautopolicy
         ports:
         - containerPort: 9089
