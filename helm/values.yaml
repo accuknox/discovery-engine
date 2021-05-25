@@ -5,10 +5,10 @@
 replicaCount: 1
 knoxautopolicy:
   image:
-    repository: gcr.io/accuknox/snapshot/knoxautopolicy
+    repository: gcr.io/accuknox/dev/knoxautopolicy
     pullPolicy: Always
     # Overrides the image tag whose default is the chart appVersion.
-    tag: 1.0.14
+    tag: ""
 
 
 volumeMounts:
