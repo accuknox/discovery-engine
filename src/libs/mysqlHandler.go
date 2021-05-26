@@ -53,7 +53,7 @@ func connectMySQL(cfg types.ConfigDB) (db *sql.DB) {
 // == Network Log == //
 // ================= //
 
-var networkLogQueryBase string = "select id,time,cluster_name,traffic_direction,verdict,policy_match_type,drop_reason,event_type,source,destination,ip,l4,l7 from "
+var networkLogQueryBase string = "SELECT (id,time,cluster_name,traffic_direction,verdict,policy_match_type,drop_reason,event_type,source,destination,ip,l4,l7) FROM "
 
 func convertDateTimeToUnix(dateTime string) (int64, error) {
 	thetime, err := time.Parse(time.RFC3339, dateTime)
@@ -400,7 +400,7 @@ func GetNetworkPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) (
 	var results *sql.Rows
 	var err error
 
-	query := "SELECT apiVersion,kind,flow_ids,name,cluster_name,namespace,type,rule,status,outdated,spec,generatedTime FROM " + cfg.TableNetworkPolicy
+	query := "SELECT (apiVersion,kind,flow_ids,name,cluster_name,namespace,type,rule,status,outdated,spec,generatedTime) FROM " + cfg.TableNetworkPolicy
 	if namespace != "" && status != "" {
 		query = query + " WHERE namespace = ? and status = ? "
 		results, err = db.Query(query, namespace, status)

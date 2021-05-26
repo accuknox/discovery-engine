@@ -1,147 +1,174 @@
 package libs
 
 import (
-	"net"
+	"encoding/json"
 	"testing"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/accuknox/knoxAutoPolicy/src/types"
 	"github.com/stretchr/testify/assert"
 )
 
-// LoadMockCfgDB function
-func LoadMockCfgDB() types.ConfigDB {
-	cfgDB := types.ConfigDB{}
-	cfgDB.DBDriver = GetEnv("DB_DRIVER", "mysql")
-	cfgDB.DBUser = GetEnv("DB_USER", "root")
-	cfgDB.DBPass = GetEnv("DB_PASS", "password")
-	cfgDB.DBName = GetEnv("DB_NAME", "flow_management")
+// ================= //
+// == Network Log == //
+// ================= //
 
-	if IsK8sEnv() {
-		cfgDB.DBHost = GetEnv("DB_HOST", "database.knox-auto-policy.svc.cluster.local")
-		dbAddr, err := net.LookupIP(cfgDB.DBHost)
-		if err == nil {
-			cfgDB.DBHost = dbAddr[0].String()
-		} else {
-			cfgDB.DBHost = GetExternalIPAddr()
-		}
-	} else {
-		cfgDB.DBHost = GetEnv("DB_HOST", "database") // for docker-compose
-		dbAddr, err := net.LookupIP(cfgDB.DBHost)
-		if err == nil {
-			cfgDB.DBHost = dbAddr[0].String()
-		} else {
-			cfgDB.DBHost = GetExternalIPAddr()
-		}
+func TestGetNetworkLogsFromDB(t *testing.T) {
+	// prepare mock mysql
+	_, mock := NewMock()
+
+	rows := mock.NewRows([]string{
+		"id",                // int
+		"time",              // int
+		"cluster_name",      // str
+		"traffic_direction", // str
+		"verdict",           // str
+		"policy_match_type", // int
+		"drop_reason",       // int
+		"event_type",        // []byte
+		"source",            // []byte
+		"destination",       // []byte
+		"ip",                // []byte
+		"l4",                // []byte
+		"l7"}).              // []byte
+		AddRow(1, 0, "", "", "", 0, 0, []byte{}, []byte{}, []byte{}, []byte{}, []byte{}, []byte{})
+
+	mock.ExpectQuery("^SELECT (.+) FROM network_log*").
+		WithArgs(0).
+		WillReturnRows(rows)
+
+	results := GetNetworkLogsFromDB(types.ConfigDB{DBDriver: "mysql", TableNetworkLog: "network_log"}, "")
+	assert.Equal(t, results[0]["id"], uint32(1))
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("unmet expectation error: %s", err)
 	}
-	cfgDB.DBPort = GetEnv("DB_PORT", "3306")
-
-	cfgDB.TableConfiguration = GetEnv("TB_CONFIGURATION", "auto_policy_config")
-	cfgDB.TableNetworkLog = GetEnv("TB_NETWORK_LOG", "network_log")
-	cfgDB.TableNetworkPolicy = GetEnv("TB_NETWORK_POLICY", "network_policy")
-	cfgDB.TableSystemLog = GetEnv("TB_SYSTEM_LOG", "system_log")
-	cfgDB.TableSystemPolicy = GetEnv("TB_SYSYTEM_POLICY", "system_policy")
-
-	ClearDBTablesMySQL(cfgDB)
-
-	return cfgDB
 }
 
-func TestUpdateOutdatedPolicy(t *testing.T) {
-	cfgDB := LoadMockCfgDB()
+func TestInsertNetworkLogToDB(t *testing.T) {
+	// prepare mock mysql
+	_, mock := NewMock()
 
-	outdated := "policy_a"
-	latest := "policy_b"
+	prep := mock.ExpectPrepare("INSERT INTO network_log")
+	prep.ExpectExec().
+		WithArgs(
+			1616387100,
+			"test",
+			"",
+			0,
+			"null",
+			"null",
+			"null",
+			"null",
+			false,
+			"null",
+			"null",
+			"",
+			"",
+			"null",
+			"null",
+			"null",
+			"",
+			0,
+			"",
+			"",
+		).WillReturnResult(sqlmock.NewResult(0, 1))
 
-	err := UpdateOutdatedPolicyFromMySQL(cfgDB, outdated, latest)
+	nfe := []types.NetworkLogEvent{
+		types.NetworkLogEvent{
+			Time:        "2021-03-22T04:25:00.169452145Z",
+			ClusterName: "test",
+		},
+	}
+
+	err := InsertNetworkLogToDB(types.ConfigDB{DBDriver: "mysql", TableNetworkLog: "network_log"}, nfe)
 	assert.NoError(t, err)
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("unmet expectation error: %s", err)
+	}
 }
+
+// ==================== //
+// == Network Policy == //
+// ==================== //
 
 func TestGetNetworkPolicies(t *testing.T) {
-	cfgDB := LoadMockCfgDB()
+	// prepare mock mysql
+	_, mock := NewMock()
 
-	cidrPolicy := types.KnoxNetworkPolicy{
-		Metadata: map[string]string{
-			"cluster_name": "",
-			"name":         "",
-			"namespace":    "multiubuntu",
-			"status":       "latest",
-			"type":         "egress",
-			"rule":         "toCIDRs+toPorts",
-		},
+	specPtr := &types.Spec{}
+	spec, _ := json.Marshal(specPtr)
 
-		Spec: types.Spec{
-			Selector: types.Selector{
-				MatchLabels: map[string]string{
-					"app": "test1",
-				},
-			},
+	flowIDsPrt := &[]string{}
+	flowID, _ := json.Marshal(flowIDsPrt)
 
-			Egress: []types.Egress{
-				types.Egress{
-					ToCIDRs: []types.SpecCIDR{
-						types.SpecCIDR{
-							CIDRs: []string{"10.0.0.1/32"},
-						},
-					},
-					ToPorts: []types.SpecPort{
-						types.SpecPort{
-							Port:     "80",
-							Protocol: "tcp",
-						},
-					},
-				},
-			},
-		},
+	rows := mock.NewRows([]string{
+		"apiVersion",    // str
+		"kind",          // str
+		"flow_ids",      // []byte
+		"name",          // str
+		"cluster_name",  // str
+		"namespace",     // str
+		"type",          // str
+		"rule",          // str
+		"status",        // str
+		"outdated",      // str
+		"spec",          // []byte
+		"generatedTime", // int
+	}).
+		AddRow("", "test", flowID, "", "", "", "", "", "", "", spec, 0)
+
+	mock.ExpectQuery("^SELECT (.+) FROM network_policy*").
+		WillReturnRows(rows)
+
+	results := GetNetworkPolicies(types.ConfigDB{DBDriver: "mysql", TableNetworkPolicy: "network_policy"}, "", "")
+	assert.Equal(t, results[0].Kind, "test")
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("unmet expectation error: %s", err)
 	}
-
-	discovered := []types.KnoxNetworkPolicy{cidrPolicy}
-
-	err := InsertNetworkPoliciesToMySQL(cfgDB, discovered)
-	assert.NoError(t, err)
-
-	results, err := GetNetworkPoliciesFromMySQL(cfgDB, "multiubuntu", "latest")
-	assert.NoError(t, err)
-
-	assert.Equal(t, discovered, results)
 }
 
-func TestInsertDiscoveredPolicies(t *testing.T) {
-	cfgDB := LoadMockCfgDB()
+func TestInsertNetworkPolicies(t *testing.T) {
+	// prepare mock mysql
+	_, mock := NewMock()
 
-	cidrPolicy := types.KnoxNetworkPolicy{
-		Metadata: map[string]string{
-			"status": "latest",
-			"type":   "egress",
-			"rule":   "toCIDRs+toPorts",
-		},
+	policy := types.KnoxNetworkPolicy{}
 
-		Spec: types.Spec{
-			Selector: types.Selector{
-				MatchLabels: map[string]string{
-					"app": "test1",
-				},
-			},
+	specPtr := &policy.Spec
+	spec, _ := json.Marshal(specPtr)
 
-			Egress: []types.Egress{
-				types.Egress{
-					ToCIDRs: []types.SpecCIDR{
-						types.SpecCIDR{
-							CIDRs: []string{"10.0.0.1/32"},
-						},
-					},
-					ToPorts: []types.SpecPort{
-						types.SpecPort{
-							Port:     "80",
-							Protocol: "tcp",
-						},
-					},
-				},
-			},
+	flowIDsPrt := &policy.FlowIDs
+	flowID, _ := json.Marshal(flowIDsPrt)
+
+	prep := mock.ExpectPrepare("INSERT INTO network_policy")
+	prep.ExpectExec().
+		WithArgs(
+			"",     // str
+			"kind", // str
+			flowID, // []byte
+			"",     // str
+			"",     // str
+			"",     // str
+			"",     // str
+			"",     // str
+			"",     // str
+			"",     // str
+			spec,   // []byte
+			0,      // int
+		).WillReturnResult(sqlmock.NewResult(0, 1))
+
+	nfe := []types.KnoxNetworkPolicy{
+		types.KnoxNetworkPolicy{
+			Kind: "kind",
 		},
 	}
 
-	discovered := []types.KnoxNetworkPolicy{cidrPolicy}
-
-	err := InsertNetworkPoliciesToMySQL(cfgDB, discovered)
+	err := InsertNetworkPoliciesToMySQL(types.ConfigDB{DBDriver: "mysql", TableNetworkPolicy: "network_policy"}, nfe)
 	assert.NoError(t, err)
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("unmet expectation error: %s", err)
+	}
 }
