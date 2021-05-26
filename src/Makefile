@@ -7,10 +7,12 @@ build:
 
 .PHONY: test
 test:
-	cd $(CURDIR)/core; go clean -testcache .; go test -v .
+	cd $(CURDIR)/config; go clean -testcache .; go test -v .
+	cd $(CURDIR)/feedconsumer; go clean -testcache .; go test -v .
 	cd $(CURDIR)/libs; go clean -testcache .; go test -v .
 	cd $(CURDIR)/plugin; go clean -testcache .; go test -v .
 	cd $(CURDIR)/server; go clean -testcache .; go test -v .
+	cd $(CURDIR)/systempolicy; go clean -testcache .; go test -v .
 
 .PHONY: clean
 clean:

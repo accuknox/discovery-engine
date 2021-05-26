@@ -1,7 +1,6 @@
 package libs
 
 import (
-	"fmt"
 	"net"
 	"reflect"
 	"testing"
@@ -16,7 +15,6 @@ import (
 // ============= //
 
 func TestGetExternalIPAddr(t *testing.T) {
-	fmt.Println("hi")
 	actual := GetExternalIPAddr()
 
 	if actual != "None" && net.ParseIP(actual) == nil {
