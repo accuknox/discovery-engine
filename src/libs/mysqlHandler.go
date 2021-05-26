@@ -7,19 +7,45 @@ import (
 	"strings"
 	"time"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/accuknox/knoxAutoPolicy/src/types"
 
 	_ "github.com/go-sql-driver/mysql"
 )
 
+// ================ //
+// == Connection == //
+// ================ //
+
+var MockSql sqlmock.Sqlmock = nil
+var MockDB *sql.DB = nil
+
+func NewMock() (*sql.DB, sqlmock.Sqlmock) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		log.Error().Msgf("an error '%s' was not expected when opening a stub database connection", err)
+	}
+
+	MockSql = mock
+	MockDB = db
+
+	return db, mock
+}
+
 func connectMySQL(cfg types.ConfigDB) (db *sql.DB) {
+	if MockDB != nil {
+		return MockDB
+	}
+
 	db, err := sql.Open(cfg.DBDriver, cfg.DBUser+":"+cfg.DBPass+"@tcp("+cfg.DBHost+":"+cfg.DBPort+")/"+cfg.DBName)
 	for err != nil {
 		log.Error().Msg("connection error :" + err.Error())
 		time.Sleep(time.Second * 1)
 		db, err = sql.Open(cfg.DBDriver, cfg.DBUser+":"+cfg.DBPass+"@tcp("+cfg.DBHost+":"+cfg.DBPort+")/"+cfg.DBName)
 	}
+
 	db.SetMaxIdleConns(0)
+
 	return db
 }
 
@@ -669,12 +695,16 @@ func AddConfiguration(cfg types.ConfigDB, newConfig types.Configuration) error {
 	db := connectMySQL(cfg)
 	defer db.Close()
 
-	if CountConfigByName(db, cfg.TableConfiguration, newConfig.ConfigName) > 0 {
+	table := cfg.TableConfiguration
+	if table == "" {
+		table = "auto_policy_config"
+	}
+
+	if CountConfigByName(db, table, newConfig.ConfigName) > 0 {
 		return errors.New("Already exist config name: " + newConfig.ConfigName)
 	}
 
-	stmt, err := db.Prepare("INSERT INTO " +
-		cfg.TableConfiguration +
+	stmt, err := db.Prepare("INSERT INTO " + table +
 		"(config_name," +
 		"status," +
 		"config_db," +
@@ -682,21 +712,22 @@ func AddConfiguration(cfg types.ConfigDB, newConfig types.Configuration) error {
 		"operation_mode," +
 		"cronjob_time_interval," +
 		"one_time_job_time_selection," +
-
 		"network_log_from," +
+		"network_log_file," +
 		"network_policy_to," +
 		"network_policy_dir," +
 		"network_policy_types," +
 		"network_policy_rule_types," +
-
 		"network_policy_cidr_bits," +
 		"network_policy_ignoring_flows," +
-
 		"network_policy_l3_level," +
 		"network_policy_l4_level," +
-		"network_policy_l7_level) " +
-
-		"values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+		"network_policy_l7_level," +
+		"system_log_from," +
+		"system_log_file," +
+		"system_policy_to," +
+		"system_policy_dir) " +
+		"values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
 
 	if err != nil {
 		return err
@@ -730,6 +761,7 @@ func AddConfiguration(cfg types.ConfigDB, newConfig types.Configuration) error {
 		newConfig.CronJobTimeInterval,
 		newConfig.OneTimeJobTimeSelection,
 		newConfig.NetworkLogFrom,
+		newConfig.NetworkLogFile,
 		newConfig.NetworkPolicyTo,
 		newConfig.NetworkPolicyDir,
 		newConfig.NetPolicyTypes,
@@ -739,7 +771,10 @@ func AddConfiguration(cfg types.ConfigDB, newConfig types.Configuration) error {
 		newConfig.NetPolicyL3Level,
 		newConfig.NetPolicyL4Level,
 		newConfig.NetPolicyL7Level,
-	)
+		newConfig.SystemLogFrom,
+		newConfig.SystemLogFile,
+		newConfig.SystemPolicyTo,
+		newConfig.SystemPolicyDir)
 
 	if err != nil {
 		return err
@@ -757,18 +792,22 @@ func GetConfigurations(cfg types.ConfigDB, configName string) ([]types.Configura
 	var results *sql.Rows
 	var err error
 
-	query := "SELECT * FROM " + cfg.TableConfiguration
-	if configName != "" {
-		query = query + " WHERE config_name = ? "
-		results, err = db.Query(query, configName)
+	table := cfg.TableConfiguration
+	if table == "" {
+		table = "auto_policy_config"
 	}
 
-	defer results.Close()
+	query := "SELECT * FROM " + table
+	if configName != "" {
+		query = query + " WHERE config_name = ? "
+	}
 
+	results, err = db.Query(query, configName)
 	if err != nil {
 		log.Error().Msg(err.Error())
 		return nil, err
 	}
+	defer results.Close()
 
 	for results.Next() {
 		cfg := types.Configuration{}
@@ -793,6 +832,7 @@ func GetConfigurations(cfg types.ConfigDB, configName string) ([]types.Configura
 			&cfg.CronJobTimeInterval,
 			&cfg.OneTimeJobTimeSelection,
 			&cfg.NetworkLogFrom,
+			&cfg.NetworkLogFile,
 			&cfg.NetworkPolicyTo,
 			&cfg.NetworkPolicyDir,
 			&cfg.NetPolicyTypes,
@@ -802,6 +842,10 @@ func GetConfigurations(cfg types.ConfigDB, configName string) ([]types.Configura
 			&cfg.NetPolicyL3Level,
 			&cfg.NetPolicyL4Level,
 			&cfg.NetPolicyL7Level,
+			&cfg.SystemLogFrom,
+			&cfg.SystemLogFile,
+			&cfg.SystemPolicyTo,
+			&cfg.SystemPolicyDir,
 		); err != nil {
 			return nil, err
 		}
@@ -834,23 +878,32 @@ func UpdateConfiguration(cfg types.ConfigDB, configName string, updateConfig typ
 
 	var err error
 
-	stmt, err := db.Prepare("UPDATE " + cfg.TableConfiguration + " SET " +
-		"config_name=?," +
+	table := cfg.TableConfiguration
+	if table == "" {
+		table = "auto_policy_config"
+	}
+
+	stmt, err := db.Prepare("UPDATE " + table + " SET " +
 		"config_db=?," +
 		"config_cilium_hubble=?," +
 		"operation_mode=?," +
 		"cronjob_time_interval=?," +
 		"one_time_job_time_selection=?," +
 		"network_log_from=?," +
-		"discovered_policy_to=?," +
-		"policy_dir=?," +
-		"discovery_policy_types=?," +
-		"discovery_rule_types=?," +
-		"cidr_bits=?," +
-		"ignoring_flows=?," +
-		"l3_aggregation_level=?," +
-		"l4_aggregation_level=?," +
-		"l7_aggregation_level=? " +
+		"network_log_file=?," +
+		"network_policy_to=?," +
+		"network_policy_dir=?," +
+		"network_policy_types=?," +
+		"network_policy_rule_types=?," +
+		"network_policy_cidr_bits=?," +
+		"network_policy_ignoring_flows=?," +
+		"network_policy_l3_level=?," +
+		"network_policy_l4_level=?," +
+		"network_policy_l7_level=?," +
+		"system_log_from=?," +
+		"system_log_file=?," +
+		"system_policy_to=?," +
+		"system_policy_dir=? " +
 		"WHERE config_name=?")
 
 	if err != nil {
@@ -877,13 +930,14 @@ func UpdateConfiguration(cfg types.ConfigDB, configName string, updateConfig typ
 	}
 
 	_, err = stmt.Exec(
-		updateConfig.ConfigName,
 		configDB,
 		configCilium,
 		updateConfig.OperationMode,
 		updateConfig.CronJobTimeInterval,
 		updateConfig.OneTimeJobTimeSelection,
+
 		updateConfig.NetworkLogFrom,
+		updateConfig.NetworkLogFile,
 		updateConfig.NetworkPolicyTo,
 		updateConfig.NetworkPolicyDir,
 		updateConfig.NetPolicyTypes,
@@ -893,6 +947,11 @@ func UpdateConfiguration(cfg types.ConfigDB, configName string, updateConfig typ
 		updateConfig.NetPolicyL3Level,
 		updateConfig.NetPolicyL4Level,
 		updateConfig.NetPolicyL7Level,
+		updateConfig.SystemLogFrom,
+		updateConfig.SystemLogFile,
+		updateConfig.SystemPolicyTo,
+		updateConfig.SystemPolicyDir,
+
 		configName,
 	)
 
@@ -908,7 +967,12 @@ func DeleteConfiguration(cfg types.ConfigDB, configName string) error {
 	db := connectMySQL(cfg)
 	defer db.Close()
 
-	stmt, err := db.Prepare("DELETE FROM " + cfg.TableConfiguration + " WHERE config_name=?")
+	table := cfg.TableConfiguration
+	if table == "" {
+		table = "auto_policy_config"
+	}
+
+	stmt, err := db.Prepare("DELETE FROM " + table + " WHERE config_name=?")
 	if err != nil {
 		return err
 	}
@@ -992,6 +1056,7 @@ func CreateTableConfigurationMySQL(cfg types.ConfigDB) error {
 
 	tableName := cfg.TableConfiguration
 
+	// the number of column --> 23
 	query :=
 		"CREATE TABLE IF NOT EXISTS `" + tableName + "` ( " +
 			"	`id` int NOT NULL AUTO_INCREMENT, " +

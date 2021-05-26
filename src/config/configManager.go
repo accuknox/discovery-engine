@@ -10,35 +10,30 @@ import (
 	"github.com/spf13/viper"
 )
 
-// operation mode: 		   cronjob: 1
-//                 		   onetime job: 2
-// discovery policy types: egress only   : 1
-//                         ingress only  : 2
-//                         all           : 3
-// discovery rule types:   matchLabels: 1
-//                         toPorts    : 2
-//                         toHTTPs    : 4
-//                         toCIDRs    : 8
-//                         toEntities : 16
-//                         toServices : 32
-//                         toFQDNs    : 64
-//                         fromCIDRs  : 128
-//                         fromEntities : 256
-//                         all        : 511
+// operation mode: 		 cronjob: 1
+//                 		 onetime job: 2
+// network policy types: egress only   : 1
+//                       ingress only  : 2
+//                       all           : 3
+// network rule types:   matchLabels: 1
+//                       toPorts    : 2
+//                       toHTTPs    : 4
+//                       toCIDRs    : 8
+//                       toEntities : 16
+//                       toServices : 32
+//                       toFQDNs    : 64
+//                       fromCIDRs  : 128
+//                       fromEntities : 256
+//                       all        : 511
 
-// Cfg ...
 var Cfg types.Configuration
 
-// IgnoringNetworkNamespaces ...
 var IgnoringNetworkNamespaces []string
 
-// HTTPUrlThreshold ...
 var HTTPUrlThreshold int
 
-// NetworkPlugIn ...
 var NetworkPlugIn string
 
-// LoadConfigDB ...
 func LoadConfigDB() types.ConfigDB {
 	cfgDB := types.ConfigDB{}
 
@@ -67,7 +62,6 @@ func LoadConfigDB() types.ConfigDB {
 	return cfgDB
 }
 
-// LoadConfigCiliumHubble ...
 func LoadConfigCiliumHubble() types.ConfigCiliumHubble {
 	cfgHubble := types.ConfigCiliumHubble{}
 
@@ -84,7 +78,6 @@ func LoadConfigCiliumHubble() types.ConfigCiliumHubble {
 	return cfgHubble
 }
 
-// LoadDefaultConfig ...
 func LoadDefaultConfig() {
 	Cfg = types.Configuration{}
 
@@ -102,7 +95,7 @@ func LoadDefaultConfig() {
 
 	// set network policy discovery
 	Cfg.NetworkLogFrom = viper.GetString("application.network-log-from")
-	Cfg.NetworkLogFile = viper.GetString("application.network-log-file") // for just local testing
+	Cfg.NetworkLogFile = viper.GetString("application.network-log-file") // for local testing
 	Cfg.NetworkPolicyTo = viper.GetString("application.network-policy-to")
 	Cfg.NetworkPolicyDir = viper.GetString("application.network-policy-dir")
 
@@ -126,37 +119,37 @@ func LoadDefaultConfig() {
 
 	// set system policy discovery
 	Cfg.SystemLogFrom = viper.GetString("application.system-log-from")
+	Cfg.SystemLogFile = viper.GetString("application.system-log-file")
 	Cfg.SystemPolicyTo = viper.GetString("application.system-policy-to")
+	Cfg.SystemPolicyDir = viper.GetString("application.system-policy-dir")
 
 	libs.AddConfiguration(Cfg.ConfigDB, Cfg)
 }
 
-// SetLogFile for testing
 func SetLogFile(file string) {
 	Cfg.NetworkLogFile = file
 }
 
-// AddConfiguration function
+// ======================== //
+// == Configuration CRUD == //
+// ======================== //
+
 func AddConfiguration(newConfig types.Configuration) error {
 	return libs.AddConfiguration(Cfg.ConfigDB, newConfig)
 }
 
-// GetConfigurations function
 func GetConfigurations(configName string) ([]types.Configuration, error) {
 	return libs.GetConfigurations(Cfg.ConfigDB, configName)
 }
 
-// UpdateConfiguration function
 func UpdateConfiguration(configName string, updateConfig types.Configuration) error {
 	return libs.UpdateConfiguration(Cfg.ConfigDB, configName, updateConfig)
 }
 
-// DeleteConfiguration function
 func DeleteConfiguration(configName string) error {
 	return libs.DeleteConfiguration(Cfg.ConfigDB, configName)
 }
 
-// ApplyConfiguration ...
 func ApplyConfiguration(configName string) error {
 	if Cfg.ConfigName == configName {
 		return errors.New("Not applied " + configName + " due to same configuration name")
@@ -186,18 +179,6 @@ func ApplyConfiguration(configName string) error {
 // ============================ //
 // == Get Configuration Info == //
 // ============================ //
-
-func GetCfgSystemLogFrom() string {
-	return Cfg.SystemLogFrom
-}
-
-func GetCfgSystemLogFile() string {
-	return Cfg.SystemLogFile
-}
-
-func GetCfgSystemPolicyTo() string {
-	return Cfg.SystemPolicyTo
-}
 
 func GetCfgDB() types.ConfigDB {
 	return Cfg.ConfigDB
@@ -265,4 +246,16 @@ func GetCfgNetworkSkipNamespaces() []string {
 
 func GetCfgNetworkIgnoreFlows() []types.IgnoringFlows {
 	return Cfg.NetPolicyIgnoringFlows
+}
+
+func GetCfgSystemLogFrom() string {
+	return Cfg.SystemLogFrom
+}
+
+func GetCfgSystemLogFile() string {
+	return Cfg.SystemLogFile
+}
+
+func GetCfgSystemPolicyTo() string {
+	return Cfg.SystemPolicyTo
 }

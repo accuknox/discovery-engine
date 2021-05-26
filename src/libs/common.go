@@ -3,6 +3,7 @@ package libs
 import (
 	"bytes"
 	"encoding/json"
+	"flag"
 	"math/rand"
 	"net"
 	"net/http"
@@ -15,10 +16,35 @@ import (
 	"syscall"
 	"time"
 
+	logger "github.com/accuknox/knoxAutoPolicy/src/logging"
 	"github.com/accuknox/knoxAutoPolicy/src/types"
+	"github.com/rs/zerolog"
+	"github.com/spf13/viper"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"gopkg.in/yaml.v2"
 )
+
+// =================== //
+// == Configuration == //
+// =================== //
+
+func LoadConfigurationFile() {
+	configFilePath := flag.String("config-path", "conf/", "conf/")
+	flag.Parse()
+
+	viper.SetConfigName(GetEnv("CONF_FILE_NAME", "conf"))
+	viper.SetConfigType("yaml")
+	viper.AddConfigPath(*configFilePath)
+	if err := viper.ReadInConfig(); err != nil {
+		if readErr, ok := err.(viper.ConfigFileNotFoundError); ok {
+			var log *zerolog.Logger = logger.GetInstance()
+			log.Panic().Msgf("No config file found at %s\n", *configFilePath)
+		} else {
+			var log *zerolog.Logger = logger.GetInstance()
+			log.Panic().Msgf("Error reading config file: %s\n", readErr)
+		}
+	}
+}
 
 // ====================== //
 // == HTTP aggregation == //
