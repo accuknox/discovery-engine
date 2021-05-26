@@ -2,6 +2,7 @@ package networkpolicy
 
 import (
 	"fmt"
+	"net/http"
 	"regexp"
 	"sort"
 	"strconv"
@@ -32,6 +33,44 @@ var MergedSrcPerMergedDstForHTTP map[string][]*HTTPDst
 func init() {
 	WildPaths = []string{WildPathDigit, WildPathChar}
 	MergedSrcPerMergedDstForHTTP = map[string][]*HTTPDst{}
+}
+
+// ====================== //
+// == HTTP aggregation == //
+// ====================== //
+
+var httpMethods = []string{
+	http.MethodGet,
+	http.MethodHead,
+	http.MethodPost,
+	http.MethodPut,
+	http.MethodPatch,
+	http.MethodDelete,
+	http.MethodConnect,
+	http.MethodOptions,
+	http.MethodTrace,
+}
+
+// CheckHTTPMethod Function
+func CheckHTTPMethod(method string) bool {
+	for _, m := range httpMethods {
+		if strings.Contains(method, m) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// CheckSpecHTTP Function
+func CheckSpecHTTP(specs []string) bool {
+	for _, spec := range specs {
+		if CheckHTTPMethod(spec) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // ================== //
@@ -502,7 +541,7 @@ func AggregateHTTPRule(aggregatedSrcPerAggregatedDst map[string][]MergedPortDst)
 	for aggregatedSrc, dsts := range aggregatedSrcPerAggregatedDst {
 		for i, dst := range dsts {
 			// check if dst is for HTTP rules
-			if !libs.CheckSpecHTTP(dst.Additionals) {
+			if !CheckSpecHTTP(dst.Additionals) {
 				continue
 			}
 

@@ -21,22 +21,11 @@ const ( // status
 	STATUS_IDLE    = "idle"
 )
 
-var log *zerolog.Logger
-
-func init() {
-	log = logger.GetInstance()
-
-	waitG = sync.WaitGroup{}
-	consumer = &KnoxFeedsConsumer{}
-
-	Status = STATUS_IDLE
-}
-
 // ====================== //
 // == Gloabl Variables == //
 // ====================== //
 
-var consumer *KnoxFeedsConsumer
+var consumer *KnoxFeedConsumer
 
 var Status string
 
@@ -49,14 +38,28 @@ var netLogEventsCount int
 var syslogEvents []types.SystemLogEvent
 var syslogEventsCount int
 
-// Consumer - Consumes Cilium Feeds
-type KnoxFeedsConsumer struct {
+var log *zerolog.Logger
+
+func init() {
+	log = logger.GetInstance()
+
+	waitG = sync.WaitGroup{}
+	consumer = &KnoxFeedConsumer{}
+
+	Status = STATUS_IDLE
+}
+
+// ======================== //
+// == Knox Feed Consumer == //
+// ======================== //
+
+type KnoxFeedConsumer struct {
 	kafkaConfig  kafka.ConfigMap
 	topics       []string
 	eventsBuffer int
 }
 
-func (cfc *KnoxFeedsConsumer) setupKafkaConfig() {
+func (cfc *KnoxFeedConsumer) setupKafkaConfig() {
 	bootstrapServers := viper.GetString("kafka.bootstrap-servers")
 	brokderAddressFamily := viper.GetString("kafka.broker-address-family")
 	sessionTimeoutMs := viper.GetString("kafka.session-timeout-ms")
@@ -94,7 +97,7 @@ func (cfc *KnoxFeedsConsumer) setupKafkaConfig() {
 	}
 }
 
-func (cfc *KnoxFeedsConsumer) startConsumer() {
+func (cfc *KnoxFeedConsumer) startConsumer() {
 	defer waitG.Done()
 
 	c, err := kafka.NewConsumer(&cfc.kafkaConfig)
@@ -158,7 +161,7 @@ func (cfc *KnoxFeedsConsumer) startConsumer() {
 	c.Close()
 }
 
-func (cfc *KnoxFeedsConsumer) processNetworkLogMessage(message []byte) error {
+func (cfc *KnoxFeedConsumer) processNetworkLogMessage(message []byte) error {
 	event := types.NetworkLogEvent{}
 	var eventMap map[string]json.RawMessage
 	err := json.Unmarshal(message, &eventMap)
@@ -200,7 +203,7 @@ func (cfc *KnoxFeedsConsumer) processNetworkLogMessage(message []byte) error {
 	return nil
 }
 
-func (cfc *KnoxFeedsConsumer) PushNetworkLogToDB() bool {
+func (cfc *KnoxFeedConsumer) PushNetworkLogToDB() bool {
 	if err := libs.InsertNetworkLogToDB(cfg.GetCfgDB(), netLogEvents); err != nil {
 		log.Error().Msgf("InsertNetworkFlowToDB err: %s", err.Error())
 		return false
@@ -209,7 +212,7 @@ func (cfc *KnoxFeedsConsumer) PushNetworkLogToDB() bool {
 	return true
 }
 
-func (cfc *KnoxFeedsConsumer) processSystemLogMessage(message []byte) error {
+func (cfc *KnoxFeedConsumer) processSystemLogMessage(message []byte) error {
 	syslogEvent := types.SystemLogEvent{}
 
 	err := json.Unmarshal(message, &syslogEvent)
@@ -237,7 +240,7 @@ func (cfc *KnoxFeedsConsumer) processSystemLogMessage(message []byte) error {
 	return nil
 }
 
-func (cfc *KnoxFeedsConsumer) PushSystemLogToDB() bool {
+func (cfc *KnoxFeedConsumer) PushSystemLogToDB() bool {
 	if err := libs.InsertSystemLogToDB(cfg.GetCfgDB(), syslogEvents); err != nil {
 		log.Error().Msgf("InsertSystemLogToDB err: %s", err.Error())
 		return false
@@ -246,9 +249,9 @@ func (cfc *KnoxFeedsConsumer) PushSystemLogToDB() bool {
 	return true
 }
 
-// ============== //
-// == Consumer == //
-// ============== //
+// =================== //
+// == Consumer Main == //
+// =================== //
 
 func StartConsumer() {
 	if Status != STATUS_IDLE {

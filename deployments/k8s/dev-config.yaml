@@ -6,19 +6,22 @@ data:
   conf.yaml: |-
     application:
       name: knoxautopolicy
-      operation-mode: 1
+      operation-mode: 2
       cron-job-time-interval: "@every 0h0m10s"
       network-log-from: db
-      network-log-from: "./flow.json"
+      network-log-file: "./flow.json"
       network-policy-to: "db|file"
       network-policy-dir: "./"
       network-policy-types: 3
       network-policy-rule-types: 511
       network-policy-ignoring-namespaces: "kube-system"
       system-log-from: db
+      system-log-file: "./log.json"
       system-policy-to: "db|file"
-      accuknox-cluster-mgmt: "http://cluster-management-service.accuknox-dev-cluster-mgmt.svc.cluster.local"
-
+      system-policy-dir: "./"
+      #accuknox-cluster-mgmt: "http://cluster-management-service.accuknox-dev-cluster-mgmt.svc.cluster.local/cm"
+      accuknox-cluster-mgmt: "http://localhost:8080"
+    
     logging:
       level: INFO
 

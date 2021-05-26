@@ -1,22 +1,12 @@
 package feedconsumer
 
 import (
-	"bytes"
 	"testing"
 
-	types "github.com/accuknox/knoxAutoPolicy/src/types"
-	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 )
 
-func initMockYaml() {
-	viper.SetConfigType("yaml")
-	viper.ReadConfig(bytes.NewBuffer(types.MockConfigYaml))
-}
-
 func TestProcessMessage(t *testing.T) {
-	initMockYaml()
-
 	var cilium string = `{
 		"cluster_name":"accuknox-dev",
 		"component_name":"cilium",
@@ -97,15 +87,13 @@ func TestProcessMessage(t *testing.T) {
 	 }`
 
 	dataBytes := []byte(cilium)
-	consumer = &KnoxFeedsConsumer{}
+	consumer = &KnoxFeedConsumer{}
 
 	err := consumer.processNetworkLogMessage(dataBytes)
 	assert.NoError(t, err)
 }
 
 func TestProcessSystemLogMessage(t *testing.T) {
-	initMockYaml()
-
 	var kubearmor string = `{
 		"ContainerID":"78c4b0cb165d24e6ae4049fa2547507be26f7def6bf39a265b9360928a606e2a",
 		"ContainerName":"k8s_server_recommendationservice-cb98b57c-6255h_default_57402aec-19ae-4119-a090-fa3d223cea11_745",
@@ -129,7 +117,7 @@ func TestProcessSystemLogMessage(t *testing.T) {
 	 }`
 
 	dataBytes := []byte(kubearmor)
-	consumer = &KnoxFeedsConsumer{}
+	consumer = &KnoxFeedConsumer{}
 
 	err := consumer.processSystemLogMessage(dataBytes)
 	assert.NoError(t, err)

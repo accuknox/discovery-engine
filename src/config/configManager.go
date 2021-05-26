@@ -26,6 +26,10 @@ import (
 //                       fromEntities : 256
 //                       all        : 511
 
+// ====================== //
+// == Global Variables == //
+// ====================== //
+
 var Cfg types.Configuration
 
 var IgnoringNetworkNamespaces []string
@@ -33,6 +37,10 @@ var IgnoringNetworkNamespaces []string
 var HTTPUrlThreshold int
 
 var NetworkPlugIn string
+
+// =========================== //
+// == Configuration Loading == //
+// =========================== //
 
 func LoadConfigDB() types.ConfigDB {
 	cfgDB := types.ConfigDB{}
