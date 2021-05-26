@@ -66,10 +66,7 @@ func ConvertMySQLKubeArmorLogsToKnoxSystemLogs(docs []map[string]interface{}) []
 func ConvertKubeArmorSystemLogsToKnoxSystemLogs(dbDriver string, docs []map[string]interface{}) []types.KnoxSystemLog {
 	if dbDriver == "mysql" {
 		return ConvertMySQLKubeArmorLogsToKnoxSystemLogs(docs)
-	} else if dbDriver == "mongo" {
-		// TODO: mongodb
-		return []types.KnoxSystemLog{}
-	} else {
-		return []types.KnoxSystemLog{}
 	}
+
+	return []types.KnoxSystemLog{}
 }

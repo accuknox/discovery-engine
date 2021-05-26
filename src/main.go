@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"net"
 	"os"
 
@@ -14,8 +13,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-var configFilePath *string
-
 var log *zerolog.Logger
 
 // ==================== //
@@ -24,21 +21,7 @@ var log *zerolog.Logger
 
 func init() {
 	// 1. load configurations
-	configFilePath = flag.String("config-path", "conf/", "conf/")
-	flag.Parse()
-
-	viper.SetConfigName(libs.GetEnv("CONF_FILE_NAME", "conf"))
-	viper.SetConfigType("yaml")
-	viper.AddConfigPath(*configFilePath)
-	if err := viper.ReadInConfig(); err != nil {
-		if readErr, ok := err.(viper.ConfigFileNotFoundError); ok {
-			var log *zerolog.Logger = logger.GetInstance()
-			log.Panic().Msgf("No config file found at %s\n", *configFilePath)
-		} else {
-			var log *zerolog.Logger = logger.GetInstance()
-			log.Panic().Msgf("Error reading config file: %s\n", readErr)
-		}
-	}
+	libs.LoadConfigurationFile()
 	config.LoadDefaultConfig()
 
 	// 2. setup logger

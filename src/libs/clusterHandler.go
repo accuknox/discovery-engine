@@ -40,7 +40,7 @@ func getResponseBytes(mothod string, url string, data map[string]interface{}) []
 	// create a new request using http [method; POST, GET]
 	req, err := http.NewRequest(mothod, url, bytes.NewBuffer(jsonData))
 	if err != nil {
-		log.Error().Msgf("http reqeust error:", err)
+		log.Error().Msgf("http reqeust error: %s", err.Error())
 		return nil
 	}
 

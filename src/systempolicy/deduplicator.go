@@ -10,7 +10,6 @@ import (
 // == Exact Matching == //
 // ==================== //
 
-// IsExistingPolicy function
 func IsExistingPolicy(existingPolicies []types.KubeArmorSystemPolicy, newPolicy types.KubeArmorSystemPolicy) bool {
 	for _, exist := range existingPolicies {
 		if exist.Metadata["clusterName"] == newPolicy.Metadata["clusterName"] &&

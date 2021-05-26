@@ -280,8 +280,6 @@ func ClearDBTables(cfg types.ConfigDB) {
 		if err := ClearDBTablesMySQL(cfg); err != nil {
 			log.Error().Msg(err.Error())
 		}
-	} else if cfg.DBDriver == "mongodb" {
-		// TODO: MongoDB
 	}
 }
 
@@ -303,7 +301,5 @@ func CreateTablesIfNotExist(cfg types.ConfigDB) {
 		if err := CreateTableSystemPolicyMySQL(cfg); err != nil {
 			log.Error().Msg(err.Error())
 		}
-	} else if cfg.DBDriver == "mongodb" {
-		// TODO: mongod
 	}
 }

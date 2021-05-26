@@ -297,7 +297,7 @@ func groupNetworkLogPerDst(networkLogs []types.KnoxNetworkLog, endpoints []types
 
 	// remove tcp dst which is included in http dst
 	for dst := range perDst {
-		if dst.Protocol == 6 && libs.CheckHTTPMethod(dst.Additional) {
+		if dst.Protocol == 6 && CheckHTTPMethod(dst.Additional) {
 			dstCopy := dst
 
 			dstCopy.Additional = ""
@@ -1266,7 +1266,7 @@ func buildNetworkPolicy(namespace string, services []types.Service, aggregatedSr
 						// =============== //
 						// build HTTP rule //
 						// =============== //
-						if toPort.Protocol == "tcp" && libs.CheckSpecHTTP(dst.Additionals) {
+						if toPort.Protocol == "tcp" && CheckSpecHTTP(dst.Additionals) {
 							egressRule.ToHTTPs = []types.SpecHTTP{}
 
 							sort.Strings(dst.Additionals)
