@@ -38,14 +38,13 @@ func init() {
 
 var consumer *KnoxFeedsConsumer
 
-// Status global
 var Status string
 
 var waitG sync.WaitGroup
 var stopChan chan struct{}
 
-var events []types.NetworkLogEvent
-var eventsCount int
+var netLogEvents []types.NetworkLogEvent
+var netLogEventsCount int
 
 var syslogEvents []types.SystemLogEvent
 var syslogEventsCount int
@@ -68,7 +67,7 @@ func (cfc *KnoxFeedsConsumer) setupKafkaConfig() {
 
 	cfc.eventsBuffer = viper.GetInt("kafka.events.buffer")
 
-	events = make([]types.NetworkLogEvent, 0, cfc.eventsBuffer)
+	netLogEvents = make([]types.NetworkLogEvent, 0, cfc.eventsBuffer)
 	syslogEvents = make([]types.SystemLogEvent, 0, cfc.eventsBuffer)
 
 	sslEnabled := viper.GetBool("kafka.ssl.enabled")
@@ -129,7 +128,7 @@ func (cfc *KnoxFeedsConsumer) startConsumer() {
 			switch e := ev.(type) {
 			case *kafka.Message:
 				if *e.TopicPartition.Topic != "kubearmor-syslogs" { // cilium-hubble
-					cfc.processMessage(e.Value)
+					cfc.processNetworkLogMessage(e.Value)
 					if e.Headers != nil {
 						log.Debug().Msgf("Headers: %v", e.Headers)
 					}
@@ -159,7 +158,7 @@ func (cfc *KnoxFeedsConsumer) startConsumer() {
 	c.Close()
 }
 
-func (cfc *KnoxFeedsConsumer) processMessage(message []byte) error {
+func (cfc *KnoxFeedsConsumer) processNetworkLogMessage(message []byte) error {
 	event := types.NetworkLogEvent{}
 	var eventMap map[string]json.RawMessage
 	err := json.Unmarshal(message, &eventMap)
@@ -182,27 +181,27 @@ func (cfc *KnoxFeedsConsumer) processMessage(message []byte) error {
 
 	// add cluster_name to the event
 	event.ClusterName = clusterNameStr
-	events = append(events, event)
-	eventsCount++
+	netLogEvents = append(netLogEvents, event)
+	netLogEventsCount++
 
-	if eventsCount == cfc.eventsBuffer {
-		if len(events) > 0 {
-			isSuccess := cfc.PushToDB()
+	if netLogEventsCount == cfc.eventsBuffer {
+		if len(netLogEvents) > 0 {
+			isSuccess := cfc.PushNetworkLogToDB()
 			if !isSuccess {
 				return errors.New("Error saving to DB")
 			}
-			events = nil
-			events = make([]types.NetworkLogEvent, 0, cfc.eventsBuffer)
+			netLogEvents = nil
+			netLogEvents = make([]types.NetworkLogEvent, 0, cfc.eventsBuffer)
 		}
 
-		eventsCount = 0
+		netLogEventsCount = 0
 	}
 
 	return nil
 }
 
-func (cfc *KnoxFeedsConsumer) PushToDB() bool {
-	if err := libs.InsertNetworkLogToDB(cfg.GetCfgDB(), events); err != nil {
+func (cfc *KnoxFeedsConsumer) PushNetworkLogToDB() bool {
+	if err := libs.InsertNetworkLogToDB(cfg.GetCfgDB(), netLogEvents); err != nil {
 		log.Error().Msgf("InsertNetworkFlowToDB err: %s", err.Error())
 		return false
 	}
@@ -262,7 +261,7 @@ func StartConsumer() {
 	go consumer.startConsumer()
 	Status = STATUS_RUNNING
 	waitG.Add(1)
-	log.Info().Msg("Cilium feeds consumer started")
+	log.Info().Msg("Knox feed consumer started")
 }
 
 func StopConsumer() {
@@ -275,5 +274,5 @@ func StopConsumer() {
 	close(stopChan)
 	waitG.Wait()
 
-	log.Info().Msg("The consumer stopped")
+	log.Info().Msg("Knox feed consumer stopped")
 }
