@@ -11,19 +11,11 @@ import (
 	types "github.com/accuknox/knoxAutoPolicy/src/types"
 )
 
-// WildPathDigit ...
 var WildPathDigit string = "/[0-9]+"
-
-// WildPathDigitLeaf ...
 var WildPathDigitLeaf string = "/[0-9^/]+"
-
-// WildPathChar ...
 var WildPathChar string = "/.+"
-
-// WildPathCharLeaf ...
 var WildPathCharLeaf string = "/.[^/]+"
 
-// WildPaths ...
 var WildPaths []string
 
 const Threshold = 3
@@ -72,7 +64,6 @@ func (n *Node) getChildNodesCount() int {
 	return results
 }
 
-// generatePaths ...
 func (n *Node) generatePaths(results map[string]bool, parentPath string) {
 	for _, childNode := range n.childNodes {
 		childNode.generatePaths(results, parentPath+n.path)
@@ -88,7 +79,6 @@ func (n *Node) generatePaths(results map[string]bool, parentPath string) {
 	}
 }
 
-// insert ...
 func (n *Node) insert(paths []string) {
 	for _, path := range paths {
 		child := n.findChildNode(path, n.depth+1)
@@ -112,7 +102,6 @@ func (n *Node) insert(paths []string) {
 	}
 }
 
-// aggregateChildNodes ...
 func (n *Node) aggregateChildNodes() {
 	// depth first search
 	for _, childNode := range n.childNodes {
@@ -132,7 +121,6 @@ func (n *Node) aggregateChildNodes() {
 	}
 }
 
-// findChildNode ...
 func (n *Node) findChildNode(path string, depth int) *Node {
 	for _, child := range n.childNodes {
 		// case 1: regex matching

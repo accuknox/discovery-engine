@@ -12,22 +12,12 @@ import (
 	types "github.com/accuknox/knoxAutoPolicy/src/types"
 )
 
-// WildPathDigit ...
 var WildPathDigit string = "/[0-9]+"
-
-// WildPathDigitLeaf ...
 var WildPathDigitLeaf string = "/[0-9^/]+"
-
-// WildPathChar ...
 var WildPathChar string = "/.+"
-
-// WildPathCharLeaf ...
 var WildPathCharLeaf string = "/.[^/]+"
-
-// WildPaths ...
 var WildPaths []string
 
-// MergedSrcPerMergedDstForHTTP ...
 var MergedSrcPerMergedDstForHTTP map[string][]*HTTPDst
 
 func init() {
@@ -51,7 +41,6 @@ var httpMethods = []string{
 	http.MethodTrace,
 }
 
-// CheckHTTPMethod Function
 func CheckHTTPMethod(method string) bool {
 	for _, m := range httpMethods {
 		if strings.Contains(method, m) {
@@ -62,7 +51,6 @@ func CheckHTTPMethod(method string) bool {
 	return false
 }
 
-// CheckSpecHTTP Function
 func CheckSpecHTTP(specs []string) bool {
 	for _, spec := range specs {
 		if CheckHTTPMethod(spec) {
@@ -138,7 +126,6 @@ func setHTTPTree(targetSrc string, targetDst MergedPortDst, tree map[string]map[
 // == PathNode and functions == //
 // ============================ //
 
-// Node Structure
 type Node struct {
 	path string
 
@@ -147,7 +134,6 @@ type Node struct {
 	childNodes []*Node
 }
 
-// MergedNode Structure
 type MergedNode struct {
 	path string
 
@@ -155,7 +141,6 @@ type MergedNode struct {
 	touchCount int
 }
 
-// HTTPDst Structure
 type HTTPDst struct {
 	Namespace   string
 	MatchLabels string
@@ -173,7 +158,6 @@ func (n *Node) getChildNodesCount() int {
 	return results
 }
 
-// generatePaths ...
 func (n *Node) generatePaths(results map[string]bool, parentPath string) {
 	for _, childNode := range n.childNodes {
 		childNode.generatePaths(results, parentPath+n.path)
@@ -196,7 +180,6 @@ func (n *Node) generatePaths(results map[string]bool, parentPath string) {
 	}
 }
 
-// insert ...
 func (n *Node) insert(paths []string) {
 	for _, path := range paths {
 		child := n.findChildNode(path, n.depth+1)
@@ -220,7 +203,6 @@ func (n *Node) insert(paths []string) {
 	}
 }
 
-// aggregateChildNodes ...
 func (n *Node) aggregateChildNodes() {
 	// depth first iterate
 	for _, childNode := range n.childNodes {
@@ -270,7 +252,6 @@ func (n *Node) aggregateChildNodes() {
 	}
 }
 
-// findChildNode ...
 func (n *Node) findChildNode(path string, depth int) *Node {
 	for _, child := range n.childNodes {
 		// case 1: regex matching
@@ -454,7 +435,6 @@ func buildPathTree(treeMap map[string]*Node, paths []string) {
 // == Aggreagtion function == //
 // ========================== //
 
-// aggreateHTTPPathsNaive function
 func aggreateHTTPPathsNaive(paths []string) []string {
 	aggregatedPaths := []string{}
 
@@ -500,7 +480,6 @@ func aggreateHTTPPathsNaive(paths []string) []string {
 	return aggregatedPaths
 }
 
-// AggregatePaths ...
 func AggregatePaths(treeMap map[string]*Node, paths []string) []string {
 	// build path tree
 	buildPathTree(treeMap, paths)
@@ -531,7 +510,6 @@ func AggregatePaths(treeMap map[string]*Node, paths []string) []string {
 	return results
 }
 
-// AggregateHTTPRule function
 func AggregateHTTPRule(aggregatedSrcPerAggregatedDst map[string][]MergedPortDst) {
 	// if level 1, do not aggregate http path
 	if L7DiscoveryLevel == 1 {

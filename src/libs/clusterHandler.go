@@ -119,7 +119,6 @@ func authLogin() error {
 // == Cluster == //
 // ============= //
 
-// GetClustersFromClusterNames Function
 func GetClustersFromClusterNames(clusterNames []string) []types.Cluster {
 	results := []types.Cluster{}
 
@@ -136,7 +135,6 @@ func GetClustersFromClusterNames(clusterNames []string) []types.Cluster {
 	return results
 }
 
-// GetClusterFromClusterName Function
 func GetClusterFromClusterName(clusterName string) types.Cluster {
 	results := []types.Cluster{}
 
@@ -157,7 +155,6 @@ func GetClusterFromClusterName(clusterName string) types.Cluster {
 	return types.Cluster{}
 }
 
-// GetAllClusterResources Function
 func GetAllClusterResources(cluster types.Cluster) ([]string, []types.Service, []types.Endpoint, []types.Pod) {
 	namespaces := GetNamespacesFromCluster(cluster)
 	services := GetServicesFromCluster(cluster)
@@ -171,7 +168,6 @@ func GetAllClusterResources(cluster types.Cluster) ([]string, []types.Service, [
 // == Namespace == //
 // =============== //
 
-// GetNamespacesFromCluster Function
 func GetNamespacesFromCluster(cluster types.Cluster) []string {
 	results := []string{}
 
@@ -198,7 +194,6 @@ func GetNamespacesFromCluster(cluster types.Cluster) []string {
 // == Service == //
 // ============= //
 
-// GetServicesFromCluster Function
 func GetServicesFromCluster(cluster types.Cluster) []types.Service {
 	results := []types.Service{}
 
@@ -267,7 +262,6 @@ func GetServicesFromCluster(cluster types.Cluster) []types.Service {
 // == Endpoint == //
 // ============== //
 
-// GetEndpointsFromCluster Function
 func GetEndpointsFromCluster(cluster types.Cluster) []types.Endpoint {
 	results := []types.Endpoint{}
 
@@ -296,7 +290,11 @@ func GetEndpointsFromCluster(cluster types.Cluster) []types.Endpoint {
 // == Pod == //
 // ========= //
 
-// GetPodsFromCluster Function
+var skippedLabelKeys []string = []string{
+	"pod-template-hash",                  // common k8s hash label
+	"controller-revision-hash",           // from istana robot-shop
+	"statefulset.kubernetes.io/pod-name"} // from istana robot-shop
+
 func GetPodsFromCluster(cluster types.Cluster) []types.Pod {
 	results := []types.Pod{}
 
@@ -306,8 +304,6 @@ func GetPodsFromCluster(cluster types.Cluster) []types.Pod {
 		"ClusterID":   []int{cluster.ClusterID},
 		"Time":        0,
 	}
-
-	skippedLabelKeys := []string{"pod-template-hash"}
 
 	res := getResponseBytes("POST", url, data)
 	pods := []map[string]interface{}{}

@@ -7,7 +7,6 @@ import (
 	"github.com/accuknox/knoxAutoPolicy/src/types"
 )
 
-// ConvertMySQLKubeArmorLogsToKnoxSystemLogs function
 func ConvertMySQLKubeArmorLogsToKnoxSystemLogs(docs []map[string]interface{}) []types.KnoxSystemLog {
 	results := []types.KnoxSystemLog{}
 
@@ -62,7 +61,6 @@ func ConvertMySQLKubeArmorLogsToKnoxSystemLogs(docs []map[string]interface{}) []
 	return results
 }
 
-// ConvertKubeArmorSystemLogsToKnoxSystemLogs function
 func ConvertKubeArmorSystemLogsToKnoxSystemLogs(dbDriver string, docs []map[string]interface{}) []types.KnoxSystemLog {
 	if dbDriver == "mysql" {
 		return ConvertMySQLKubeArmorLogsToKnoxSystemLogs(docs)

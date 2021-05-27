@@ -17,7 +17,6 @@ var LastFlowID int64 = 0
 var startTime int64 = 0
 var endTime int64 = 0
 
-// updateTimeInterval function
 func updateTimeInterval(lastDoc map[string]interface{}) {
 	if val, ok := lastDoc["timestamp"].(primitive.DateTime); ok {
 		ts := val
@@ -27,7 +26,6 @@ func updateTimeInterval(lastDoc map[string]interface{}) {
 	}
 }
 
-// GetNetworkLogsFromDB function
 func GetNetworkLogsFromDB(cfg types.ConfigDB, timeSelection string) []map[string]interface{} {
 	results := []map[string]interface{}{}
 
@@ -82,7 +80,6 @@ func GetNetworkLogsFromDB(cfg types.ConfigDB, timeSelection string) []map[string
 	return results
 }
 
-// InsertNetworkLogToDB function
 func InsertNetworkLogToDB(cfg types.ConfigDB, nfe []types.NetworkLogEvent) error {
 	if cfg.DBDriver == "mysql" {
 		if err := InsertNetworkLogToMySQL(cfg, nfe); err != nil {
@@ -97,7 +94,6 @@ func InsertNetworkLogToDB(cfg types.ConfigDB, nfe []types.NetworkLogEvent) error
 // == Network Policy == //
 // ==================== //
 
-// GetNetworkPolicies Function
 func GetNetworkPolicies(cfg types.ConfigDB, namespace, status string) []types.KnoxNetworkPolicy {
 	results := []types.KnoxNetworkPolicy{}
 
@@ -112,7 +108,6 @@ func GetNetworkPolicies(cfg types.ConfigDB, namespace, status string) []types.Kn
 	return results
 }
 
-// GetNetworkPoliciesBySelector Function
 func GetNetworkPoliciesBySelector(cfg types.ConfigDB, namespace, status string, selector map[string]string) ([]types.KnoxNetworkPolicy, error) {
 	results := []types.KnoxNetworkPolicy{}
 
@@ -149,7 +144,6 @@ func GetNetworkPoliciesBySelector(cfg types.ConfigDB, namespace, status string, 
 	return filtered, nil
 }
 
-// UpdateOutdatedNetworkPolicy function
 func UpdateOutdatedNetworkPolicy(cfg types.ConfigDB, outdatedPolicy string, latestPolicy string) {
 	if cfg.DBDriver == "mysql" {
 		if err := UpdateOutdatedPolicyFromMySQL(cfg, outdatedPolicy, latestPolicy); err != nil {
@@ -158,7 +152,6 @@ func UpdateOutdatedNetworkPolicy(cfg types.ConfigDB, outdatedPolicy string, late
 	}
 }
 
-// InsertNetworkPolicies function
 func InsertNetworkPolicies(cfg types.ConfigDB, policies []types.KnoxNetworkPolicy) {
 	if cfg.DBDriver == "mysql" {
 		if err := InsertNetworkPoliciesToMySQL(cfg, policies); err != nil {
@@ -176,7 +169,6 @@ var LastSyslogID int64 = 0
 var syslogStartTime int64 = 0
 var syslogEndTime int64 = 0
 
-// GetSystemLogsFromDB function
 func GetSystemLogsFromDB(cfg types.ConfigDB, timeSelection string) []map[string]interface{} {
 	results := []map[string]interface{}{}
 
@@ -231,7 +223,6 @@ func GetSystemLogsFromDB(cfg types.ConfigDB, timeSelection string) []map[string]
 	return results
 }
 
-// InsertSystemLogToDB function
 func InsertSystemLogToDB(cfg types.ConfigDB, sle []types.SystemLogEvent) error {
 	if cfg.DBDriver == "mysql" {
 		if err := InsertSystemLogToMySQL(cfg, sle); err != nil {
@@ -246,7 +237,6 @@ func InsertSystemLogToDB(cfg types.ConfigDB, sle []types.SystemLogEvent) error {
 // == System Policy == //
 // =================== //
 
-// GetSystemPolicies Function
 func GetSystemPolicies(cfg types.ConfigDB, namespace, status string) []types.KubeArmorSystemPolicy {
 	results := []types.KubeArmorSystemPolicy{}
 
@@ -261,7 +251,6 @@ func GetSystemPolicies(cfg types.ConfigDB, namespace, status string) []types.Kub
 	return results
 }
 
-// InsertSystemPolicies function
 func InsertSystemPolicies(cfg types.ConfigDB, policies []types.KubeArmorSystemPolicy) {
 	if cfg.DBDriver == "mysql" {
 		if err := InsertSystemPoliciesToMySQL(cfg, policies); err != nil {
@@ -274,7 +263,6 @@ func InsertSystemPolicies(cfg types.ConfigDB, policies []types.KubeArmorSystemPo
 // == Table == //
 // =========== //
 
-// ClearDBTables function
 func ClearDBTables(cfg types.ConfigDB) {
 	if cfg.DBDriver == "mysql" {
 		if err := ClearDBTablesMySQL(cfg); err != nil {
@@ -283,7 +271,6 @@ func ClearDBTables(cfg types.ConfigDB) {
 	}
 }
 
-// CreateTablesIfNotExist function
 func CreateTablesIfNotExist(cfg types.ConfigDB) {
 	if cfg.DBDriver == "mysql" {
 		if err := CreateTableConfigurationMySQL(cfg); err != nil {

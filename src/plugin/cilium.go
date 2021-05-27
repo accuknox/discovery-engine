@@ -22,38 +22,14 @@ import (
 	"github.com/cilium/cilium/api/v1/observer"
 )
 
-var log *zerolog.Logger
-
-func init() {
-	log = logger.GetInstance()
-}
-
-// ======================= //
-// == Gloabl Variables  == //
-// ======================= //
-
-// CiliumFlows list for directly hubble connections
-var CiliumFlows []*cilium.Flow
-
-// CiliumFlowsMutex mutext for directly hubble connections
-var CiliumFlowsMutex *sync.Mutex
-
-func init() {
-	// init mutex for hubble relay
-	CiliumFlowsMutex = &sync.Mutex{}
-}
-
-// CiliumReserved ...
 var CiliumReserved string = "reserved:"
 
-// Enum value maps for TrafficDirection.
 var TrafficDirection = map[string]int{
 	"TRAFFIC_DIRECTION_UNKNOWN": 0,
 	"INGRESS":                   1,
 	"EGRESS":                    2,
 }
 
-// Enum value maps for TraceObservationPoint.
 var TraceObservationPoint = map[string]int{
 	"UNKNOWN_POINT": 0,
 	"TO_PROXY":      1,
@@ -77,6 +53,20 @@ var Verdict = map[string]int{
 	"ERROR":           3,
 }
 
+// ======================= //
+// == Gloabl Variables  == //
+// ======================= //
+
+var CiliumFlows []*cilium.Flow
+var CiliumFlowsMutex *sync.Mutex
+
+var log *zerolog.Logger
+
+func init() {
+	log = logger.GetInstance()
+	CiliumFlowsMutex = &sync.Mutex{}
+}
+
 // ====================== //
 // == Helper Functions == //
 // ====================== //
@@ -93,7 +83,6 @@ func convertTraceObservationPointToInt(tType interface{}) int {
 	return TraceObservationPoint[tType.(string)]
 }
 
-// isSynFlagOnly function
 func isSynFlagOnly(tcp *cilium.TCP) bool {
 	if tcp.Flags != nil && tcp.Flags.SYN && !tcp.Flags.ACK {
 		return true
@@ -101,7 +90,6 @@ func isSynFlagOnly(tcp *cilium.TCP) bool {
 	return false
 }
 
-// getL4Ports function
 func getL4Ports(l4 *cilium.Layer4) (int, int) {
 	if l4.GetTCP() != nil {
 		return int(l4.GetTCP().SourcePort), int(l4.GetTCP().DestinationPort)
@@ -114,7 +102,6 @@ func getL4Ports(l4 *cilium.Layer4) (int, int) {
 	}
 }
 
-// getProtocol function
 func getProtocol(l4 *cilium.Layer4) int {
 	if l4.GetTCP() != nil {
 		return 6
@@ -127,7 +114,6 @@ func getProtocol(l4 *cilium.Layer4) int {
 	}
 }
 
-// getProtocolStr function
 func getProtocolStr(l4 *cilium.Layer4) string {
 	if l4.GetTCP() != nil {
 		return "tcp"
@@ -140,7 +126,6 @@ func getProtocolStr(l4 *cilium.Layer4) string {
 	}
 }
 
-// getReservedLabelIfExist function
 func getReservedLabelIfExist(labels []string) string {
 	for _, label := range labels {
 		if strings.HasPrefix(label, "reserved:") {
@@ -151,7 +136,6 @@ func getReservedLabelIfExist(labels []string) string {
 	return ""
 }
 
-// getHTTP function
 func getHTTP(flow *cilium.Flow) (string, string) {
 	if flow.L7 != nil && flow.L7.GetHttp() != nil {
 		if flow.L7.GetType() == 1 { // REQUEST only
@@ -174,7 +158,6 @@ func getHTTP(flow *cilium.Flow) (string, string) {
 // == Network Flow Convertor == //
 // ============================ //
 
-// ConvertCiliumFlowToKnoxNetworkLog function
 func ConvertCiliumFlowToKnoxNetworkLog(ciliumFlow *cilium.Flow) (types.KnoxNetworkLog, bool) {
 	log := types.KnoxNetworkLog{}
 
@@ -270,7 +253,6 @@ func ConvertCiliumFlowToKnoxNetworkLog(ciliumFlow *cilium.Flow) (types.KnoxNetwo
 	return log, true
 }
 
-// ConvertMySQLCiliumLogsToKnoxNetworkLogs function
 func ConvertMySQLCiliumLogsToKnoxNetworkLogs(docs []map[string]interface{}) []types.KnoxNetworkLog {
 	logs := []types.KnoxNetworkLog{}
 
@@ -362,7 +344,6 @@ func ConvertMySQLCiliumLogsToKnoxNetworkLogs(docs []map[string]interface{}) []ty
 	return logs
 }
 
-// ConvertMongodCiliumLogsToKnoxNetworkLogs function
 func ConvertMongodCiliumLogsToKnoxNetworkLogs(docs []map[string]interface{}) []types.KnoxNetworkLog {
 	logs := []types.KnoxNetworkLog{}
 
@@ -379,7 +360,6 @@ func ConvertMongodCiliumLogsToKnoxNetworkLogs(docs []map[string]interface{}) []t
 	return logs
 }
 
-// ConvertCiliumNetworkLogsToKnoxNetworkLogs function
 func ConvertCiliumNetworkLogsToKnoxNetworkLogs(dbDriver string, docs []map[string]interface{}) []types.KnoxNetworkLog {
 	if dbDriver == "mysql" {
 		return ConvertMySQLCiliumLogsToKnoxNetworkLogs(docs)
@@ -395,7 +375,6 @@ func ConvertCiliumNetworkLogsToKnoxNetworkLogs(dbDriver string, docs []map[strin
 // ============================== //
 
 // TODO: search core-dns? or statically return dns pod
-// getCoreDNSEndpoint function
 func getCoreDNSEndpoint(services []types.Service) ([]types.CiliumEndpoint, []types.CiliumPortList) {
 	matchLabel := map[string]string{
 		"k8s:io.kubernetes.pod.namespace": "kube-system",
@@ -423,7 +402,6 @@ func getCoreDNSEndpoint(services []types.Service) ([]types.CiliumEndpoint, []typ
 	return coreDNS, toPorts
 }
 
-// buildNewCiliumNetworkPolicy function
 func buildNewCiliumNetworkPolicy(inPolicy types.KnoxNetworkPolicy) types.CiliumNetworkPolicy {
 	ciliumPolicy := types.CiliumNetworkPolicy{}
 
@@ -442,7 +420,6 @@ func buildNewCiliumNetworkPolicy(inPolicy types.KnoxNetworkPolicy) types.CiliumN
 	return ciliumPolicy
 }
 
-// ConvertKnoxNetworkPolicyToCiliumPolicy function
 func ConvertKnoxNetworkPolicyToCiliumPolicy(services []types.Service, inPolicy types.KnoxNetworkPolicy) types.CiliumNetworkPolicy {
 	ciliumPolicy := buildNewCiliumNetworkPolicy(inPolicy)
 
@@ -663,7 +640,6 @@ func ConvertKnoxNetworkPolicyToCiliumPolicy(services []types.Service, inPolicy t
 	return ciliumPolicy
 }
 
-// ConvertKnoxPoliciesToCiliumPolicies function
 func ConvertKnoxPoliciesToCiliumPolicies(services []types.Service, policies []types.KnoxNetworkPolicy) []types.CiliumNetworkPolicy {
 	ciliumPolicies := []types.CiliumNetworkPolicy{}
 
@@ -679,7 +655,6 @@ func ConvertKnoxPoliciesToCiliumPolicies(services []types.Service, policies []ty
 // == Cilium Hubble Relay == //
 // ========================= //
 
-// ConnectHubbleRelay function.
 func ConnectHubbleRelay(cfg types.ConfigCiliumHubble) *grpc.ClientConn {
 	addr := cfg.HubbleURL + ":" + cfg.HubblePort
 
@@ -693,7 +668,6 @@ func ConnectHubbleRelay(cfg types.ConfigCiliumHubble) *grpc.ClientConn {
 	return conn
 }
 
-// GetCiliumFlowsFromHubble function
 func GetCiliumFlowsFromHubble() []*cilium.Flow {
 	results := CiliumFlows
 
@@ -721,7 +695,6 @@ func GetCiliumFlowsFromHubble() []*cilium.Flow {
 	return results
 }
 
-// StartHubbleRelay function
 func StartHubbleRelay(StopChan chan struct{}, wg *sync.WaitGroup, cfg types.ConfigCiliumHubble) {
 	conn := ConnectHubbleRelay(cfg)
 	defer conn.Close()

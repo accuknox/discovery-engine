@@ -104,7 +104,6 @@ func getExternalInterface() string {
 	return "None"
 }
 
-// GetExternalIPAddr Function
 func GetExternalIPAddr() string {
 	iface := getExternalInterface()
 	if iface != "None" {
@@ -114,7 +113,6 @@ func GetExternalIPAddr() string {
 	return "None"
 }
 
-// GetProtocol Function
 func GetProtocol(protocol int) string {
 	protocolMap := map[int]string{
 		1:   "icmp",
@@ -135,7 +133,6 @@ func DeepCopy(dst, src interface{}) {
 	json.Unmarshal(byt, dst)
 }
 
-// exists Function
 func exists(path string) (bool, error) {
 	_, err := os.Stat(path)
 	if err == nil {
@@ -210,7 +207,6 @@ func RandSeq(n int) string {
 	return string(b)
 }
 
-// GetCommandOutput Function
 func GetCommandOutput(cmd string, args []string) string {
 	res := exec.Command(cmd, args...)
 	out, err := res.Output()
@@ -297,7 +293,6 @@ func WriteKubeArmorPolicyToYamlFile(namespace string, policies []types.KubeArmor
 // == Time == //
 // ========== //
 
-// Time Format
 const (
 	TimeForm       string = "2006-01-02T15:04:05.000000"
 	TimeFormSimple string = "2006-01-02 15:04:05"
@@ -312,7 +307,6 @@ func ConvertUnixTSToDateTime(ts int64) primitive.DateTime {
 	return dateTime
 }
 
-// ConvertStrToUnixTime function: str -> unix seconds for mysql
 func ConvertStrToUnixTime(strTime string) int64 {
 	if strTime == "now" {
 		return time.Now().UTC().Unix()

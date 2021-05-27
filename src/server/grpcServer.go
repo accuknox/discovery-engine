@@ -23,14 +23,13 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
+const PortNumber = "9089"
+
 var log *zerolog.Logger
 
 func init() {
 	log = logger.GetInstance()
 }
-
-// PortNumber ...
-const PortNumber = "9089"
 
 // =========================== //
 // == Configuration Service == //
@@ -213,7 +212,6 @@ func (s *consumerServer) GetWorkerStatus(ctx context.Context, in *fpb.ConsumerRe
 // == gRPC server == //
 // ================= //
 
-// GetNewServer ...
 func GetNewServer() *grpc.Server {
 	s := grpc.NewServer()
 
