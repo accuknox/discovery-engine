@@ -138,7 +138,7 @@ type ClusterVariable struct {
 	FlowIDTrackerSecond map[FlowIDTrackingSecond][]int
 }
 
-// DomainToIPs [key: cluster name, val: cluster variable]
+// ClusterVariableMap [key: cluster name, val: cluster variable]
 var ClusterVariableMap = map[string]ClusterVariable{}
 
 // ========================== //
