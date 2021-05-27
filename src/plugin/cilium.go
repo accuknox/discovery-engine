@@ -353,7 +353,7 @@ func ConvertMySQLCiliumLogsToKnoxNetworkLogs(docs []map[string]interface{}) []ty
 			log.FlowID = int(doc["id"].(uint32))
 
 			// get cluster name
-			log.ClusterName = doc["cluster_name"].(string)
+			log.CluserName = doc["cluster_name"].(string)
 
 			logs = append(logs, log)
 		}

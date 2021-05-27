@@ -816,8 +816,7 @@ func updateExistCIDRtoNewFQDN(existingPolicies []types.KnoxNetworkPolicy, newPol
 // IsExistingPolicy function
 func IsExistingPolicy(existingPolicies []types.KnoxNetworkPolicy, newPolicy types.KnoxNetworkPolicy) bool {
 	for _, exist := range existingPolicies {
-		if exist.Metadata["cluster_name"] == newPolicy.Metadata["cluster_name"] &&
-			exist.Metadata["namespace"] == newPolicy.Metadata["namespace"] &&
+		if exist.Metadata["namespace"] == newPolicy.Metadata["namespace"] &&
 			cmp.Equal(&exist.Spec, &newPolicy.Spec) {
 			return true
 		}
@@ -826,9 +825,9 @@ func IsExistingPolicy(existingPolicies []types.KnoxNetworkPolicy, newPolicy type
 	return false
 }
 
-// ====================================== //
+// ======================================== //
 // == Update Duplicated Network Policy == //
-// ====================================== //
+// ======================================== //
 
 // UpdateDuplicatedPolicy function
 func UpdateDuplicatedPolicy(existingPolicies []types.KnoxNetworkPolicy, discoveredPolicies []types.KnoxNetworkPolicy, dnsToIPs map[string][]string, clusterName string) []types.KnoxNetworkPolicy {

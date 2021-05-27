@@ -27,11 +27,11 @@ func SkipNamespaceForNetworkPolicy(namespace string) bool {
 	return false
 }
 
-// ============================= //
-// == Multi Cluster Variables == //
-// ============================= //
+// ======================= //
+// == Cluster Variables == //
+// ======================= //
 
-func initMultiClusterVariables(clusterName string) {
+func initClusterVariables(clusterName string) {
 	val := ClusterVariable{
 		K8sServiceTCPPorts:  []int{},
 		K8sServiceUDPPorts:  []int{},
@@ -62,7 +62,7 @@ func initMultiClusterVariables(clusterName string) {
 	FlowIDTrackerSecond = val.FlowIDTrackerSecond
 }
 
-func updateMultiClusterVariables(clusterName string) {
+func updateClusterVariables(clusterName string) {
 	if exist, ok := ClusterVariableMap[clusterName]; ok {
 		exist.K8sServiceTCPPorts = K8sServiceTCPPorts
 		exist.K8sServiceUDPPorts = K8sServiceUDPPorts
@@ -273,10 +273,10 @@ func clusteringNetworkLogs(networkLogs []types.KnoxNetworkLog) map[string][]type
 	clusterNameMap := map[string][]types.KnoxNetworkLog{}
 
 	for _, log := range networkLogs {
-		if _, ok := clusterNameMap[log.ClusterName]; ok {
-			clusterNameMap[log.ClusterName] = append(clusterNameMap[log.ClusterName], log)
+		if _, ok := clusterNameMap[log.CluserName]; ok {
+			clusterNameMap[log.CluserName] = append(clusterNameMap[log.CluserName], log)
 		} else {
-			clusterNameMap[log.ClusterName] = []types.KnoxNetworkLog{log}
+			clusterNameMap[log.CluserName] = []types.KnoxNetworkLog{log}
 		}
 	}
 

@@ -3,6 +3,7 @@ package libs
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strconv"
@@ -40,7 +41,7 @@ func getResponseBytes(mothod string, url string, data map[string]interface{}) []
 	// create a new request using http [method; POST, GET]
 	req, err := http.NewRequest(mothod, url, bytes.NewBuffer(jsonData))
 	if err != nil {
-		log.Error().Msgf("http reqeust error: %s", err.Error())
+		log.Error().Msgf("http reqeust error:", err)
 		return nil
 	}
 
@@ -157,8 +158,8 @@ func GetClusterFromClusterName(clusterName string) types.Cluster {
 	return types.Cluster{}
 }
 
-// GetAllClusterResources Function
-func GetAllClusterResources(cluster types.Cluster) ([]string, []types.Service, []types.Endpoint, []types.Pod) {
+// GetClusterResources Function
+func GetClusterResources(cluster types.Cluster) ([]string, []types.Service, []types.Endpoint, []types.Pod) {
 	namespaces := GetNamespacesFromCluster(cluster)
 	services := GetServicesFromCluster(cluster)
 	endpoints := GetEndpointsFromCluster(cluster)
@@ -287,6 +288,8 @@ func GetEndpointsFromCluster(cluster types.Cluster) []types.Endpoint {
 		epCluster := types.EndpointCluster{}
 		b, _ := json.Marshal(v)
 		json.Unmarshal(b, &epCluster)
+
+		fmt.Println(epCluster)
 	}
 
 	return results
@@ -307,8 +310,6 @@ func GetPodsFromCluster(cluster types.Cluster) []types.Pod {
 		"Time":        0,
 	}
 
-	skippedLabelKeys := []string{"pod-template-hash"}
-
 	res := getResponseBytes("POST", url, data)
 	pods := []map[string]interface{}{}
 	if res != nil {
@@ -327,14 +328,8 @@ func GetPodsFromCluster(cluster types.Cluster) []types.Pod {
 		}
 
 		for _, label := range podCluster.Labels {
-			if ContainsElement(skippedLabelKeys, label["name"]) {
-				continue
-			}
-
 			pod.Labels = append(pod.Labels, label["name"]+"="+label["value"])
 		}
-
-		results = append(results, pod)
 	}
 
 	return results

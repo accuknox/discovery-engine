@@ -3,52 +3,150 @@ package libs
 import (
 	"bytes"
 	"encoding/json"
-	"flag"
 	"math/rand"
 	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"os/signal"
 	"reflect"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
-	logger "github.com/accuknox/knoxAutoPolicy/src/logging"
 	"github.com/accuknox/knoxAutoPolicy/src/types"
-	"github.com/rs/zerolog"
-	"github.com/spf13/viper"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"gopkg.in/yaml.v2"
 )
 
-// =================== //
-// == Configuration == //
-// =================== //
+// ====================== //
+// == HTTP aggregation == //
+// ====================== //
 
-func LoadConfigurationFile() {
-	configFilePath := flag.String("config-path", "conf/", "conf/")
-	flag.Parse()
+var httpMethods = []string{
+	http.MethodGet,
+	http.MethodHead,
+	http.MethodPost,
+	http.MethodPut,
+	http.MethodPatch,
+	http.MethodDelete,
+	http.MethodConnect,
+	http.MethodOptions,
+	http.MethodTrace,
+}
 
-	viper.SetConfigName(GetEnv("CONF_FILE_NAME", "conf"))
-	viper.SetConfigType("yaml")
-	viper.AddConfigPath(*configFilePath)
-	if err := viper.ReadInConfig(); err != nil {
-		if readErr, ok := err.(viper.ConfigFileNotFoundError); ok {
-			var log *zerolog.Logger = logger.GetInstance()
-			log.Panic().Msgf("No config file found at %s\n", *configFilePath)
-		} else {
-			var log *zerolog.Logger = logger.GetInstance()
-			log.Panic().Msgf("Error reading config file: %s\n", readErr)
+// CheckHTTPMethod Function
+func CheckHTTPMethod(method string) bool {
+	for _, m := range httpMethods {
+		if strings.Contains(method, m) {
+			return true
 		}
 	}
+
+	return false
+}
+
+// CheckSpecHTTP Function
+func CheckSpecHTTP(specs []string) bool {
+	for _, spec := range specs {
+		if CheckHTTPMethod(spec) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// ====================== //
+// == Longest Matching == //
+// ====================== //
+
+// TrimPrefix removes the longest common prefix from all provided strings
+func TrimPrefix(strs []string) {
+	p := Prefix(strs)
+	if p == "" {
+		return
+	}
+	for i, s := range strs {
+		strs[i] = strings.TrimPrefix(s, p)
+	}
+}
+
+// TrimSuffix removes the longest common suffix from all provided strings
+func TrimSuffix(strs []string) {
+	p := Suffix(strs)
+	if p == "" {
+		return
+	}
+	for i, s := range strs {
+		strs[i] = strings.TrimSuffix(s, p)
+	}
+}
+
+// Prefix returns the longest common prefix of the provided strings
+func Prefix(strs []string) string {
+	return longestCommonXfix(strs, true)
+}
+
+// Suffix returns the longest common suffix of the provided strings
+func Suffix(strs []string) string {
+	return longestCommonXfix(strs, false)
+}
+
+func longestCommonXfix(strs []string, pre bool) string {
+	//short-circuit empty list
+	if len(strs) == 0 {
+		return ""
+	}
+	xfix := strs[0]
+	//short-circuit single-element list
+	if len(strs) == 1 {
+		return xfix
+	}
+	//compare first to rest
+	for _, str := range strs[1:] {
+		xfixl := len(xfix)
+		strl := len(str)
+		//short-circuit empty strings
+		if xfixl == 0 || strl == 0 {
+			return ""
+		}
+		//maximum possible length
+		maxl := xfixl
+		if strl < maxl {
+			maxl = strl
+		}
+		//compare letters
+		if pre {
+			//prefix, iterate left to right
+			for i := 0; i < maxl; i++ {
+				if xfix[i] != str[i] {
+					xfix = xfix[:i]
+					break
+				}
+			}
+		} else {
+			//suffix, iternate right to left
+			for i := 0; i < maxl; i++ {
+				xi := xfixl - i - 1
+				si := strl - i - 1
+				if xfix[xi] != str[si] {
+					xfix = xfix[xi+1:]
+					break
+				}
+			}
+		}
+	}
+	return xfix
 }
 
 // ================== //
 // == Print Pretty == //
 // ================== //
 
-func PrintPolicyJSON(data interface{}) (string, error) {
+// PrintKnoxPolicyJSON function
+func PrintKnoxPolicyJSON(data interface{}) (string, error) {
 	empty := ""
 	tab := "  "
 
@@ -62,19 +160,14 @@ func PrintPolicyJSON(data interface{}) (string, error) {
 	}
 
 	return buffer.String(), nil
-
-}
-
-func PrintPolicyYaml(data interface{}) (string, error) {
-	b, _ := yaml.Marshal(&data)
-	return string(b), nil
 }
 
 // ============= //
 // == Network == //
 // ============= //
 
-func getIPAddr(ifname string) string {
+// GetIPAddr Function
+func GetIPAddr(ifname string) string {
 	if interfaces, err := net.Interfaces(); err == nil {
 		for _, iface := range interfaces {
 			if iface.Name == ifname {
@@ -91,7 +184,8 @@ func getIPAddr(ifname string) string {
 	return "None"
 }
 
-func getExternalInterface() string {
+// GetExternalInterface Function
+func GetExternalInterface() string {
 	route := GetCommandOutput("ip", []string{"route", "get", "8.8.8.8"})
 	routeData := strings.Split(strings.Split(route, "\n")[0], " ")
 
@@ -106,9 +200,9 @@ func getExternalInterface() string {
 
 // GetExternalIPAddr Function
 func GetExternalIPAddr() string {
-	iface := getExternalInterface()
+	iface := GetExternalInterface()
 	if iface != "None" {
-		return getIPAddr(iface)
+		return GetIPAddr(iface)
 	}
 
 	return "None"
@@ -126,10 +220,24 @@ func GetProtocol(protocol int) string {
 	return protocolMap[protocol]
 }
 
+// GetProtocolInt Function
+func GetProtocolInt(protocol string) int {
+	protocol = strings.ToLower(protocol)
+	protocolMap := map[string]int{
+		"icmp": 1,
+		"tcp":  6,
+		"udp":  17,
+		"stcp": 132,
+	}
+
+	return protocolMap[protocol]
+}
+
 // ============ //
 // == Common == //
 // ============ //
 
+// DeepCopy deepcopies a to b using json marshaling
 func DeepCopy(dst, src interface{}) {
 	byt, _ := json.Marshal(src)
 	json.Unmarshal(byt, dst)
@@ -147,6 +255,7 @@ func exists(path string) (bool, error) {
 	return true, err
 }
 
+// IsK8sEnv Function
 func IsK8sEnv() bool {
 	if _, ok := os.LookupEnv("KUBERNETES_PORT"); ok {
 		return true
@@ -160,6 +269,7 @@ func IsK8sEnv() bool {
 	return false
 }
 
+// GetOSSigChannel Function
 func GetOSSigChannel() chan os.Signal {
 	c := make(chan os.Signal, 1)
 
@@ -174,6 +284,7 @@ func GetOSSigChannel() chan os.Signal {
 	return c
 }
 
+// GetEnv Function
 func GetEnv(key, fallback string) string {
 	if value, ok := os.LookupEnv(key); ok {
 		return value
@@ -182,6 +293,20 @@ func GetEnv(key, fallback string) string {
 	return fallback
 }
 
+// GetEnvInt Function
+func GetEnvInt(key string, fallback int) int {
+	if value, ok := os.LookupEnv(key); ok {
+		val, err := strconv.Atoi(value)
+		if err != nil {
+			return fallback
+		}
+		return val
+	} else {
+		return fallback
+	}
+}
+
+// ContainsElement Function
 func ContainsElement(slice interface{}, element interface{}) bool {
 	switch reflect.TypeOf(slice).Kind() {
 	case reflect.Slice:
@@ -198,6 +323,7 @@ func ContainsElement(slice interface{}, element interface{}) bool {
 	return false
 }
 
+// RandSeq Function
 func RandSeq(n int) string {
 	var lowerLetters = []rune("abcdefghijklmnopqrstuvwxyz")
 
@@ -210,20 +336,11 @@ func RandSeq(n int) string {
 	return string(b)
 }
 
-// GetCommandOutput Function
-func GetCommandOutput(cmd string, args []string) string {
-	res := exec.Command(cmd, args...)
-	out, err := res.Output()
-	if err != nil {
-		return ""
-	}
-	return string(out)
-}
-
 // ============== //
 // == File I/O == //
 // ============== //
 
+// WriteKnoxPolicyToYamlFile Function
 func WriteKnoxPolicyToYamlFile(namespace string, policies []types.KnoxNetworkPolicy) {
 	fileName := GetEnv("POLICY_DIR", "./") + "knox_policies_" + namespace + ".yaml"
 
@@ -249,6 +366,7 @@ func WriteKnoxPolicyToYamlFile(namespace string, policies []types.KnoxNetworkPol
 	f.Close()
 }
 
+// WriteCiliumPolicyToYamlFile Function
 func WriteCiliumPolicyToYamlFile(namespace string, policies []types.CiliumNetworkPolicy) {
 	// create policy file
 	fileName := GetEnv("POLICY_DIR", "./") + "cilium_policies_" + namespace + ".yaml"
@@ -271,12 +389,13 @@ func WriteCiliumPolicyToYamlFile(namespace string, policies []types.CiliumNetwor
 	f.Close()
 }
 
-func WriteKubeArmorPolicyToYamlFile(namespace string, policies []types.KubeArmorSystemPolicy) {
-	// create policy file
-	fileName := GetEnv("POLICY_DIR", "./") + "kubearmor_policies_" + namespace + ".yaml"
+// WriteKnoxPolicyToJSONFile Function
+func WriteKnoxPolicyToJSONFile(namespace string, policies []types.KnoxNetworkPolicy) {
+	fileName := GetEnv("POLICY_DIR", "./")
 
 	os.Remove(fileName)
 
+	// create policy file
 	f, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		log.Error().Msg(err.Error())
@@ -284,13 +403,27 @@ func WriteKubeArmorPolicyToYamlFile(namespace string, policies []types.KubeArmor
 	}
 
 	for _, policy := range policies {
-		b, _ := yaml.Marshal(&policy)
+		b, _ := json.MarshalIndent(policy, "", "    ")
 		f.Write(b)
-		f.WriteString("---\n")
+		f.WriteString("\n")
 		f.Sync()
 	}
 
 	f.Close()
+}
+
+// ======================= //
+// == Command Execution == //
+// ======================= //
+
+// GetCommandOutput Function
+func GetCommandOutput(cmd string, args []string) string {
+	res := exec.Command(cmd, args...)
+	out, err := res.Output()
+	if err != nil {
+		return ""
+	}
+	return string(out)
 }
 
 // ========== //
@@ -306,6 +439,7 @@ const (
 	TimeCilium     string = "2006-01-02T15:04:05.000000000Z"
 )
 
+// ConvertUnixTSToDateTime Function for mongoDB
 func ConvertUnixTSToDateTime(ts int64) primitive.DateTime {
 	t := time.Unix(ts, 0)
 	dateTime := primitive.NewDateTimeFromTime(t)

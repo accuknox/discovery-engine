@@ -297,7 +297,7 @@ func groupNetworkLogPerDst(networkLogs []types.KnoxNetworkLog, endpoints []types
 
 	// remove tcp dst which is included in http dst
 	for dst := range perDst {
-		if dst.Protocol == 6 && CheckHTTPMethod(dst.Additional) {
+		if dst.Protocol == 6 && libs.CheckHTTPMethod(dst.Additional) {
 			dstCopy := dst
 
 			dstCopy.Additional = ""
@@ -1266,7 +1266,7 @@ func buildNetworkPolicy(namespace string, services []types.Service, aggregatedSr
 						// =============== //
 						// build HTTP rule //
 						// =============== //
-						if toPort.Protocol == "tcp" && CheckSpecHTTP(dst.Additionals) {
+						if toPort.Protocol == "tcp" && libs.CheckSpecHTTP(dst.Additionals) {
 							egressRule.ToHTTPs = []types.SpecHTTP{}
 
 							sort.Strings(dst.Additionals)
@@ -1520,7 +1520,7 @@ func DiscoverNetworkPolicy(namespace string,
 	return networkPolicies
 }
 
-func initNetPolicyDiscoveryConfiguration() {
+func initDiscoveryConfiguration() {
 	CfgDB = cfg.GetCfgDB()
 
 	OneTimeJobTime = cfg.GetCfgOneTime()
@@ -1553,7 +1553,7 @@ func DiscoverNetworkPolicyMain() {
 	}()
 
 	// init the configuration related to the network policy
-	initNetPolicyDiscoveryConfiguration()
+	initDiscoveryConfiguration()
 
 	// get network logs
 	allNetworkLogs := getNetworkLogs()
@@ -1564,16 +1564,20 @@ func DiscoverNetworkPolicyMain() {
 	// get cluster names, iterate each cluster
 	clusteredLogs := clusteringNetworkLogs(allNetworkLogs)
 	for clusterName, networkLogs := range clusteredLogs {
+		if clusterName != "accuknox-qa" {
+			continue
+		}
+
 		clusterInstance := libs.GetClusterFromClusterName(clusterName)
 		if clusterInstance.ClusterID == 0 { // cluster not onboarded
 			continue
 		}
 
 		// set cluster global variables
-		initMultiClusterVariables(clusterName)
+		initClusterVariables(clusterName)
 
 		// get k8s resources
-		namespaces, services, endpoints, pods := libs.GetAllClusterResources(clusterInstance)
+		namespaces, services, endpoints, pods := libs.GetClusterResources(clusterInstance)
 
 		// update DNS req. flows, DNSToIPs map
 		updateDNSFlows(networkLogs)
@@ -1581,7 +1585,7 @@ func DiscoverNetworkPolicyMain() {
 		// update service ports (k8s service, endpoint, kube-dns)
 		updateServiceEndpoint(services, endpoints, pods)
 
-		// get existing network policies in db
+		// get existing policies in db
 		existingPolicies := libs.GetNetworkPolicies(CfgDB, "", "")
 
 		// filter ignoring network logs from configuration
@@ -1599,7 +1603,7 @@ func DiscoverNetworkPolicyMain() {
 				continue
 			}
 
-			log.Info().Msgf("Network policy discovery started for namespace: [%s]", namespace)
+			log.Info().Msgf("Policy discovery started for namespace: [%s]", namespace)
 
 			// reset flow id track at each target namespace
 			clearTrackFlowIDMaps()
@@ -1607,10 +1611,10 @@ func DiscoverNetworkPolicyMain() {
 			// ========================================================= //
 			// == discover network policies based on the network logs == //
 			// ========================================================= //
-			discoveredNetPolicies := DiscoverNetworkPolicy(namespace, namespaceFilteredLogs, services, endpoints, pods)
+			discoveredPolicies := DiscoverNetworkPolicy(namespace, namespaceFilteredLogs, services, endpoints, pods)
 
 			// update duplicated policy
-			newPolicies := UpdateDuplicatedPolicy(existingPolicies, discoveredNetPolicies, DomainToIPs, clusterName)
+			newPolicies := UpdateDuplicatedPolicy(existingPolicies, discoveredPolicies, DomainToIPs, clusterName)
 			sort.Slice(newPolicies, func(i, j int) bool {
 				return newPolicies[i].Metadata["name"] < newPolicies[j].Metadata["name"]
 			})
@@ -1627,11 +1631,11 @@ func DiscoverNetworkPolicyMain() {
 				}
 			}
 
-			log.Info().Msgf("Network policy discovery done for namespace: [%s], [%d] policies discovered", namespace, len(newPolicies))
+			log.Info().Msgf("Policy discovery done for namespace: [%s], [%d] policies discovered", namespace, len(newPolicies))
 		}
 
 		// update cluster global variables
-		updateMultiClusterVariables(clusterName)
+		updateClusterVariables(clusterName)
 	}
 }
 

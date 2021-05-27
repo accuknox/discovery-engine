@@ -108,7 +108,7 @@ func GetInstance() *zerolog.Logger {
 		config := Config{
 			ConsoleLoggingEnabled: true,
 			EncodeLogsAsJSON:      false,
-			FileLoggingEnabled:    false,
+			FileLoggingEnabled:    true,
 			Directory:             "log",
 			Filename:              "service.log",
 			MaxSize:               10,

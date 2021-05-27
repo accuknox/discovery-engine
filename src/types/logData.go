@@ -4,7 +4,7 @@ package types
 type KnoxNetworkLog struct {
 	FlowID int `json:"flow_id,omitempty" bson:"flow_id"`
 
-	ClusterName string `json:"cluster_name,omitempty" bson:"cluster_name"`
+	CluserName string `json:"cluster_name,omitempty" bson:"cluster_name"`
 
 	SrcNamespace string `json:"src_namespace,omitempty" bson:"src_namespace"`
 	SrcPodName   string `json:"src_pod_name,omitempty" bson:"src_pod_name"`
@@ -36,7 +36,7 @@ type KnoxNetworkLog struct {
 
 // KnoxSystemLog Structure
 type KnoxSystemLog struct {
-	LogID int `json:"id,omitempty"`
+	FlowID int `json:"flow_id,omitempty"`
 
 	ClusterName string `json:"cluster_name,omitempty"`
 
@@ -44,16 +44,11 @@ type KnoxSystemLog struct {
 	Namespace string `json:"namespace_name,omitempty"`
 	PodName   string `json:"pod_name,omitempty"`
 
-	SourceOrigin string `json:"source_origin,omitempty"` // if source origin "/usr/bin/iperf3 -s -p 5101"
-	Source       string `json:"source,omitempty"`        // --> source: "/usr/bin/iperf3"
-
+	Source    string `json:"source,omitempty"`
 	Operation string `json:"operation,omitempty"`
+	Resource  string `json:"resource,omitempty"`
+	Data      string `json:"data,omitempty"`
 
-	ResourceOrigin string `json:"resource_origin,omitempty"`
-	Resource       string `json:"resource,omitempty"`
-	Data           string `json:"data,omitempty"`
-
-	ReadOnly bool `json:"read_only,omitempty"`
-
+	Action string `json:"action,omitempty"`
 	Result string `json:"result,omitempty"`
 }

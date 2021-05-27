@@ -36,7 +36,13 @@ function stop_and_wait_for_mysql_termination() {
     rm $TEST_HOME/mysql/logs
 }
 
-## Test go unit
+## Step 1. Start MySQL database
+
+echo -e "${ORANGE}[INFO] Starting MySQL database${NC}"
+start_and_wait_for_mysql_initialization
+echo "[INFO] Started MySQL database"
+
+## Step 2. Test go unit
 
 cd $AUTOPOL_HOME/src
 
@@ -54,3 +60,9 @@ fi
 
 echo
 echo "[PASS] Tested go-unit knoxAutoPolicy"
+
+## Step 3. Stop MySQL Database
+
+echo -e "${ORANGE}[INFO] Stopping MySQL database${NC}"
+stop_and_wait_for_mysql_termination
+echo "[INFO] Stopped MySQL database"
