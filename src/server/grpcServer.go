@@ -43,14 +43,18 @@ func (s *configServer) Add(ctx context.Context, in *cpb.ConfigRequest) (*cpb.Con
 	log.Info().Msg("Add config called")
 
 	m := jsonpb.Marshaler{OrigName: true}
-	str, _ := m.MarshalToString(in.GetConfig())
+	str, err := m.MarshalToString(in.GetConfig())
+	if err != nil {
+		return &cpb.ConfigResponse{Msg: err.Error()}, err
+	}
 
 	var config types.Configuration
-	json.Unmarshal([]byte(str), &config)
+	if err := json.Unmarshal([]byte(str), &config); err != nil {
+		return &cpb.ConfigResponse{Msg: err.Error()}, err
+	}
 
-	err := core.AddConfiguration(config)
-	if err != nil {
-		return &cpb.ConfigResponse{Msg: err.Error()}, nil
+	if err := core.AddConfiguration(config); err != nil {
+		return &cpb.ConfigResponse{Msg: err.Error()}, err
 	}
 
 	return &cpb.ConfigResponse{Msg: "ok"}, nil
@@ -66,9 +70,9 @@ func (s *configServer) Get(ctx context.Context, in *cpb.ConfigRequest) (*cpb.Con
 
 	configs := []*cpb.Config{}
 
-	for _, result := range results {
+	for i := range results {
 		var config cpb.Config
-		if b, err := json.Marshal(&result); err != nil {
+		if b, err := json.Marshal(&results[i]); err != nil {
 			log.Error().Msg(err.Error())
 			continue
 		} else {
@@ -91,14 +95,16 @@ func (s *configServer) Update(ctx context.Context, in *cpb.ConfigRequest) (*cpb.
 	str, _ := m.MarshalToString(in.GetConfig())
 
 	var config types.Configuration
-	json.Unmarshal([]byte(str), &config)
+	if err := json.Unmarshal([]byte(str), &config); err != nil {
+		return &cpb.ConfigResponse{Msg: err.Error()}, err
+	}
 
 	err := core.UpdateConfiguration(in.GetConfigName(), config)
 	if err != nil {
-		return &cpb.ConfigResponse{Msg: err.Error()}, nil
+		return &cpb.ConfigResponse{Msg: err.Error()}, err
 	}
 
-	return &cpb.ConfigResponse{Msg: "ok"}, nil
+	return &cpb.ConfigResponse{Msg: "ok"}, err
 }
 
 func (s *configServer) Delete(ctx context.Context, in *cpb.ConfigRequest) (*cpb.ConfigResponse, error) {

@@ -240,12 +240,21 @@ func getNetworkLogs() []types.KnoxNetworkLog {
 		logFile, err := os.Open(NetworkLogFile)
 		if err != nil {
 			log.Error().Msg(err.Error())
+			if err := logFile.Close(); err != nil {
+				log.Error().Msg(err.Error())
+			}
 			return nil
 		}
-		defer logFile.Close()
 
-		byteValue, _ := ioutil.ReadAll(logFile)
-		json.Unmarshal(byteValue, &flows)
+		byteValue, err := ioutil.ReadAll(logFile)
+		if err != nil {
+			log.Error().Msg(err.Error())
+		}
+
+		if err := json.Unmarshal(byteValue, &flows); err != nil {
+			log.Error().Msg(err.Error())
+			return nil
+		}
 
 		// replace the pod names in prepared-flows with the working pod names
 		pods := libs.GetPodsK8s()
@@ -256,6 +265,10 @@ func getNetworkLogs() []types.KnoxNetworkLog {
 			if log, valid := plugin.ConvertCiliumFlowToKnoxNetworkLog(flow); valid {
 				networkLogs = append(networkLogs, log)
 			}
+		}
+
+		if err := logFile.Close(); err != nil {
+			log.Error().Msg(err.Error())
 		}
 	} else {
 		log.Error().Msgf("Network log source not correct: %s", NetworkLogFrom)

@@ -14,6 +14,10 @@ test:
 	cd $(CURDIR)/server; go clean -testcache .; go test -v .
 	cd $(CURDIR)/systempolicy; go clean -testcache .; go test -v .
 
+.PHONY: gosec
+gosec:
+	gosec -exclude=G204,G304,G107 ./...
+	
 .PHONY: clean
 clean:
 	cd $(CURDIR); rm -f knoxAutoPolicy go.sum

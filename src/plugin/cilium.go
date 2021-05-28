@@ -350,7 +350,10 @@ func ConvertMongodCiliumLogsToKnoxNetworkLogs(docs []map[string]interface{}) []t
 	for _, doc := range docs {
 		flow := &cilium.Flow{}
 		flowByte, _ := json.Marshal(doc)
-		json.Unmarshal(flowByte, flow)
+		if err := json.Unmarshal(flowByte, flow); err != nil {
+			log.Error().Msg(err.Error())
+			continue
+		}
 
 		if log, valid := ConvertCiliumFlowToKnoxNetworkLog(flow); valid {
 			logs = append(logs, log)

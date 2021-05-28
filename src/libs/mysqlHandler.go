@@ -669,7 +669,11 @@ func InsertSystemPoliciesToMySQL(cfg types.ConfigDB, policies []types.KubeArmorS
 
 func CountConfigByName(db *sql.DB, tableName, configName string) int {
 	var count int
-	db.QueryRow("SELECT COUNT(*) FROM "+tableName+" WHERE config_name=?", configName).Scan(&count)
+
+	if err := db.QueryRow("SELECT COUNT(*) FROM "+tableName+" WHERE config_name=?", configName).Scan(&count); err != nil {
+		log.Error().Msg(err.Error())
+	}
+
 	return count
 }
 

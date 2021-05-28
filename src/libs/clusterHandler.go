@@ -34,6 +34,7 @@ func getResponseBytes(mothod string, url string, data map[string]interface{}) []
 	// prepare input data
 	jsonData, err := json.Marshal(data)
 	if err != nil {
+		log.Error().Msg(err.Error())
 		return nil
 	}
 
@@ -109,7 +110,10 @@ func authLogin() error {
 	}
 
 	var res map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&res)
+	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
+		return err
+	}
+
 	BearerToken = res["access_token"].(string)
 
 	return nil
@@ -129,7 +133,9 @@ func GetClustersFromClusterNames(clusterNames []string) []types.Cluster {
 
 	res := getResponseBytes("POST", url, data)
 	if res != nil {
-		json.Unmarshal(res, &results)
+		if err := json.Unmarshal(res, &results); err != nil {
+			log.Error().Msg(err.Error())
+		}
 	}
 
 	return results
@@ -145,7 +151,9 @@ func GetClusterFromClusterName(clusterName string) types.Cluster {
 
 	res := getResponseBytes("POST", url, data)
 	if res != nil {
-		json.Unmarshal(res, &results)
+		if err := json.Unmarshal(res, &results); err != nil {
+			log.Error().Msg(err.Error())
+		}
 	}
 
 	if len(results) == 1 {
@@ -180,7 +188,10 @@ func GetNamespacesFromCluster(cluster types.Cluster) []string {
 	res := getResponseBytes("POST", url, data)
 	namespaces := []map[string]interface{}{}
 	if res != nil {
-		json.Unmarshal(res, &namespaces)
+		if err := json.Unmarshal(res, &namespaces); err != nil {
+			log.Error().Msg(err.Error())
+			return results
+		}
 	}
 
 	for _, v := range namespaces {
@@ -207,13 +218,18 @@ func GetServicesFromCluster(cluster types.Cluster) []types.Service {
 
 	services := []map[string]interface{}{}
 	if res != nil {
-		json.Unmarshal(res, &services)
+		if err := json.Unmarshal(res, &services); err != nil {
+			log.Error().Msg(err.Error())
+			return results
+		}
 	}
 
 	for _, v := range services {
 		svcCluster := types.ServiceCluster{}
-		b, _ := json.Marshal(v)
-		json.Unmarshal(b, &svcCluster)
+		if err := MapToStructure(v, &svcCluster); err != nil {
+			log.Error().Msg(err.Error())
+			continue
+		}
 
 		svc := types.Service{
 			Namespace:   svcCluster.Namespace,
@@ -274,13 +290,22 @@ func GetEndpointsFromCluster(cluster types.Cluster) []types.Endpoint {
 	res := getResponseBytes("POST", url, data)
 	endpoints := []map[string]interface{}{}
 	if res != nil {
-		json.Unmarshal(res, &endpoints)
+		if err := json.Unmarshal(res, &endpoints); err != nil {
+			log.Error().Msg(err.Error())
+			return results
+		}
 	}
 
 	for _, v := range endpoints {
 		epCluster := types.EndpointCluster{}
-		b, _ := json.Marshal(v)
-		json.Unmarshal(b, &epCluster)
+		b, err := json.Marshal(v)
+		if err != nil {
+			log.Error().Msg(err.Error())
+			continue
+		}
+		if err := json.Unmarshal(b, &epCluster); err != nil {
+			log.Error().Msg(err.Error())
+		}
 	}
 
 	return results
@@ -308,13 +333,22 @@ func GetPodsFromCluster(cluster types.Cluster) []types.Pod {
 	res := getResponseBytes("POST", url, data)
 	pods := []map[string]interface{}{}
 	if res != nil {
-		json.Unmarshal(res, &pods)
+		if err := json.Unmarshal(res, &pods); err != nil {
+			log.Error().Msg(err.Error())
+		}
 	}
 
 	for _, v := range pods {
 		podCluster := types.PodCluster{}
-		b, _ := json.Marshal(v)
-		json.Unmarshal(b, &podCluster)
+
+		b, err := json.Marshal(v)
+		if err != nil {
+			log.Error().Msg(err.Error())
+		}
+
+		if err := json.Unmarshal(b, &podCluster); err != nil {
+			log.Error().Msg(err.Error())
+		}
 
 		pod := types.Pod{
 			Namespace: podCluster.Namespace,
