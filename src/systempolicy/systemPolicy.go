@@ -86,7 +86,6 @@ type SysPath struct {
 // == System Log == //
 // ================ //
 
-// getSystemLogs function
 func getSystemLogs() []types.KnoxSystemLog {
 	systemLogs := []types.KnoxSystemLog{}
 
@@ -346,7 +345,6 @@ func initNetPolicyDiscoveryConfiguration() {
 	SystemPolicyTo = cfg.GetCfgSystemPolicyTo()
 }
 
-// DiscoverSystemPolicyMain function
 func DiscoverSystemPolicyMain() {
 	if SystemWorkerStatus == STATUS_RUNNING {
 		return
@@ -432,7 +430,6 @@ func DiscoverSystemPolicyMain() {
 // == System Policy Discovery Worker == //
 // ==================================== //
 
-// StartSystemCronJob function
 func StartSystemCronJob() {
 	// init cron job
 	SystemCronJob = cron.New()
@@ -446,7 +443,6 @@ func StartSystemCronJob() {
 	log.Info().Msg("Auto system policy discovery cron job started")
 }
 
-// StopSystemCronJob function
 func StopSystemCronJob() {
 	if SystemCronJob != nil {
 		log.Info().Msg("Got a signal to terminate the auto system policy discovery")
@@ -460,7 +456,6 @@ func StopSystemCronJob() {
 	}
 }
 
-// StartSystemWorker function
 func StartSystemWorker() {
 	if SystemWorkerStatus != STATUS_IDLE {
 		log.Info().Msg("There is no idle system policy discovery worker")
@@ -475,7 +470,6 @@ func StartSystemWorker() {
 	}
 }
 
-// StopSystemWorker function
 func StopSystemWorker() {
 	if cfg.GetCfgOperationMode() == OP_MODE_CRONJOB { // every time intervals
 		StopSystemCronJob()

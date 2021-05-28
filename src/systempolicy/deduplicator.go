@@ -34,7 +34,6 @@ func existPolicyName(policyNamesMap map[string]bool, name string) bool {
 	return false
 }
 
-// GeneratePolicyName function
 func GeneratePolicyName(policyNamesMap map[string]bool, policy types.KubeArmorSystemPolicy, clusterName string) types.KubeArmorSystemPolicy {
 	procPrefix := "autopol-process-"
 	filePrefix := "autopol-file-"
@@ -64,7 +63,6 @@ func GeneratePolicyName(policyNamesMap map[string]bool, policy types.KubeArmorSy
 // == Update Duplicated Network Policy == //
 // ====================================== //
 
-// UpdateDuplicatedPolicy function
 func UpdateDuplicatedPolicy(existingPolicies []types.KubeArmorSystemPolicy, discoveredPolicies []types.KubeArmorSystemPolicy, clusterName string) []types.KubeArmorSystemPolicy {
 	newPolicies := []types.KubeArmorSystemPolicy{}
 

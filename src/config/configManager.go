@@ -6,7 +6,9 @@ import (
 	"strings"
 
 	"github.com/accuknox/knoxAutoPolicy/src/libs"
+	logger "github.com/accuknox/knoxAutoPolicy/src/logging"
 	types "github.com/accuknox/knoxAutoPolicy/src/types"
+	"github.com/rs/zerolog"
 	"github.com/spf13/viper"
 )
 
@@ -37,6 +39,12 @@ var IgnoringNetworkNamespaces []string
 var HTTPUrlThreshold int
 
 var NetworkPlugIn string
+
+var log *zerolog.Logger
+
+func init() {
+	log = logger.GetInstance()
+}
 
 // =========================== //
 // == Configuration Loading == //
@@ -131,7 +139,9 @@ func LoadDefaultConfig() {
 	Cfg.SystemPolicyTo = viper.GetString("application.system-policy-to")
 	Cfg.SystemPolicyDir = viper.GetString("application.system-policy-dir")
 
-	libs.AddConfiguration(Cfg.ConfigDB, Cfg)
+	if err := libs.AddConfiguration(Cfg.ConfigDB, Cfg); err != nil {
+		log.Error().Msg(err.Error())
+	}
 }
 
 func SetLogFile(file string) {

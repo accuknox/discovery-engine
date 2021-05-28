@@ -90,10 +90,18 @@ func (cfc *KnoxFeedConsumer) setupKafkaConfig() {
 
 	// Set up SSL specific configs if SSL is enabled
 	if sslEnabled {
-		cfc.kafkaConfig.SetKey("security.protocol", securityProtocol)
-		cfc.kafkaConfig.SetKey("ssl.ca.location", sslCALocation)
-		cfc.kafkaConfig.SetKey("ssl.keystore.location", sslKeystoreLocation)
-		cfc.kafkaConfig.SetKey("ssl.keystore.password", sslKeystorePassword)
+		if err := cfc.kafkaConfig.SetKey("security.protocol", securityProtocol); err != nil {
+			log.Error().Msg(err.Error())
+		}
+		if err := cfc.kafkaConfig.SetKey("ssl.ca.location", sslCALocation); err != nil {
+			log.Error().Msg(err.Error())
+		}
+		if err := cfc.kafkaConfig.SetKey("ssl.keystore.location", sslKeystoreLocation); err != nil {
+			log.Error().Msg(err.Error())
+		}
+		if err := cfc.kafkaConfig.SetKey("ssl.keystore.password", sslKeystorePassword); err != nil {
+			log.Error().Msg(err.Error())
+		}
 	}
 }
 
@@ -131,12 +139,16 @@ func (cfc *KnoxFeedConsumer) startConsumer() {
 			switch e := ev.(type) {
 			case *kafka.Message:
 				if *e.TopicPartition.Topic != "kubearmor-syslogs" { // cilium-hubble
-					cfc.processNetworkLogMessage(e.Value)
+					if err := cfc.processNetworkLogMessage(e.Value); err != nil {
+						log.Error().Msg(err.Error())
+					}
 					if e.Headers != nil {
 						log.Debug().Msgf("Headers: %v", e.Headers)
 					}
 				} else { // kubearmor-syslogs
-					cfc.processSystemLogMessage(e.Value)
+					if err := cfc.processSystemLogMessage(e.Value); err != nil {
+						log.Error().Msg(err.Error())
+					}
 					if e.Headers != nil {
 						log.Debug().Msgf("Headers: %v", e.Headers)
 					}
@@ -158,28 +170,27 @@ func (cfc *KnoxFeedConsumer) startConsumer() {
 	}
 
 	log.Info().Msgf("Closing consumer")
-	c.Close()
+	if err := c.Close(); err != nil {
+		log.Error().Msg(err.Error())
+	}
 }
 
 func (cfc *KnoxFeedConsumer) processNetworkLogMessage(message []byte) error {
 	event := types.NetworkLogEvent{}
 	var eventMap map[string]json.RawMessage
-	err := json.Unmarshal(message, &eventMap)
-	if err != nil {
-		log.Error().Msgf("Error unumarshaling event: %s\n", err.Error())
+	if err := json.Unmarshal(message, &eventMap); err != nil {
 		return err
 	}
 
 	clusterName := eventMap["cluster_name"]
 	clusterNameStr := ""
-	json.Unmarshal(clusterName, &clusterNameStr)
+	if err := json.Unmarshal(clusterName, &clusterNameStr); err != nil {
+		return err
+	}
 
 	flowEvent := eventMap["flow"]
-
-	errFlow := json.Unmarshal(flowEvent, &event)
-	if err != nil {
-		log.Error().Msgf("Error unumarshaling event data: %s\n", err.Error())
-		return errFlow
+	if err := json.Unmarshal(flowEvent, &event); err != nil {
+		return err
 	}
 
 	// add cluster_name to the event

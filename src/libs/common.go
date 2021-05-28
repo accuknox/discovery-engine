@@ -2,9 +2,10 @@ package libs
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding/json"
 	"flag"
-	"math/rand"
+	"math/big"
 	"net"
 	"os"
 	"os/exec"
@@ -104,7 +105,6 @@ func getExternalInterface() string {
 	return "None"
 }
 
-// GetExternalIPAddr Function
 func GetExternalIPAddr() string {
 	iface := getExternalInterface()
 	if iface != "None" {
@@ -114,7 +114,6 @@ func GetExternalIPAddr() string {
 	return "None"
 }
 
-// GetProtocol Function
 func GetProtocol(protocol int) string {
 	protocolMap := map[int]string{
 		1:   "icmp",
@@ -131,11 +130,29 @@ func GetProtocol(protocol int) string {
 // ============ //
 
 func DeepCopy(dst, src interface{}) {
-	byt, _ := json.Marshal(src)
-	json.Unmarshal(byt, dst)
+	byt, err := json.Marshal(src)
+	if err != nil {
+		log.Error().Msg(err.Error())
+	}
+
+	if err := json.Unmarshal(byt, dst); err != nil {
+		log.Error().Msg(err.Error())
+	}
 }
 
-// exists Function
+// src map[string]interface{} -> dst types.StructureExample
+// usage: MapToStructure(src, &dst)
+func MapToStructure(src interface{}, dst interface{}) error {
+	b, err := json.Marshal(src)
+	if err != nil {
+		return err
+	}
+	if err := json.Unmarshal(b, dst); err != nil {
+		return err
+	}
+	return nil
+}
+
 func exists(path string) (bool, error) {
 	_, err := os.Stat(path)
 	if err == nil {
@@ -204,13 +221,16 @@ func RandSeq(n int) string {
 	b := make([]rune, n)
 
 	for i := range b {
-		b[i] = lowerLetters[rand.Intn(len(lowerLetters))]
+		n, err := rand.Int(rand.Reader, big.NewInt(int64(len(lowerLetters))))
+		if err != nil {
+			log.Error().Msg(err.Error())
+		}
+		b[i] = lowerLetters[n.Int64()]
 	}
 
 	return string(b)
 }
 
-// GetCommandOutput Function
 func GetCommandOutput(cmd string, args []string) string {
 	res := exec.Command(cmd, args...)
 	out, err := res.Output()
@@ -224,80 +244,108 @@ func GetCommandOutput(cmd string, args []string) string {
 // == File I/O == //
 // ============== //
 
+func writeYamlByte(f *os.File, b []byte) {
+	if _, err := f.Write(b); err != nil {
+		log.Error().Msg(err.Error())
+	}
+
+	if _, err := f.WriteString("---\n"); err != nil {
+		log.Error().Msg(err.Error())
+	}
+
+	if err := f.Sync(); err != nil {
+		log.Error().Msg(err.Error())
+	}
+}
+
 func WriteKnoxPolicyToYamlFile(namespace string, policies []types.KnoxNetworkPolicy) {
 	fileName := GetEnv("POLICY_DIR", "./") + "knox_policies_" + namespace + ".yaml"
 
-	os.Remove(fileName)
+	if err := os.Remove(fileName); err != nil {
+		log.Error().Msg(err.Error())
+	}
 
 	// create policy file
-	f, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		log.Error().Msg(err.Error())
 		return
 	}
 
-	for _, policy := range policies {
+	for i, policy := range policies {
 		// set flow ids null
 		policy.FlowIDs = nil
 
-		b, _ := yaml.Marshal(&policy)
-		f.Write(b)
-		f.WriteString("---\n")
-		f.Sync()
+		b, err := yaml.Marshal(&policies[i])
+		if err != nil {
+			log.Error().Msg(err.Error())
+		}
+		writeYamlByte(f, b)
 	}
 
-	f.Close()
+	if err := f.Close(); err != nil {
+		log.Error().Msg(err.Error())
+	}
 }
 
 func WriteCiliumPolicyToYamlFile(namespace string, policies []types.CiliumNetworkPolicy) {
 	// create policy file
 	fileName := GetEnv("POLICY_DIR", "./") + "cilium_policies_" + namespace + ".yaml"
 
-	os.Remove(fileName)
+	if err := os.Remove(fileName); err != nil {
+		log.Error().Msg(err.Error())
+	}
 
-	f, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		log.Error().Msg(err.Error())
 		return
 	}
 
-	for _, policy := range policies {
-		b, _ := yaml.Marshal(&policy)
-		f.Write(b)
-		f.WriteString("---\n")
-		f.Sync()
+	for i := range policies {
+		b, err := yaml.Marshal(&policies[i])
+		if err != nil {
+			log.Error().Msg(err.Error())
+		}
+		writeYamlByte(f, b)
 	}
 
-	f.Close()
+	if err := f.Close(); err != nil {
+		log.Error().Msg(err.Error())
+	}
 }
 
 func WriteKubeArmorPolicyToYamlFile(namespace string, policies []types.KubeArmorSystemPolicy) {
 	// create policy file
 	fileName := GetEnv("POLICY_DIR", "./") + "kubearmor_policies_" + namespace + ".yaml"
 
-	os.Remove(fileName)
+	if err := os.Remove(fileName); err != nil {
+		log.Error().Msg(err.Error())
+	}
 
-	f, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		log.Error().Msg(err.Error())
 		return
 	}
 
-	for _, policy := range policies {
-		b, _ := yaml.Marshal(&policy)
-		f.Write(b)
-		f.WriteString("---\n")
-		f.Sync()
+	for i := range policies {
+		b, err := yaml.Marshal(&policies[i])
+		if err != nil {
+			log.Error().Msg(err.Error())
+		}
+		writeYamlByte(f, b)
 	}
 
-	f.Close()
+	if err := f.Close(); err != nil {
+		log.Error().Msg(err.Error())
+	}
 }
 
 // ========== //
 // == Time == //
 // ========== //
 
-// Time Format
 const (
 	TimeForm       string = "2006-01-02T15:04:05.000000"
 	TimeFormSimple string = "2006-01-02 15:04:05"
@@ -312,7 +360,6 @@ func ConvertUnixTSToDateTime(ts int64) primitive.DateTime {
 	return dateTime
 }
 
-// ConvertStrToUnixTime function: str -> unix seconds for mysql
 func ConvertStrToUnixTime(strTime string) int64 {
 	if strTime == "now" {
 		return time.Now().UTC().Unix()
