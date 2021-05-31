@@ -138,10 +138,6 @@ func LoadDefaultConfig() {
 	Cfg.SystemLogFile = viper.GetString("application.system-log-file")
 	Cfg.SystemPolicyTo = viper.GetString("application.system-policy-to")
 	Cfg.SystemPolicyDir = viper.GetString("application.system-policy-dir")
-
-	if err := libs.AddConfiguration(Cfg.ConfigDB, Cfg); err != nil {
-		log.Error().Msg(err.Error())
-	}
 }
 
 func SetLogFile(file string) {
@@ -197,6 +193,10 @@ func ApplyConfiguration(configName string) error {
 // ============================ //
 // == Get Configuration Info == //
 // ============================ //
+
+func GetCurrentCfg() types.Configuration {
+	return Cfg
+}
 
 func GetCfgDB() types.ConfigDB {
 	return Cfg.ConfigDB

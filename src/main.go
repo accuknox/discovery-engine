@@ -31,6 +31,9 @@ func init() {
 
 	// 3. setup the tables in db
 	libs.CreateTablesIfNotExist(config.GetCfgDB())
+
+	// 4. add default config
+	libs.AddConfiguration(config.GetCfgDB(), config.GetCurrentCfg())
 }
 
 // ========== //
