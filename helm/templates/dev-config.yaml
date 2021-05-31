@@ -11,14 +11,14 @@ data:
       cron-job-time-interval: "@every 0h0m30s"
       network-log-from: db
       network-log-file: "./flow.json"
-      network-policy-to: "db|file"
+      network-policy-to: "db"
       network-policy-dir: "./"
       network-policy-types: 3
       network-policy-rule-types: 511
       network-policy-ignoring-namespaces: "kube-system"
       system-log-from: db
       system-log-file: "./log.json"
-      system-policy-to: "db|file"
+      system-policy-to: "db"
       system-policy-dir: "./"
       accuknox-cluster-mgmt: "http://cluster-management-service.accuknox-dev-cluster-mgmt.svc.cluster.local"
 

@@ -262,7 +262,7 @@ func WriteKnoxPolicyToYamlFile(namespace string, policies []types.KnoxNetworkPol
 	fileName := GetEnv("POLICY_DIR", "./") + "knox_policies_" + namespace + ".yaml"
 
 	if err := os.Remove(fileName); err != nil {
-		log.Error().Msg(err.Error())
+		// log.Error().Msg(err.Error()) // no such file or directory -> ignore
 	}
 
 	// create policy file

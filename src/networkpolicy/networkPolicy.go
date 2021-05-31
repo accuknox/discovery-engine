@@ -1600,7 +1600,7 @@ func DiscoverNetworkPolicyMain() {
 			}
 
 			if len(newPolicies) > 0 {
-				log.Info().Msgf("\tNetwork policy discovery done for namespace: [%s], [%d] policies discovered", namespace, len(newPolicies))
+				log.Info().Msgf("-> Network policy discovery done for namespace: [%s], [%d] policies discovered", namespace, len(newPolicies))
 			}
 		}
 
