@@ -459,6 +459,7 @@ func StopSystemCronJob() {
 func StartSystemWorker() {
 	if SystemWorkerStatus != STATUS_IDLE {
 		log.Info().Msg("There is no idle system policy discovery worker")
+
 		return
 	}
 
