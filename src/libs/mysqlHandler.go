@@ -53,7 +53,7 @@ func connectMySQL(cfg types.ConfigDB) (db *sql.DB) {
 // == Network Log == //
 // ================= //
 
-var networkLogQueryBase string = "SELECT (id,time,cluster_name,traffic_direction,verdict,policy_match_type,drop_reason,event_type,source,destination,ip,l4,l7) FROM "
+var networkLogQueryBase string = "SELECT id,time,cluster_name,traffic_direction,verdict,policy_match_type,drop_reason,event_type,source,destination,ip,l4,l7 FROM "
 
 func convertDateTimeToUnix(dateTime string) (int64, error) {
 	thetime, err := time.Parse(time.RFC3339, dateTime)

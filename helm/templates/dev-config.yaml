@@ -7,8 +7,8 @@ data:
   conf.yaml: |-
     application:
       name: knoxautopolicy
-      operation-mode: 2
-      cron-job-time-interval: "@every 0h0m10s"
+      operation-mode: 1
+      cron-job-time-interval: "@every 0h0m30s"
       network-log-from: db
       network-log-file: "./flow.json"
       network-policy-to: "db|file"

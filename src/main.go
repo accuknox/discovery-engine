@@ -33,7 +33,9 @@ func init() {
 	libs.CreateTablesIfNotExist(config.GetCfgDB())
 
 	// 4. add default config
-	libs.AddConfiguration(config.GetCfgDB(), config.GetCurrentCfg())
+	if err := libs.AddConfiguration(config.GetCfgDB(), config.GetCurrentCfg()); err != nil {
+		log.Error().Msg(err.Error())
+	}
 }
 
 // ========== //
