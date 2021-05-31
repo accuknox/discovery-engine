@@ -1590,9 +1590,9 @@ func DiscoverNetworkPolicyMain() {
 				}
 
 				// insert discovered policies to file
-				if strings.Contains(NetworkPolicyTo, "file") {
-					InsertDiscoveredPoliciesToFile(namespace, services)
-				}
+				// if strings.Contains(NetworkPolicyTo, "file") {
+				// 	InsertDiscoveredPoliciesToFile(namespace, services)
+				// }
 			}
 
 			log.Info().Msgf("Network policy discovery done for namespace: [%s], [%d] policies discovered", namespace, len(newPolicies))
