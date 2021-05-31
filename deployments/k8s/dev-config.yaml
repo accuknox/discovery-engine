@@ -43,9 +43,9 @@ data:
       driver: mysql
       host: mysql.accuknox-dev-mysql.svc.cluster.local
       port: 3306
-      user: networkflowdb_user
+      user: accuknox_user
       password: EAy5Kq4uhc5Gkws
-      dbname: networkflowdb
+      dbname: accuknox
       table-configuration: auto_policy_config
       table-network-log: network_log
       table-network-policy: network_policy
