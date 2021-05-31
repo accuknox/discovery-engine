@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata: 
-  name: policy-discovery-service-config
+  name: knoxautopolicy-config
 data:
   conf.yaml: |-
     application:
@@ -32,7 +32,7 @@ data:
       bootstrap-servers: "dev-kafka-kafka-bootstrap.accuknox-dev-kafka.svc.cluster.local:9092"
       group-id: policy.cilium
       topics: 
-        - cilium-telemetry-test
+        - cilium-telemetry
         - kubearmor-syslogs
       ssl:
         enabled: false
