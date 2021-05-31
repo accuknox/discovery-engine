@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata: 
-  name: knoxautopolicy-config
+  name: policy-discovery-service-config
 data:
   conf.yaml: |-
     application:
