@@ -49,6 +49,6 @@ func main() {
 	// start autopolicy service
 	log.Info().Msgf("KnoxAutoPolicy gRPC server on %s port started", grpcserver.PortNumber)
 	if err := server.Serve(lis); err != nil {
-		log.Error().Msgf("failed to serve: %s", err)
+		log.Error().Msgf("Failed to serve: %v", err)
 	}
 }

@@ -1,36 +1,22 @@
-apiVersion: v1
-kind: Service
-metadata:
-  name: policy-discovery-service
-  labels:
-    service: policy-discovery-service
-spec:
-  ports:
-  - port: 9089
-    targetPort: 9089
-    protocol: TCP
-  selector:
-    container: policy-discovery-service
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: policy-discovery-service
+  name: knoxautopolicy
   labels:
-    deployment: policy-discovery-service
+    deployment: knoxautopolicy
 spec:
   selector:
     matchLabels:
-      container: policy-discovery-service
+      container: knoxautopolicy
   template:
     metadata:
       labels:
-        container: policy-discovery-service
+        container: knoxautopolicy
     spec:
       containers:
       - image: gcr.io/accuknox/snapshot/knoxautopolicy:latest 
         #image: accuknox/knoxautopolicy:latest
-        name: policy-discovery-service
+        name: knoxautopolicy
         ports:
         - containerPort: 9089
           protocol: TCP
@@ -41,5 +27,5 @@ spec:
       volumes:
         - name: config-volume
           configMap:
-            name: policy-discovery-service-config
+            name: knoxautopolicy-config
 
