@@ -339,17 +339,17 @@ func GetPodsFromCluster(cluster types.Cluster) []types.Pod {
 	}
 
 	for _, v := range pods {
-		log.Info().Msgf("POD CLUSTER %v", v)
-
 		podCluster := types.PodCluster{}
 
 		b, err := json.Marshal(v)
 		if err != nil {
 			log.Error().Msg(err.Error())
+			continue
 		}
 
 		if err := json.Unmarshal(b, &podCluster); err != nil {
 			log.Error().Msg(err.Error())
+			continue
 		}
 
 		pod := types.Pod{
@@ -359,11 +359,22 @@ func GetPodsFromCluster(cluster types.Cluster) []types.Pod {
 		}
 
 		for _, label := range podCluster.Labels {
-			if ContainsElement(skippedLabelKeys, label["name"]) {
+			key := ""
+			val := ""
+
+			if v, ok := label["name"].(string); ok {
+				key = v
+			}
+
+			if v, ok := label["value"].(string); ok {
+				val = v
+			}
+
+			if ContainsElement(skippedLabelKeys, key) {
 				continue
 			}
 
-			pod.Labels = append(pod.Labels, label["name"]+"="+label["value"])
+			pod.Labels = append(pod.Labels, key+"="+val)
 		}
 
 		results = append(results, pod)

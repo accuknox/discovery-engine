@@ -201,7 +201,7 @@ func getNetworkLogs() []types.KnoxNetworkLog {
 	// == Database  == //
 	// =============== //
 	if NetworkLogFrom == "db" {
-		log.Info().Msg("Get network flow from the database")
+		log.Info().Msg("Get network log from the database")
 
 		// get network logs from db
 		netLogs := libs.GetNetworkLogsFromDB(CfgDB, OneTimeJobTime)
@@ -215,7 +215,7 @@ func getNetworkLogs() []types.KnoxNetworkLog {
 		// ========================== //
 		// == Cilium Hubble Relay  == //
 		// ========================== //
-		log.Info().Msg("Get network flow from the Cilium Hubble directly")
+		log.Info().Msg("Get network log from the Cilium Hubble directly")
 
 		// get flows from hubble relay
 		flows := plugin.GetCiliumFlowsFromHubble()
@@ -233,7 +233,7 @@ func getNetworkLogs() []types.KnoxNetworkLog {
 		// =============================== //
 		// == File (.json) for testing  == //
 		// =============================== //
-		log.Info().Msg("Get network flow from the json file : " + NetworkLogFile)
+		log.Info().Msg("Get network log from the json file : " + NetworkLogFile)
 		flows := []*flow.Flow{}
 
 		// Open our jsonFile
