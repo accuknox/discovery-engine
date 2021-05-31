@@ -352,6 +352,10 @@ func GetPodsFromCluster(cluster types.Cluster) []types.Pod {
 			continue
 		}
 
+		if podCluster.Namespace == "multiubuntu" {
+			log.Info().Msgf("POD %v", podCluster)
+		}
+
 		pod := types.Pod{
 			Namespace: podCluster.Namespace,
 			PodName:   podCluster.PodName,
