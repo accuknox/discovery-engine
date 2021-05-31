@@ -364,10 +364,18 @@ func GetPodsFromCluster(cluster types.Cluster) []types.Pod {
 
 			if v, ok := label["name"].(string); ok {
 				key = v
+			} else {
+				continue
 			}
 
 			if v, ok := label["value"].(string); ok {
+				if v == "" {
+					continue
+				}
+
 				val = v
+			} else {
+				continue
 			}
 
 			if ContainsElement(skippedLabelKeys, key) {
