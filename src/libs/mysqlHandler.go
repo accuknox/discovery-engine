@@ -390,7 +390,7 @@ func GetNetworkPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) (
 	var results *sql.Rows
 	var err error
 
-	query := "SELECT (apiVersion,kind,flow_ids,name,cluster_name,namespace,type,rule,status,outdated,spec,generatedTime) FROM " + cfg.TableNetworkPolicy
+	query := "SELECT apiVersion,kind,flow_ids,name,cluster_name,namespace,type,rule,status,outdated,spec,generatedTime FROM " + cfg.TableNetworkPolicy
 	if namespace != "" && status != "" {
 		query = query + " WHERE namespace = ? and status = ? "
 		results, err = db.Query(query, namespace, status)
@@ -713,7 +713,7 @@ func AddConfiguration(cfg types.ConfigDB, newConfig types.Configuration) error {
 		"system_log_file," +
 		"system_policy_to," +
 		"system_policy_dir) " +
-		"values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+		"values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
 
 	if err != nil {
 		return err
@@ -739,7 +739,8 @@ func AddConfiguration(cfg types.ConfigDB, newConfig types.Configuration) error {
 		return err
 	}
 
-	_, err = stmt.Exec(newConfig.ConfigName,
+	_, err = stmt.Exec(
+		newConfig.ConfigName,
 		newConfig.Status,
 		configDB,
 		configCilium,

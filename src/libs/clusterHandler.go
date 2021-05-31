@@ -339,6 +339,8 @@ func GetPodsFromCluster(cluster types.Cluster) []types.Pod {
 	}
 
 	for _, v := range pods {
+		log.Info().Msgf("POD CLUSTER %v", v)
+
 		podCluster := types.PodCluster{}
 
 		b, err := json.Marshal(v)
