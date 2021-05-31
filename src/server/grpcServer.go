@@ -11,6 +11,7 @@ import (
 	"github.com/accuknox/knoxAutoPolicy/src/feedconsumer"
 	logger "github.com/accuknox/knoxAutoPolicy/src/logging"
 	networker "github.com/accuknox/knoxAutoPolicy/src/networkpolicy"
+	sysworker "github.com/accuknox/knoxAutoPolicy/src/systempolicy"
 
 	"github.com/accuknox/knoxAutoPolicy/src/libs"
 	cpb "github.com/accuknox/knoxAutoPolicy/src/protobuf/v1/config"
@@ -22,14 +23,13 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
+const PortNumber = "9089"
+
 var log *zerolog.Logger
 
 func init() {
 	log = logger.GetInstance()
 }
-
-// PortNumber ...
-const PortNumber = "9089"
 
 // =========================== //
 // == Configuration Service == //
@@ -43,14 +43,18 @@ func (s *configServer) Add(ctx context.Context, in *cpb.ConfigRequest) (*cpb.Con
 	log.Info().Msg("Add config called")
 
 	m := jsonpb.Marshaler{OrigName: true}
-	str, _ := m.MarshalToString(in.GetConfig())
+	str, err := m.MarshalToString(in.GetConfig())
+	if err != nil {
+		return &cpb.ConfigResponse{Msg: err.Error()}, err
+	}
 
 	var config types.Configuration
-	json.Unmarshal([]byte(str), &config)
+	if err := json.Unmarshal([]byte(str), &config); err != nil {
+		return &cpb.ConfigResponse{Msg: err.Error()}, err
+	}
 
-	err := core.AddConfiguration(config)
-	if err != nil {
-		return &cpb.ConfigResponse{Msg: err.Error()}, nil
+	if err := core.AddConfiguration(config); err != nil {
+		return &cpb.ConfigResponse{Msg: err.Error()}, err
 	}
 
 	return &cpb.ConfigResponse{Msg: "ok"}, nil
@@ -66,9 +70,9 @@ func (s *configServer) Get(ctx context.Context, in *cpb.ConfigRequest) (*cpb.Con
 
 	configs := []*cpb.Config{}
 
-	for _, result := range results {
+	for i := range results {
 		var config cpb.Config
-		if b, err := json.Marshal(&result); err != nil {
+		if b, err := json.Marshal(&results[i]); err != nil {
 			log.Error().Msg(err.Error())
 			continue
 		} else {
@@ -91,14 +95,16 @@ func (s *configServer) Update(ctx context.Context, in *cpb.ConfigRequest) (*cpb.
 	str, _ := m.MarshalToString(in.GetConfig())
 
 	var config types.Configuration
-	json.Unmarshal([]byte(str), &config)
+	if err := json.Unmarshal([]byte(str), &config); err != nil {
+		return &cpb.ConfigResponse{Msg: err.Error()}, err
+	}
 
 	err := core.UpdateConfiguration(in.GetConfigName(), config)
 	if err != nil {
-		return &cpb.ConfigResponse{Msg: err.Error()}, nil
+		return &cpb.ConfigResponse{Msg: err.Error()}, err
 	}
 
-	return &cpb.ConfigResponse{Msg: "ok"}, nil
+	return &cpb.ConfigResponse{Msg: "ok"}, err
 }
 
 func (s *configServer) Delete(ctx context.Context, in *cpb.ConfigRequest) (*cpb.ConfigResponse, error) {
@@ -142,19 +148,45 @@ func (s *workerServer) Start(ctx context.Context, in *wpb.WorkerRequest) (*wpb.W
 		core.SetLogFile(in.GetLogfile())
 	}
 
-	networker.StartNetworkWorker()
-	return &wpb.WorkerResponse{Res: "ok"}, nil
+	if in.GetPolicytype() == "network" {
+		networker.StartNetworkWorker()
+	} else if in.GetPolicytype() == "system" {
+		sysworker.StartSystemWorker()
+	} else {
+		return &wpb.WorkerResponse{Res: "No policy type, choose 'network' or 'system', not [" + in.GetPolicytype() + "]"}, nil
+	}
+
+	return &wpb.WorkerResponse{Res: "ok starting " + in.GetPolicytype() + " policy discovery"}, nil
 }
 
 func (s *workerServer) Stop(ctx context.Context, in *wpb.WorkerRequest) (*wpb.WorkerResponse, error) {
 	log.Info().Msg("Stop worker called")
-	networker.StopNetworkWorker()
-	return &wpb.WorkerResponse{Res: "ok"}, nil
+
+	if in.GetPolicytype() == "network" {
+		networker.StopNetworkWorker()
+	} else if in.GetPolicytype() == "system" {
+		sysworker.StopSystemWorker()
+	} else {
+		return &wpb.WorkerResponse{Res: "No policy type, choose 'network' or 'system', not [" + in.GetPolicytype() + "]"}, nil
+	}
+
+	return &wpb.WorkerResponse{Res: "ok stopping " + in.GetPolicytype() + " policy discovery"}, nil
 }
 
 func (s *workerServer) GetWorkerStatus(ctx context.Context, in *wpb.WorkerRequest) (*wpb.WorkerResponse, error) {
 	log.Info().Msg("Get worker status called")
-	return &wpb.WorkerResponse{Res: networker.NetworkWorkerStatus}, nil
+
+	status := ""
+
+	if in.GetPolicytype() == "network" {
+		status = networker.NetworkWorkerStatus
+	} else if in.GetPolicytype() == "system" {
+		status = sysworker.SystemWorkerStatus
+	} else {
+		return &wpb.WorkerResponse{Res: "No policy type, choose 'network' or 'system', not [" + in.GetPolicytype() + "]"}, nil
+	}
+
+	return &wpb.WorkerResponse{Res: status}, nil
 }
 
 // ====================== //
@@ -186,7 +218,6 @@ func (s *consumerServer) GetWorkerStatus(ctx context.Context, in *fpb.ConsumerRe
 // == gRPC server == //
 // ================= //
 
-// GetNewServer ...
 func GetNewServer() *grpc.Server {
 	s := grpc.NewServer()
 

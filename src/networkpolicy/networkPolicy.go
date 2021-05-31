@@ -125,7 +125,6 @@ var DomainToIPs map[string][]string
 var FlowIDTrackerFirst map[FlowIDTrackingFirst][]int
 var FlowIDTrackerSecond map[FlowIDTrackingSecond][]int
 
-// ClusterVariable Structure
 type ClusterVariable struct {
 	K8sServiceTCPPorts  []int
 	K8sServiceUDPPorts  []int
@@ -139,28 +138,25 @@ type ClusterVariable struct {
 	FlowIDTrackerSecond map[FlowIDTrackingSecond][]int
 }
 
-// DomainToIPs [key: cluster name, val: cluster variable]
+// ClusterVariableMap [key: cluster name, val: cluster variable]
 var ClusterVariableMap = map[string]ClusterVariable{}
 
 // ========================== //
 // == Inner Structure Type == //
 // ========================== //
 
-// SrcSimple Structure
 type SrcSimple struct {
 	Namespace   string
 	PodName     string
 	MatchLabels string
 }
 
-// DstSimple Structure
 type DstSimple struct {
 	Namespace  string
 	PodName    string
 	Additional string
 }
 
-// Dst Structure
 type Dst struct {
 	Namespace   string
 	PodName     string
@@ -170,7 +166,6 @@ type Dst struct {
 	DstPort     int
 }
 
-// MergedPortDst Structure
 type MergedPortDst struct {
 	FlowIDs []int
 
@@ -182,19 +177,16 @@ type MergedPortDst struct {
 	HTTPTree    map[string]*Node
 }
 
-// LabelCount Structure
 type LabelCount struct {
 	Label string
 	Count float64
 }
 
-// FlowIDTrackingFirst structure
 type FlowIDTrackingFirst struct {
 	Src SrcSimple
 	Dst Dst
 }
 
-// FlowIDTrackingSecond structure
 type FlowIDTrackingSecond struct {
 	AggreagtedSrc string
 	Dst           Dst
@@ -204,7 +196,6 @@ type FlowIDTrackingSecond struct {
 // == Step 1: Grouping Network Logs Per Dst == //
 // =========================================== //
 
-// getDst Function
 func getDst(log types.KnoxNetworkLog, endpoints []types.Endpoint, cidrBits int) (Dst, bool) {
 	dstPort := 0
 	externalInfo := ""
@@ -278,7 +269,6 @@ func getDst(log types.KnoxNetworkLog, endpoints []types.Endpoint, cidrBits int) 
 	return dst, true
 }
 
-// groupNetworkLogPerDst Function
 func groupNetworkLogPerDst(networkLogs []types.KnoxNetworkLog, endpoints []types.Endpoint, cidrBits int) map[Dst][]types.KnoxNetworkLog {
 	perDst := map[Dst][]types.KnoxNetworkLog{}
 
@@ -297,7 +287,7 @@ func groupNetworkLogPerDst(networkLogs []types.KnoxNetworkLog, endpoints []types
 
 	// remove tcp dst which is included in http dst
 	for dst := range perDst {
-		if dst.Protocol == 6 && libs.CheckHTTPMethod(dst.Additional) {
+		if dst.Protocol == 6 && CheckHTTPMethod(dst.Additional) {
 			dstCopy := dst
 
 			dstCopy.Additional = ""
@@ -316,7 +306,6 @@ func groupNetworkLogPerDst(networkLogs []types.KnoxNetworkLog, endpoints []types
 // == Step 2: Replacing Src to Labeled == //
 // ====================================== //
 
-// extractSrcByLabel Function
 func extractSrcByLabel(labeledSrcsPerDst map[Dst][]SrcSimple, perDst map[Dst][]types.KnoxNetworkLog, pods []types.Pod) map[Dst][]SrcSimple {
 	for dst, logs := range perDst {
 		srcs := []SrcSimple{}
@@ -377,7 +366,6 @@ func extractSrcByLabel(labeledSrcsPerDst map[Dst][]SrcSimple, perDst map[Dst][]t
 // == Step 3: Aggregating Src Based on Labels == //
 // ============================================= //
 
-// checkIncludeAllSrcPods func
 func checkIncludeAllSrcPods(superSetLabels string, srcs []SrcSimple, pods []types.Pod) bool {
 	srcNamespace := ""
 	labels := strings.Split(superSetLabels, ",")
@@ -444,7 +432,6 @@ func checkIncludeAllSrcPods(superSetLabels string, srcs []SrcSimple, pods []type
 	return srcIncludeAllK8sPods
 }
 
-// aggregateSrcByLabel Function
 func aggregateSrcByLabel(labeledSrcsPerDst map[Dst][]SrcSimple, pods []types.Pod) map[Dst][]string {
 	aggregatedSrcsPerDst := map[Dst][]string{}
 
@@ -505,7 +492,6 @@ func aggregateSrcByLabel(labeledSrcsPerDst map[Dst][]SrcSimple, pods []types.Pod
 // == Step 4: Merging Dst's Protocol + Port == //
 // =========================================== //
 
-// mergeCIDR function
 func mergeCIDR(mergedSrcPerMergedDst map[string][]MergedPortDst) {
 	// merge cidr dst per each merged Src
 	for aggregatedSrc, dsts := range mergedSrcPerMergedDst {
@@ -577,7 +563,6 @@ func mergeCIDR(mergedSrcPerMergedDst map[string][]MergedPortDst) {
 	}
 }
 
-// mergeFQDN function
 func mergeFQDN(mergedSrcPerMergedDst map[string][]MergedPortDst) {
 	// merge same dns per each aggregated Src
 	for aggregatedSrc, dsts := range mergedSrcPerMergedDst {
@@ -648,7 +633,6 @@ func mergeFQDN(mergedSrcPerMergedDst map[string][]MergedPortDst) {
 	}
 }
 
-// mergeEntities function
 func mergeEntities(mergedSrcPerMergedDst map[string][]MergedPortDst) {
 	// merge same entities per each aggregated Src
 	for aggregatedSrc, dsts := range mergedSrcPerMergedDst {
@@ -693,7 +677,6 @@ func mergeEntities(mergedSrcPerMergedDst map[string][]MergedPortDst) {
 	}
 }
 
-// mergeProtocolPorts Function
 func mergeProtocolPorts(mergedDsts []MergedPortDst, dst Dst, flowIDs []int) []MergedPortDst {
 	for i, dstPort := range mergedDsts {
 		simple1 := DstSimple{
@@ -743,7 +726,6 @@ func mergeProtocolPorts(mergedDsts []MergedPortDst, dst Dst, flowIDs []int) []Me
 	return mergedDsts
 }
 
-// mergeDstByProtoPort Function
 func mergeDstByProtoPort(aggregatedSrcsPerDst map[Dst][]string) map[string][]MergedPortDst {
 	aggregatedSrcPerMergedDst := map[string][]MergedPortDst{}
 
@@ -853,7 +835,6 @@ func mergeDstByProtoPort(aggregatedSrcsPerDst map[Dst][]string) map[string][]Mer
 // == Step 5: Aggregating Dst based on Label == //
 // ============================================ //
 
-// groupDstByNamespace function
 func groupDstByNamespace(dsts []MergedPortDst) map[string][]MergedPortDst {
 	dstsPerNamespaceMap := map[string][]MergedPortDst{}
 
@@ -869,7 +850,6 @@ func groupDstByNamespace(dsts []MergedPortDst) map[string][]MergedPortDst {
 	return dstsPerNamespaceMap
 }
 
-// checkIncludeAllDstPods func
 func checkIncludeAllDstPods(superSetLabels string, dsts []MergedPortDst, pods []types.Pod) bool {
 	dstNamespace := ""
 	labels := strings.Split(superSetLabels, ",")
@@ -936,7 +916,6 @@ func checkIncludeAllDstPods(superSetLabels string, dsts []MergedPortDst, pods []
 	return dstIncludeAllK8sPods
 }
 
-// groupingDstMergeds Function
 func groupingDstMergeds(label string, dsts []MergedPortDst) MergedPortDst {
 	newMerged := MergedPortDst{
 		FlowIDs:     []int{},
@@ -977,7 +956,6 @@ func groupingDstMergeds(label string, dsts []MergedPortDst) MergedPortDst {
 	return newMerged
 }
 
-// aggregateDstByLabel Function
 func aggregateDstByLabel(aggregatedSrcPerMergedDst map[string][]MergedPortDst, pods []types.Pod) map[string][]MergedPortDst {
 	aggregatedSrcPerAggregatedDst := map[string][]MergedPortDst{}
 
@@ -1049,7 +1027,6 @@ func aggregateDstByLabel(aggregatedSrcPerMergedDst map[string][]MergedPortDst, p
 // == Step 7: Building Network Policies == //
 // ======================================= //
 
-// buildNewKnoxPolicy Function
 func buildNewKnoxPolicy() types.KnoxNetworkPolicy {
 	return types.KnoxNetworkPolicy{
 		APIVersion: "v1",
@@ -1066,7 +1043,6 @@ func buildNewKnoxPolicy() types.KnoxNetworkPolicy {
 	}
 }
 
-// buildNewKnoxEgressPolicy Function
 func buildNewKnoxEgressPolicy() types.KnoxNetworkPolicy {
 	policy := buildNewKnoxPolicy()
 	policy.Metadata["type"] = "egress"
@@ -1075,7 +1051,6 @@ func buildNewKnoxEgressPolicy() types.KnoxNetworkPolicy {
 	return policy
 }
 
-// buildNewKnoxIngressPolicy Function
 func buildNewKnoxIngressPolicy() types.KnoxNetworkPolicy {
 	policy := buildNewKnoxPolicy()
 	policy.Metadata["type"] = "ingress"
@@ -1084,7 +1059,6 @@ func buildNewKnoxIngressPolicy() types.KnoxNetworkPolicy {
 	return policy
 }
 
-// buildNewIngressPolicyFromEgressPolicy Function
 func buildNewIngressPolicyFromEgressPolicy(egressRule types.Egress, selector types.Selector) types.KnoxNetworkPolicy {
 	ingress := buildNewKnoxIngressPolicy()
 	ingress.Metadata["rule"] = "matchLabels"
@@ -1124,7 +1098,6 @@ func buildNewIngressPolicyFromEgressPolicy(egressRule types.Egress, selector typ
 	return ingress
 }
 
-// buildNewIngressPolicyFromSameSelector Function
 func buildNewIngressPolicyFromSameSelector(namespace string, selector types.Selector) types.KnoxNetworkPolicy {
 	ingress := buildNewKnoxIngressPolicy()
 	ingress.Metadata["namespace"] = namespace
@@ -1135,7 +1108,6 @@ func buildNewIngressPolicyFromSameSelector(namespace string, selector types.Sele
 	return ingress
 }
 
-// checkIngressEntities function for dropped packet
 func checkIngressEntities(namespace string, mergedSrcPerMergedDst map[string][]MergedPortDst, networkPolicies []types.KnoxNetworkPolicy) []types.KnoxNetworkPolicy {
 	for aggregatedSrc, aggregatedMergedDsts := range mergedSrcPerMergedDst {
 		// if src inlcudes "reserved" prefix, it means Ingress Policy
@@ -1188,7 +1160,6 @@ func checkIngressEntities(namespace string, mergedSrcPerMergedDst map[string][]M
 	return networkPolicies
 }
 
-// buildNetworkPolicy Function
 func buildNetworkPolicy(namespace string, services []types.Service, aggregatedSrcPerAggregatedDst map[string][]MergedPortDst) []types.KnoxNetworkPolicy {
 	networkPolicies := []types.KnoxNetworkPolicy{}
 
@@ -1266,7 +1237,7 @@ func buildNetworkPolicy(namespace string, services []types.Service, aggregatedSr
 						// =============== //
 						// build HTTP rule //
 						// =============== //
-						if toPort.Protocol == "tcp" && libs.CheckSpecHTTP(dst.Additionals) {
+						if toPort.Protocol == "tcp" && CheckSpecHTTP(dst.Additionals) {
 							egressRule.ToHTTPs = []types.SpecHTTP{}
 
 							sort.Strings(dst.Additionals)
@@ -1455,7 +1426,6 @@ func buildNetworkPolicy(namespace string, services []types.Service, aggregatedSr
 // == Step 8: Updating labeledSrcsPerDst Map == //
 // ============================================ //
 
-// updateLabeledSrcPerDst function
 func updateLabeledSrcPerDst(labeledSrcsPerDst map[Dst][]SrcSimple) map[Dst][]SrcSimple {
 	// only maintains pod-to-pod in cluster
 	for dst := range labeledSrcsPerDst {
@@ -1477,7 +1447,6 @@ func updateLabeledSrcPerDst(labeledSrcsPerDst map[Dst][]SrcSimple) map[Dst][]Src
 // == Discover Network Policy  == //
 // ============================== //
 
-// DiscoverNetworkPolicy Function
 func DiscoverNetworkPolicy(namespace string,
 	networkLogs []types.KnoxNetworkLog,
 	services []types.Service,
@@ -1520,7 +1489,7 @@ func DiscoverNetworkPolicy(namespace string,
 	return networkPolicies
 }
 
-func initDiscoveryConfiguration() {
+func initNetPolicyDiscoveryConfiguration() {
 	CfgDB = cfg.GetCfgDB()
 
 	OneTimeJobTime = cfg.GetCfgOneTime()
@@ -1540,7 +1509,6 @@ func initDiscoveryConfiguration() {
 	IgnoringNamespaces = cfg.GetCfgNetworkSkipNamespaces()
 }
 
-// DiscoverNetworkPolicyMain function
 func DiscoverNetworkPolicyMain() {
 	if NetworkWorkerStatus == STATUS_RUNNING {
 		return
@@ -1553,7 +1521,7 @@ func DiscoverNetworkPolicyMain() {
 	}()
 
 	// init the configuration related to the network policy
-	initDiscoveryConfiguration()
+	initNetPolicyDiscoveryConfiguration()
 
 	// get network logs
 	allNetworkLogs := getNetworkLogs()
@@ -1564,20 +1532,16 @@ func DiscoverNetworkPolicyMain() {
 	// get cluster names, iterate each cluster
 	clusteredLogs := clusteringNetworkLogs(allNetworkLogs)
 	for clusterName, networkLogs := range clusteredLogs {
-		if clusterName != "accuknox-qa" {
-			continue
-		}
-
 		clusterInstance := libs.GetClusterFromClusterName(clusterName)
 		if clusterInstance.ClusterID == 0 { // cluster not onboarded
 			continue
 		}
 
 		// set cluster global variables
-		initClusterVariables(clusterName)
+		initMultiClusterVariables(clusterName)
 
 		// get k8s resources
-		namespaces, services, endpoints, pods := libs.GetClusterResources(clusterInstance)
+		namespaces, services, endpoints, pods := libs.GetAllClusterResources(clusterInstance)
 
 		// update DNS req. flows, DNSToIPs map
 		updateDNSFlows(networkLogs)
@@ -1585,7 +1549,7 @@ func DiscoverNetworkPolicyMain() {
 		// update service ports (k8s service, endpoint, kube-dns)
 		updateServiceEndpoint(services, endpoints, pods)
 
-		// get existing policies in db
+		// get existing network policies in db
 		existingPolicies := libs.GetNetworkPolicies(CfgDB, "", "")
 
 		// filter ignoring network logs from configuration
@@ -1603,7 +1567,7 @@ func DiscoverNetworkPolicyMain() {
 				continue
 			}
 
-			log.Info().Msgf("Policy discovery started for namespace: [%s]", namespace)
+			log.Info().Msgf("Network policy discovery started for namespace: [%s]", namespace)
 
 			// reset flow id track at each target namespace
 			clearTrackFlowIDMaps()
@@ -1611,10 +1575,10 @@ func DiscoverNetworkPolicyMain() {
 			// ========================================================= //
 			// == discover network policies based on the network logs == //
 			// ========================================================= //
-			discoveredPolicies := DiscoverNetworkPolicy(namespace, namespaceFilteredLogs, services, endpoints, pods)
+			discoveredNetPolicies := DiscoverNetworkPolicy(namespace, namespaceFilteredLogs, services, endpoints, pods)
 
 			// update duplicated policy
-			newPolicies := UpdateDuplicatedPolicy(existingPolicies, discoveredPolicies, DomainToIPs, clusterName)
+			newPolicies := UpdateDuplicatedPolicy(existingPolicies, discoveredNetPolicies, DomainToIPs, clusterName)
 			sort.Slice(newPolicies, func(i, j int) bool {
 				return newPolicies[i].Metadata["name"] < newPolicies[j].Metadata["name"]
 			})
@@ -1631,11 +1595,11 @@ func DiscoverNetworkPolicyMain() {
 				}
 			}
 
-			log.Info().Msgf("Policy discovery done for namespace: [%s], [%d] policies discovered", namespace, len(newPolicies))
+			log.Info().Msgf("Network policy discovery done for namespace: [%s], [%d] policies discovered", namespace, len(newPolicies))
 		}
 
 		// update cluster global variables
-		updateClusterVariables(clusterName)
+		updateMultiClusterVariables(clusterName)
 	}
 }
 
@@ -1643,7 +1607,6 @@ func DiscoverNetworkPolicyMain() {
 // == Network Policy Discovery Worker == //
 // ===================================== //
 
-// StartNetworkCronJob function
 func StartNetworkCronJob() {
 	// if network from hubble
 	if cfg.GetCfgNetworkLogFrom() == "hubble" {
@@ -1663,7 +1626,6 @@ func StartNetworkCronJob() {
 	log.Info().Msg("Auto network policy discovery cron job started")
 }
 
-// StopNetworkCronJob function
 func StopNetworkCronJob() {
 	if NetworkCronJob != nil {
 		log.Info().Msg("Got a signal to terminate the auto network policy discovery")
@@ -1677,7 +1639,6 @@ func StopNetworkCronJob() {
 	}
 }
 
-// StartNetworkWorker function
 func StartNetworkWorker() {
 	if NetworkWorkerStatus != STATUS_IDLE {
 		log.Info().Msg("There is no idle network policy discovery worker")
@@ -1692,7 +1653,6 @@ func StartNetworkWorker() {
 	}
 }
 
-// StopNetworkWorker function
 func StopNetworkWorker() {
 	if cfg.GetCfgOperationMode() == OP_MODE_CRONJOB { // every time intervals
 		StopNetworkCronJob()

@@ -18,15 +18,15 @@ COPY ./server ./server
 COPY ./main.go ./main.go
 COPY ./go.mod ./go.mod
 
-RUN go mod download
+#RUN go mod download
 RUN go build -o knoxAutoPolicy main.go
 
 ### Make executable image
 
-#FROM debian:buster
-FROM artifactory.accuknox.com/accuknox/ubuntu:bionic-20210512 
+FROM debian:buster
+#FROM artifactory.accuknox.com/accuknox/ubuntu:bionic-20210512 
 
-COPY conf/conf.yaml conf/conf.yaml
+COPY conf/local.yaml conf/local.yaml
 COPY --from=builder /usr/src/knox/knoxAutoPolicy /knoxAutoPolicy
 
 ENTRYPOINT ["/knoxAutoPolicy"]

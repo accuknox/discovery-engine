@@ -27,11 +27,11 @@ func SkipNamespaceForNetworkPolicy(namespace string) bool {
 	return false
 }
 
-// ======================= //
-// == Cluster Variables == //
-// ======================= //
+// ============================= //
+// == Multi Cluster Variables == //
+// ============================= //
 
-func initClusterVariables(clusterName string) {
+func initMultiClusterVariables(clusterName string) {
 	val := ClusterVariable{
 		K8sServiceTCPPorts:  []int{},
 		K8sServiceUDPPorts:  []int{},
@@ -62,7 +62,7 @@ func initClusterVariables(clusterName string) {
 	FlowIDTrackerSecond = val.FlowIDTrackerSecond
 }
 
-func updateClusterVariables(clusterName string) {
+func updateMultiClusterVariables(clusterName string) {
 	if exist, ok := ClusterVariableMap[clusterName]; ok {
 		exist.K8sServiceTCPPorts = K8sServiceTCPPorts
 		exist.K8sServiceUDPPorts = K8sServiceUDPPorts
@@ -84,7 +84,6 @@ func updateClusterVariables(clusterName string) {
 // == Network Log Filter  == //
 // ========================= //
 
-// getHaveToCheckItems func
 func getHaveToCheckItems(igFlows types.IgnoringFlows) int {
 	check := 0
 
@@ -115,7 +114,6 @@ func getHaveToCheckItems(igFlows types.IgnoringFlows) int {
 	return check
 }
 
-// FilterNetworkLogsByConfig func
 func FilterNetworkLogsByConfig(logs []types.KnoxNetworkLog, pods []types.Pod) []types.KnoxNetworkLog {
 	filteredLogs := []types.KnoxNetworkLog{}
 
@@ -173,7 +171,6 @@ func FilterNetworkLogsByConfig(logs []types.KnoxNetworkLog, pods []types.Pod) []
 	return filteredLogs
 }
 
-// FilterNetworkLogsByNamespace function
 func FilterNetworkLogsByNamespace(targetNamespace string, logs []types.KnoxNetworkLog) []types.KnoxNetworkLog {
 	filteredLogs := []types.KnoxNetworkLog{}
 
@@ -197,7 +194,6 @@ func FilterNetworkLogsByNamespace(targetNamespace string, logs []types.KnoxNetwo
 // == Network Log == //
 // ================= //
 
-// getNetworkLogs function
 func getNetworkLogs() []types.KnoxNetworkLog {
 	networkLogs := []types.KnoxNetworkLog{}
 
@@ -244,12 +240,21 @@ func getNetworkLogs() []types.KnoxNetworkLog {
 		logFile, err := os.Open(NetworkLogFile)
 		if err != nil {
 			log.Error().Msg(err.Error())
+			if err := logFile.Close(); err != nil {
+				log.Error().Msg(err.Error())
+			}
 			return nil
 		}
-		defer logFile.Close()
 
-		byteValue, _ := ioutil.ReadAll(logFile)
-		json.Unmarshal(byteValue, &flows)
+		byteValue, err := ioutil.ReadAll(logFile)
+		if err != nil {
+			log.Error().Msg(err.Error())
+		}
+
+		if err := json.Unmarshal(byteValue, &flows); err != nil {
+			log.Error().Msg(err.Error())
+			return nil
+		}
 
 		// replace the pod names in prepared-flows with the working pod names
 		pods := libs.GetPodsK8s()
@@ -260,6 +265,10 @@ func getNetworkLogs() []types.KnoxNetworkLog {
 			if log, valid := plugin.ConvertCiliumFlowToKnoxNetworkLog(flow); valid {
 				networkLogs = append(networkLogs, log)
 			}
+		}
+
+		if err := logFile.Close(); err != nil {
+			log.Error().Msg(err.Error())
 		}
 	} else {
 		log.Error().Msgf("Network log source not correct: %s", NetworkLogFrom)
@@ -273,10 +282,10 @@ func clusteringNetworkLogs(networkLogs []types.KnoxNetworkLog) map[string][]type
 	clusterNameMap := map[string][]types.KnoxNetworkLog{}
 
 	for _, log := range networkLogs {
-		if _, ok := clusterNameMap[log.CluserName]; ok {
-			clusterNameMap[log.CluserName] = append(clusterNameMap[log.CluserName], log)
+		if _, ok := clusterNameMap[log.ClusterName]; ok {
+			clusterNameMap[log.ClusterName] = append(clusterNameMap[log.ClusterName], log)
 		} else {
-			clusterNameMap[log.CluserName] = []types.KnoxNetworkLog{log}
+			clusterNameMap[log.ClusterName] = []types.KnoxNetworkLog{log}
 		}
 	}
 
@@ -287,7 +296,6 @@ func clusteringNetworkLogs(networkLogs []types.KnoxNetworkLog) map[string][]type
 // == Label == //
 // =========== //
 
-// descendingLabelCountMap Function
 func descendingLabelCountMap(labelCountMap map[string]int) []LabelCount {
 	// sort label count by descending orders
 	// but, 2 labels = 2 vs. 1 label 2 --> 2 labels win
@@ -304,7 +312,6 @@ func descendingLabelCountMap(labelCountMap map[string]int) []LabelCount {
 	return labelCounts
 }
 
-// containLabel Function
 func containLabel(mergedLabel, targetLabel string) bool {
 	labels := strings.Split(mergedLabel, ",")
 	targetLabels := strings.Split(targetLabel, ",")
@@ -330,7 +337,6 @@ func containLabel(mergedLabel, targetLabel string) bool {
 	return false
 }
 
-// containLabelByConfiguration func
 func containLabelByConfiguration(cni string, igLabels []string, flowLabels []string) bool {
 	prefix := ""
 
@@ -349,7 +355,6 @@ func containLabelByConfiguration(cni string, igLabels []string, flowLabels []str
 	return true
 }
 
-// combinationLabels Function
 func combinationLabels(set []string, n int) (subsets [][]string) {
 	length := uint(len(set))
 
@@ -381,7 +386,6 @@ func combinationLabels(set []string, n int) (subsets [][]string) {
 	return subsets
 }
 
-// countLabelByCombinations Function (combination!)
 func countLabelByCombinations(labelCount map[string]int, mergedLabels string) {
 	// split labels
 	labels := strings.Split(mergedLabels, ",")
@@ -418,7 +422,6 @@ func countLabelByCombinations(labelCount map[string]int, mergedLabels string) {
 	}
 }
 
-// getMergedSortedLabels Function
 func getMergedSortedLabels(namespace, podName string, pods []types.Pod) string {
 	mergedLabels := ""
 
@@ -456,7 +459,6 @@ func getLabelsFromPod(podName string, pods []types.Pod) []string {
 	return []string{}
 }
 
-// updateDstLabels Function
 func updateDstLabels(dsts []MergedPortDst, pods []types.Pod) []MergedPortDst {
 	for i, dst := range dsts {
 		matchLabels := getMergedSortedLabels(dst.Namespace, dst.PodName, pods)
@@ -472,7 +474,6 @@ func updateDstLabels(dsts []MergedPortDst, pods []types.Pod) []MergedPortDst {
 // == Flow ID Tracking == //
 // ====================== //
 
-// trackFlowIDFirst function
 func trackFlowIDFirst(src SrcSimple, dst Dst, flowID int) {
 	trackKey := FlowIDTrackingFirst{Src: src, Dst: dst}
 
@@ -486,7 +487,6 @@ func trackFlowIDFirst(src SrcSimple, dst Dst, flowID int) {
 	}
 }
 
-// trackFlowIDSecond function
 func trackFlowIDSecond(label string, src SrcSimple, dst Dst) {
 	// get ids from step 1
 	idFromTrack1 := FlowIDTrackerFirst[FlowIDTrackingFirst{Src: src, Dst: dst}]
@@ -505,7 +505,6 @@ func trackFlowIDSecond(label string, src SrcSimple, dst Dst) {
 	}
 }
 
-// getFlowIDFromTrackMap2 function
 func getFlowIDFromTrackMap2(aggregatedLabel string, dst Dst) []int {
 	track2Key := FlowIDTrackingSecond{AggreagtedSrc: aggregatedLabel, Dst: dst}
 	if val, ok := FlowIDTrackerSecond[track2Key]; ok {
@@ -519,7 +518,6 @@ func getFlowIDFromTrackMap2(aggregatedLabel string, dst Dst) []int {
 // == Domain To IP addrs == //
 // ======================== //
 
-// updateDNSFlows function
 func updateDNSFlows(networkLogs []types.KnoxNetworkLog) {
 	// step 1: update dnsToIPs map
 	for _, log := range networkLogs {
@@ -554,7 +552,6 @@ func updateDNSFlows(networkLogs []types.KnoxNetworkLog) {
 	}
 }
 
-// getDomainNameFromDNSToIP func
 func getDomainNameFromDNSToIP(log types.KnoxNetworkLog) string {
 	for domain, ips := range DomainToIPs {
 		// here, pod name is ip addr (external)
@@ -570,7 +567,6 @@ func getDomainNameFromDNSToIP(log types.KnoxNetworkLog) string {
 // == Removing an Element from Slice == //
 // ==================================== //
 
-// removeSrcFromSlice Function
 func removeSrcFromSlice(srcs []SrcSimple, remove SrcSimple) []SrcSimple {
 	cp := make([]SrcSimple, len(srcs))
 	copy(cp, srcs)
@@ -588,7 +584,6 @@ func removeSrcFromSlice(srcs []SrcSimple, remove SrcSimple) []SrcSimple {
 	return cp
 }
 
-// removeDstFromSlice Function
 func removeDstFromSlice(dsts []Dst, remove Dst) []Dst {
 	cp := make([]Dst, len(dsts))
 	copy(cp, dsts)
@@ -606,7 +601,6 @@ func removeDstFromSlice(dsts []Dst, remove Dst) []Dst {
 	return cp
 }
 
-// removeDstFromMergedDstSlice Function
 func removeDstFromMergedDstSlice(dsts []MergedPortDst, remove MergedPortDst) []MergedPortDst {
 	cp := make([]MergedPortDst, len(dsts))
 	copy(cp, dsts)
@@ -628,7 +622,6 @@ func removeDstFromMergedDstSlice(dsts []MergedPortDst, remove MergedPortDst) []M
 // == Kubernetes Services/Endpoints == //
 // =================================== //
 
-// checkK8sExternalService Function
 func checkK8sExternalService(log types.KnoxNetworkLog, endpoints []types.Endpoint) (types.Endpoint, bool) {
 	for _, endpoint := range endpoints {
 		for _, port := range endpoint.Endpoints {
@@ -643,7 +636,6 @@ func checkK8sExternalService(log types.KnoxNetworkLog, endpoints []types.Endpoin
 	return types.Endpoint{}, false
 }
 
-// isExposedPort Function
 func isExposedPort(protocol int, port int) bool {
 	if protocol == 6 { // tcp
 		if libs.ContainsElement(K8sServiceTCPPorts, port) {
@@ -662,7 +654,6 @@ func isExposedPort(protocol int, port int) bool {
 	return false
 }
 
-// removeKubeDNSPort
 func removeKubeDNSPort(toPorts []types.SpecPort) []types.SpecPort {
 	filtered := []types.SpecPort{}
 
@@ -688,7 +679,6 @@ func removeKubeDNSPort(toPorts []types.SpecPort) []types.SpecPort {
 	return filtered
 }
 
-// updateServiceEndpoint Function
 func updateServiceEndpoint(services []types.Service, endpoints []types.Endpoint, pods []types.Pod) {
 	// step 1: service port update
 	for _, service := range services {
@@ -805,7 +795,6 @@ func InsertDiscoveredPoliciesToFile(namespace string, services []types.Service) 
 // == Internal Testing == //
 // ====================== //
 
-// ReplaceMultiubuntuPodName ...
 func ReplaceMultiubuntuPodName(flows []*flow.Flow, pods []types.Pod) {
 	var pod1Name, pod2Name, pod3Name, pod4Name, pod5Name string
 	var kubeDNS string

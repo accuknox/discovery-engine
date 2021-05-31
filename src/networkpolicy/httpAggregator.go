@@ -2,6 +2,7 @@ package networkpolicy
 
 import (
 	"fmt"
+	"net/http"
 	"regexp"
 	"sort"
 	"strconv"
@@ -11,27 +12,53 @@ import (
 	types "github.com/accuknox/knoxAutoPolicy/src/types"
 )
 
-// WildPathDigit ...
 var WildPathDigit string = "/[0-9]+"
-
-// WildPathDigitLeaf ...
 var WildPathDigitLeaf string = "/[0-9^/]+"
-
-// WildPathChar ...
 var WildPathChar string = "/.+"
-
-// WildPathCharLeaf ...
 var WildPathCharLeaf string = "/.[^/]+"
-
-// WildPaths ...
 var WildPaths []string
 
-// MergedSrcPerMergedDstForHTTP ...
 var MergedSrcPerMergedDstForHTTP map[string][]*HTTPDst
 
 func init() {
 	WildPaths = []string{WildPathDigit, WildPathChar}
 	MergedSrcPerMergedDstForHTTP = map[string][]*HTTPDst{}
+}
+
+// ====================== //
+// == HTTP aggregation == //
+// ====================== //
+
+var httpMethods = []string{
+	http.MethodGet,
+	http.MethodHead,
+	http.MethodPost,
+	http.MethodPut,
+	http.MethodPatch,
+	http.MethodDelete,
+	http.MethodConnect,
+	http.MethodOptions,
+	http.MethodTrace,
+}
+
+func CheckHTTPMethod(method string) bool {
+	for _, m := range httpMethods {
+		if strings.Contains(method, m) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func CheckSpecHTTP(specs []string) bool {
+	for _, spec := range specs {
+		if CheckHTTPMethod(spec) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // ================== //
@@ -99,7 +126,6 @@ func setHTTPTree(targetSrc string, targetDst MergedPortDst, tree map[string]map[
 // == PathNode and functions == //
 // ============================ //
 
-// Node Structure
 type Node struct {
 	path string
 
@@ -108,7 +134,6 @@ type Node struct {
 	childNodes []*Node
 }
 
-// MergedNode Structure
 type MergedNode struct {
 	path string
 
@@ -116,7 +141,6 @@ type MergedNode struct {
 	touchCount int
 }
 
-// HTTPDst Structure
 type HTTPDst struct {
 	Namespace   string
 	MatchLabels string
@@ -134,7 +158,6 @@ func (n *Node) getChildNodesCount() int {
 	return results
 }
 
-// generatePaths ...
 func (n *Node) generatePaths(results map[string]bool, parentPath string) {
 	for _, childNode := range n.childNodes {
 		childNode.generatePaths(results, parentPath+n.path)
@@ -157,7 +180,6 @@ func (n *Node) generatePaths(results map[string]bool, parentPath string) {
 	}
 }
 
-// insert ...
 func (n *Node) insert(paths []string) {
 	for _, path := range paths {
 		child := n.findChildNode(path, n.depth+1)
@@ -181,25 +203,25 @@ func (n *Node) insert(paths []string) {
 	}
 }
 
-// aggregateChildNodes ...
 func (n *Node) aggregateChildNodes() {
 	// depth first iterate
 	for _, childNode := range n.childNodes {
 		childNode.aggregateChildNodes()
 	}
 
-	// step 1: #child nodes > threshold
+	// #child nodes > threshold
 	if len(n.childNodes) > HTTPThreshold {
 		childPaths := []string{}
 		for _, childNode := range n.childNodes {
 			childPaths = append(childPaths, childNode.path)
 		}
 
-		// step 2: check path length
+		// check path length
 		if !checkSamePathLength(childPaths) {
 			return
 		}
 
+		// replace with wild card path
 		wildPath := ""
 		if checkDigitsOnly(childPaths) {
 			wildPath = WildPathDigit
@@ -214,7 +236,7 @@ func (n *Node) aggregateChildNodes() {
 		}
 
 		//   a     --->   a
-		// b   c         temp
+		// b   c        [temp]
 		// d   e         d  e
 		for _, childNode := range n.childNodes {
 			tempChild.touchCount = tempChild.touchCount + childNode.touchCount
@@ -230,7 +252,6 @@ func (n *Node) aggregateChildNodes() {
 	}
 }
 
-// findChildNode ...
 func (n *Node) findChildNode(path string, depth int) *Node {
 	for _, child := range n.childNodes {
 		// case 1: regex matching
@@ -378,13 +399,18 @@ func checkDigitsOnly(paths []string) bool {
 func buildPathTree(treeMap map[string]*Node, paths []string) {
 	pattern, _ := regexp.Compile("(/.[^/]*)")
 
+	// sorting paths
 	sort.Strings(paths)
 
+	// iterate paths
 	for _, path := range paths {
 		if path == "/" { // rootpath
 			continue
 		}
 
+		// example: /usr/lib/python2.7/UserDict.py
+		// 			--> '/usr', '/lib', '/python2.7', '/UserDict.py'
+		//			in this case, '/usr' is rootNode
 		tokenizedPaths := pattern.FindAllString(path, -1)
 		rootPath := tokenizedPaths[0]
 
@@ -409,7 +435,6 @@ func buildPathTree(treeMap map[string]*Node, paths []string) {
 // == Aggreagtion function == //
 // ========================== //
 
-// aggreateHTTPPathsNaive function
 func aggreateHTTPPathsNaive(paths []string) []string {
 	aggregatedPaths := []string{}
 
@@ -455,7 +480,6 @@ func aggreateHTTPPathsNaive(paths []string) []string {
 	return aggregatedPaths
 }
 
-// AggregatePaths ...
 func AggregatePaths(treeMap map[string]*Node, paths []string) []string {
 	// build path tree
 	buildPathTree(treeMap, paths)
@@ -486,7 +510,6 @@ func AggregatePaths(treeMap map[string]*Node, paths []string) []string {
 	return results
 }
 
-// AggregateHTTPRule function
 func AggregateHTTPRule(aggregatedSrcPerAggregatedDst map[string][]MergedPortDst) {
 	// if level 1, do not aggregate http path
 	if L7DiscoveryLevel == 1 {
@@ -496,52 +519,56 @@ func AggregateHTTPRule(aggregatedSrcPerAggregatedDst map[string][]MergedPortDst)
 	for aggregatedSrc, dsts := range aggregatedSrcPerAggregatedDst {
 		for i, dst := range dsts {
 			// check if dst is for HTTP rules
-			if libs.CheckSpecHTTP(dst.Additionals) {
-				httpTree := getHTTPTree(aggregatedSrc, dst)
-				if httpTree == nil {
-					httpTree = map[string]map[string]*Node{}
-				}
-
-				updatedAdditionals := []string{}
-
-				methodToPaths := map[string][]string{}
-
-				for _, http := range dst.Additionals {
-					if len(strings.Split(http, "|")) != 2 {
-						continue
-					}
-
-					method := strings.Split(http, "|")[0]
-					path := strings.Split(http, "|")[1]
-
-					if val, ok := methodToPaths[method]; ok {
-						if !libs.ContainsElement(val, path) {
-							val = append(val, path)
-						}
-						methodToPaths[method] = val
-					} else {
-						methodToPaths[method] = []string{path}
-					}
-				}
-
-				for method, paths := range methodToPaths {
-					httpPathTree := map[string]*Node{}
-					if existed, ok := httpTree[method]; ok {
-						httpPathTree = existed
-					}
-
-					aggreatedPaths := AggregatePaths(httpPathTree, paths)
-					for _, aggPath := range aggreatedPaths {
-						updatedAdditionals = append(updatedAdditionals, method+"|"+aggPath)
-					}
-
-					httpTree[method] = httpPathTree
-				}
-
-				dsts[i].Additionals = updatedAdditionals
-
-				setHTTPTree(aggregatedSrc, dst, httpTree)
+			if !CheckSpecHTTP(dst.Additionals) {
+				continue
 			}
+
+			// httpTree = key: METHOD - val: Tree
+			httpTree := getHTTPTree(aggregatedSrc, dst)
+			if httpTree == nil {
+				httpTree = map[string]map[string]*Node{}
+			}
+
+			updatedAdditionals := []string{}
+
+			methodToPaths := map[string][]string{}
+
+			for _, http := range dst.Additionals {
+				// http = method + path
+				if len(strings.Split(http, "|")) != 2 {
+					continue
+				}
+
+				method := strings.Split(http, "|")[0]
+				path := strings.Split(http, "|")[1]
+
+				if val, ok := methodToPaths[method]; ok {
+					if !libs.ContainsElement(val, path) {
+						val = append(val, path)
+					}
+					methodToPaths[method] = val
+				} else {
+					methodToPaths[method] = []string{path}
+				}
+			}
+
+			for method, paths := range methodToPaths {
+				httpPathTree := map[string]*Node{}
+				if existed, ok := httpTree[method]; ok {
+					httpPathTree = existed
+				}
+
+				aggreatedPaths := AggregatePaths(httpPathTree, paths)
+				for _, aggPath := range aggreatedPaths {
+					updatedAdditionals = append(updatedAdditionals, method+"|"+aggPath)
+				}
+
+				httpTree[method] = httpPathTree
+			}
+
+			dsts[i].Additionals = updatedAdditionals
+
+			setHTTPTree(aggregatedSrc, dst, httpTree)
 		}
 
 		aggregatedSrcPerAggregatedDst[aggregatedSrc] = dsts

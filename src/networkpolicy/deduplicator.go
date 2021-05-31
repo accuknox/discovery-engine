@@ -13,7 +13,6 @@ import (
 // == Get Latest Policy in DB == //
 // ============================= //
 
-// includeSelectorLabels function
 func includeSelectorLabels(newSelectorLabels map[string]string, existSelectorLabels map[string]string) bool {
 	includeSelector := true
 
@@ -32,7 +31,6 @@ func includeSelectorLabels(newSelectorLabels map[string]string, existSelectorLab
 	return includeSelector
 }
 
-// GetLatestCIDRPolicy function
 func GetLatestCIDRPolicy(existingPolicies []types.KnoxNetworkPolicy, policy types.KnoxNetworkPolicy) []types.KnoxNetworkPolicy {
 	latestPolicies := []types.KnoxNetworkPolicy{}
 
@@ -69,7 +67,6 @@ func GetLatestCIDRPolicy(existingPolicies []types.KnoxNetworkPolicy, policy type
 	return latestPolicies
 }
 
-// GetLastedFQDNPolicy function
 func GetLastedFQDNPolicy(existingPolicies []types.KnoxNetworkPolicy, policy types.KnoxNetworkPolicy) []types.KnoxNetworkPolicy {
 	latestPolicies := []types.KnoxNetworkPolicy{}
 
@@ -106,7 +103,6 @@ func GetLastedFQDNPolicy(existingPolicies []types.KnoxNetworkPolicy, policy type
 	return latestPolicies
 }
 
-// GetLastedHTTPPolicy function
 func GetLastedHTTPPolicy(existingPolicies []types.KnoxNetworkPolicy, policy types.KnoxNetworkPolicy) []types.KnoxNetworkPolicy {
 	latestPolicies := []types.KnoxNetworkPolicy{}
 
@@ -182,7 +178,6 @@ func GetLastedHTTPPolicy(existingPolicies []types.KnoxNetworkPolicy, policy type
 	return latestPolicies
 }
 
-// GetLatestMatchLabelsPolicy function
 func GetLatestMatchLabelsPolicy(existingPolicies []types.KnoxNetworkPolicy, policy types.KnoxNetworkPolicy) []types.KnoxNetworkPolicy {
 	latestPolicies := []types.KnoxNetworkPolicy{}
 
@@ -234,7 +229,6 @@ func GetLatestMatchLabelsPolicy(existingPolicies []types.KnoxNetworkPolicy, poli
 	return latestPolicies
 }
 
-// GetLatestEntityPolicy function
 func GetLatestEntityPolicy(existingPolicies []types.KnoxNetworkPolicy, policy types.KnoxNetworkPolicy) []types.KnoxNetworkPolicy {
 	latestPolicies := []types.KnoxNetworkPolicy{}
 
@@ -259,7 +253,6 @@ func GetLatestEntityPolicy(existingPolicies []types.KnoxNetworkPolicy, policy ty
 	return latestPolicies
 }
 
-// GetLatestServicePolicy function
 func GetLatestServicePolicy(existingPolicies []types.KnoxNetworkPolicy, policy types.KnoxNetworkPolicy) []types.KnoxNetworkPolicy {
 	latestPolicies := []types.KnoxNetworkPolicy{}
 
@@ -288,7 +281,6 @@ func GetLatestServicePolicy(existingPolicies []types.KnoxNetworkPolicy, policy t
 // == Update Outdated Policy == //
 // ============================ //
 
-// updateOutdatedPolicy function
 func updateOutdatedPolicy(outdatedPolicy types.KnoxNetworkPolicy, newPolicy *types.KnoxNetworkPolicy) {
 	for _, id := range outdatedPolicy.FlowIDs {
 		if !libs.ContainsElement(newPolicy.FlowIDs, id) {
@@ -299,7 +291,6 @@ func updateOutdatedPolicy(outdatedPolicy types.KnoxNetworkPolicy, newPolicy *typ
 	libs.UpdateOutdatedNetworkPolicy(CfgDB, outdatedPolicy.Metadata["name"], newPolicy.Metadata["name"])
 }
 
-// includedHTTPPath function
 func includedHTTPPath(httpRules []types.SpecHTTP, targetRule types.SpecHTTP) bool {
 	included := false
 
@@ -317,7 +308,6 @@ func includedHTTPPath(httpRules []types.SpecHTTP, targetRule types.SpecHTTP) boo
 	return included
 }
 
-// UpdateHTTP function
 func UpdateHTTP(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.KnoxNetworkPolicy) (types.KnoxNetworkPolicy, bool) {
 	// case 1: if there is no latest, policy is new one
 	latestPolicies := GetLastedHTTPPolicy(existingPolicies, newPolicy)
@@ -386,7 +376,6 @@ func UpdateHTTP(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.Knox
 	return newPolicy, false
 }
 
-// UpdateToPorts function
 func UpdateToPorts(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.KnoxNetworkPolicy) (types.KnoxNetworkPolicy, bool) {
 	// case 1: if there is no latest, policy is new one
 	latestPolicies := []types.KnoxNetworkPolicy{}
@@ -463,7 +452,6 @@ func UpdateToPorts(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.K
 	return newPolicy, false
 }
 
-// UpdateMatchLabels function
 func UpdateMatchLabels(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.KnoxNetworkPolicy) (types.KnoxNetworkPolicy, bool) {
 	// case 1: if there is no latest policy, policy is new one
 	latestPolicies := GetLatestMatchLabelsPolicy(existingPolicies, newPolicy)
@@ -541,7 +529,6 @@ func UpdateMatchLabels(newPolicy types.KnoxNetworkPolicy, existingPolicies []typ
 	return newPolicy, false
 }
 
-// UpdateEntity function
 func UpdateEntity(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.KnoxNetworkPolicy) (types.KnoxNetworkPolicy, bool) {
 	// case 1: if there is no latest, policy is new one
 	latestPolicies := GetLatestEntityPolicy(existingPolicies, newPolicy)
@@ -610,7 +597,6 @@ func UpdateEntity(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.Kn
 	return newPolicy, false
 }
 
-// UpdateService function
 func UpdateService(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.KnoxNetworkPolicy) (types.KnoxNetworkPolicy, bool) {
 	// case 1: if there is no latest, policy is new one
 	latestPolicies := GetLatestServicePolicy(existingPolicies, newPolicy)
@@ -689,7 +675,6 @@ func existPolicyName(policyNamesMap map[string]bool, name string) bool {
 	return false
 }
 
-// GeneratePolicyName function
 func GeneratePolicyName(policyNamesMap map[string]bool, policy types.KnoxNetworkPolicy, clusterName string) types.KnoxNetworkPolicy {
 	egressPrefix := "autopol-egress-"
 	ingressPrefix := "autopol-ingress-"
@@ -713,7 +698,6 @@ func GeneratePolicyName(policyNamesMap map[string]bool, policy types.KnoxNetwork
 	return policy
 }
 
-// GetToFQDNsFromNewDiscoveredPolicies function
 func GetToFQDNsFromNewDiscoveredPolicies(policy types.KnoxNetworkPolicy, newPolicies []types.KnoxNetworkPolicy) []types.KnoxNetworkPolicy {
 	toFQDNs := []types.KnoxNetworkPolicy{}
 
@@ -730,7 +714,6 @@ func GetToFQDNsFromNewDiscoveredPolicies(policy types.KnoxNetworkPolicy, newPoli
 	return toFQDNs
 }
 
-// GetDomainNameFromMap function
 func GetDomainNameFromMap(ipAddr string, dnsToIPs map[string][]string) string {
 	for domain, ips := range dnsToIPs {
 		for _, ip := range ips {
@@ -743,7 +726,6 @@ func GetDomainNameFromMap(ipAddr string, dnsToIPs map[string][]string) string {
 	return ""
 }
 
-// GetFQDNFromDomainName function
 func GetFQDNFromDomainName(domainName string, fqdnPolicies []types.KnoxNetworkPolicy) (types.KnoxNetworkPolicy, bool) {
 	for _, policy := range fqdnPolicies {
 		for _, egress := range policy.Spec.Egress {
@@ -758,7 +740,6 @@ func GetFQDNFromDomainName(domainName string, fqdnPolicies []types.KnoxNetworkPo
 	return types.KnoxNetworkPolicy{}, false
 }
 
-// updateExistCIDRtoNewFQDN function
 func updateExistCIDRtoNewFQDN(existingPolicies []types.KnoxNetworkPolicy, newPolicies []types.KnoxNetworkPolicy, dnsToIPs map[string][]string) {
 	for _, existCIDR := range existingPolicies {
 		policyType := existCIDR.Metadata["type"]
@@ -813,10 +794,10 @@ func updateExistCIDRtoNewFQDN(existingPolicies []types.KnoxNetworkPolicy, newPol
 // == Exact Matching == //
 // ==================== //
 
-// IsExistingPolicy function
 func IsExistingPolicy(existingPolicies []types.KnoxNetworkPolicy, newPolicy types.KnoxNetworkPolicy) bool {
 	for _, exist := range existingPolicies {
-		if exist.Metadata["namespace"] == newPolicy.Metadata["namespace"] &&
+		if exist.Metadata["cluster_name"] == newPolicy.Metadata["cluster_name"] &&
+			exist.Metadata["namespace"] == newPolicy.Metadata["namespace"] &&
 			cmp.Equal(&exist.Spec, &newPolicy.Spec) {
 			return true
 		}
@@ -825,11 +806,10 @@ func IsExistingPolicy(existingPolicies []types.KnoxNetworkPolicy, newPolicy type
 	return false
 }
 
-// ======================================== //
+// ====================================== //
 // == Update Duplicated Network Policy == //
-// ======================================== //
+// ====================================== //
 
-// UpdateDuplicatedPolicy function
 func UpdateDuplicatedPolicy(existingPolicies []types.KnoxNetworkPolicy, discoveredPolicies []types.KnoxNetworkPolicy, dnsToIPs map[string][]string, clusterName string) []types.KnoxNetworkPolicy {
 	newPolicies := []types.KnoxNetworkPolicy{}
 
