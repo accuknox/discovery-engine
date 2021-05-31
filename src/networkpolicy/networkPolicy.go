@@ -1571,7 +1571,7 @@ func DiscoverNetworkPolicyMain() {
 				continue
 			}
 
-			log.Info().Msgf("Network policy discovery started for namespace: [%s]", namespace)
+			// log.Info().Msgf("\tNetwork policy discovery started for namespace: [%s]", namespace)
 
 			// reset flow id track at each target namespace
 			clearTrackFlowIDMaps()
@@ -1594,12 +1594,14 @@ func DiscoverNetworkPolicyMain() {
 				}
 
 				// insert discovered policies to file
-				// if strings.Contains(NetworkPolicyTo, "file") {
-				// 	InsertDiscoveredPoliciesToFile(namespace, services)
-				// }
+				if strings.Contains(NetworkPolicyTo, "file") {
+					InsertDiscoveredPoliciesToFile(namespace, services)
+				}
 			}
 
-			log.Info().Msgf("Network policy discovery done for namespace: [%s], [%d] policies discovered", namespace, len(newPolicies))
+			if len(newPolicies) > 0 {
+				log.Info().Msgf("\tNetwork policy discovery done for namespace: [%s], [%d] policies discovered", namespace, len(newPolicies))
+			}
 		}
 
 		// update cluster global variables
