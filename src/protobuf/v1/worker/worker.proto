@@ -11,8 +11,9 @@ service Worker {
 }
 
 message WorkerRequest {
-    string req = 1;
-    string logfile = 2;
+    string policytype = 1;
+    string req = 2;
+    string logfile = 3;
 }
 
 message WorkerResponse {

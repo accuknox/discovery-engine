@@ -7,20 +7,45 @@ import (
 	"strings"
 	"time"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/accuknox/knoxAutoPolicy/src/types"
 
 	_ "github.com/go-sql-driver/mysql"
 )
 
-// ConnectMySQL function
-func ConnectMySQL(cfg types.ConfigDB) (db *sql.DB) {
+// ================ //
+// == Connection == //
+// ================ //
+
+var MockSql sqlmock.Sqlmock = nil
+var MockDB *sql.DB = nil
+
+func NewMock() (*sql.DB, sqlmock.Sqlmock) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		log.Error().Msgf("an error '%s' was not expected when opening a stub database connection", err)
+	}
+
+	MockSql = mock
+	MockDB = db
+
+	return db, mock
+}
+
+func connectMySQL(cfg types.ConfigDB) (db *sql.DB) {
+	if MockDB != nil {
+		return MockDB
+	}
+
 	db, err := sql.Open(cfg.DBDriver, cfg.DBUser+":"+cfg.DBPass+"@tcp("+cfg.DBHost+":"+cfg.DBPort+")/"+cfg.DBName)
 	for err != nil {
 		log.Error().Msg("connection error :" + err.Error())
 		time.Sleep(time.Second * 1)
 		db, err = sql.Open(cfg.DBDriver, cfg.DBUser+":"+cfg.DBPass+"@tcp("+cfg.DBHost+":"+cfg.DBPort+")/"+cfg.DBName)
 	}
+
 	db.SetMaxIdleConns(0)
+
 	return db
 }
 
@@ -28,7 +53,7 @@ func ConnectMySQL(cfg types.ConfigDB) (db *sql.DB) {
 // == Network Log == //
 // ================= //
 
-var networkLogQueryBase string = "select id,time,cluster_name,traffic_direction,verdict,policy_match_type,drop_reason,event_type,source,destination,ip,l4,l7 from "
+var networkLogQueryBase string = "SELECT (id,time,cluster_name,traffic_direction,verdict,policy_match_type,drop_reason,event_type,source,destination,ip,l4,l7) FROM "
 
 func convertDateTimeToUnix(dateTime string) (int64, error) {
 	thetime, err := time.Parse(time.RFC3339, dateTime)
@@ -43,7 +68,6 @@ func convertJSONRawToString(raw json.RawMessage) string {
 	return string(j)
 }
 
-// ScanNetworkLogs scans the db records
 func ScanNetworkLogs(results *sql.Rows) ([]map[string]interface{}, error) {
 	networkLogs := []map[string]interface{}{}
 	var err error
@@ -106,12 +130,11 @@ func ScanNetworkLogs(results *sql.Rows) ([]map[string]interface{}, error) {
 	return networkLogs, nil
 }
 
-// GetNetworkLogByTimeFromMySQL function
 func GetNetworkLogByTimeFromMySQL(cfg types.ConfigDB, startTime, endTime int64) ([]map[string]interface{}, error) {
-	db := ConnectMySQL(cfg)
+	db := connectMySQL(cfg)
 	defer db.Close()
 
-	QueryBase := networkLogQueryBase + cfg.TableNetworkFlow
+	QueryBase := networkLogQueryBase + cfg.TableNetworkLog
 
 	rows, err := db.Query(QueryBase+" WHERE time >= ? and time <= ?", int(startTime), int(endTime))
 	if err != nil {
@@ -122,12 +145,11 @@ func GetNetworkLogByTimeFromMySQL(cfg types.ConfigDB, startTime, endTime int64) 
 	return ScanNetworkLogs(rows)
 }
 
-// GetNetworkLogByIDTimeFromMySQL function
 func GetNetworkLogByIDTimeFromMySQL(cfg types.ConfigDB, id, endTime int64) ([]map[string]interface{}, error) {
-	db := ConnectMySQL(cfg)
+	db := connectMySQL(cfg)
 	defer db.Close()
 
-	QueryBase := networkLogQueryBase + cfg.TableNetworkFlow
+	QueryBase := networkLogQueryBase + cfg.TableNetworkLog
 
 	rows, err := db.Query(QueryBase+" WHERE id > ? ORDER BY id ASC ", id)
 	if err != nil {
@@ -138,12 +160,11 @@ func GetNetworkLogByIDTimeFromMySQL(cfg types.ConfigDB, id, endTime int64) ([]ma
 	return ScanNetworkLogs(rows)
 }
 
-// InsertNetworkLogToMySQL function
-func InsertNetworkLogToMySQL(cfg types.ConfigDB, nfe []types.NetworkFlowEvent) error {
-	db := ConnectMySQL(cfg)
+func InsertNetworkLogToMySQL(cfg types.ConfigDB, nfe []types.NetworkLogEvent) error {
+	db := connectMySQL(cfg)
 	defer db.Close()
 
-	sqlStr := "INSERT INTO " + cfg.TableNetworkFlow + "(time,cluster_name,verdict,drop_reason,ethernet,ip,l4,l7,reply,source,destination,type,node_name,event_type,source_service,destination_service,traffic_direction,policy_match_type,trace_observation_point,summary) VALUES "
+	sqlStr := "INSERT INTO " + cfg.TableNetworkLog + "(time,cluster_name,verdict,drop_reason,ethernet,ip,l4,l7,reply,source,destination,type,node_name,event_type,source_service,destination_service,traffic_direction,policy_match_type,trace_observation_point,summary) VALUES "
 	vals := []interface{}{}
 
 	for _, e := range nfe {
@@ -199,22 +220,22 @@ func InsertNetworkLogToMySQL(cfg types.ConfigDB, nfe []types.NetworkFlowEvent) e
 // == System Log == //
 // ================ //
 
-var systemLogQueryBase string = "select id,time,cluster_name,traffic_direction,verdict,policy_match_type,drop_reason,event_type,source,destination,ip,l4,l7 from "
+var systemLogQueryBase string = "select id,timestamp,updatedTime,clusterName,hostName,namespaceName,podName,containerID,containerName,hostPid,ppid,pid,uid,type,source,operation,resource,data,result from "
 
-// ScanSystemLogs scans the db records
 func ScanSystemLogs(results *sql.Rows) ([]map[string]interface{}, error) {
 	systemLogs := []map[string]interface{}{}
 	var err error
 
 	for results.Next() {
-		var id, time, hostPid, ppid, pid, uid uint32
-		var clusterName, nodeName, namespace, podName, containerID, containerName, types, source, operation, resource, data, result string
+		var id, timestamp, hostPid, ppid, pid, uid uint32
+		var updatedTime, clusterName, hostName, namespace, podName, containerID, containerName, types, source, operation, resource, data, result string
 
 		err = results.Scan(
 			&id,
-			&time,
+			&timestamp,
+			&updatedTime, // skip
 			&clusterName,
-			&nodeName,
+			&hostName,
 			&namespace,
 			&podName,
 			&containerID,
@@ -237,9 +258,24 @@ func ScanSystemLogs(results *sql.Rows) ([]map[string]interface{}, error) {
 		}
 
 		log := map[string]interface{}{
-			"id":           id,
-			"time":         time,
-			"cluster_name": clusterName,
+			"id":            id,
+			"timestamp":     timestamp,
+			"clusterName":   clusterName,
+			"hostName":      hostName,
+			"namespaceName": namespace,
+			"podName":       podName,
+			"containerID":   containerID,
+			"containerName": containerName,
+			"hostPid":       hostPid,
+			"ppid":          ppid,
+			"pid":           pid,
+			"uid":           uid,
+			"type":          types,
+			"source":        source,
+			"operation":     operation,
+			"resource":      resource,
+			"data":          data,
+			"result":        result,
 		}
 
 		systemLogs = append(systemLogs, log)
@@ -248,9 +284,8 @@ func ScanSystemLogs(results *sql.Rows) ([]map[string]interface{}, error) {
 	return systemLogs, nil
 }
 
-// GetSystemLogByTimeFromMySQL function
 func GetSystemLogByTimeFromMySQL(cfg types.ConfigDB, startTime, endTime int64) ([]map[string]interface{}, error) {
-	db := ConnectMySQL(cfg)
+	db := connectMySQL(cfg)
 	defer db.Close()
 
 	QueryBase := systemLogQueryBase + cfg.TableSystemLog
@@ -264,9 +299,8 @@ func GetSystemLogByTimeFromMySQL(cfg types.ConfigDB, startTime, endTime int64) (
 	return ScanSystemLogs(rows)
 }
 
-// GetSystemLogByIDTimeFromMySQL function
-func GetSystemLogByIDTimeFromMySQL(cfg types.ConfigDB, id, endTime int64) ([]map[string]interface{}, error) {
-	db := ConnectMySQL(cfg)
+func GetSystemLogByIDFromMySQL(cfg types.ConfigDB, id, endTime int64) ([]map[string]interface{}, error) {
+	db := connectMySQL(cfg)
 	defer db.Close()
 
 	QueryBase := systemLogQueryBase + cfg.TableSystemLog
@@ -280,9 +314,23 @@ func GetSystemLogByIDTimeFromMySQL(cfg types.ConfigDB, id, endTime int64) ([]map
 	return ScanSystemLogs(rows)
 }
 
-// InsertSystemLogToMySQL function
+func GetSystemLogByIDTimeFromMySQL(cfg types.ConfigDB, id, endTime int64) ([]map[string]interface{}, error) {
+	db := connectMySQL(cfg)
+	defer db.Close()
+
+	QueryBase := systemLogQueryBase + cfg.TableSystemLog
+
+	rows, err := db.Query(QueryBase+" WHERE id > ? and timestamp <= ? ORDER BY id ASC ", id, int(endTime))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return ScanSystemLogs(rows)
+}
+
 func InsertSystemLogToMySQL(cfg types.ConfigDB, sle []types.SystemLogEvent) error {
-	db := ConnectMySQL(cfg)
+	db := connectMySQL(cfg)
 	defer db.Close()
 
 	sqlStr := "INSERT INTO " + cfg.TableSystemLog + "(time,cluster_name,node_name,namespace_name,pod_name,container_id,container_name,hostpid,ppid,pid,uid,type,source,operation,resource,data,result) VALUES "
@@ -334,16 +382,15 @@ func InsertSystemLogToMySQL(cfg types.ConfigDB, sle []types.SystemLogEvent) erro
 // == Network Policy == //
 // ==================== //
 
-// GetNetworkPoliciesFromMySQL function
 func GetNetworkPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) ([]types.KnoxNetworkPolicy, error) {
-	db := ConnectMySQL(cfg)
+	db := connectMySQL(cfg)
 	defer db.Close()
 
 	policies := []types.KnoxNetworkPolicy{}
 	var results *sql.Rows
 	var err error
 
-	query := "SELECT apiVersion,kind,flow_ids,name,cluster_name,namespace,type,rule,status,outdated,spec,generatedTime FROM " + cfg.TableDiscoveredPolicies
+	query := "SELECT (apiVersion,kind,flow_ids,name,cluster_name,namespace,type,rule,status,outdated,spec,generatedTime) FROM " + cfg.TableNetworkPolicy
 	if namespace != "" && status != "" {
 		query = query + " WHERE namespace = ? and status = ? "
 		results, err = db.Query(query, namespace, status)
@@ -417,15 +464,14 @@ func GetNetworkPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) (
 	return policies, nil
 }
 
-// UpdateOutdatedPolicyFromMySQL ...
 func UpdateOutdatedPolicyFromMySQL(cfg types.ConfigDB, outdatedPolicy string, latestPolicy string) error {
-	db := ConnectMySQL(cfg)
+	db := connectMySQL(cfg)
 	defer db.Close()
 
 	var err error
 
 	// set status -> outdated
-	stmt1, err := db.Prepare("UPDATE " + cfg.TableDiscoveredPolicies + " SET status=? WHERE name=?")
+	stmt1, err := db.Prepare("UPDATE " + cfg.TableNetworkPolicy + " SET status=? WHERE name=?")
 	if err != nil {
 		return err
 	}
@@ -437,7 +483,7 @@ func UpdateOutdatedPolicyFromMySQL(cfg types.ConfigDB, outdatedPolicy string, la
 	}
 
 	// set outdated -> latest' name
-	stmt2, err := db.Prepare("UPDATE " + cfg.TableDiscoveredPolicies + " SET outdated=? WHERE name=?")
+	stmt2, err := db.Prepare("UPDATE " + cfg.TableNetworkPolicy + " SET outdated=? WHERE name=?")
 	if err != nil {
 		return err
 	}
@@ -451,9 +497,8 @@ func UpdateOutdatedPolicyFromMySQL(cfg types.ConfigDB, outdatedPolicy string, la
 	return nil
 }
 
-// insertNetworkPolicy function
 func insertNetworkPolicy(cfg types.ConfigDB, db *sql.DB, policy types.KnoxNetworkPolicy) error {
-	stmt, err := db.Prepare("INSERT INTO " + cfg.TableDiscoveredPolicies + "(apiVersion,kind,flow_ids,name,cluster_name,namespace,type,rule,status,outdated,spec,generatedTime) values(?,?,?,?,?,?,?,?,?,?,?,?)")
+	stmt, err := db.Prepare("INSERT INTO " + cfg.TableNetworkPolicy + "(apiVersion,kind,flow_ids,name,cluster_name,namespace,type,rule,status,outdated,spec,generatedTime) values(?,?,?,?,?,?,?,?,?,?,?,?)")
 	if err != nil {
 		return err
 	}
@@ -490,9 +535,8 @@ func insertNetworkPolicy(cfg types.ConfigDB, db *sql.DB, policy types.KnoxNetwor
 	return nil
 }
 
-// InsertNetworkPoliciesToMySQL function
 func InsertNetworkPoliciesToMySQL(cfg types.ConfigDB, policies []types.KnoxNetworkPolicy) error {
-	db := ConnectMySQL(cfg)
+	db := connectMySQL(cfg)
 	defer db.Close()
 
 	for _, policy := range policies {
@@ -505,27 +549,148 @@ func InsertNetworkPoliciesToMySQL(cfg types.ConfigDB, policies []types.KnoxNetwo
 }
 
 // =================== //
+// == System Policy == //
+// =================== //
+
+func GetSystemPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) ([]types.KubeArmorSystemPolicy, error) {
+	db := connectMySQL(cfg)
+	defer db.Close()
+
+	policies := []types.KubeArmorSystemPolicy{}
+	var results *sql.Rows
+	var err error
+
+	query := "SELECT apiVersion,kind,name,clusterName,namespace,type,spec FROM " +
+		cfg.TableSystemPolicy
+
+	if namespace != "" && status != "" {
+		query = query + " WHERE namespace = ? and status = ? "
+		results, err = db.Query(query, namespace, status)
+	} else if namespace != "" {
+		query = query + " WHERE namespace = ? "
+		results, err = db.Query(query, namespace)
+	} else if status != "" {
+		query = query + " WHERE status = ? "
+		results, err = db.Query(query, status)
+	} else {
+		results, err = db.Query(query)
+	}
+
+	defer results.Close()
+
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return nil, err
+	}
+
+	for results.Next() {
+		policy := types.KubeArmorSystemPolicy{}
+
+		var name, clusterName, namespace, policyType string
+		specByte := []byte{}
+		spec := types.KubeArmorSpec{}
+
+		if err := results.Scan(
+			&policy.APIVersion,
+			&policy.Kind,
+			&name,
+			&clusterName,
+			&namespace,
+			&policyType,
+			&specByte,
+		); err != nil {
+			return nil, err
+		}
+
+		if err := json.Unmarshal(specByte, &spec); err != nil {
+			return nil, err
+		}
+
+		policy.Metadata = map[string]string{
+			"name":        name,
+			"clusterName": clusterName,
+			"namespace":   namespace,
+			"type":        policyType,
+			"status":      status,
+		}
+
+		policy.Spec = spec
+
+		policies = append(policies, policy)
+	}
+
+	return policies, nil
+}
+
+func insertSystemPolicy(cfg types.ConfigDB, db *sql.DB, policy types.KubeArmorSystemPolicy) error {
+	stmt, err := db.Prepare("INSERT INTO " + cfg.TableSystemPolicy + "(apiVersion,kind,name,clusterName,namespace,type,spec) values(?,?,?,?,?,?,?)")
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	specPointer := &policy.Spec
+	spec, err := json.Marshal(specPointer)
+	if err != nil {
+		return err
+	}
+
+	_, err = stmt.Exec(
+		policy.APIVersion,
+		policy.Kind,
+		policy.Metadata["name"],
+		policy.Metadata["clusterName"],
+		policy.Metadata["namespace"],
+		policy.Metadata["type"],
+		spec)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func InsertSystemPoliciesToMySQL(cfg types.ConfigDB, policies []types.KubeArmorSystemPolicy) error {
+	db := connectMySQL(cfg)
+	defer db.Close()
+
+	for _, policy := range policies {
+		if err := insertSystemPolicy(cfg, db, policy); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// =================== //
 // == Configuration == //
 // =================== //
 
-// CountConfigByName ...
 func CountConfigByName(db *sql.DB, tableName, configName string) int {
 	var count int
-	db.QueryRow("SELECT COUNT(*) FROM "+tableName+" WHERE config_name=?", configName).Scan(&count)
+
+	if err := db.QueryRow("SELECT COUNT(*) FROM "+tableName+" WHERE config_name=?", configName).Scan(&count); err != nil {
+		log.Error().Msg(err.Error())
+	}
+
 	return count
 }
 
-// AddConfiguration function
 func AddConfiguration(cfg types.ConfigDB, newConfig types.Configuration) error {
-	db := ConnectMySQL(cfg)
+	db := connectMySQL(cfg)
 	defer db.Close()
 
-	if CountConfigByName(db, cfg.TableConfiguration, newConfig.ConfigName) > 0 {
+	table := cfg.TableConfiguration
+	if table == "" {
+		table = "auto_policy_config"
+	}
+
+	if CountConfigByName(db, table, newConfig.ConfigName) > 0 {
 		return errors.New("Already exist config name: " + newConfig.ConfigName)
 	}
 
-	stmt, err := db.Prepare("INSERT INTO " +
-		cfg.TableConfiguration +
+	stmt, err := db.Prepare("INSERT INTO " + table +
 		"(config_name," +
 		"status," +
 		"config_db," +
@@ -534,16 +699,21 @@ func AddConfiguration(cfg types.ConfigDB, newConfig types.Configuration) error {
 		"cronjob_time_interval," +
 		"one_time_job_time_selection," +
 		"network_log_from," +
-		"discovered_policy_to," +
-		"policy_dir," +
-		"discovery_policy_types," +
-		"discovery_rule_types," +
-		"cidr_bits," +
-		"ignoring_flows," +
-		"l3_aggregation_level," +
-		"l4_aggregation_level," +
-		"l7_aggregation_level) " +
-		"values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+		"network_log_file," +
+		"network_policy_to," +
+		"network_policy_dir," +
+		"network_policy_types," +
+		"network_policy_rule_types," +
+		"network_policy_cidr_bits," +
+		"network_policy_ignoring_flows," +
+		"network_policy_l3_level," +
+		"network_policy_l4_level," +
+		"network_policy_l7_level," +
+		"system_log_from," +
+		"system_log_file," +
+		"system_policy_to," +
+		"system_policy_dir) " +
+		"values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
 
 	if err != nil {
 		return err
@@ -563,7 +733,7 @@ func AddConfiguration(cfg types.ConfigDB, newConfig types.Configuration) error {
 		return err
 	}
 
-	ignoringFlowsPtr := &newConfig.IgnoringFlows
+	ignoringFlowsPtr := &newConfig.NetPolicyIgnoringFlows
 	ignoringFlows, err := json.Marshal(ignoringFlowsPtr)
 	if err != nil {
 		return err
@@ -577,16 +747,20 @@ func AddConfiguration(cfg types.ConfigDB, newConfig types.Configuration) error {
 		newConfig.CronJobTimeInterval,
 		newConfig.OneTimeJobTimeSelection,
 		newConfig.NetworkLogFrom,
+		newConfig.NetworkLogFile,
 		newConfig.NetworkPolicyTo,
 		newConfig.NetworkPolicyDir,
-		newConfig.DiscoveryPolicyTypes,
-		newConfig.DiscoveryRuleTypes,
-		newConfig.CIDRBits,
+		newConfig.NetPolicyTypes,
+		newConfig.NetPolicyRuleTypes,
+		newConfig.NetPolicyCIDRBits,
 		ignoringFlows,
-		newConfig.L3AggregationLevel,
-		newConfig.L4Compression,
-		newConfig.L7AggregationLevel,
-	)
+		newConfig.NetPolicyL3Level,
+		newConfig.NetPolicyL4Level,
+		newConfig.NetPolicyL7Level,
+		newConfig.SystemLogFrom,
+		newConfig.SystemLogFile,
+		newConfig.SystemPolicyTo,
+		newConfig.SystemPolicyDir)
 
 	if err != nil {
 		return err
@@ -595,27 +769,30 @@ func AddConfiguration(cfg types.ConfigDB, newConfig types.Configuration) error {
 	return nil
 }
 
-// GetConfigurations function
 func GetConfigurations(cfg types.ConfigDB, configName string) ([]types.Configuration, error) {
-	db := ConnectMySQL(cfg)
+	db := connectMySQL(cfg)
 	defer db.Close()
 
 	configs := []types.Configuration{}
 	var results *sql.Rows
 	var err error
 
-	query := "SELECT * FROM " + cfg.TableConfiguration
-	if configName != "" {
-		query = query + " WHERE config_name = ? "
-		results, err = db.Query(query, configName)
+	table := cfg.TableConfiguration
+	if table == "" {
+		table = "auto_policy_config"
 	}
 
-	defer results.Close()
+	query := "SELECT * FROM " + table
+	if configName != "" {
+		query = query + " WHERE config_name = ? "
+	}
 
+	results, err = db.Query(query, configName)
 	if err != nil {
 		log.Error().Msg(err.Error())
 		return nil, err
 	}
+	defer results.Close()
 
 	for results.Next() {
 		cfg := types.Configuration{}
@@ -640,15 +817,20 @@ func GetConfigurations(cfg types.ConfigDB, configName string) ([]types.Configura
 			&cfg.CronJobTimeInterval,
 			&cfg.OneTimeJobTimeSelection,
 			&cfg.NetworkLogFrom,
+			&cfg.NetworkLogFile,
 			&cfg.NetworkPolicyTo,
 			&cfg.NetworkPolicyDir,
-			&cfg.DiscoveryPolicyTypes,
-			&cfg.DiscoveryRuleTypes,
-			&cfg.CIDRBits,
+			&cfg.NetPolicyTypes,
+			&cfg.NetPolicyRuleTypes,
+			&cfg.NetPolicyCIDRBits,
 			&ignoringFlowByte,
-			&cfg.L3AggregationLevel,
-			&cfg.L4Compression,
-			&cfg.L7AggregationLevel,
+			&cfg.NetPolicyL3Level,
+			&cfg.NetPolicyL4Level,
+			&cfg.NetPolicyL7Level,
+			&cfg.SystemLogFrom,
+			&cfg.SystemLogFile,
+			&cfg.SystemPolicyTo,
+			&cfg.SystemPolicyDir,
 		); err != nil {
 			return nil, err
 		}
@@ -666,7 +848,7 @@ func GetConfigurations(cfg types.ConfigDB, configName string) ([]types.Configura
 		if err := json.Unmarshal(ignoringFlowByte, &ignoringFlows); err != nil {
 			return nil, err
 		}
-		cfg.IgnoringFlows = ignoringFlows
+		cfg.NetPolicyIgnoringFlows = ignoringFlows
 
 		configs = append(configs, cfg)
 	}
@@ -674,30 +856,38 @@ func GetConfigurations(cfg types.ConfigDB, configName string) ([]types.Configura
 	return configs, nil
 }
 
-// UpdateConfiguration ...
 func UpdateConfiguration(cfg types.ConfigDB, configName string, updateConfig types.Configuration) error {
-	db := ConnectMySQL(cfg)
+	db := connectMySQL(cfg)
 	defer db.Close()
 
 	var err error
 
-	stmt, err := db.Prepare("UPDATE " + cfg.TableConfiguration + " SET " +
-		"config_name=?," +
+	table := cfg.TableConfiguration
+	if table == "" {
+		table = "auto_policy_config"
+	}
+
+	stmt, err := db.Prepare("UPDATE " + table + " SET " +
 		"config_db=?," +
 		"config_cilium_hubble=?," +
 		"operation_mode=?," +
 		"cronjob_time_interval=?," +
 		"one_time_job_time_selection=?," +
 		"network_log_from=?," +
-		"discovered_policy_to=?," +
-		"policy_dir=?," +
-		"discovery_policy_types=?," +
-		"discovery_rule_types=?," +
-		"cidr_bits=?," +
-		"ignoring_flows=?," +
-		"l3_aggregation_level=?," +
-		"l4_aggregation_level=?," +
-		"l7_aggregation_level=? " +
+		"network_log_file=?," +
+		"network_policy_to=?," +
+		"network_policy_dir=?," +
+		"network_policy_types=?," +
+		"network_policy_rule_types=?," +
+		"network_policy_cidr_bits=?," +
+		"network_policy_ignoring_flows=?," +
+		"network_policy_l3_level=?," +
+		"network_policy_l4_level=?," +
+		"network_policy_l7_level=?," +
+		"system_log_from=?," +
+		"system_log_file=?," +
+		"system_policy_to=?," +
+		"system_policy_dir=? " +
 		"WHERE config_name=?")
 
 	if err != nil {
@@ -717,29 +907,35 @@ func UpdateConfiguration(cfg types.ConfigDB, configName string, updateConfig typ
 		return err
 	}
 
-	ignoringFlowsPtr := &updateConfig.IgnoringFlows
+	ignoringFlowsPtr := &updateConfig.NetPolicyIgnoringFlows
 	ignoringFlows, err := json.Marshal(ignoringFlowsPtr)
 	if err != nil {
 		return err
 	}
 
 	_, err = stmt.Exec(
-		updateConfig.ConfigName,
 		configDB,
 		configCilium,
 		updateConfig.OperationMode,
 		updateConfig.CronJobTimeInterval,
 		updateConfig.OneTimeJobTimeSelection,
+
 		updateConfig.NetworkLogFrom,
+		updateConfig.NetworkLogFile,
 		updateConfig.NetworkPolicyTo,
 		updateConfig.NetworkPolicyDir,
-		updateConfig.DiscoveryPolicyTypes,
-		updateConfig.DiscoveryRuleTypes,
-		updateConfig.CIDRBits,
+		updateConfig.NetPolicyTypes,
+		updateConfig.NetPolicyRuleTypes,
+		updateConfig.NetPolicyCIDRBits,
 		ignoringFlows,
-		updateConfig.L3AggregationLevel,
-		updateConfig.L4Compression,
-		updateConfig.L7AggregationLevel,
+		updateConfig.NetPolicyL3Level,
+		updateConfig.NetPolicyL4Level,
+		updateConfig.NetPolicyL7Level,
+		updateConfig.SystemLogFrom,
+		updateConfig.SystemLogFile,
+		updateConfig.SystemPolicyTo,
+		updateConfig.SystemPolicyDir,
+
 		configName,
 	)
 
@@ -750,12 +946,16 @@ func UpdateConfiguration(cfg types.ConfigDB, configName string, updateConfig typ
 	return nil
 }
 
-// DeleteConfiguration ...
 func DeleteConfiguration(cfg types.ConfigDB, configName string) error {
-	db := ConnectMySQL(cfg)
+	db := connectMySQL(cfg)
 	defer db.Close()
 
-	stmt, err := db.Prepare("DELETE FROM " + cfg.TableConfiguration + " WHERE config_name=?")
+	table := cfg.TableConfiguration
+	if table == "" {
+		table = "auto_policy_config"
+	}
+
+	stmt, err := db.Prepare("DELETE FROM " + table + " WHERE config_name=?")
 	if err != nil {
 		return err
 	}
@@ -769,9 +969,8 @@ func DeleteConfiguration(cfg types.ConfigDB, configName string) error {
 	return nil
 }
 
-// ApplyConfiguration ...
 func ApplyConfiguration(cfg types.ConfigDB, oldConfigName, configName string) error {
-	db := ConnectMySQL(cfg)
+	db := connectMySQL(cfg)
 	defer db.Close()
 
 	var err error
@@ -804,17 +1003,16 @@ func ApplyConfiguration(cfg types.ConfigDB, oldConfigName, configName string) er
 // == Table == //
 // =========== //
 
-// ClearDBTablesMySQL function
 func ClearDBTablesMySQL(cfg types.ConfigDB) error {
-	db := ConnectMySQL(cfg)
+	db := connectMySQL(cfg)
 	defer db.Close()
 
-	query := "DELETE FROM " + cfg.TableDiscoveredPolicies
+	query := "DELETE FROM " + cfg.TableNetworkLog
 	if _, err := db.Query(query); err != nil {
 		return err
 	}
 
-	query = "DELETE FROM " + cfg.TableNetworkFlow
+	query = "DELETE FROM " + cfg.TableNetworkPolicy
 	if _, err := db.Query(query); err != nil {
 		return err
 	}
@@ -824,15 +1022,61 @@ func ClearDBTablesMySQL(cfg types.ConfigDB) error {
 		return err
 	}
 
+	query = "DELETE FROM " + cfg.TableSystemPolicy
+	if _, err := db.Query(query); err != nil {
+		return err
+	}
+
 	return nil
 }
 
-// CreateTableNetworkFlowMySQL function
-func CreateTableNetworkFlowMySQL(cfg types.ConfigDB) error {
-	db := ConnectMySQL(cfg)
+func CreateTableConfigurationMySQL(cfg types.ConfigDB) error {
+	db := connectMySQL(cfg)
 	defer db.Close()
 
-	tableName := cfg.TableNetworkFlow
+	tableName := cfg.TableConfiguration
+
+	// the number of column --> 23
+	query :=
+		"CREATE TABLE IF NOT EXISTS `" + tableName + "` ( " +
+			"	`id` int NOT NULL AUTO_INCREMENT, " +
+			"	`config_name` varchar(50) DEFAULT NULL, " +
+			"	`status` int DEFAULT '0', " +
+			"	`config_db` JSON DEFAULT NULL, " +
+			"	`config_cilium_hubble` JSON DEFAULT NULL, " +
+			"	`operation_mode` int DEFAULT NULL, " +
+			"	`cronjob_time_interval` varchar(50) DEFAULT NULL, " +
+			"	`one_time_job_time_selection` varchar(50) DEFAULT NULL, " +
+			"	`network_log_from` varchar(50) DEFAULT NULL, " +
+			"	`network_log_file` varchar(50) DEFAULT NULL, " +
+			"	`network_policy_to` varchar(50) DEFAULT NULL, " +
+			"	`network_policy_dir` varchar(50) DEFAULT NULL, " +
+			"	`network_policy_types` int DEFAULT NULL, " +
+			"	`network_policy_rule_types` int DEFAULT NULL, " +
+			"	`network_policy_cidr_bits` int DEFAULT NULL, " +
+			"	`network_policy_ignoring_flows` JSON DEFAULT NULL, " +
+			"	`network_policy_l3_level` int DEFAULT NULL, " +
+			"	`network_policy_l4_level` int DEFAULT NULL, " +
+			"	`network_policy_l7_level` int DEFAULT NULL, " +
+			"	`system_log_from` varchar(50) DEFAULT NULL, " +
+			"	`system_log_file` varchar(50) DEFAULT NULL, " +
+			"	`system_policy_to` varchar(50) DEFAULT NULL, " +
+			"	`system_policy_dir` varchar(50) DEFAULT NULL, " +
+			"	PRIMARY KEY (`id`) " +
+			"  ); "
+
+	if _, err := db.Query(query); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func CreateTableNetworkLogMySQL(cfg types.ConfigDB) error {
+	db := connectMySQL(cfg)
+	defer db.Close()
+
+	tableName := cfg.TableNetworkLog
 
 	query :=
 		"CREATE TABLE IF NOT EXISTS `" + tableName + "` (" +
@@ -867,12 +1111,11 @@ func CreateTableNetworkFlowMySQL(cfg types.ConfigDB) error {
 	return nil
 }
 
-// CreateTableDiscoveredPoliciesMySQL function
-func CreateTableDiscoveredPoliciesMySQL(cfg types.ConfigDB) error {
-	db := ConnectMySQL(cfg)
+func CreateTableNetworkPolicyMySQL(cfg types.ConfigDB) error {
+	db := connectMySQL(cfg)
 	defer db.Close()
 
-	tableName := cfg.TableDiscoveredPolicies
+	tableName := cfg.TableNetworkPolicy
 
 	query :=
 		"CREATE TABLE IF NOT EXISTS `" + tableName + "` (" +
@@ -899,35 +1142,34 @@ func CreateTableDiscoveredPoliciesMySQL(cfg types.ConfigDB) error {
 	return nil
 }
 
-// CreateTableConfigurationMySQL function
-func CreateTableConfigurationMySQL(cfg types.ConfigDB) error {
-	db := ConnectMySQL(cfg)
+func CreateTableSystemLogMySQL(cfg types.ConfigDB) error {
+	db := connectMySQL(cfg)
 	defer db.Close()
 
-	tableName := cfg.TableConfiguration
+	tableName := cfg.TableSystemLog
 
-	query :=
-		"CREATE TABLE IF NOT EXISTS `" + tableName + "` (" +
-			"	`id` int NOT NULL AUTO_INCREMENT," +
-			"	`config_name` varchar(50) DEFAULT NULL," +
-			"	`status` int DEFAULT '0'," +
-			"	`config_db` JSON DEFAULT NULL," +
-			"	`config_cilium_hubble` JSON DEFAULT NULL," +
-			"	`operation_mode` int DEFAULT NULL," +
-			"	`cronjob_time_interval` varchar(50) DEFAULT NULL," +
-			"	`one_time_job_time_selection` varchar(50) DEFAULT NULL," +
-			"	`network_log_from` varchar(50) DEFAULT NULL," +
-			"	`discovered_policy_to` varchar(50) DEFAULT NULL," +
-			"	`policy_dir` varchar(50) DEFAULT NULL," +
-			"	`discovery_policy_types` int DEFAULT NULL," +
-			"	`discovery_rule_types` int DEFAULT NULL," +
-			"	`cidr_bits` int DEFAULT NULL," +
-			"	`ignoring_flows` JSON DEFAULT NULL," +
-			"	`l3_aggregation_level` int DEFAULT NULL," +
-			"	`l4_aggregation_level` int DEFAULT NULL," +
-			"	`l7_aggregation_level` int DEFAULT NULL," +
-			"	PRIMARY KEY (`id`)" +
-			"  );"
+	query := "CREATE TABLE IF NOT EXISTS `" + tableName + "` (" +
+		"    `id` int NOT NULL AUTO_INCREMENT," +
+		"    `timestamp` int NOT NULL," +
+		"    `updatedTime` varchar(30) NOT NULL," +
+		"    `clusterName` varchar(100) NOT NULL," +
+		"    `hostName` varchar(100) NOT NULL," +
+		"    `namespaceName` varchar(100) NOT NULL," +
+		"    `podName` varchar(200) NOT NULL," +
+		"    `containerID` varchar(200) NOT NULL," +
+		"    `containerName` varchar(200) NOT NULL," +
+		"    `hostPid` int NOT NULL," +
+		"    `ppid` int NOT NULL," +
+		"    `pid` int NOT NULL," +
+		"    `uid` int NOT NULL," +
+		"    `type` varchar(20) NOT NULL," +
+		"    `source` varchar(4000) NOT NULL," +
+		"    `operation` varchar(20) NOT NULL," +
+		"    `resource` varchar(4000) NOT NULL," +
+		"    `data` varchar(1000) DEFAULT NULL," +
+		"    `result` varchar(200) NOT NULL," +
+		"    PRIMARY KEY (`id`)" +
+		");"
 
 	if _, err := db.Query(query); err != nil {
 		return err
@@ -936,35 +1178,24 @@ func CreateTableConfigurationMySQL(cfg types.ConfigDB) error {
 	return nil
 }
 
-// CreateTableSystemLogMySQL function
-func CreateTableSystemLogMySQL(cfg types.ConfigDB) error {
-	db := ConnectMySQL(cfg)
+func CreateTableSystemPolicyMySQL(cfg types.ConfigDB) error {
+	db := connectMySQL(cfg)
 	defer db.Close()
 
-	tableName := cfg.TableSystemLog
+	tableName := cfg.TableSystemPolicy
 
 	query :=
 		"CREATE TABLE IF NOT EXISTS `" + tableName + "` (" +
-			"`id` int NOT NULL AUTO_INCREMENT," +
-			"`time` int DEFAULT NULL," +
-			"`cluster_name` varchar(100) DEFAULT NULL," +
-			"`node_name` varchar(100) DEFAULT NULL," +
-			"`namespace_name` varchar(100) DEFAULT NULL," +
-			"`pod_name` varchar(100) DEFAULT NULL," +
-			"`container_id` varchar(100) DEFAULT NULL," +
-			"`container_name` varchar(100) DEFAULT NULL," +
-			"`host_pid` int DEFAULT NULL," +
-			"`ppid` int DEFAULT NULL," +
-			"`pid` int DEFAULT NULL," +
-			"`uid` int DEFAULT NULL," +
-			"`type` varchar(20) DEFAULT NULL," +
-			"`source` varchar(200) DEFAULT NULL," +
-			"`operation` varchar(20) DEFAULT NULL," +
-			"`resource` varchar(200) DEFAULT NULL," +
-			"`data` varchar(100) DEFAULT NULL," +
-			"`result` varchar(100) DEFAULT NULL," +
+			"	`id` int NOT NULL AUTO_INCREMENT," +
+			"	`apiVersion` varchar(40) DEFAULT NULL," +
+			"	`kind` varchar(20) DEFAULT NULL," +
+			"	`name` varchar(50) DEFAULT NULL," +
+			"	`clusterName` varchar(50) DEFAULT NULL," +
+			"	`namespace` varchar(50) DEFAULT NULL," +
+			"   `type` varchar(20) NOT NULL," +
+			"	`spec` JSON DEFAULT NULL," +
 			"	PRIMARY KEY (`id`)" +
-			");"
+			"  );"
 
 	if _, err := db.Query(query); err != nil {
 		return err

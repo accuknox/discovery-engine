@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: knoxautopolicy
+  labels:
+    service: knoxautopolicy
+spec:
+  ports:
+  - port: 9089
+    targetPort: 9089
+    protocol: TCP
+  selector:
+    container: knoxautopolicy

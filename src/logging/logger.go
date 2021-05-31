@@ -13,25 +13,15 @@ import (
 
 // Config - Custom application config
 type Config struct {
-	// Enable console logging
-	ConsoleLoggingEnabled bool
-	// EncodeLogsAsJSON makes the log framework log JSON
-	EncodeLogsAsJSON bool
-	// FileLoggingEnabled makes the framework log to a file
-	// the fields below can be skipped if this value is false!
-	FileLoggingEnabled bool
-	// Directory to log to to when filelogging is enabled
-	Directory string
-	// Filename is the name of the logfile which will be placed inside the directory
-	Filename string
-	// MaxSize the max size in MB of the logfile before it's rolled
-	MaxSize int
-	// MaxBackups the max number of rolled files to keep
-	MaxBackups int
-	// MaxAge the max age in days to keep a logfile
-	MaxAge int
-	// Compress the rotated files
-	Compress bool
+	ConsoleLoggingEnabled bool   // Enable console logging
+	EncodeLogsAsJSON      bool   // EncodeLogsAsJSON makes the log framework log JSON
+	FileLoggingEnabled    bool   // FileLoggingEnabled makes the framework log to a file, the fields below can be skipped if this value is false!
+	Directory             string // Directory to log to to when filelogging is enabled
+	Filename              string // Filename is the name of the logfile which will be placed inside the directory
+	MaxSize               int    // MaxSize the max size in MB of the logfile before it's rolled
+	MaxBackups            int    // MaxBackups the max number of rolled files to keep
+	MaxAge                int    // MaxAge the max age in days to keep a logfile
+	Compress              bool   // Compress the rotated files
 }
 
 func configure(config Config) *zerolog.Logger {
@@ -78,7 +68,6 @@ func newRollingFile(config Config) io.Writer {
 var customLogger *zerolog.Logger
 var once sync.Once
 
-// SetLogLevel - Set Logging level
 func SetLogLevel(logLevel string) {
 	switch logLevel {
 	case "TRACE":
@@ -102,13 +91,12 @@ func SetLogLevel(logLevel string) {
 	}
 }
 
-// GetInstance - Returns a logger instance
 func GetInstance() *zerolog.Logger {
 	once.Do(func() {
 		config := Config{
 			ConsoleLoggingEnabled: true,
 			EncodeLogsAsJSON:      false,
-			FileLoggingEnabled:    true,
+			FileLoggingEnabled:    false,
 			Directory:             "log",
 			Filename:              "service.log",
 			MaxSize:               10,

@@ -21,43 +21,45 @@ const ( // status
 	STATUS_IDLE    = "idle"
 )
 
+// ====================== //
+// == Gloabl Variables == //
+// ====================== //
+
+var consumer *KnoxFeedConsumer
+
+var Status string
+
+var waitG sync.WaitGroup
+var stopChan chan struct{}
+
+var netLogEvents []types.NetworkLogEvent
+var netLogEventsCount int
+
+var syslogEvents []types.SystemLogEvent
+var syslogEventsCount int
+
 var log *zerolog.Logger
 
 func init() {
 	log = logger.GetInstance()
 
 	waitG = sync.WaitGroup{}
-	consumer = &CiliumFeedsConsumer{}
+	consumer = &KnoxFeedConsumer{}
 
 	Status = STATUS_IDLE
 }
 
-// ====================== //
-// == Gloabl Variables == //
-// ====================== //
+// ======================== //
+// == Knox Feed Consumer == //
+// ======================== //
 
-var consumer *CiliumFeedsConsumer
-
-// Status global
-var Status string
-
-var waitG sync.WaitGroup
-var stopChan chan struct{}
-
-var events []types.NetworkFlowEvent
-var eventsCount int
-
-var syslogEvents []types.SystemLogEvent
-var syslogEventsCount int
-
-// Consumer - Consumes Cilium Feeds
-type CiliumFeedsConsumer struct {
+type KnoxFeedConsumer struct {
 	kafkaConfig  kafka.ConfigMap
 	topics       []string
 	eventsBuffer int
 }
 
-func (cfc *CiliumFeedsConsumer) setupKafkaConfig() {
+func (cfc *KnoxFeedConsumer) setupKafkaConfig() {
 	bootstrapServers := viper.GetString("kafka.bootstrap-servers")
 	brokderAddressFamily := viper.GetString("kafka.broker-address-family")
 	sessionTimeoutMs := viper.GetString("kafka.session-timeout-ms")
@@ -68,7 +70,7 @@ func (cfc *CiliumFeedsConsumer) setupKafkaConfig() {
 
 	cfc.eventsBuffer = viper.GetInt("kafka.events.buffer")
 
-	events = make([]types.NetworkFlowEvent, 0, cfc.eventsBuffer)
+	netLogEvents = make([]types.NetworkLogEvent, 0, cfc.eventsBuffer)
 	syslogEvents = make([]types.SystemLogEvent, 0, cfc.eventsBuffer)
 
 	sslEnabled := viper.GetBool("kafka.ssl.enabled")
@@ -88,14 +90,22 @@ func (cfc *CiliumFeedsConsumer) setupKafkaConfig() {
 
 	// Set up SSL specific configs if SSL is enabled
 	if sslEnabled {
-		cfc.kafkaConfig.SetKey("security.protocol", securityProtocol)
-		cfc.kafkaConfig.SetKey("ssl.ca.location", sslCALocation)
-		cfc.kafkaConfig.SetKey("ssl.keystore.location", sslKeystoreLocation)
-		cfc.kafkaConfig.SetKey("ssl.keystore.password", sslKeystorePassword)
+		if err := cfc.kafkaConfig.SetKey("security.protocol", securityProtocol); err != nil {
+			log.Error().Msg(err.Error())
+		}
+		if err := cfc.kafkaConfig.SetKey("ssl.ca.location", sslCALocation); err != nil {
+			log.Error().Msg(err.Error())
+		}
+		if err := cfc.kafkaConfig.SetKey("ssl.keystore.location", sslKeystoreLocation); err != nil {
+			log.Error().Msg(err.Error())
+		}
+		if err := cfc.kafkaConfig.SetKey("ssl.keystore.password", sslKeystorePassword); err != nil {
+			log.Error().Msg(err.Error())
+		}
 	}
 }
 
-func (cfc *CiliumFeedsConsumer) startConsumer() {
+func (cfc *KnoxFeedConsumer) startConsumer() {
 	defer waitG.Done()
 
 	c, err := kafka.NewConsumer(&cfc.kafkaConfig)
@@ -129,12 +139,16 @@ func (cfc *CiliumFeedsConsumer) startConsumer() {
 			switch e := ev.(type) {
 			case *kafka.Message:
 				if *e.TopicPartition.Topic != "kubearmor-syslogs" { // cilium-hubble
-					cfc.processMessage(e.Value)
+					if err := cfc.processNetworkLogMessage(e.Value); err != nil {
+						log.Error().Msg(err.Error())
+					}
 					if e.Headers != nil {
 						log.Debug().Msgf("Headers: %v", e.Headers)
 					}
 				} else { // kubearmor-syslogs
-					cfc.processSystemLogMessage(e.Value)
+					if err := cfc.processSystemLogMessage(e.Value); err != nil {
+						log.Error().Msg(err.Error())
+					}
 					if e.Headers != nil {
 						log.Debug().Msgf("Headers: %v", e.Headers)
 					}
@@ -156,53 +170,52 @@ func (cfc *CiliumFeedsConsumer) startConsumer() {
 	}
 
 	log.Info().Msgf("Closing consumer")
-	c.Close()
+	if err := c.Close(); err != nil {
+		log.Error().Msg(err.Error())
+	}
 }
 
-func (cfc *CiliumFeedsConsumer) processMessage(message []byte) error {
-	event := types.NetworkFlowEvent{}
+func (cfc *KnoxFeedConsumer) processNetworkLogMessage(message []byte) error {
+	event := types.NetworkLogEvent{}
 	var eventMap map[string]json.RawMessage
-	err := json.Unmarshal(message, &eventMap)
-	if err != nil {
-		log.Error().Msgf("Error unumarshaling event: %s\n", err.Error())
+	if err := json.Unmarshal(message, &eventMap); err != nil {
 		return err
 	}
 
 	clusterName := eventMap["cluster_name"]
 	clusterNameStr := ""
-	json.Unmarshal(clusterName, &clusterNameStr)
+	if err := json.Unmarshal(clusterName, &clusterNameStr); err != nil {
+		return err
+	}
 
 	flowEvent := eventMap["flow"]
-
-	errFlow := json.Unmarshal(flowEvent, &event)
-	if err != nil {
-		log.Error().Msgf("Error unumarshaling event data: %s\n", err.Error())
-		return errFlow
+	if err := json.Unmarshal(flowEvent, &event); err != nil {
+		return err
 	}
 
 	// add cluster_name to the event
 	event.ClusterName = clusterNameStr
-	events = append(events, event)
-	eventsCount++
+	netLogEvents = append(netLogEvents, event)
+	netLogEventsCount++
 
-	if eventsCount == cfc.eventsBuffer {
-		if len(events) > 0 {
-			isSuccess := cfc.PushToDB()
+	if netLogEventsCount == cfc.eventsBuffer {
+		if len(netLogEvents) > 0 {
+			isSuccess := cfc.PushNetworkLogToDB()
 			if !isSuccess {
 				return errors.New("Error saving to DB")
 			}
-			events = nil
-			events = make([]types.NetworkFlowEvent, 0, cfc.eventsBuffer)
+			netLogEvents = nil
+			netLogEvents = make([]types.NetworkLogEvent, 0, cfc.eventsBuffer)
 		}
 
-		eventsCount = 0
+		netLogEventsCount = 0
 	}
 
 	return nil
 }
 
-func (cfc *CiliumFeedsConsumer) PushToDB() bool {
-	if err := libs.InsertNetworkLogToDB(cfg.GetCfgDB(), events); err != nil {
+func (cfc *KnoxFeedConsumer) PushNetworkLogToDB() bool {
+	if err := libs.InsertNetworkLogToDB(cfg.GetCfgDB(), netLogEvents); err != nil {
 		log.Error().Msgf("InsertNetworkFlowToDB err: %s", err.Error())
 		return false
 	}
@@ -210,7 +223,7 @@ func (cfc *CiliumFeedsConsumer) PushToDB() bool {
 	return true
 }
 
-func (cfc *CiliumFeedsConsumer) processSystemLogMessage(message []byte) error {
+func (cfc *KnoxFeedConsumer) processSystemLogMessage(message []byte) error {
 	syslogEvent := types.SystemLogEvent{}
 
 	err := json.Unmarshal(message, &syslogEvent)
@@ -238,7 +251,7 @@ func (cfc *CiliumFeedsConsumer) processSystemLogMessage(message []byte) error {
 	return nil
 }
 
-func (cfc *CiliumFeedsConsumer) PushSystemLogToDB() bool {
+func (cfc *KnoxFeedConsumer) PushSystemLogToDB() bool {
 	if err := libs.InsertSystemLogToDB(cfg.GetCfgDB(), syslogEvents); err != nil {
 		log.Error().Msgf("InsertSystemLogToDB err: %s", err.Error())
 		return false
@@ -247,11 +260,10 @@ func (cfc *CiliumFeedsConsumer) PushSystemLogToDB() bool {
 	return true
 }
 
-// ============== //
-// == Consumer == //
-// ============== //
+// =================== //
+// == Consumer Main == //
+// =================== //
 
-// StartConsumer function
 func StartConsumer() {
 	if Status != STATUS_IDLE {
 		log.Info().Msg("There is no idle consumer")
@@ -263,10 +275,9 @@ func StartConsumer() {
 	go consumer.startConsumer()
 	Status = STATUS_RUNNING
 	waitG.Add(1)
-	log.Info().Msg("Cilium feeds consumer started")
+	log.Info().Msg("Knox feed consumer started")
 }
 
-// StopConsumer function
 func StopConsumer() {
 	if Status != STATUS_RUNNING {
 		log.Info().Msg("There is no running consumer")
@@ -277,5 +288,5 @@ func StopConsumer() {
 	close(stopChan)
 	waitG.Wait()
 
-	log.Info().Msg("The consumer stopped")
+	log.Info().Msg("Knox feed consumer stopped")
 }

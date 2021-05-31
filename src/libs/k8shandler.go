@@ -22,7 +22,6 @@ import (
 var parsed bool = false
 var kubeconfig *string
 
-// isInCluster Function
 func isInCluster() bool {
 	if _, ok := os.LookupEnv("KUBERNETES_PORT"); ok {
 		return true
@@ -31,7 +30,6 @@ func isInCluster() bool {
 	return false
 }
 
-// ConnectK8sClient Function
 func ConnectK8sClient() *kubernetes.Clientset {
 	if isInCluster() {
 		return ConnectInClusterAPIClient()
@@ -40,7 +38,6 @@ func ConnectK8sClient() *kubernetes.Clientset {
 	return ConnectLocalAPIClient()
 }
 
-// ConnectLocalAPIClient Function
 func ConnectLocalAPIClient() *kubernetes.Clientset {
 	if !parsed {
 		homeDir := ""
@@ -77,7 +74,6 @@ func ConnectLocalAPIClient() *kubernetes.Clientset {
 	return clientset
 }
 
-// ConnectInClusterAPIClient Function
 func ConnectInClusterAPIClient() *kubernetes.Clientset {
 	host := ""
 	port := ""
@@ -120,11 +116,10 @@ func ConnectInClusterAPIClient() *kubernetes.Clientset {
 	}
 }
 
-// ============================== //
-// == Microservice (Namespace) == //
-// ============================== //
+// =============== //
+// == Namespace == //
+// =============== //
 
-// GetNamespacesK8s Function
 func GetNamespacesK8s() []string {
 	results := []string{}
 
@@ -151,15 +146,15 @@ func GetNamespacesK8s() []string {
 	return results
 }
 
-// =========================== //
-// == Container Group (Pod) == //
-// =========================== //
+// ========= //
+// == Pod == //
+// ========= //
 
-var skipLabelKey []string = []string{"pod-template-hash", // common k8s hash label
+var skipLabelKey []string = []string{
+	"pod-template-hash",                  // common k8s hash label
 	"controller-revision-hash",           // from istana robot-shop
 	"statefulset.kubernetes.io/pod-name"} // from istana robot-shop
 
-// GetPodsK8s Function
 func GetPodsK8s() []types.Pod {
 	results := []types.Pod{}
 
@@ -197,7 +192,6 @@ func GetPodsK8s() []types.Pod {
 	return results
 }
 
-// SetAnnotationsToPodsInNamespaceK8s Function
 func SetAnnotationsToPodsInNamespaceK8s(namespace string, annotation map[string]string) error {
 	client := ConnectK8sClient()
 	if client == nil {
@@ -229,7 +223,6 @@ func SetAnnotationsToPodsInNamespaceK8s(namespace string, annotation map[string]
 	return nil
 }
 
-// SetAnnotationsToPodK8s Function
 func SetAnnotationsToPodK8s(podName string, annotation map[string]string) error {
 	client := ConnectK8sClient()
 	if client == nil {
@@ -267,7 +260,6 @@ func SetAnnotationsToPodK8s(podName string, annotation map[string]string) error 
 // == Service == //
 // ============= //
 
-// GetServicesK8s Function
 func GetServicesK8s() []types.Service {
 	results := []types.Service{}
 
@@ -318,7 +310,6 @@ func GetServicesK8s() []types.Service {
 // == Endpoint == //
 // ============== //
 
-// GetEndpointsK8s Function
 func GetEndpointsK8s() []types.Endpoint {
 	results := []types.Endpoint{}
 
@@ -388,7 +379,7 @@ func GetEndpointsK8s() []types.Endpoint {
 	return results
 }
 
-// GetClusterNameK8s ... (GKE only)
+// GKE only
 func GetClusterNameK8s() string {
 	client := ConnectK8sClient()
 	if client == nil {

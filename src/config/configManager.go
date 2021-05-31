@@ -6,39 +6,50 @@ import (
 	"strings"
 
 	"github.com/accuknox/knoxAutoPolicy/src/libs"
+	logger "github.com/accuknox/knoxAutoPolicy/src/logging"
 	types "github.com/accuknox/knoxAutoPolicy/src/types"
+	"github.com/rs/zerolog"
 	"github.com/spf13/viper"
 )
 
-// operation mode: 		   cronjob: 1
-//                 		   onetime job: 2
-// discovery policy types: egress only   : 1
-//                         ingress only  : 2
-//                         all           : 3
-// discovery rule types:   matchLabels: 1
-//                         toPorts    : 2
-//                         toHTTPs    : 4
-//                         toCIDRs    : 8
-//                         toEntities : 16
-//                         toServices : 32
-//                         toFQDNs    : 64
-//                         fromCIDRs  : 128
-//                         fromEntities : 256
-//                         all        : 511
+// operation mode: 		 cronjob: 1
+//                 		 onetime job: 2
+// network policy types: egress only   : 1
+//                       ingress only  : 2
+//                       all           : 3
+// network rule types:   matchLabels: 1
+//                       toPorts    : 2
+//                       toHTTPs    : 4
+//                       toCIDRs    : 8
+//                       toEntities : 16
+//                       toServices : 32
+//                       toFQDNs    : 64
+//                       fromCIDRs  : 128
+//                       fromEntities : 256
+//                       all        : 511
 
-// Cfg ...
+// ====================== //
+// == Global Variables == //
+// ====================== //
+
 var Cfg types.Configuration
 
-// SkipNamespaces ...
-var SkipNamespaces []string
+var IgnoringNetworkNamespaces []string
 
-// HTTPUrlThreshold ...
 var HTTPUrlThreshold int
 
-// NetworkPlugIn ...
 var NetworkPlugIn string
 
-// LoadConfigDB ...
+var log *zerolog.Logger
+
+func init() {
+	log = logger.GetInstance()
+}
+
+// =========================== //
+// == Configuration Loading == //
+// =========================== //
+
 func LoadConfigDB() types.ConfigDB {
 	cfgDB := types.ConfigDB{}
 
@@ -56,17 +67,17 @@ func LoadConfigDB() types.ConfigDB {
 	}
 	cfgDB.DBPort = viper.GetString("database.port")
 
-	cfgDB.TableNetworkFlow = viper.GetString("database.table-network-flow")
-	cfgDB.TableDiscoveredPolicies = viper.GetString("database.table-discovered-policies")
 	cfgDB.TableConfiguration = viper.GetString("database.table-configuration")
+	cfgDB.TableNetworkLog = viper.GetString("database.table-network-log")
+	cfgDB.TableNetworkPolicy = viper.GetString("database.table-network-policy")
 	cfgDB.TableSystemLog = viper.GetString("database.table-system-log")
+	cfgDB.TableSystemPolicy = viper.GetString("database.table-system-policy")
 
 	NetworkPlugIn = "cilium" // for now, cilium only supported
 
 	return cfgDB
 }
 
-// LoadConfigCiliumHubble ...
 func LoadConfigCiliumHubble() types.ConfigCiliumHubble {
 	cfgHubble := types.ConfigCiliumHubble{}
 
@@ -83,7 +94,6 @@ func LoadConfigCiliumHubble() types.ConfigCiliumHubble {
 	return cfgHubble
 }
 
-// LoadDefaultConfig ...
 func LoadDefaultConfig() {
 	Cfg = types.Configuration{}
 
@@ -99,65 +109,65 @@ func LoadDefaultConfig() {
 	Cfg.CronJobTimeInterval = viper.GetString("application.cron-job-time-interval")
 	Cfg.OneTimeJobTimeSelection = "" // e.g., 2021-01-20 07:00:23|2021-01-20 07:00:25
 
-	// input
+	// set network policy discovery
 	Cfg.NetworkLogFrom = viper.GetString("application.network-log-from")
-	Cfg.NetworkLogFile = "./flows.json" // for just local testing
+	Cfg.NetworkLogFile = viper.GetString("application.network-log-file") // for local testing
+	Cfg.NetworkPolicyTo = viper.GetString("application.network-policy-to")
+	Cfg.NetworkPolicyDir = viper.GetString("application.network-policy-dir")
 
-	// output
-	Cfg.NetworkPolicyTo = viper.GetString("application.discovered-policy-to")
-	Cfg.NetworkPolicyDir = viper.GetString("application.policy-dir")
+	Cfg.NetPolicyTypes = viper.GetInt("application.network-policy-types")          // 3: all types
+	Cfg.NetPolicyRuleTypes = viper.GetInt("application.network-policy-rule-types") // 511: all rules
+	Cfg.NetPolicyCIDRBits = 32
 
-	// discovery types
-	Cfg.DiscoveryPolicyTypes = viper.GetInt("application.discovery-policy-types") // 3: all types
-	Cfg.DiscoveryRuleTypes = viper.GetInt("application.discovery-rule-types")     // 511: all rules
-
-	// cidr bits
-	Cfg.CIDRBits = 32
-
-	// ignoring flows
-	skipNamespacesStr := viper.GetString("application.ignoring-namespaces")
-	SkipNamespaces = strings.Split(skipNamespacesStr, "|")
+	igNamespaces := viper.GetString("application.network-policy-ignoring-namespaces")
+	IgnoringNetworkNamespaces = strings.Split(igNamespaces, "|")
 
 	// aggregation level
-	Cfg.L3AggregationLevel = 3
-	Cfg.L4Compression = 3
-	Cfg.L7AggregationLevel = 3
+	Cfg.NetPolicyL3Level = 3
+	Cfg.NetPolicyL4Level = 3
+	Cfg.NetPolicyL7Level = 3
 
-	if Cfg.L7AggregationLevel == 3 {
+	if Cfg.NetPolicyL7Level == 3 {
 		HTTPUrlThreshold = 3
-	} else if Cfg.L7AggregationLevel == 2 {
+	} else if Cfg.NetPolicyL7Level == 2 {
 		HTTPUrlThreshold = 5
 	}
 
-	libs.AddConfiguration(Cfg.ConfigDB, Cfg)
+	// set system policy discovery
+	Cfg.SystemLogFrom = viper.GetString("application.system-log-from")
+	Cfg.SystemLogFile = viper.GetString("application.system-log-file")
+	Cfg.SystemPolicyTo = viper.GetString("application.system-policy-to")
+	Cfg.SystemPolicyDir = viper.GetString("application.system-policy-dir")
+
+	if err := libs.AddConfiguration(Cfg.ConfigDB, Cfg); err != nil {
+		log.Error().Msg(err.Error())
+	}
 }
 
-// SetLogFile for testing
 func SetLogFile(file string) {
 	Cfg.NetworkLogFile = file
 }
 
-// AddConfiguration function
+// ======================== //
+// == Configuration CRUD == //
+// ======================== //
+
 func AddConfiguration(newConfig types.Configuration) error {
 	return libs.AddConfiguration(Cfg.ConfigDB, newConfig)
 }
 
-// GetConfigurations function
 func GetConfigurations(configName string) ([]types.Configuration, error) {
 	return libs.GetConfigurations(Cfg.ConfigDB, configName)
 }
 
-// UpdateConfiguration function
 func UpdateConfiguration(configName string, updateConfig types.Configuration) error {
 	return libs.UpdateConfiguration(Cfg.ConfigDB, configName, updateConfig)
 }
 
-// DeleteConfiguration function
 func DeleteConfiguration(configName string) error {
 	return libs.DeleteConfiguration(Cfg.ConfigDB, configName)
 }
 
-// ApplyConfiguration ...
 func ApplyConfiguration(configName string) error {
 	if Cfg.ConfigName == configName {
 		return errors.New("Not applied " + configName + " due to same configuration name")
@@ -187,10 +197,6 @@ func ApplyConfiguration(configName string) error {
 // ============================ //
 // == Get Configuration Info == //
 // ============================ //
-
-func GetCfgSystemLogFrom() string {
-	return Cfg.SystemLogFrom
-}
 
 func GetCfgDB() types.ConfigDB {
 	return Cfg.ConfigDB
@@ -225,27 +231,27 @@ func GetCfgNetworkPolicyTo() string {
 }
 
 func GetCfgCIDRBits() int {
-	return Cfg.CIDRBits
+	return Cfg.NetPolicyCIDRBits
 }
 
 func GetCfgNetworkPolicyTypes() int {
-	return Cfg.DiscoveryPolicyTypes
+	return Cfg.NetPolicyTypes
 }
 
 func GetCfgNetworkRuleTypes() int {
-	return Cfg.DiscoveryRuleTypes
+	return Cfg.NetPolicyRuleTypes
 }
 
 func GetCfgNetworkL3Level() int {
-	return Cfg.L3AggregationLevel
+	return Cfg.NetPolicyL3Level
 }
 
 func GetCfgNetworkL4Level() int {
-	return Cfg.L4Compression
+	return Cfg.NetPolicyL4Level
 }
 
 func GetCfgNetworkL7Level() int {
-	return Cfg.L7AggregationLevel
+	return Cfg.NetPolicyL7Level
 }
 
 func GetCfgNetworkHTTPThreshold() int {
@@ -253,9 +259,21 @@ func GetCfgNetworkHTTPThreshold() int {
 }
 
 func GetCfgNetworkSkipNamespaces() []string {
-	return SkipNamespaces
+	return IgnoringNetworkNamespaces
 }
 
 func GetCfgNetworkIgnoreFlows() []types.IgnoringFlows {
-	return Cfg.IgnoringFlows
+	return Cfg.NetPolicyIgnoringFlows
+}
+
+func GetCfgSystemLogFrom() string {
+	return Cfg.SystemLogFrom
+}
+
+func GetCfgSystemLogFile() string {
+	return Cfg.SystemLogFile
+}
+
+func GetCfgSystemPolicyTo() string {
+	return Cfg.SystemPolicyTo
 }
