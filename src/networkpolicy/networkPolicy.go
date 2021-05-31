@@ -1532,8 +1532,12 @@ func DiscoverNetworkPolicyMain() {
 	// get cluster names, iterate each cluster
 	clusteredLogs := clusteringNetworkLogs(allNetworkLogs)
 	for clusterName, networkLogs := range clusteredLogs {
+		log.Info().Msgf("Network policy discovery started for cluster [%s]", clusterName)
+
 		clusterInstance := libs.GetClusterFromClusterName(clusterName)
 		if clusterInstance.ClusterID == 0 { // cluster not onboarded
+			log.Info().Msgf("Cluster [%s] not onboarded", clusterName)
+
 			continue
 		}
 
