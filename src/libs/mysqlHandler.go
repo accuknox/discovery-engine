@@ -392,15 +392,6 @@ func GetNetworkPoliciesFromMySQL(cfg types.ConfigDB, cluster, namespace, status 
 
 	query := "SELECT apiVersion,kind,flow_ids,name,cluster_name,namespace,type,rule,status,outdated,spec,generatedTime FROM " + cfg.TableNetworkPolicy + " WHERE cluster_name = ? and namespace = ? "
 
-	// set conditions
-	// if namespace != "" && status != "" {
-	// 	query = query + " WHERE namespace = ? and status = ? "
-	// 	results, err = db.Query(query, namespace, status)
-	// } else if namespace != "" {
-	// 	query = query + " WHERE namespace = ? "
-	// 	results, err = db.Query(query, namespace)
-	// } else
-
 	if status != "" {
 		query = query + " and status = ? "
 		results, err = db.Query(query, cluster, namespace, status)
