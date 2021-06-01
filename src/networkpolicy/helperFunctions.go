@@ -777,9 +777,9 @@ func clearGlobalVariabels() {
 // == File Outputs == //
 // ================== //
 
-func InsertDiscoveredPoliciesToFile(namespace string, services []types.Service) {
+func InsertDiscoveredPoliciesToFile(cluster, namespace string, services []types.Service) {
 	// retrieve the latest policies from the db
-	latestPolicies := libs.GetNetworkPolicies(CfgDB, namespace, "latest")
+	latestPolicies := libs.GetNetworkPolicies(CfgDB, cluster, namespace, "latest")
 
 	// write discovered policies to files
 	libs.WriteKnoxPolicyToYamlFile(namespace, latestPolicies)
