@@ -796,11 +796,13 @@ func updateExistCIDRtoNewFQDN(existingPolicies []types.KnoxNetworkPolicy, newPol
 
 func IsExistingPolicy(existingPolicies []types.KnoxNetworkPolicy, newPolicy types.KnoxNetworkPolicy) bool {
 	for _, exist := range existingPolicies {
-		if exist.Metadata["cluster_name"] == newPolicy.Metadata["cluster_name"] &&
-			exist.Metadata["namespace"] == newPolicy.Metadata["namespace"] &&
-			cmp.Equal(&exist.Spec, &newPolicy.Spec) {
-			log.Info().Msgf("Exact matching \n%v\n%v", exist, newPolicy)
+		if cmp.Equal(&exist.Spec, &newPolicy.Spec) {
 			return true
+		} else {
+			if exist.Metadata["namespace"] == "default" && exist.Spec.Selector.MatchLabels["app"] == "trail-2" &&
+				newPolicy.Metadata["namespace"] == "default" && newPolicy.Spec.Selector.MatchLabels["app"] == "trail-2" {
+				log.Info().Msgf("NOT matching \n%v\n%v", exist, newPolicy)
+			}
 		}
 	}
 
