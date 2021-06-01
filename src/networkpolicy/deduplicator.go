@@ -799,6 +799,7 @@ func IsExistingPolicy(existingPolicies []types.KnoxNetworkPolicy, newPolicy type
 		if exist.Metadata["cluster_name"] == newPolicy.Metadata["cluster_name"] &&
 			exist.Metadata["namespace"] == newPolicy.Metadata["namespace"] &&
 			cmp.Equal(&exist.Spec, &newPolicy.Spec) {
+			log.Info().Msgf("Exact matching \n%v\n%v", exist, newPolicy)
 			return true
 		}
 	}

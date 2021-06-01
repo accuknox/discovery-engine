@@ -1577,7 +1577,6 @@ func DiscoverNetworkPolicyMain() {
 
 			// get existing network policies in db
 			existingPolicies := libs.GetNetworkPolicies(CfgDB, clusterName, namespace, "latest")
-			log.Info().Msgf("POLICIES %s \n %v \n", namespace, existingPolicies)
 
 			// update duplicated policy
 			newPolicies := UpdateDuplicatedPolicy(existingPolicies, discoveredNetPolicies, DomainToIPs, clusterName)
