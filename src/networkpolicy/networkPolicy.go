@@ -1537,7 +1537,6 @@ func DiscoverNetworkPolicyMain() {
 		clusterInstance := libs.GetClusterFromClusterName(clusterName)
 		if clusterInstance.ClusterID == 0 { // cluster not onboarded
 			log.Info().Msgf("Cluster [%s] not onboarded", clusterName)
-
 			continue
 		}
 
@@ -1552,9 +1551,6 @@ func DiscoverNetworkPolicyMain() {
 
 		// update service ports (k8s service, endpoint, kube-dns)
 		updateServiceEndpoint(services, endpoints, pods)
-
-		// get existing network policies in db
-		existingPolicies := libs.GetNetworkPolicies(CfgDB, "", "")
 
 		// filter ignoring network logs from configuration
 		configFilteredLogs := FilterNetworkLogsByConfig(networkLogs, pods)
@@ -1571,8 +1567,6 @@ func DiscoverNetworkPolicyMain() {
 				continue
 			}
 
-			// log.Info().Msgf("\tNetwork policy discovery started for namespace: [%s]", namespace)
-
 			// reset flow id track at each target namespace
 			clearTrackFlowIDMaps()
 
@@ -1580,6 +1574,10 @@ func DiscoverNetworkPolicyMain() {
 			// == discover network policies based on the network logs == //
 			// ========================================================= //
 			discoveredNetPolicies := DiscoverNetworkPolicy(namespace, namespaceFilteredLogs, services, endpoints, pods)
+
+			// get existing network policies in db
+			existingPolicies := libs.GetNetworkPolicies(CfgDB, clusterName, namespace, "latest")
+			log.Info().Msgf("POLICIES %s \n %v \n", namespace, existingPolicies)
 
 			// update duplicated policy
 			newPolicies := UpdateDuplicatedPolicy(existingPolicies, discoveredNetPolicies, DomainToIPs, clusterName)
@@ -1595,7 +1593,7 @@ func DiscoverNetworkPolicyMain() {
 
 				// insert discovered policies to file
 				if strings.Contains(NetworkPolicyTo, "file") {
-					InsertDiscoveredPoliciesToFile(namespace, services)
+					InsertDiscoveredPoliciesToFile(clusterName, namespace, services)
 				}
 			}
 

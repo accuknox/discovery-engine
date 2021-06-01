@@ -94,11 +94,11 @@ func InsertNetworkLogToDB(cfg types.ConfigDB, nfe []types.NetworkLogEvent) error
 // == Network Policy == //
 // ==================== //
 
-func GetNetworkPolicies(cfg types.ConfigDB, namespace, status string) []types.KnoxNetworkPolicy {
+func GetNetworkPolicies(cfg types.ConfigDB, cluster, namespace, status string) []types.KnoxNetworkPolicy {
 	results := []types.KnoxNetworkPolicy{}
 
 	if cfg.DBDriver == "mysql" {
-		docs, err := GetNetworkPoliciesFromMySQL(cfg, namespace, status)
+		docs, err := GetNetworkPoliciesFromMySQL(cfg, cluster, namespace, status)
 		if err != nil {
 			return results
 		}
@@ -108,11 +108,11 @@ func GetNetworkPolicies(cfg types.ConfigDB, namespace, status string) []types.Kn
 	return results
 }
 
-func GetNetworkPoliciesBySelector(cfg types.ConfigDB, namespace, status string, selector map[string]string) ([]types.KnoxNetworkPolicy, error) {
+func GetNetworkPoliciesBySelector(cfg types.ConfigDB, cluster, namespace, status string, selector map[string]string) ([]types.KnoxNetworkPolicy, error) {
 	results := []types.KnoxNetworkPolicy{}
 
 	if cfg.DBDriver == "mysql" {
-		docs, err := GetNetworkPoliciesFromMySQL(cfg, namespace, status)
+		docs, err := GetNetworkPoliciesFromMySQL(cfg, cluster, namespace, status)
 		if err != nil {
 			return nil, err
 		}

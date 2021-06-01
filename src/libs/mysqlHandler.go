@@ -382,7 +382,7 @@ func InsertSystemLogToMySQL(cfg types.ConfigDB, sle []types.SystemLogEvent) erro
 // == Network Policy == //
 // ==================== //
 
-func GetNetworkPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) ([]types.KnoxNetworkPolicy, error) {
+func GetNetworkPoliciesFromMySQL(cfg types.ConfigDB, cluster, namespace, status string) ([]types.KnoxNetworkPolicy, error) {
 	db := connectMySQL(cfg)
 	defer db.Close()
 
@@ -390,18 +390,22 @@ func GetNetworkPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) (
 	var results *sql.Rows
 	var err error
 
-	query := "SELECT apiVersion,kind,flow_ids,name,cluster_name,namespace,type,rule,status,outdated,spec,generatedTime FROM " + cfg.TableNetworkPolicy
-	if namespace != "" && status != "" {
-		query = query + " WHERE namespace = ? and status = ? "
-		results, err = db.Query(query, namespace, status)
-	} else if namespace != "" {
-		query = query + " WHERE namespace = ? "
-		results, err = db.Query(query, namespace)
-	} else if status != "" {
-		query = query + " WHERE status = ? "
-		results, err = db.Query(query, status)
+	query := "SELECT apiVersion,kind,flow_ids,name,cluster_name,namespace,type,rule,status,outdated,spec,generatedTime FROM " + cfg.TableNetworkPolicy + " WHERE cluster_name = ? and namespace = ? "
+
+	// set conditions
+	// if namespace != "" && status != "" {
+	// 	query = query + " WHERE namespace = ? and status = ? "
+	// 	results, err = db.Query(query, namespace, status)
+	// } else if namespace != "" {
+	// 	query = query + " WHERE namespace = ? "
+	// 	results, err = db.Query(query, namespace)
+	// } else
+
+	if status != "" {
+		query = query + " and status = ? "
+		results, err = db.Query(query, cluster, namespace, status)
 	} else {
-		results, err = db.Query(query)
+		results, err = db.Query(query, cluster, namespace)
 	}
 
 	defer results.Close()
