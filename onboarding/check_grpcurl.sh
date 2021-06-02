@@ -2,7 +2,7 @@
 
 echo "[INFO] Check grpcurl"
 
-if ! command -v go &> /dev/null
+if ! command -v grpcurl &> /dev/null
 then
     echo "[INFO] grpcurl could not be found"
     exit 1

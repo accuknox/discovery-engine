@@ -1579,9 +1579,6 @@ func DiscoverNetworkPolicyMain() {
 
 			// update duplicated policy
 			newPolicies := UpdateDuplicatedPolicy(existingPolicies, discoveredNetPolicies, DomainToIPs, clusterName)
-			sort.Slice(newPolicies, func(i, j int) bool {
-				return newPolicies[i].Metadata["name"] < newPolicies[j].Metadata["name"]
-			})
 
 			if len(newPolicies) > 0 {
 				// insert discovered policies to db
@@ -1589,13 +1586,11 @@ func DiscoverNetworkPolicyMain() {
 					libs.InsertNetworkPolicies(CfgDB, newPolicies)
 				}
 
-				// insert discovered policies to file
+				// write discovered policies to file
 				if strings.Contains(NetworkPolicyTo, "file") {
-					InsertDiscoveredPoliciesToFile(clusterName, namespace, services)
+					WriteDiscoveredPoliciesToFile(clusterName, namespace, services)
 				}
-			}
 
-			if len(newPolicies) > 0 {
 				log.Info().Msgf("-> Network policy discovery done for namespace: [%s], [%d] policies discovered", namespace, len(newPolicies))
 			}
 		}

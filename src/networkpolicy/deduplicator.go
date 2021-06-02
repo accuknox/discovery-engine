@@ -1,6 +1,7 @@
 package networkpolicy
 
 import (
+	"sort"
 	"strings"
 
 	"github.com/accuknox/knoxAutoPolicy/src/libs"
@@ -878,6 +879,10 @@ func UpdateDuplicatedPolicy(existingPolicies []types.KnoxNetworkPolicy, discover
 
 	// step 8: check if existing cidr matchs new fqdn
 	updateExistCIDRtoNewFQDN(existingPolicies, newPolicies, dnsToIPs)
+
+	sort.Slice(newPolicies, func(i, j int) bool {
+		return newPolicies[i].Metadata["name"] < newPolicies[j].Metadata["name"]
+	})
 
 	return newPolicies
 }

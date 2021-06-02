@@ -49,6 +49,9 @@ feed-consumer:
     events:
       buffer: 50
 
+logging:
+  level: "INFO"
+  
 cilium-hubble:
   url: 10.4.41.240
   port: 80
