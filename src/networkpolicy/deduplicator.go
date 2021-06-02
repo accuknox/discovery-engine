@@ -794,15 +794,10 @@ func updateExistCIDRtoNewFQDN(existingPolicies []types.KnoxNetworkPolicy, newPol
 // == Exact Matching == //
 // ==================== //
 
-func IsExistingPolicy(existingPolicies []types.KnoxNetworkPolicy, newPolicy types.KnoxNetworkPolicy) bool {
+func IsExistingPolicySpec(existingPolicies []types.KnoxNetworkPolicy, newPolicy types.KnoxNetworkPolicy) bool {
 	for _, exist := range existingPolicies {
 		if cmp.Equal(&exist.Spec, &newPolicy.Spec) {
 			return true
-		} else {
-			if exist.Metadata["namespace"] == "default" && exist.Spec.Selector.MatchLabels["app"] == "trail-2" &&
-				newPolicy.Metadata["namespace"] == "default" && newPolicy.Spec.Selector.MatchLabels["app"] == "trail-2" {
-				log.Info().Msgf("NOT matching \n%v\n%v", exist, newPolicy)
-			}
 		}
 	}
 
@@ -825,7 +820,7 @@ func UpdateDuplicatedPolicy(existingPolicies []types.KnoxNetworkPolicy, discover
 	// enumerate discovered network policy
 	for _, policy := range discoveredPolicies {
 		// step 1: compare the total network policy spec
-		if IsExistingPolicy(existingPolicies, policy) {
+		if IsExistingPolicySpec(existingPolicies, policy) {
 			continue
 		}
 

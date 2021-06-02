@@ -99,7 +99,7 @@ func LoadDefaultConfig() {
 
 	// base
 	Cfg.ConfigName = "default"
-	Cfg.Status = 1
+	Cfg.Status = 1 // 1: active 0: inactive
 
 	Cfg.ConfigDB = LoadConfigDB()
 	Cfg.ConfigCiliumHubble = LoadConfigCiliumHubble()

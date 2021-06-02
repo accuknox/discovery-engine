@@ -39,7 +39,7 @@ database:
   port: 3306
   user: root
   password: password
-  dbname: networkflowdb
+  dbname: accuknox
   table-configuration: auto_policy_config
   table-network-log: network_log
   table-network-policy: network_policy
@@ -48,4 +48,4 @@ database:
 
 cilium-hubble:
   url: 10.4.41.240
-  port: 80 
+  port: 80
