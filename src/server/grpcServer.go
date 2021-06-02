@@ -141,7 +141,7 @@ func (s *workerServer) Start(ctx context.Context, in *wpb.WorkerRequest) (*wpb.W
 	log.Info().Msg("Start worker called")
 
 	if in.GetReq() == "dbclear" {
-		libs.ClearDBTables(core.Cfg.ConfigDB)
+		libs.ClearDBTables(core.CurrentCfg.ConfigDB)
 	}
 
 	if in.GetLogfile() != "" {

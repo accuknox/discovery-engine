@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/accuknox/knoxAutoPolicy/src/cluster"
 	"github.com/accuknox/knoxAutoPolicy/src/libs"
 	"github.com/accuknox/knoxAutoPolicy/src/plugin"
 	types "github.com/accuknox/knoxAutoPolicy/src/types"
@@ -257,7 +258,7 @@ func getNetworkLogs() []types.KnoxNetworkLog {
 		}
 
 		// replace the pod names in prepared-flows with the working pod names
-		pods := libs.GetPodsK8s()
+		pods := cluster.GetPodsFromK8sClient()
 		ReplaceMultiubuntuPodName(flows, pods)
 
 		// convert file flows -> network logs (but, in this case, no flow id..)

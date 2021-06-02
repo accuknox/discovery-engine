@@ -1,4 +1,4 @@
-package libs
+package cluster
 
 import (
 	"bytes"
@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/accuknox/knoxAutoPolicy/src/config"
+	"github.com/accuknox/knoxAutoPolicy/src/libs"
 	logger "github.com/accuknox/knoxAutoPolicy/src/logging"
 	"github.com/accuknox/knoxAutoPolicy/src/types"
 
@@ -25,7 +27,7 @@ func init() {
 
 func getResponseBytes(mothod string, url string, data map[string]interface{}) []byte {
 	if BaseURL == "" {
-		BaseURL = viper.GetString("application.accuknox-cluster-mgmt")
+		BaseURL = config.GetCfgClusterMgmtURL()
 	}
 
 	// prepare full url
@@ -119,9 +121,9 @@ func authLogin() error {
 	return nil
 }
 
-// ============= //
-// == Cluster == //
-// ============= //
+// ====================== //
+// == Cluster Instance == //
+// ====================== //
 
 func GetClustersFromClusterNames(clusterNames []string) []types.Cluster {
 	results := []types.Cluster{}
@@ -161,15 +163,6 @@ func GetClusterFromClusterName(clusterName string) types.Cluster {
 	}
 
 	return types.Cluster{}
-}
-
-func GetAllClusterResources(cluster types.Cluster) ([]string, []types.Service, []types.Endpoint, []types.Pod) {
-	namespaces := GetNamespacesFromCluster(cluster)
-	services := GetServicesFromCluster(cluster)
-	endpoints := GetEndpointsFromCluster(cluster)
-	pods := GetPodsFromCluster(cluster)
-
-	return namespaces, services, endpoints, pods
 }
 
 // =============== //
@@ -226,7 +219,7 @@ func GetServicesFromCluster(cluster types.Cluster) []types.Service {
 
 	for _, v := range services {
 		svcCluster := types.ServiceCluster{}
-		if err := MapToStructure(v, &svcCluster); err != nil {
+		if err := libs.MapToStructure(v, &svcCluster); err != nil {
 			log.Error().Msg(err.Error())
 			continue
 		}
@@ -318,7 +311,8 @@ func GetEndpointsFromCluster(cluster types.Cluster) []types.Endpoint {
 var skippedLabelKeys []string = []string{
 	"pod-template-hash",                  // common k8s hash label
 	"controller-revision-hash",           // from istana robot-shop
-	"statefulset.kubernetes.io/pod-name"} // from istana robot-shop
+	"statefulset.kubernetes.io/pod-name", // from istana robot-shop
+}
 
 func GetPodsFromCluster(cluster types.Cluster) []types.Pod {
 	results := []types.Pod{}
@@ -378,7 +372,7 @@ func GetPodsFromCluster(cluster types.Cluster) []types.Pod {
 				continue
 			}
 
-			if ContainsElement(skippedLabelKeys, key) {
+			if libs.ContainsElement(skippedLabelKeys, key) {
 				continue
 			}
 

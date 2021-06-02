@@ -1,37 +1,25 @@
 application:
   name: knoxautopolicy
-  operation-mode: 2
-  cron-job-time-interval: "@every 0h0m10s"
-  network-log-from: db
-  network-log-file: "./flow.json"
-  network-policy-to: "db|file"
-  network-policy-dir: "./"
-  network-policy-types: 3
-  network-policy-rule-types: 511
-  network-policy-ignoring-namespaces: "kube-system"
-  system-log-from: db
-  system-log-file: "./log.json"
-  system-policy-to: "db|file"
-  system-policy-dir: "./"
-  #accuknox-cluster-mgmt: "http://cluster-management-service.accuknox-dev-cluster-mgmt.svc.cluster.local/cm"
-  accuknox-cluster-mgmt: "http://localhost:8080"
-
-logging:
-  level: INFO
-
-kafka:
-  broker-address-family: v4
-  session-timeout-ms: 6000
-  auto-offset-reset: "earliest"
-  bootstrap-servers: "dev-kafka-kafka-bootstrap.accuknox-dev-kafka.svc.cluster.local:9092"
-  group-id: policy.cilium
-  topics: 
-    - cilium-telemetry
-    - kubearmor-syslogs
-  ssl:
-    enabled: false
-  events:
-    buffer: 50
+  network:
+    operation-mode: 1                         # 1: cronjob | 2: one-time-job
+    cron-job-time-interval: "0h0m10s"         # format: XhYmZs 
+    network-log-from: "db"                    # db|hubble
+    network-log-file: "./flow.json"           # file path
+    network-policy-to: "db|file"              # db, file
+    network-policy-dir: "./"
+    network-policy-types: 3
+    network-policy-rule-types: 511
+  system:
+    operation-mode: 1                         # 1: cronjob | 2: one-time-job
+    cron-job-time-interval: "0h0m10s"         # format: XhYmZs 
+    system-log-from: "db"                     # db|kubearmor
+    system-log-file: "./log.json"             # file path
+    system-policy-to: "db|file"               # db, file
+    system-policy-dir: "./"
+  cluster:
+    cluster-info-from: "k8sclient"            # k8sclient|accuknox
+    #cluster-mgmt-url: "http://cluster-management-service.accuknox-dev-cluster-mgmt.svc.cluster.local/cm"
+    cluster-mgmt-url: "http://localhost:8080"
 
 database:
   driver: mysql
@@ -39,12 +27,27 @@ database:
   port: 3306
   user: root
   password: password
-  dbname: accuknox
+  dbname: knoxautopolicy
   table-configuration: auto_policy_config
   table-network-log: network_log
   table-network-policy: network_policy
   table-system-log: system_log
   table-system-policy: system_policy
+
+feed-consumer:
+  kafka:
+    broker-address-family: v4
+    session-timeout-ms: 6000
+    auto-offset-reset: "earliest"
+    bootstrap-servers: "dev-kafka-kafka-bootstrap.accuknox-dev-kafka.svc.cluster.local:9092"
+    group-id: policy.cilium
+    topics: 
+      - cilium-telemetry
+      - kubearmor-syslogs
+    ssl:
+      enabled: false
+    events:
+      buffer: 50
 
 cilium-hubble:
   url: 10.4.41.240

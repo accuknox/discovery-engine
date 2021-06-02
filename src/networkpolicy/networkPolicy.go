@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/accuknox/knoxAutoPolicy/src/cluster"
 	cfg "github.com/accuknox/knoxAutoPolicy/src/config"
 	"github.com/accuknox/knoxAutoPolicy/src/libs"
 	logger "github.com/accuknox/knoxAutoPolicy/src/logging"
@@ -1492,7 +1493,7 @@ func DiscoverNetworkPolicy(namespace string,
 func initNetPolicyDiscoveryConfiguration() {
 	CfgDB = cfg.GetCfgDB()
 
-	OneTimeJobTime = cfg.GetCfgOneTime()
+	OneTimeJobTime = cfg.GetCfgNetOneTime()
 
 	NetworkLogFrom = cfg.GetCfgNetworkLogFrom()
 	NetworkLogFile = cfg.GetCfgNetworkLogFile()
@@ -1534,17 +1535,15 @@ func DiscoverNetworkPolicyMain() {
 	for clusterName, networkLogs := range clusteredLogs {
 		log.Info().Msgf("Network policy discovery started for cluster [%s]", clusterName)
 
-		clusterInstance := libs.GetClusterFromClusterName(clusterName)
-		if clusterInstance.ClusterID == 0 { // cluster not onboarded
-			log.Info().Msgf("Cluster [%s] not onboarded", clusterName)
-			continue
-		}
-
 		// set cluster global variables
 		initMultiClusterVariables(clusterName)
 
 		// get k8s resources
-		namespaces, services, endpoints, pods := libs.GetAllClusterResources(clusterInstance)
+		namespaces, services, endpoints, pods, err := cluster.GetAllClusterResources(clusterName)
+		if err != nil {
+			log.Error().Msg(err.Error())
+			continue
+		}
 
 		// update DNS req. flows, DNSToIPs map
 		updateDNSFlows(networkLogs)
@@ -1619,7 +1618,7 @@ func StartNetworkCronJob() {
 
 	// init cron job
 	NetworkCronJob = cron.New()
-	err := NetworkCronJob.AddFunc(cfg.GetCfgCronJobTime(), DiscoverNetworkPolicyMain) // time interval
+	err := NetworkCronJob.AddFunc(cfg.GetCfgNetCronJobTime(), DiscoverNetworkPolicyMain) // time interval
 	if err != nil {
 		log.Error().Msg(err.Error())
 		return
@@ -1648,7 +1647,7 @@ func StartNetworkWorker() {
 		return
 	}
 
-	if cfg.GetCfgOperationMode() == OP_MODE_CRONJOB { // every time intervals
+	if cfg.GetCfgNetOperationMode() == OP_MODE_CRONJOB { // every time intervals
 		StartNetworkCronJob()
 	} else { // one-time generation
 		DiscoverNetworkPolicyMain()
@@ -1657,7 +1656,7 @@ func StartNetworkWorker() {
 }
 
 func StopNetworkWorker() {
-	if cfg.GetCfgOperationMode() == OP_MODE_CRONJOB { // every time intervals
+	if cfg.GetCfgNetOperationMode() == OP_MODE_CRONJOB { // every time intervals
 		StopNetworkCronJob()
 	} else {
 		if NetworkWorkerStatus != STATUS_RUNNING {

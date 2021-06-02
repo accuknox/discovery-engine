@@ -23,6 +23,12 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+var log *zerolog.Logger
+
+func init() {
+	log = logger.GetInstance()
+}
+
 // =================== //
 // == Configuration == //
 // =================== //

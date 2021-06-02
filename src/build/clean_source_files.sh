@@ -7,6 +7,7 @@ rm -r $KNOX_SRC_HOME/build/libs > /dev/null 2>&1
 rm -r $KNOX_SRC_HOME/build/logging > /dev/null 2>&1 
 rm -r $KNOX_SRC_HOME/build/feedconsumer > /dev/null 2>&1
 rm -r $KNOX_SRC_HOME/build/config > /dev/null 2>&1
+rm -r $KNOX_SRC_HOME/build/cluster > /dev/null 2>&1
 rm -r $KNOX_SRC_HOME/build/networkpolicy > /dev/null 2>&1
 rm -r $KNOX_SRC_HOME/build/systempolicy > /dev/null 2>&1
 rm -r $KNOX_SRC_HOME/build/types > /dev/null 2>&1

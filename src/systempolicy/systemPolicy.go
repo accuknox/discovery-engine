@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/accuknox/knoxAutoPolicy/src/cluster"
 	cfg "github.com/accuknox/knoxAutoPolicy/src/config"
 	"github.com/accuknox/knoxAutoPolicy/src/libs"
 	logger "github.com/accuknox/knoxAutoPolicy/src/logging"
@@ -96,7 +97,7 @@ func getSystemLogs() []types.KnoxSystemLog {
 		log.Info().Msg("Get system log from the database")
 
 		// get system logs from db
-		sysLogs := libs.GetSystemLogsFromDB(cfg.GetCfgDB(), cfg.GetCfgOneTime())
+		sysLogs := libs.GetSystemLogsFromDB(cfg.GetCfgDB(), cfg.GetCfgSysOneTime())
 		if len(sysLogs) == 0 {
 			return nil
 		}
@@ -338,7 +339,7 @@ func updateSysPolicySelector(clusterName string, pod types.Pod, policies []types
 func initNetPolicyDiscoveryConfiguration() {
 	CfgDB = cfg.GetCfgDB()
 
-	OneTimeJobTime = cfg.GetCfgOneTime()
+	OneTimeJobTime = cfg.GetCfgSysOneTime()
 
 	SystemLogFrom = cfg.GetCfgSystemLogFrom()
 	SystemLogFile = cfg.GetCfgSystemLogFile()
@@ -375,7 +376,7 @@ func DiscoverSystemPolicyMain() {
 	for clusterName, sysLogs := range clusteredLogs {
 		clusterName = "accuknox-qa" // for test
 
-		clusterInstance := libs.GetClusterFromClusterName(clusterName)
+		clusterInstance := cluster.GetClusterFromClusterName(clusterName)
 		if clusterInstance.ClusterID == 0 { // cluster not onboarded
 			continue
 		}
@@ -384,7 +385,7 @@ func DiscoverSystemPolicyMain() {
 		existingPolicies := libs.GetSystemPolicies(CfgDB, "", "")
 
 		// get k8s pods
-		pods := libs.GetPodsFromCluster(clusterInstance)
+		pods := cluster.GetPodsFromCluster(clusterInstance)
 
 		// iterate namespace + pod_name
 		nsPodLogs := clusteringSystemLogsByNamespacePod(sysLogs)
@@ -433,7 +434,7 @@ func DiscoverSystemPolicyMain() {
 func StartSystemCronJob() {
 	// init cron job
 	SystemCronJob = cron.New()
-	err := SystemCronJob.AddFunc(cfg.GetCfgCronJobTime(), DiscoverSystemPolicyMain) // time interval
+	err := SystemCronJob.AddFunc(cfg.GetCfgSysCronJobTime(), DiscoverSystemPolicyMain) // time interval
 	if err != nil {
 		log.Error().Msg(err.Error())
 		return
@@ -463,7 +464,7 @@ func StartSystemWorker() {
 		return
 	}
 
-	if cfg.GetCfgOperationMode() == OP_MODE_CRONJOB { // every time intervals
+	if cfg.GetCfgSysOperationMode() == OP_MODE_CRONJOB { // every time intervals
 		StartSystemCronJob()
 	} else { // one-time generation
 		DiscoverSystemPolicyMain()
@@ -472,7 +473,7 @@ func StartSystemWorker() {
 }
 
 func StopSystemWorker() {
-	if cfg.GetCfgOperationMode() == OP_MODE_CRONJOB { // every time intervals
+	if cfg.GetCfgSysOperationMode() == OP_MODE_CRONJOB { // every time intervals
 		StopSystemCronJob()
 	} else {
 		if SystemWorkerStatus != STATUS_RUNNING {
