@@ -8,6 +8,7 @@ COPY ./src/libs ./libs
 COPY ./src/logging ./logging
 COPY ./src/feedconsumer ./feedconsumer
 COPY ./src/config ./config
+COPY ./src/cluster ./cluster
 COPY ./src/networkpolicy ./networkpolicy
 COPY ./src/systempolicy ./systempolicy
 COPY ./src/types ./types

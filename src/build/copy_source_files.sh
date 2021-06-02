@@ -7,6 +7,7 @@ cp -r $KNOX_SRC_HOME/libs $KNOX_SRC_HOME/build
 cp -r $KNOX_SRC_HOME/logging $KNOX_SRC_HOME/build
 cp -r $KNOX_SRC_HOME/feedconsumer $KNOX_SRC_HOME/build
 cp -r $KNOX_SRC_HOME/config $KNOX_SRC_HOME/build
+cp -r $KNOX_SRC_HOME/cluster $KNOX_SRC_HOME/build
 cp -r $KNOX_SRC_HOME/networkpolicy $KNOX_SRC_HOME/build
 cp -r $KNOX_SRC_HOME/systempolicy $KNOX_SRC_HOME/build
 cp -r $KNOX_SRC_HOME/types $KNOX_SRC_HOME/build

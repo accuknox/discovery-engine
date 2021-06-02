@@ -1,6 +1,8 @@
 package systempolicy
 
 import (
+	"sort"
+
 	"github.com/accuknox/knoxAutoPolicy/src/libs"
 	types "github.com/accuknox/knoxAutoPolicy/src/types"
 	"github.com/google/go-cmp/cmp"
@@ -83,6 +85,10 @@ func UpdateDuplicatedPolicy(existingPolicies []types.KubeArmorSystemPolicy, disc
 		namedPolicy := GeneratePolicyName(policyNamesMap, policy, clusterName)
 		newPolicies = append(newPolicies, namedPolicy)
 	}
+
+	sort.Slice(newPolicies, func(i, j int) bool {
+		return newPolicies[i].Metadata["name"] < newPolicies[j].Metadata["name"]
+	})
 
 	return newPolicies
 }

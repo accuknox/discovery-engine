@@ -281,6 +281,10 @@ func buildPathTree(treeMap map[string]*Node, paths []string) {
 		// 			--> '/usr', '/lib', '/python2.7', '/UserDict.py'
 		//			in this case, '/usr' is rootNode
 		tokenizedPaths := pattern.FindAllString(path, -1)
+		if len(tokenizedPaths) == 0 {
+			continue
+		}
+
 		rootPath := tokenizedPaths[0]
 
 		if rootNode, ok := treeMap[rootPath]; !ok {

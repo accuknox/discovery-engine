@@ -7,6 +7,6 @@ services:
       - "3306:3306"
     environment:
       MYSQL_ROOT_PASSWORD: "password"
-      MYSQL_DATABASE: "flow_management"
+      MYSQL_DATABASE: "knoxautopolicy"
     volumes:
       - ./init/:/docker-entrypoint-initdb.d/

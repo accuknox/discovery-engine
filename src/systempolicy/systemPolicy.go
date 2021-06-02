@@ -2,10 +2,10 @@ package systempolicy
 
 import (
 	"errors"
-	"sort"
 	"strings"
 	"sync"
 
+	"github.com/accuknox/knoxAutoPolicy/src/cluster"
 	cfg "github.com/accuknox/knoxAutoPolicy/src/config"
 	"github.com/accuknox/knoxAutoPolicy/src/libs"
 	logger "github.com/accuknox/knoxAutoPolicy/src/logging"
@@ -96,7 +96,7 @@ func getSystemLogs() []types.KnoxSystemLog {
 		log.Info().Msg("Get system log from the database")
 
 		// get system logs from db
-		sysLogs := libs.GetSystemLogsFromDB(cfg.GetCfgDB(), cfg.GetCfgOneTime())
+		sysLogs := libs.GetSystemLogsFromDB(cfg.GetCfgDB(), cfg.GetCfgSysOneTime())
 		if len(sysLogs) == 0 {
 			return nil
 		}
@@ -152,9 +152,16 @@ func systemLogDeduplication(logs []types.KnoxSystemLog) []types.KnoxSystemLog {
 	results := []types.KnoxSystemLog{}
 
 	for _, log := range logs {
-		if !libs.ContainsElement(results, log) {
-			results = append(results, log)
+		if libs.ContainsElement(results, log) {
+			continue
 		}
+
+		// if source == resource, skip it
+		if log.Source == log.Resource {
+			continue
+		}
+
+		results = append(results, log)
 	}
 
 	return results
@@ -200,7 +207,7 @@ func discoverFileOperationPolicy(results []types.KubeArmorSystemPolicy, pod type
 		policy.Metadata["type"] = "file"
 		policy.Spec.File = types.KubeArmorSys{}
 		for _, filePath := range aggreatedFilePaths {
-			policy = updateSysPolicySpec(policy, src, filePath)
+			policy = updateSysPolicySpec(SYS_OP_FILE, policy, src, filePath)
 		}
 
 		results = append(results, policy)
@@ -237,7 +244,7 @@ func discoverProcessOperationPolicy(results []types.KubeArmorSystemPolicy, pod t
 		policy.Metadata["type"] = "process"
 		policy.Spec.Process = types.KubeArmorSys{}
 		for _, processPath := range aggreatedProcessPaths {
-			policy = updateSysPolicySpec(policy, src, processPath)
+			policy = updateSysPolicySpec(SYS_OP_PROCESS, policy, src, processPath)
 		}
 
 		results = append(results, policy)
@@ -280,7 +287,8 @@ func buildSystemPolicy() types.KubeArmorSystemPolicy {
 	}
 }
 
-func updateSysPolicySpec(policy types.KubeArmorSystemPolicy, src string, pathSpec SysPath) types.KubeArmorSystemPolicy {
+func updateSysPolicySpec(opType string, policy types.KubeArmorSystemPolicy, src string, pathSpec SysPath) types.KubeArmorSystemPolicy {
+	// matchDirectories
 	if pathSpec.isDir {
 		matchDirs := types.KubeArmorMatchDirectories{
 			Dir: pathSpec.Path,
@@ -289,10 +297,18 @@ func updateSysPolicySpec(policy types.KubeArmorSystemPolicy, src string, pathSpe
 			},
 		}
 
-		if len(policy.Spec.File.MatchDirectories) == 0 {
-			policy.Spec.File.MatchDirectories = []types.KubeArmorMatchDirectories{matchDirs}
-		} else {
-			policy.Spec.File.MatchDirectories = append(policy.Spec.File.MatchDirectories, matchDirs)
+		if opType == SYS_OP_FILE {
+			if len(policy.Spec.File.MatchDirectories) == 0 {
+				policy.Spec.File.MatchDirectories = []types.KubeArmorMatchDirectories{matchDirs}
+			} else {
+				policy.Spec.File.MatchDirectories = append(policy.Spec.File.MatchDirectories, matchDirs)
+			}
+		} else if opType == SYS_OP_PROCESS {
+			if len(policy.Spec.File.MatchDirectories) == 0 {
+				policy.Spec.Process.MatchDirectories = []types.KubeArmorMatchDirectories{matchDirs}
+			} else {
+				policy.Spec.Process.MatchDirectories = append(policy.Spec.Process.MatchDirectories, matchDirs)
+			}
 		}
 	} else {
 		matchPaths := types.KubeArmorMatchPaths{
@@ -302,10 +318,18 @@ func updateSysPolicySpec(policy types.KubeArmorSystemPolicy, src string, pathSpe
 			},
 		}
 
-		if len(policy.Spec.File.MatchPaths) == 0 {
-			policy.Spec.File.MatchPaths = []types.KubeArmorMatchPaths{matchPaths}
-		} else {
-			policy.Spec.File.MatchPaths = append(policy.Spec.File.MatchPaths, matchPaths)
+		if opType == SYS_OP_FILE {
+			if len(policy.Spec.File.MatchPaths) == 0 {
+				policy.Spec.File.MatchPaths = []types.KubeArmorMatchPaths{matchPaths}
+			} else {
+				policy.Spec.File.MatchPaths = append(policy.Spec.File.MatchPaths, matchPaths)
+			}
+		} else if opType == SYS_OP_PROCESS {
+			if len(policy.Spec.File.MatchPaths) == 0 {
+				policy.Spec.Process.MatchPaths = []types.KubeArmorMatchPaths{matchPaths}
+			} else {
+				policy.Spec.Process.MatchPaths = append(policy.Spec.Process.MatchPaths, matchPaths)
+			}
 		}
 	}
 
@@ -335,10 +359,10 @@ func updateSysPolicySelector(clusterName string, pod types.Pod, policies []types
 // == Discover System Policy  == //
 // ============================= //
 
-func initNetPolicyDiscoveryConfiguration() {
+func initSysPolicyDiscoveryConfiguration() {
 	CfgDB = cfg.GetCfgDB()
 
-	OneTimeJobTime = cfg.GetCfgOneTime()
+	OneTimeJobTime = cfg.GetCfgSysOneTime()
 
 	SystemLogFrom = cfg.GetCfgSystemLogFrom()
 	SystemLogFile = cfg.GetCfgSystemLogFile()
@@ -356,7 +380,7 @@ func DiscoverSystemPolicyMain() {
 		SystemWorkerStatus = STATUS_IDLE
 	}()
 
-	initNetPolicyDiscoveryConfiguration()
+	initSysPolicyDiscoveryConfiguration()
 
 	// get system logs
 	allSystemkLogs := getSystemLogs()
@@ -370,21 +394,13 @@ func DiscoverSystemPolicyMain() {
 	// get cluster names, iterate each cluster
 	clusteredLogs := clusteringSystemLogsByCluster(allSystemkLogs)
 
-	discoveredSysPolicies := []types.KubeArmorSystemPolicy{}
-
 	for clusterName, sysLogs := range clusteredLogs {
-		clusterName = "accuknox-qa" // for test
-
-		clusterInstance := libs.GetClusterFromClusterName(clusterName)
-		if clusterInstance.ClusterID == 0 { // cluster not onboarded
-			continue
-		}
-
 		// get existing system policies in db
 		existingPolicies := libs.GetSystemPolicies(CfgDB, "", "")
+		discoveredSysPolicies := []types.KubeArmorSystemPolicy{}
 
 		// get k8s pods
-		pods := libs.GetPodsFromCluster(clusterInstance)
+		pods := cluster.GetPods(clusterName)
 
 		// iterate namespace + pod_name
 		nsPodLogs := clusteringSystemLogsByNamespacePod(sysLogs)
@@ -409,21 +425,16 @@ func DiscoverSystemPolicyMain() {
 
 		// update duplicated policy
 		newPolicies := UpdateDuplicatedPolicy(existingPolicies, discoveredSysPolicies, clusterName)
-		sort.Slice(newPolicies, func(i, j int) bool {
-			return newPolicies[i].Metadata["name"] < newPolicies[j].Metadata["name"]
-		})
 
 		if len(newPolicies) > 0 {
 			// insert discovered policies to db
 			if strings.Contains(SystemPolicyTo, "db") {
 				libs.InsertSystemPolicies(CfgDB, newPolicies)
 			}
+
+			log.Info().Msgf("-> System policy discovery done for cluster: [%s], [%d] policies discovered", clusterName, len(newPolicies))
 		}
-
-		log.Info().Msgf("Network policy discovery done for cluster: [%s], [%d] policies discovered", clusterName, len(newPolicies))
 	}
-
-	libs.WriteKubeArmorPolicyToYamlFile("multiubuntu", discoveredSysPolicies)
 }
 
 // ==================================== //
@@ -433,7 +444,7 @@ func DiscoverSystemPolicyMain() {
 func StartSystemCronJob() {
 	// init cron job
 	SystemCronJob = cron.New()
-	err := SystemCronJob.AddFunc(cfg.GetCfgCronJobTime(), DiscoverSystemPolicyMain) // time interval
+	err := SystemCronJob.AddFunc(cfg.GetCfgSysCronJobTime(), DiscoverSystemPolicyMain) // time interval
 	if err != nil {
 		log.Error().Msg(err.Error())
 		return
@@ -463,7 +474,7 @@ func StartSystemWorker() {
 		return
 	}
 
-	if cfg.GetCfgOperationMode() == OP_MODE_CRONJOB { // every time intervals
+	if cfg.GetCfgSysOperationMode() == OP_MODE_CRONJOB { // every time intervals
 		StartSystemCronJob()
 	} else { // one-time generation
 		DiscoverSystemPolicyMain()
@@ -472,7 +483,7 @@ func StartSystemWorker() {
 }
 
 func StopSystemWorker() {
-	if cfg.GetCfgOperationMode() == OP_MODE_CRONJOB { // every time intervals
+	if cfg.GetCfgSysOperationMode() == OP_MODE_CRONJOB { // every time intervals
 		StopSystemCronJob()
 	} else {
 		if SystemWorkerStatus != STATUS_RUNNING {

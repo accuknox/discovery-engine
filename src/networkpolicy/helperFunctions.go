@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/accuknox/knoxAutoPolicy/src/cluster"
 	"github.com/accuknox/knoxAutoPolicy/src/libs"
 	"github.com/accuknox/knoxAutoPolicy/src/plugin"
 	types "github.com/accuknox/knoxAutoPolicy/src/types"
@@ -257,7 +258,7 @@ func getNetworkLogs() []types.KnoxNetworkLog {
 		}
 
 		// replace the pod names in prepared-flows with the working pod names
-		pods := libs.GetPodsK8s()
+		pods := cluster.GetPodsFromK8sClient()
 		ReplaceMultiubuntuPodName(flows, pods)
 
 		// convert file flows -> network logs (but, in this case, no flow id..)
@@ -777,7 +778,7 @@ func clearGlobalVariabels() {
 // == File Outputs == //
 // ================== //
 
-func InsertDiscoveredPoliciesToFile(cluster, namespace string, services []types.Service) {
+func WriteDiscoveredPoliciesToFile(cluster, namespace string, services []types.Service) {
 	// retrieve the latest policies from the db
 	latestPolicies := libs.GetNetworkPolicies(CfgDB, cluster, namespace, "latest")
 

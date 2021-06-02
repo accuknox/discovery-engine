@@ -1,4 +1,4 @@
-package libs
+package cluster
 
 import (
 	"context"
@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/accuknox/knoxAutoPolicy/src/libs"
 	"github.com/accuknox/knoxAutoPolicy/src/types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -120,7 +121,7 @@ func ConnectInClusterAPIClient() *kubernetes.Clientset {
 // == Namespace == //
 // =============== //
 
-func GetNamespacesK8s() []string {
+func GetNamespacesFromK8sClient() []string {
 	results := []string{}
 
 	client := ConnectK8sClient()
@@ -155,7 +156,7 @@ var skipLabelKey []string = []string{
 	"controller-revision-hash",           // from istana robot-shop
 	"statefulset.kubernetes.io/pod-name"} // from istana robot-shop
 
-func GetPodsK8s() []types.Pod {
+func GetPodsFromK8sClient() []types.Pod {
 	results := []types.Pod{}
 
 	client := ConnectK8sClient()
@@ -179,7 +180,7 @@ func GetPodsK8s() []types.Pod {
 
 		for k, v := range pod.Labels {
 			// skip hash or microservice default label key
-			if ContainsElement(skipLabelKey, k) {
+			if libs.ContainsElement(skipLabelKey, k) {
 				continue
 			}
 
@@ -260,7 +261,7 @@ func SetAnnotationsToPodK8s(podName string, annotation map[string]string) error 
 // == Service == //
 // ============= //
 
-func GetServicesK8s() []types.Service {
+func GetServicesFromK8sClient() []types.Service {
 	results := []types.Service{}
 
 	client := ConnectK8sClient()
@@ -310,7 +311,7 @@ func GetServicesK8s() []types.Service {
 // == Endpoint == //
 // ============== //
 
-func GetEndpointsK8s() []types.Endpoint {
+func GetEndpointsFromK8sClient() []types.Endpoint {
 	results := []types.Endpoint{}
 
 	client := ConnectK8sClient()
@@ -380,7 +381,7 @@ func GetEndpointsK8s() []types.Endpoint {
 }
 
 // GKE only
-func GetClusterNameK8s() string {
+func GetClusterNameFromK8sClient() string {
 	client := ConnectK8sClient()
 	if client == nil {
 		return "default"
