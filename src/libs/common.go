@@ -323,7 +323,7 @@ func WriteCiliumPolicyToYamlFile(namespace string, policies []types.CiliumNetwor
 
 func WriteKubeArmorPolicyToYamlFile(namespace string, policies []types.KubeArmorSystemPolicy) {
 	// create policy file
-	fileName := GetEnv("POLICY_DIR", "./") + "kubearmor_policies_" + namespace + ".yaml"
+	fileName := GetEnv("POLICY_DIR", "./") + "kubearmor_policies.yaml"
 
 	if err := os.Remove(fileName); err != nil {
 		log.Error().Msg(err.Error())
@@ -336,6 +336,10 @@ func WriteKubeArmorPolicyToYamlFile(namespace string, policies []types.KubeArmor
 	}
 
 	for i := range policies {
+		delete(policies[i].Metadata, "clusterName")
+		delete(policies[i].Metadata, "status")
+		delete(policies[i].Metadata, "outdated")
+
 		b, err := yaml.Marshal(&policies[i])
 		if err != nil {
 			log.Error().Msg(err.Error())

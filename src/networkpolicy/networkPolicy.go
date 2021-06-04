@@ -1588,7 +1588,7 @@ func DiscoverNetworkPolicyMain() {
 
 				// write discovered policies to file
 				if strings.Contains(NetworkPolicyTo, "file") {
-					WriteDiscoveredPoliciesToFile(clusterName, namespace, services)
+					WriteNetworkPoliciesToFile(clusterName, namespace, services)
 				}
 
 				log.Info().Msgf("-> Network policy discovery done for namespace: [%s], [%d] policies discovered", namespace, len(newPolicies))

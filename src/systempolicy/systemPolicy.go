@@ -111,6 +111,12 @@ func getSystemLogs() []types.KnoxSystemLog {
 	return systemLogs
 }
 
+func WriteSystemPoliciesToFile(cluster, namespace string) {
+	latestPolicies := libs.GetSystemPolicies(CfgDB, namespace, "latest")
+
+	libs.WriteKubeArmorPolicyToYamlFile("", latestPolicies)
+}
+
 // ============================= //
 // == Discover System Policy  == //
 // ============================= //
@@ -195,7 +201,7 @@ func discoverFileOperationPolicy(results []types.KubeArmorSystemPolicy, pod type
 
 	// step 2: aggregate file paths
 	for src, filePaths := range srcToDest {
-		// if the source is not in the absolute path, skip it
+		// if the source is not the absolute path, skip it
 		if !strings.Contains(src, "/") {
 			continue
 		}
@@ -430,6 +436,10 @@ func DiscoverSystemPolicyMain() {
 			// insert discovered policies to db
 			if strings.Contains(SystemPolicyTo, "db") {
 				libs.InsertSystemPolicies(CfgDB, newPolicies)
+			}
+
+			if strings.Contains(SystemPolicyTo, "file") {
+				WriteSystemPoliciesToFile(clusterName, "multiubuntu")
 			}
 
 			log.Info().Msgf("-> System policy discovery done for cluster: [%s], [%d] policies discovered", clusterName, len(newPolicies))

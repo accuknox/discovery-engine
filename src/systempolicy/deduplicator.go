@@ -83,6 +83,10 @@ func UpdateDuplicatedPolicy(existingPolicies []types.KubeArmorSystemPolicy, disc
 
 		// step 2: generate policy name
 		namedPolicy := GeneratePolicyName(policyNamesMap, policy, clusterName)
+
+		// step 3: update status
+		namedPolicy.Metadata["status"] = "latest"
+
 		newPolicies = append(newPolicies, namedPolicy)
 	}
 

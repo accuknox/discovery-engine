@@ -778,7 +778,7 @@ func clearGlobalVariabels() {
 // == File Outputs == //
 // ================== //
 
-func WriteDiscoveredPoliciesToFile(cluster, namespace string, services []types.Service) {
+func WriteNetworkPoliciesToFile(cluster, namespace string, services []types.Service) {
 	// retrieve the latest policies from the db
 	latestPolicies := libs.GetNetworkPolicies(CfgDB, cluster, namespace, "latest")
 

@@ -318,10 +318,20 @@ func AggregatePaths(paths []string) []SysPath {
 	// ...
 	buildPathTree(treeMap, paths)
 
+	// for root, childs := range treeMap {
+	// 	fmt.Println(root)
+	// 	printTree(childs)
+	// }
+
 	// step 2: aggregate path
 	for _, root := range treeMap {
 		root.aggregateChildNodes()
 	}
+
+	// for root, childs := range treeMap {
+	// 	fmt.Println(root)
+	// 	printTree(childs)
+	// }
 
 	// step 3: generate tree -> path string
 	aggregatedPaths := map[string]bool{}

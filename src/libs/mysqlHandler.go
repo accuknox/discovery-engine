@@ -555,7 +555,7 @@ func GetSystemPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) ([
 	var results *sql.Rows
 	var err error
 
-	query := "SELECT apiVersion,kind,name,clusterName,namespace,type,spec FROM " +
+	query := "SELECT apiVersion,kind,name,clusterName,namespace,type,status,outdated,spec FROM " +
 		cfg.TableSystemPolicy
 
 	if namespace != "" && status != "" {
@@ -581,7 +581,7 @@ func GetSystemPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) ([
 	for results.Next() {
 		policy := types.KubeArmorSystemPolicy{}
 
-		var name, clusterName, namespace, policyType string
+		var name, clusterName, namespace, policyType, status, outdated string
 		specByte := []byte{}
 		spec := types.KubeArmorSpec{}
 
@@ -592,6 +592,8 @@ func GetSystemPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) ([
 			&clusterName,
 			&namespace,
 			&policyType,
+			&status,
+			&outdated,
 			&specByte,
 		); err != nil {
 			return nil, err
@@ -607,6 +609,7 @@ func GetSystemPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) ([
 			"namespace":   namespace,
 			"type":        policyType,
 			"status":      status,
+			"outdated":    outdated,
 		}
 
 		policy.Spec = spec
@@ -618,7 +621,7 @@ func GetSystemPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) ([
 }
 
 func insertSystemPolicy(cfg types.ConfigDB, db *sql.DB, policy types.KubeArmorSystemPolicy) error {
-	stmt, err := db.Prepare("INSERT INTO " + cfg.TableSystemPolicy + "(apiVersion,kind,name,clusterName,namespace,type,spec) values(?,?,?,?,?,?,?)")
+	stmt, err := db.Prepare("INSERT INTO " + cfg.TableSystemPolicy + "(apiVersion,kind,name,clusterName,namespace,type,status,outdated,spec) values(?,?,?,?,?,?,?,?,?)")
 	if err != nil {
 		return err
 	}
@@ -637,6 +640,8 @@ func insertSystemPolicy(cfg types.ConfigDB, db *sql.DB, policy types.KubeArmorSy
 		policy.Metadata["clusterName"],
 		policy.Metadata["namespace"],
 		policy.Metadata["type"],
+		policy.Metadata["status"],
+		policy.Metadata["outdated"],
 		spec)
 	if err != nil {
 		return err
@@ -1225,6 +1230,8 @@ func CreateTableSystemPolicyMySQL(cfg types.ConfigDB) error {
 			"	`clusterName` varchar(50) DEFAULT NULL," +
 			"	`namespace` varchar(50) DEFAULT NULL," +
 			"   `type` varchar(20) NOT NULL," +
+			"	`status` varchar(10) DEFAULT NULL," +
+			"	`outdated` varchar(50) DEFAULT NULL," +
 			"	`spec` JSON DEFAULT NULL," +
 			"	PRIMARY KEY (`id`)" +
 			"  );"
