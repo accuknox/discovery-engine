@@ -438,11 +438,11 @@ func DiscoverSystemPolicyMain() {
 				libs.InsertSystemPolicies(CfgDB, newPolicies)
 			}
 
-			if strings.Contains(SystemPolicyTo, "file") {
-				WriteSystemPoliciesToFile(clusterName, "multiubuntu")
-			}
-
 			log.Info().Msgf("-> System policy discovery done for cluster: [%s], [%d] policies discovered", clusterName, len(newPolicies))
+		}
+
+		if strings.Contains(SystemPolicyTo, "file") {
+			WriteSystemPoliciesToFile(clusterName, "multiubuntu")
 		}
 	}
 }

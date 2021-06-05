@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"net"
 	"os"
 
@@ -44,25 +43,6 @@ func init() {
 // ========== //
 
 func main() {
-	cnp := make(chan func(), 50)
-	cnp <- func() {
-		fmt.Println("HERE")
-	}
-
-	for i := 0; i < 4; i++ {
-		go func() {
-			for f := range cnp {
-				f()
-			}
-		}()
-	}
-
-	fmt.Println("vim-go")
-
-	latestPolicies := libs.GetSystemPolicies(config.GetCfgDB(), "multiubuntu", "latest")
-
-	libs.WriteKubeArmorPolicyToYamlFile("", latestPolicies)
-
 	// create server
 	lis, err := net.Listen("tcp", ":"+grpcserver.PortNumber)
 	if err != nil {
