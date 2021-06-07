@@ -119,7 +119,7 @@ func FilterNetworkLogsByConfig(logs []types.KnoxNetworkLog, pods []types.Pod) []
 	filteredLogs := []types.KnoxNetworkLog{}
 
 	for _, log := range logs {
-		ignored := false
+		filtered := false
 
 		for _, filter := range NetworkLogFilters {
 			checkItems := getHaveToCheckItems(filter)
@@ -159,12 +159,12 @@ func FilterNetworkLogsByConfig(logs []types.KnoxNetworkLog, pods []types.Pod) []
 			}
 
 			if checkItems == checkedItems {
-				ignored = true
+				filtered = true
 				break
 			}
 		}
 
-		if !ignored {
+		if !filtered {
 			filteredLogs = append(filteredLogs, log)
 		}
 	}

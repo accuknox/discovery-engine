@@ -316,6 +316,10 @@ func GetCfgSystemPolicyDir() string {
 	return CurrentCfg.ConfigSysPolicy.SystemPolicyDir
 }
 
+func GetCfgSystemLogFilters() []types.SystemLogFilter {
+	return CurrentCfg.ConfigSysPolicy.SystemLogFilters
+}
+
 // ============================= //
 // == Get Cluster Config Info == //
 // ============================= //

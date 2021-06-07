@@ -59,6 +59,8 @@ var SystemLogFrom string
 var SystemLogFile string
 var SystemPolicyTo string
 
+var SystemLogFilters []types.SystemLogFilter
+
 // init Function
 func init() {
 	SystemWorkerStatus = STATUS_IDLE
@@ -375,6 +377,8 @@ func initSysPolicyDiscoveryConfiguration() {
 	SystemLogFrom = cfg.GetCfgSystemLogFrom()
 	SystemLogFile = cfg.GetCfgSystemLogFile()
 	SystemPolicyTo = cfg.GetCfgSystemPolicyTo()
+
+	SystemLogFilters = cfg.GetCfgSystemLogFilters()
 }
 
 func DiscoverSystemPolicyMain() {

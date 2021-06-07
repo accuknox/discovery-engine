@@ -104,10 +104,21 @@ type ConfigNetworkPolicy struct {
 	NetPolicyL7Level int `json:"network_policy_l7_level,omitempty" bson:"network_policy_l7_level,omitempty"`
 }
 
+type SystemLogFilter struct {
+	Namespace      string   `json:"namespace,omitempty" bson:"namespace,omitempty"`
+	Labels         []string `json:"labels,omitempty" bson:"labels,omitempty"`
+	FileFormats    []string `json:"file_formats,omitempty" bson:"file_formats,omitempty"`
+	ProcessFormats []string `json:"process_formats,omitempty" bson:"process_formats,omitempty"`
+	FileDirs       []string `json:"file_dirs,omitempty" bson:"file_dirs,omitempty"`
+	ProcessDirs    []string `json:"process_dirs,omitempty" bson:"process_dirs,omitempty"`
+}
+
 type ConfigSystemPolicy struct {
 	OperationMode           int    `json:"operation_mode,omitempty" bson:"operation_mode,omitempty"`
 	CronJobTimeInterval     string `json:"cronjob_time_interval,omitempty" bson:"cronjob_time_interval,omitempty"`
 	OneTimeJobTimeSelection string `json:"one_time_job_time_selection,omitempty" bson:"one_time_job_time_selection,omitempty"`
+
+	SystemLogFilters []SystemLogFilter `json:"system_log_filters,omitempty" bson:"system_log_filters,omitempty"`
 
 	SystemLogFrom   string `json:"system_log_from,omitempty" bson:"system_log_from,omitempty"`
 	SystemLogFile   string `json:"system_log_file,omitempty" bson:"system_log_file,omitempty"`
