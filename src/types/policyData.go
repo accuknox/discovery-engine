@@ -164,6 +164,78 @@ type CiliumNetworkPolicy struct {
 	Spec       CiliumSpec        `json:"spec" yaml:"spec"`
 }
 
+// ======================== //
+// == Knox System Policy == //
+// ======================== //
+
+// KnoxDir Structure
+type KnoxDir struct {
+	Dir       string `json:"dir,omitempty" yaml:"dir,omitempty" bson:"dir,omitempty"`
+	Recursive bool   `json:"resursive,omitempty" yaml:"resursive,omitempty" bson:"resursive,omitempty"`
+}
+
+// KnoxFromSource Structure
+type KnoxFromSource struct {
+	Path []string  `json:"path,omitempty" yaml:"path,omitempty" bson:"path,omitempty"`
+	Dir  []KnoxDir `json:"dir,omitempty" yaml:"dir,omitempty" bson:"dir,omitempty"`
+}
+
+// KnoxMatchPaths Structure
+type KnoxMatchPaths struct {
+	Path       string         `json:"path,omitempty" yaml:"path,omitempty" bson:"path,omitempty"`
+	ReadOnly   bool           `json:"readOnly,omitempty" yaml:"readOnly,omitempty" bson:"readOnly,omitempty"`
+	OwnerOnly  bool           `json:"ownerOnly,omitempty" yaml:"ownerOnly,omitempty" bson:"ownerOnly,omitempty"`
+	FromSource KnoxFromSource `json:"fromSource,omitempty" yaml:"fromSource,omitempty" bson:"fromSource,omitempty"`
+}
+
+// KnoxMatchDirectories Structure
+type KnoxMatchDirectories struct {
+	Dir        string         `json:"dir,omitempty" yaml:"dir,omitempty" bson:"dir,omitempty"`
+	ReadOnly   bool           `json:"readOnly,omitempty" yaml:"readOnly,omitempty" bson:"readOnly,omitempty"`
+	OwnerOnly  bool           `json:"ownerOnly,omitempty" yaml:"ownerOnly,omitempty" bson:"ownerOnly,omitempty"`
+	FromSource KnoxFromSource `json:"fromSource,omitempty" yaml:"fromSource,omitempty" bson:"fromSource,omitempty"`
+}
+
+// KnoxMatchProtocols Structure
+type KnoxMatchProtocols struct {
+	Protocol   string         `json:"protocol,omitempty" yaml:"protocol,omitempty" bson:"protocol,omitempty"`
+	FromSource KnoxFromSource `json:"fromSource,omitempty" yaml:"fromSource,omitempty" bson:"fromSource,omitempty"`
+}
+
+// KnoxSys Structure
+type KnoxSys struct {
+	MatchPaths       []KnoxMatchPaths       `json:"matchPaths,omitempty" yaml:"matchPaths,omitempty" bson:"matchPaths,omitempty"`
+	MatchDirectories []KnoxMatchDirectories `json:"matchDirectories,omitempty" yaml:"matchDirectories,omitempty" bson:"matchDirectories,omitempty"`
+}
+
+// KnoxSpec Structure
+type KnoxSpec struct {
+	Severity int      `json:"severity,omitempty" yaml:"severity,omitempty" bson:"severity,omitempty"`
+	Tags     []string `json:"tags,omitempty" yaml:"tags,omitempty" bson:"tags,omitempty"`
+	Message  string   `json:"message,omitempty" yaml:"message,omitempty" bson:"message,omitempty"`
+
+	Selector Selector `json:"selector,omitempty" yaml:"selector,omitempty" bson:"selector,omitempty"`
+
+	Process KnoxSys              `json:"process,omitempty" yaml:"process,omitempty" bson:"process,omitempty"`
+	File    KnoxSys              `json:"file,omitempty" yaml:"file,omitempty" bson:"file,omitempty"`
+	Network []KnoxMatchProtocols `json:"network,omitempty" yaml:"network,omitempty" bson:"network,omitempty"`
+
+	Action string `json:"action,omitempty" yaml:"action,omitempty" bson:"action,omitempty"`
+}
+
+// KnoxSystemPolicy Structure
+type KnoxSystemPolicy struct {
+	APIVersion string            `json:"apiVersion,omitempty" yaml:"apiVersion,omitempty" bson:"apiVersion,omitempty"`
+	Kind       string            `json:"kind,omitempty" yaml:"kind,omitempty" bson:"kind,omitempty"`
+	LogIDs     []int             `json:"log_ids,omitempty" yaml:"log_ids,omitempty" bson:"log_ids,omitempty"`
+	Metadata   map[string]string `json:"metadata,omitempty" yaml:"metadata,omitempty" bson:"metadata,omitempty"`
+	Outdated   string            `json:"outdated,omitempty" yaml:"outdated,omitempty" bson:"outdated,omitempty"`
+
+	Spec KubeArmorSpec `json:"spec,omitempty" yaml:"spec,omitempty" bson:"spec,omitempty"`
+
+	GeneratedTime int64 `json:"generatedTime,omitempty" yaml:"generatedTime,omitempty" bson:"generatedTime,omitempty"`
+}
+
 // ============================= //
 // == KubeArmor System Policy == //
 // ============================= //

@@ -547,11 +547,11 @@ func InsertNetworkPoliciesToMySQL(cfg types.ConfigDB, policies []types.KnoxNetwo
 // == System Policy == //
 // =================== //
 
-func GetSystemPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) ([]types.KubeArmorSystemPolicy, error) {
+func GetSystemPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) ([]types.KnoxSystemPolicy, error) {
 	db := connectMySQL(cfg)
 	defer db.Close()
 
-	policies := []types.KubeArmorSystemPolicy{}
+	policies := []types.KnoxSystemPolicy{}
 	var results *sql.Rows
 	var err error
 
@@ -579,7 +579,7 @@ func GetSystemPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) ([
 	}
 
 	for results.Next() {
-		policy := types.KubeArmorSystemPolicy{}
+		policy := types.KnoxSystemPolicy{}
 
 		var name, clusterName, namespace, policyType, status, outdated string
 		specByte := []byte{}
@@ -620,7 +620,7 @@ func GetSystemPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) ([
 	return policies, nil
 }
 
-func insertSystemPolicy(cfg types.ConfigDB, db *sql.DB, policy types.KubeArmorSystemPolicy) error {
+func insertSystemPolicy(cfg types.ConfigDB, db *sql.DB, policy types.KnoxSystemPolicy) error {
 	stmt, err := db.Prepare("INSERT INTO " + cfg.TableSystemPolicy + "(apiVersion,kind,name,clusterName,namespace,type,status,outdated,spec) values(?,?,?,?,?,?,?,?,?)")
 	if err != nil {
 		return err
@@ -650,7 +650,7 @@ func insertSystemPolicy(cfg types.ConfigDB, db *sql.DB, policy types.KubeArmorSy
 	return nil
 }
 
-func InsertSystemPoliciesToMySQL(cfg types.ConfigDB, policies []types.KubeArmorSystemPolicy) error {
+func InsertSystemPoliciesToMySQL(cfg types.ConfigDB, policies []types.KnoxSystemPolicy) error {
 	db := connectMySQL(cfg)
 	defer db.Close()
 

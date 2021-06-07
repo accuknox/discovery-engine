@@ -237,8 +237,8 @@ func InsertSystemLogToDB(cfg types.ConfigDB, sle []types.SystemLogEvent) error {
 // == System Policy == //
 // =================== //
 
-func GetSystemPolicies(cfg types.ConfigDB, namespace, status string) []types.KubeArmorSystemPolicy {
-	results := []types.KubeArmorSystemPolicy{}
+func GetSystemPolicies(cfg types.ConfigDB, namespace, status string) []types.KnoxSystemPolicy {
+	results := []types.KnoxSystemPolicy{}
 
 	if cfg.DBDriver == "mysql" {
 		docs, err := GetSystemPoliciesFromMySQL(cfg, namespace, status)
@@ -251,7 +251,7 @@ func GetSystemPolicies(cfg types.ConfigDB, namespace, status string) []types.Kub
 	return results
 }
 
-func InsertSystemPolicies(cfg types.ConfigDB, policies []types.KubeArmorSystemPolicy) {
+func InsertSystemPolicies(cfg types.ConfigDB, policies []types.KnoxSystemPolicy) {
 	if cfg.DBDriver == "mysql" {
 		if err := InsertSystemPoliciesToMySQL(cfg, policies); err != nil {
 			log.Error().Msg(err.Error())
