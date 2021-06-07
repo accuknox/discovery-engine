@@ -76,7 +76,7 @@ func updateMultiClusterVariables(clusterName string) {
 
 func SkipNamespaceForNetworkPolicy(namespace string) bool {
 	// skip uninterested namespaces
-	if libs.ContainsElement(IgnoringNamespaces, namespace) {
+	if libs.ContainsElement(NamespaceFilters, namespace) {
 		return true
 	} else if strings.HasPrefix(namespace, "accuknox-") {
 		return true
@@ -85,30 +85,30 @@ func SkipNamespaceForNetworkPolicy(namespace string) bool {
 	return false
 }
 
-func getHaveToCheckItems(igFlows types.IgnoringFlows) int {
+func getHaveToCheckItems(igFlows types.NetworkLogFilter) int {
 	check := 0
 
-	if igFlows.IgSourceNamespace != "" {
+	if igFlows.SourceNamespace != "" {
 		check = check | 1<<0 // 1
 	}
 
-	if len(igFlows.IgSourceLabels) > 0 {
+	if len(igFlows.SourceLabels) > 0 {
 		check = check | 1<<1 // 2
 	}
 
-	if igFlows.IgDestinationNamespace != "" {
+	if igFlows.DestinationNamespace != "" {
 		check = check | 1<<2 // 4
 	}
 
-	if len(igFlows.IgDestinationLabels) > 0 {
+	if len(igFlows.DestinationLabels) > 0 {
 		check = check | 1<<3 // 8
 	}
 
-	if igFlows.IgProtocol != "" {
+	if igFlows.Protocol != "" {
 		check = check | 1<<4 // 16
 	}
 
-	if igFlows.IgPortNumber != "" {
+	if igFlows.PortNumber != "" {
 		check = check | 1<<5 // 32
 	}
 
@@ -121,39 +121,39 @@ func FilterNetworkLogsByConfig(logs []types.KnoxNetworkLog, pods []types.Pod) []
 	for _, log := range logs {
 		ignored := false
 
-		for _, igFlow := range IgnoringFlows {
-			checkItems := getHaveToCheckItems(igFlow)
+		for _, filter := range NetworkLogFilters {
+			checkItems := getHaveToCheckItems(filter)
 
 			checkedItems := 0
 
 			// 1. check src namespace
-			if (checkItems&1 > 0) && igFlow.IgSourceNamespace == log.SrcNamespace {
+			if (checkItems&1 > 0) && filter.SourceNamespace == log.SrcNamespace {
 				checkedItems = checkedItems | 1<<0
 			}
 
 			// 2. check src pod labels
-			if (checkItems&2 > 0) && containLabelByConfiguration("cilium", igFlow.IgSourceLabels, getLabelsFromPod(log.SrcPodName, pods)) {
+			if (checkItems&2 > 0) && containLabelByConfiguration("cilium", filter.SourceLabels, getLabelsFromPod(log.SrcPodName, pods)) {
 				checkedItems = checkedItems | 1<<1
 			}
 
 			// 3. check dest namespace
-			if (checkItems&4 > 0) && igFlow.IgDestinationNamespace == log.DstNamespace {
+			if (checkItems&4 > 0) && filter.DestinationNamespace == log.DstNamespace {
 				checkedItems = checkedItems | 1<<2
 			}
 
 			// 4. check dest pod labels
-			if (checkItems&8 > 0) && containLabelByConfiguration("cilium", igFlow.IgDestinationLabels, getLabelsFromPod(log.DstPodName, pods)) {
+			if (checkItems&8 > 0) && containLabelByConfiguration("cilium", filter.DestinationLabels, getLabelsFromPod(log.DstPodName, pods)) {
 				checkedItems = checkedItems | 1<<3
 			}
 
 			// 5. check protocol
-			if (checkItems&16 > 0) && libs.GetProtocol(log.Protocol) == strings.ToLower(igFlow.IgProtocol) {
+			if (checkItems&16 > 0) && libs.GetProtocol(log.Protocol) == strings.ToLower(filter.Protocol) {
 				checkedItems = checkedItems | 1<<4
 			}
 
 			// 6. check port number (src or dst)
 			if checkItems&32 > 0 {
-				if strconv.Itoa(log.SrcPort) == igFlow.IgPortNumber || strconv.Itoa(log.DstPort) == igFlow.IgPortNumber {
+				if strconv.Itoa(log.SrcPort) == filter.PortNumber || strconv.Itoa(log.DstPort) == filter.PortNumber {
 					checkedItems = checkedItems | 1<<5
 				}
 			}

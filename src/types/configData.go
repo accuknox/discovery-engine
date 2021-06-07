@@ -74,13 +74,13 @@ type ConfigCiliumHubble struct {
 	HubblePort string `json:"hubble_port,omitempty" bson:"hubble_port,omitempty"`
 }
 
-type IgnoringFlows struct {
-	IgSourceNamespace      string   `json:"ig_source_namespace,omitempty" bson:"ig_source_namespace,omitempty"`
-	IgSourceLabels         []string `json:"ig_source_labels,omitempty" bson:"ig_source_labels,omitempty"`
-	IgDestinationNamespace string   `json:"ig_destination_namespace,omitempty" bson:"ig_destination_namespace,omitempty"`
-	IgDestinationLabels    []string `json:"ig_destination_labels,omitempty" bson:"ig_destination_labels,omitempty"`
-	IgProtocol             string   `json:"ig_protocol,omitempty" bson:"ig_protocol,omitempty"`
-	IgPortNumber           string   `json:"ig_port_number,omitempty" bson:"ig_port_number,omitempty"`
+type NetworkLogFilter struct {
+	SourceNamespace      string   `json:"source_namespace,omitempty" bson:"source_namespace,omitempty"`
+	SourceLabels         []string `json:"source_labels,omitempty" bson:"source_labels,omitempty"`
+	DestinationNamespace string   `json:"destination_namespace,omitempty" bson:"destination_namespace,omitempty"`
+	DestinationLabels    []string `json:"destination_labels,omitempty" bson:"destination_labels,omitempty"`
+	Protocol             string   `json:"protocol,omitempty" bson:"protocol,omitempty"`
+	PortNumber           string   `json:"port_number,omitempty" bson:"port_number,omitempty"`
 }
 
 type ConfigNetworkPolicy struct {
@@ -96,8 +96,8 @@ type ConfigNetworkPolicy struct {
 	NetPolicyTypes     int `json:"network_policy_types,omitempty" bson:"network_policy_types,omitempty"`
 	NetPolicyRuleTypes int `json:"network_policy_rule_types,omitempty" bson:"network_policy_rule_types,omitempty"`
 
-	NetPolicyCIDRBits      int             `json:"network_policy_cidrbits,omitempty" bson:"network_policy_cidrbits,omitempty"`
-	NetPolicyIgnoringFlows []IgnoringFlows `json:"network_policy_ignoring_flows,omitempty" bson:"network_policy_ignoring_flows,omitempty"`
+	NetPolicyCIDRBits int                `json:"network_policy_cidrbits,omitempty" bson:"network_policy_cidrbits,omitempty"`
+	NetLogFilters     []NetworkLogFilter `json:"network_log_filters,omitempty" bson:"network_log_filters,omitempty"`
 
 	NetPolicyL3Level int `json:"network_policy_l3_level,omitempty" bson:"network_policy_l3_level,omitempty"`
 	NetPolicyL4Level int `json:"network_policy_l4_level,omitempty" bson:"network_policy_l4_level,omitempty"`

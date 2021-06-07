@@ -278,8 +278,8 @@ func GetCfgNetworkSkipNamespaces() []string {
 	return IgnoringNetworkNamespaces
 }
 
-func GetCfgNetworkIgnoreFlows() []types.IgnoringFlows {
-	return CurrentCfg.ConfigNetPolicy.NetPolicyIgnoringFlows
+func GetCfgNetworkLogFilters() []types.NetworkLogFilter {
+	return CurrentCfg.ConfigNetPolicy.NetLogFilters
 }
 
 // ============================ //

@@ -741,7 +741,7 @@ func AddConfiguration(cfg types.ConfigDB, newConfig types.Configuration) error {
 	}
 
 	// network policy discovery
-	ignoringFlowsPtr := &newConfig.ConfigNetPolicy.NetPolicyIgnoringFlows
+	ignoringFlowsPtr := &newConfig.ConfigNetPolicy.NetLogFilters
 	ignoringFlows, err := json.Marshal(ignoringFlowsPtr)
 	if err != nil {
 		return err
@@ -822,7 +822,7 @@ func GetConfigurations(cfg types.ConfigDB, configName string) ([]types.Configura
 		hubble := types.ConfigCiliumHubble{}
 
 		ignoringFlowByte := []byte{}
-		ignoringFlows := []types.IgnoringFlows{}
+		ignoringFlows := []types.NetworkLogFilter{}
 
 		if err := results.Scan(
 			&id,
@@ -870,7 +870,7 @@ func GetConfigurations(cfg types.ConfigDB, configName string) ([]types.Configura
 		if err := json.Unmarshal(ignoringFlowByte, &ignoringFlows); err != nil {
 			return nil, err
 		}
-		cfg.ConfigNetPolicy.NetPolicyIgnoringFlows = ignoringFlows
+		cfg.ConfigNetPolicy.NetLogFilters = ignoringFlows
 
 		configs = append(configs, cfg)
 	}
@@ -935,7 +935,7 @@ func UpdateConfiguration(cfg types.ConfigDB, configName string, updateConfig typ
 		return err
 	}
 
-	ignoringFlowsPtr := &updateConfig.ConfigNetPolicy.NetPolicyIgnoringFlows
+	ignoringFlowsPtr := &updateConfig.ConfigNetPolicy.NetLogFilters
 	ignoringFlows, err := json.Marshal(ignoringFlowsPtr)
 	if err != nil {
 		return err
