@@ -2,6 +2,7 @@ package systempolicy
 
 import (
 	"sort"
+	"time"
 
 	"github.com/accuknox/knoxAutoPolicy/src/libs"
 	types "github.com/accuknox/knoxAutoPolicy/src/types"
@@ -88,6 +89,7 @@ func UpdateDuplicatedPolicy(existingPolicies []types.KnoxSystemPolicy, discovere
 		namedPolicy.Metadata["status"] = "latest"
 
 		// step 4: update generated time
+		namedPolicy.GeneratedTime = time.Now().Unix()
 
 		newPolicies = append(newPolicies, namedPolicy)
 	}
