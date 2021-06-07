@@ -2,6 +2,7 @@ package systempolicy
 
 import (
 	"sort"
+	"time"
 
 	"github.com/accuknox/knoxAutoPolicy/src/libs"
 	types "github.com/accuknox/knoxAutoPolicy/src/types"
@@ -12,7 +13,7 @@ import (
 // == Exact Matching == //
 // ==================== //
 
-func IsExistingPolicy(existingPolicies []types.KubeArmorSystemPolicy, newPolicy types.KubeArmorSystemPolicy) bool {
+func IsExistingPolicy(existingPolicies []types.KnoxSystemPolicy, newPolicy types.KnoxSystemPolicy) bool {
 	for _, exist := range existingPolicies {
 		if exist.Metadata["clusterName"] == newPolicy.Metadata["clusterName"] &&
 			exist.Metadata["namespace"] == newPolicy.Metadata["namespace"] &&
@@ -36,7 +37,7 @@ func existPolicyName(policyNamesMap map[string]bool, name string) bool {
 	return false
 }
 
-func GeneratePolicyName(policyNamesMap map[string]bool, policy types.KubeArmorSystemPolicy, clusterName string) types.KubeArmorSystemPolicy {
+func GeneratePolicyName(policyNamesMap map[string]bool, policy types.KnoxSystemPolicy, clusterName string) types.KnoxSystemPolicy {
 	procPrefix := "autopol-process-"
 	filePrefix := "autopol-file-"
 	netPrefix := "autopol-network-"
@@ -65,8 +66,8 @@ func GeneratePolicyName(policyNamesMap map[string]bool, policy types.KubeArmorSy
 // == Update Duplicated Network Policy == //
 // ====================================== //
 
-func UpdateDuplicatedPolicy(existingPolicies []types.KubeArmorSystemPolicy, discoveredPolicies []types.KubeArmorSystemPolicy, clusterName string) []types.KubeArmorSystemPolicy {
-	newPolicies := []types.KubeArmorSystemPolicy{}
+func UpdateDuplicatedPolicy(existingPolicies []types.KnoxSystemPolicy, discoveredPolicies []types.KnoxSystemPolicy, clusterName string) []types.KnoxSystemPolicy {
+	newPolicies := []types.KnoxSystemPolicy{}
 
 	// update policy name map
 	policyNamesMap := map[string]bool{}
@@ -83,6 +84,13 @@ func UpdateDuplicatedPolicy(existingPolicies []types.KubeArmorSystemPolicy, disc
 
 		// step 2: generate policy name
 		namedPolicy := GeneratePolicyName(policyNamesMap, policy, clusterName)
+
+		// step 3: update status
+		namedPolicy.Metadata["status"] = "latest"
+
+		// step 4: update generated time
+		namedPolicy.GeneratedTime = time.Now().Unix()
+
 		newPolicies = append(newPolicies, namedPolicy)
 	}
 

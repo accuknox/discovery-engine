@@ -90,8 +90,8 @@ var L3DiscoveryLevel int
 var L4DiscoveryLevel int
 var L7DiscoveryLevel int
 
-var IgnoringFlows []types.IgnoringFlows
-var IgnoringNamespaces []string
+var NetworkLogFilters []types.NetworkLogFilter
+var NamespaceFilters []string
 
 // init Function
 func init() {
@@ -1506,8 +1506,8 @@ func initNetPolicyDiscoveryConfiguration() {
 	CIDRBits = cfg.GetCfgCIDRBits()
 	HTTPThreshold = cfg.GetCfgNetworkHTTPThreshold()
 
-	IgnoringFlows = cfg.GetCfgNetworkIgnoreFlows()
-	IgnoringNamespaces = cfg.GetCfgNetworkSkipNamespaces()
+	NetworkLogFilters = cfg.GetCfgNetworkLogFilters()
+	NamespaceFilters = cfg.GetCfgNetworkSkipNamespaces()
 }
 
 func DiscoverNetworkPolicyMain() {
@@ -1588,7 +1588,7 @@ func DiscoverNetworkPolicyMain() {
 
 				// write discovered policies to file
 				if strings.Contains(NetworkPolicyTo, "file") {
-					WriteDiscoveredPoliciesToFile(clusterName, namespace, services)
+					WriteNetworkPoliciesToFile(clusterName, namespace, services)
 				}
 
 				log.Info().Msgf("-> Network policy discovery done for namespace: [%s], [%d] policies discovered", namespace, len(newPolicies))

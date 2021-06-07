@@ -321,9 +321,9 @@ func WriteCiliumPolicyToYamlFile(namespace string, policies []types.CiliumNetwor
 	}
 }
 
-func WriteKubeArmorPolicyToYamlFile(namespace string, policies []types.KubeArmorSystemPolicy) {
+func WriteKubeArmorPolicyToYamlFile(namespace string, policies []types.KubeArmorPolicy) {
 	// create policy file
-	fileName := GetEnv("POLICY_DIR", "./") + "kubearmor_policies_" + namespace + ".yaml"
+	fileName := GetEnv("POLICY_DIR", "./") + "system_policies.yaml"
 
 	if err := os.Remove(fileName); err != nil {
 		log.Error().Msg(err.Error())

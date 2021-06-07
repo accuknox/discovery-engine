@@ -547,15 +547,15 @@ func InsertNetworkPoliciesToMySQL(cfg types.ConfigDB, policies []types.KnoxNetwo
 // == System Policy == //
 // =================== //
 
-func GetSystemPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) ([]types.KubeArmorSystemPolicy, error) {
+func GetSystemPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) ([]types.KnoxSystemPolicy, error) {
 	db := connectMySQL(cfg)
 	defer db.Close()
 
-	policies := []types.KubeArmorSystemPolicy{}
+	policies := []types.KnoxSystemPolicy{}
 	var results *sql.Rows
 	var err error
 
-	query := "SELECT apiVersion,kind,name,clusterName,namespace,type,spec FROM " +
+	query := "SELECT apiVersion,kind,name,clusterName,namespace,type,status,outdated,spec,generatedTime FROM " +
 		cfg.TableSystemPolicy
 
 	if namespace != "" && status != "" {
@@ -579,11 +579,11 @@ func GetSystemPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) ([
 	}
 
 	for results.Next() {
-		policy := types.KubeArmorSystemPolicy{}
+		policy := types.KnoxSystemPolicy{}
 
-		var name, clusterName, namespace, policyType string
+		var name, clusterName, namespace, policyType, status string
 		specByte := []byte{}
-		spec := types.KubeArmorSpec{}
+		spec := types.KnoxSystemSpec{}
 
 		if err := results.Scan(
 			&policy.APIVersion,
@@ -592,7 +592,10 @@ func GetSystemPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) ([
 			&clusterName,
 			&namespace,
 			&policyType,
+			&status,
+			&policy.Outdated,
 			&specByte,
+			&policy.GeneratedTime,
 		); err != nil {
 			return nil, err
 		}
@@ -617,8 +620,8 @@ func GetSystemPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) ([
 	return policies, nil
 }
 
-func insertSystemPolicy(cfg types.ConfigDB, db *sql.DB, policy types.KubeArmorSystemPolicy) error {
-	stmt, err := db.Prepare("INSERT INTO " + cfg.TableSystemPolicy + "(apiVersion,kind,name,clusterName,namespace,type,spec) values(?,?,?,?,?,?,?)")
+func insertSystemPolicy(cfg types.ConfigDB, db *sql.DB, policy types.KnoxSystemPolicy) error {
+	stmt, err := db.Prepare("INSERT INTO " + cfg.TableSystemPolicy + "(apiVersion,kind,name,clusterName,namespace,type,status,outdated,spec,generatedTime) values(?,?,?,?,?,?,?,?,?,?)")
 	if err != nil {
 		return err
 	}
@@ -637,7 +640,10 @@ func insertSystemPolicy(cfg types.ConfigDB, db *sql.DB, policy types.KubeArmorSy
 		policy.Metadata["clusterName"],
 		policy.Metadata["namespace"],
 		policy.Metadata["type"],
-		spec)
+		policy.Metadata["status"],
+		policy.Outdated,
+		spec,
+		policy.GeneratedTime)
 	if err != nil {
 		return err
 	}
@@ -645,7 +651,7 @@ func insertSystemPolicy(cfg types.ConfigDB, db *sql.DB, policy types.KubeArmorSy
 	return nil
 }
 
-func InsertSystemPoliciesToMySQL(cfg types.ConfigDB, policies []types.KubeArmorSystemPolicy) error {
+func InsertSystemPoliciesToMySQL(cfg types.ConfigDB, policies []types.KnoxSystemPolicy) error {
 	db := connectMySQL(cfg)
 	defer db.Close()
 
@@ -735,7 +741,7 @@ func AddConfiguration(cfg types.ConfigDB, newConfig types.Configuration) error {
 	}
 
 	// network policy discovery
-	ignoringFlowsPtr := &newConfig.ConfigNetPolicy.NetPolicyIgnoringFlows
+	ignoringFlowsPtr := &newConfig.ConfigNetPolicy.NetLogFilters
 	ignoringFlows, err := json.Marshal(ignoringFlowsPtr)
 	if err != nil {
 		return err
@@ -816,7 +822,7 @@ func GetConfigurations(cfg types.ConfigDB, configName string) ([]types.Configura
 		hubble := types.ConfigCiliumHubble{}
 
 		ignoringFlowByte := []byte{}
-		ignoringFlows := []types.IgnoringFlows{}
+		ignoringFlows := []types.NetworkLogFilter{}
 
 		if err := results.Scan(
 			&id,
@@ -864,7 +870,7 @@ func GetConfigurations(cfg types.ConfigDB, configName string) ([]types.Configura
 		if err := json.Unmarshal(ignoringFlowByte, &ignoringFlows); err != nil {
 			return nil, err
 		}
-		cfg.ConfigNetPolicy.NetPolicyIgnoringFlows = ignoringFlows
+		cfg.ConfigNetPolicy.NetLogFilters = ignoringFlows
 
 		configs = append(configs, cfg)
 	}
@@ -929,7 +935,7 @@ func UpdateConfiguration(cfg types.ConfigDB, configName string, updateConfig typ
 		return err
 	}
 
-	ignoringFlowsPtr := &updateConfig.ConfigNetPolicy.NetPolicyIgnoringFlows
+	ignoringFlowsPtr := &updateConfig.ConfigNetPolicy.NetLogFilters
 	ignoringFlows, err := json.Marshal(ignoringFlowsPtr)
 	if err != nil {
 		return err
@@ -1225,7 +1231,10 @@ func CreateTableSystemPolicyMySQL(cfg types.ConfigDB) error {
 			"	`clusterName` varchar(50) DEFAULT NULL," +
 			"	`namespace` varchar(50) DEFAULT NULL," +
 			"   `type` varchar(20) NOT NULL," +
+			"	`status` varchar(10) DEFAULT NULL," +
+			"	`outdated` varchar(50) DEFAULT NULL," +
 			"	`spec` JSON DEFAULT NULL," +
+			"	`generatedTime` int DEFAULT NULL," +
 			"	PRIMARY KEY (`id`)" +
 			"  );"
 
