@@ -410,8 +410,11 @@ func DiscoverSystemPolicyMain() {
 		// get k8s pods
 		pods := cluster.GetPods(clusterName)
 
+		// filter ignoring system logs from configuration
+		cfgFilteredLogs := FilterSystemLogsByConfig(sysLogs, pods)
+
 		// iterate namespace + pod_name
-		nsPodLogs := clusteringSystemLogsByNamespacePod(sysLogs)
+		nsPodLogs := clusteringSystemLogsByNamespacePod(cfgFilteredLogs)
 		for sysKey, perPodlogs := range nsPodLogs {
 			pod, err := getPodInstance(sysKey, pods)
 			if err != nil {

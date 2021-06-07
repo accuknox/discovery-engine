@@ -642,8 +642,8 @@ func insertSystemPolicy(cfg types.ConfigDB, db *sql.DB, policy types.KnoxSystemP
 		policy.Metadata["type"],
 		policy.Metadata["status"],
 		policy.Outdated,
-		policy.GeneratedTime,
-		spec)
+		spec,
+		policy.GeneratedTime)
 	if err != nil {
 		return err
 	}

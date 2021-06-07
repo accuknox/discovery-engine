@@ -17,17 +17,6 @@ import (
 	"github.com/cilium/cilium/api/v1/flow"
 )
 
-func SkipNamespaceForNetworkPolicy(namespace string) bool {
-	// skip uninterested namespaces
-	if libs.ContainsElement(IgnoringNamespaces, namespace) {
-		return true
-	} else if strings.HasPrefix(namespace, "accuknox-") {
-		return true
-	}
-
-	return false
-}
-
 // ============================= //
 // == Multi Cluster Variables == //
 // ============================= //
@@ -81,9 +70,20 @@ func updateMultiClusterVariables(clusterName string) {
 	}
 }
 
-// ========================= //
-// == Network Log Filter  == //
-// ========================= //
+// =========================== //
+// == Network Policy Filter == //
+// =========================== //
+
+func SkipNamespaceForNetworkPolicy(namespace string) bool {
+	// skip uninterested namespaces
+	if libs.ContainsElement(IgnoringNamespaces, namespace) {
+		return true
+	} else if strings.HasPrefix(namespace, "accuknox-") {
+		return true
+	}
+
+	return false
+}
 
 func getHaveToCheckItems(igFlows types.IgnoringFlows) int {
 	check := 0
