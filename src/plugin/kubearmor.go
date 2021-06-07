@@ -7,6 +7,27 @@ import (
 	"github.com/accuknox/knoxAutoPolicy/src/types"
 )
 
+func ConvertKnoxSystemPolicyToKubeArmorPolicy(knoxPolicies []types.KnoxSystemPolicy) []types.KubeArmorPolicy {
+	results := []types.KubeArmorPolicy{}
+
+	for _, policy := range knoxPolicies {
+		kubePolicy := types.KubeArmorPolicy{
+			APIVersion: "security.accuknox.com/v1",
+			Kind:       "KubeArmorPolicy",
+			Metadata:   map[string]string{},
+		}
+
+		kubePolicy.Metadata["namespace"] = policy.Metadata["namespace"]
+		kubePolicy.Metadata["name"] = policy.Metadata["name"]
+
+		kubePolicy.Spec = policy.Spec
+
+		results = append(results, kubePolicy)
+	}
+
+	return results
+}
+
 func ConvertMySQLKubeArmorLogsToKnoxSystemLogs(docs []map[string]interface{}) []types.KnoxSystemLog {
 	results := []types.KnoxSystemLog{}
 

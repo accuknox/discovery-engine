@@ -113,7 +113,10 @@ func getSystemLogs() []types.KnoxSystemLog {
 
 func WriteSystemPoliciesToFile(cluster, namespace string) {
 	latestPolicies := libs.GetSystemPolicies(CfgDB, namespace, "latest")
-	libs.WriteKnoxSystemPolicyToYamlFile("", latestPolicies)
+
+	kubePolicies := plugin.ConvertKnoxSystemPolicyToKubeArmorPolicy(latestPolicies)
+
+	libs.WriteKubeArmorPolicyToYamlFile("", kubePolicies)
 }
 
 // ============================= //
@@ -210,7 +213,7 @@ func discoverFileOperationPolicy(results []types.KnoxSystemPolicy, pod types.Pod
 		// step 3: build system policies
 		policy := buildSystemPolicy()
 		policy.Metadata["type"] = "file"
-		policy.Spec.File = types.KubeArmorSys{}
+		policy.Spec.File = types.KnoxSys{}
 		for _, filePath := range aggreatedFilePaths {
 			policy = updateSysPolicySpec(SYS_OP_FILE, policy, src, filePath)
 		}
@@ -247,7 +250,7 @@ func discoverProcessOperationPolicy(results []types.KnoxSystemPolicy, pod types.
 		// step 3: build system policies
 		policy := buildSystemPolicy()
 		policy.Metadata["type"] = "process"
-		policy.Spec.Process = types.KubeArmorSys{}
+		policy.Spec.Process = types.KnoxSys{}
 		for _, processPath := range aggreatedProcessPaths {
 			policy = updateSysPolicySpec(SYS_OP_PROCESS, policy, src, processPath)
 		}
@@ -280,10 +283,10 @@ func getPodInstance(key SysLogKey, pods []types.Pod) (types.Pod, error) {
 
 func buildSystemPolicy() types.KnoxSystemPolicy {
 	return types.KnoxSystemPolicy{
-		APIVersion: "security.accuknox.com/v1",
-		Kind:       "KubeArmorPolicy",
+		APIVersion: "v1",
+		Kind:       "KnoxSystemPolicy",
 		Metadata:   map[string]string{},
-		Spec: types.KubeArmorSpec{
+		Spec: types.KnoxSystemSpec{
 			Severity: 1, // by default
 			Selector: types.Selector{
 				MatchLabels: map[string]string{}},
@@ -295,43 +298,43 @@ func buildSystemPolicy() types.KnoxSystemPolicy {
 func updateSysPolicySpec(opType string, policy types.KnoxSystemPolicy, src string, pathSpec SysPath) types.KnoxSystemPolicy {
 	// matchDirectories
 	if pathSpec.isDir {
-		matchDirs := types.KubeArmorMatchDirectories{
+		matchDirs := types.KnoxMatchDirectories{
 			Dir: pathSpec.Path,
-			FromSource: types.KubeArmorFromSource{
+			FromSource: types.KnoxFromSource{
 				Path: []string{src},
 			},
 		}
 
 		if opType == SYS_OP_FILE {
 			if len(policy.Spec.File.MatchDirectories) == 0 {
-				policy.Spec.File.MatchDirectories = []types.KubeArmorMatchDirectories{matchDirs}
+				policy.Spec.File.MatchDirectories = []types.KnoxMatchDirectories{matchDirs}
 			} else {
 				policy.Spec.File.MatchDirectories = append(policy.Spec.File.MatchDirectories, matchDirs)
 			}
 		} else if opType == SYS_OP_PROCESS {
 			if len(policy.Spec.File.MatchDirectories) == 0 {
-				policy.Spec.Process.MatchDirectories = []types.KubeArmorMatchDirectories{matchDirs}
+				policy.Spec.Process.MatchDirectories = []types.KnoxMatchDirectories{matchDirs}
 			} else {
 				policy.Spec.Process.MatchDirectories = append(policy.Spec.Process.MatchDirectories, matchDirs)
 			}
 		}
 	} else {
-		matchPaths := types.KubeArmorMatchPaths{
+		matchPaths := types.KnoxMatchPaths{
 			Path: pathSpec.Path,
-			FromSource: types.KubeArmorFromSource{
+			FromSource: types.KnoxFromSource{
 				Path: []string{src},
 			},
 		}
 
 		if opType == SYS_OP_FILE {
 			if len(policy.Spec.File.MatchPaths) == 0 {
-				policy.Spec.File.MatchPaths = []types.KubeArmorMatchPaths{matchPaths}
+				policy.Spec.File.MatchPaths = []types.KnoxMatchPaths{matchPaths}
 			} else {
 				policy.Spec.File.MatchPaths = append(policy.Spec.File.MatchPaths, matchPaths)
 			}
 		} else if opType == SYS_OP_PROCESS {
 			if len(policy.Spec.File.MatchPaths) == 0 {
-				policy.Spec.Process.MatchPaths = []types.KubeArmorMatchPaths{matchPaths}
+				policy.Spec.Process.MatchPaths = []types.KnoxMatchPaths{matchPaths}
 			} else {
 				policy.Spec.Process.MatchPaths = append(policy.Spec.Process.MatchPaths, matchPaths)
 			}

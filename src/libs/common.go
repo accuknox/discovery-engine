@@ -321,7 +321,7 @@ func WriteCiliumPolicyToYamlFile(namespace string, policies []types.CiliumNetwor
 	}
 }
 
-func WriteKnoxSystemPolicyToYamlFile(namespace string, policies []types.KnoxSystemPolicy) {
+func WriteKubeArmorPolicyToYamlFile(namespace string, policies []types.KubeArmorPolicy) {
 	// create policy file
 	fileName := GetEnv("POLICY_DIR", "./") + "system_policies.yaml"
 
