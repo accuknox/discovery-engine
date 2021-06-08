@@ -704,10 +704,10 @@ func AddConfiguration(cfg types.ConfigDB, newConfig types.Configuration) error {
 		"network_log_file," +
 		"network_policy_to," +
 		"network_policy_dir," +
+		"network_policy_log_filters," +
 		"network_policy_types," +
 		"network_policy_rule_types," +
 		"network_policy_cidr_bits," +
-		"network_policy_ignoring_flows," +
 		"network_policy_l3_level," +
 		"network_policy_l4_level," +
 		"network_policy_l7_level," +
@@ -718,9 +718,12 @@ func AddConfiguration(cfg types.ConfigDB, newConfig types.Configuration) error {
 		"system_log_from," +
 		"system_log_file," +
 		"system_policy_to," +
-		"system_policy_dir) " +
+		"system_policy_dir," +
+		"system_policy_log_filters," +
+		"system_policy_proc_fromsource," +
+		"system_policy_file_fromsource)" +
 
-		"values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+		"values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
 
 	if err != nil {
 		return err
@@ -740,9 +743,16 @@ func AddConfiguration(cfg types.ConfigDB, newConfig types.Configuration) error {
 		return err
 	}
 
-	// network policy discovery
-	ignoringFlowsPtr := &newConfig.ConfigNetPolicy.NetLogFilters
-	ignoringFlows, err := json.Marshal(ignoringFlowsPtr)
+	// network log filters
+	netLogFiltersPtr := &newConfig.ConfigNetPolicy.NetLogFilters
+	netLogFilters, err := json.Marshal(netLogFiltersPtr)
+	if err != nil {
+		return err
+	}
+
+	// system log filters
+	sysLogFiltersPtr := &newConfig.ConfigSysPolicy.SystemLogFilters
+	sysLogFilters, err := json.Marshal(sysLogFiltersPtr)
 	if err != nil {
 		return err
 	}
@@ -760,10 +770,10 @@ func AddConfiguration(cfg types.ConfigDB, newConfig types.Configuration) error {
 		newConfig.ConfigNetPolicy.NetworkLogFile,
 		newConfig.ConfigNetPolicy.NetworkPolicyTo,
 		newConfig.ConfigNetPolicy.NetworkPolicyDir,
+		netLogFilters,
 		newConfig.ConfigNetPolicy.NetPolicyTypes,
 		newConfig.ConfigNetPolicy.NetPolicyRuleTypes,
 		newConfig.ConfigNetPolicy.NetPolicyCIDRBits,
-		ignoringFlows,
 		newConfig.ConfigNetPolicy.NetPolicyL3Level,
 		newConfig.ConfigNetPolicy.NetPolicyL4Level,
 		newConfig.ConfigNetPolicy.NetPolicyL7Level,
@@ -774,7 +784,11 @@ func AddConfiguration(cfg types.ConfigDB, newConfig types.Configuration) error {
 		newConfig.ConfigSysPolicy.SystemLogFrom,
 		newConfig.ConfigSysPolicy.SystemLogFile,
 		newConfig.ConfigSysPolicy.SystemPolicyTo,
-		newConfig.ConfigSysPolicy.SystemPolicyDir)
+		newConfig.ConfigSysPolicy.SystemPolicyDir,
+		sysLogFilters,
+		newConfig.ConfigSysPolicy.ProcessFromSource,
+		newConfig.ConfigSysPolicy.FileFromSource,
+	)
 
 	if err != nil {
 		return err
@@ -821,8 +835,11 @@ func GetConfigurations(cfg types.ConfigDB, configName string) ([]types.Configura
 		hubbleByte := []byte{}
 		hubble := types.ConfigCiliumHubble{}
 
-		ignoringFlowByte := []byte{}
-		ignoringFlows := []types.NetworkLogFilter{}
+		netLogFiltersByte := []byte{}
+		netLogFilters := []types.NetworkLogFilter{}
+
+		sysLogFiltersByte := []byte{}
+		sysLogFilters := []types.SystemLogFilter{}
 
 		if err := results.Scan(
 			&id,
@@ -838,10 +855,10 @@ func GetConfigurations(cfg types.ConfigDB, configName string) ([]types.Configura
 			&cfg.ConfigNetPolicy.NetworkLogFile,
 			&cfg.ConfigNetPolicy.NetworkPolicyTo,
 			&cfg.ConfigNetPolicy.NetworkPolicyDir,
+			&netLogFiltersByte,
 			&cfg.ConfigNetPolicy.NetPolicyTypes,
 			&cfg.ConfigNetPolicy.NetPolicyRuleTypes,
 			&cfg.ConfigNetPolicy.NetPolicyCIDRBits,
-			&ignoringFlowByte,
 			&cfg.ConfigNetPolicy.NetPolicyL3Level,
 			&cfg.ConfigNetPolicy.NetPolicyL4Level,
 			&cfg.ConfigNetPolicy.NetPolicyL7Level,
@@ -853,6 +870,9 @@ func GetConfigurations(cfg types.ConfigDB, configName string) ([]types.Configura
 			&cfg.ConfigSysPolicy.SystemLogFile,
 			&cfg.ConfigSysPolicy.SystemPolicyTo,
 			&cfg.ConfigSysPolicy.SystemPolicyDir,
+			&sysLogFiltersByte,
+			&cfg.ConfigSysPolicy.ProcessFromSource,
+			&cfg.ConfigSysPolicy.FileFromSource,
 		); err != nil {
 			return nil, err
 		}
@@ -867,10 +887,15 @@ func GetConfigurations(cfg types.ConfigDB, configName string) ([]types.Configura
 		}
 		cfg.ConfigCiliumHubble = hubble
 
-		if err := json.Unmarshal(ignoringFlowByte, &ignoringFlows); err != nil {
+		if err := json.Unmarshal(netLogFiltersByte, &netLogFilters); err != nil {
 			return nil, err
 		}
-		cfg.ConfigNetPolicy.NetLogFilters = ignoringFlows
+		cfg.ConfigNetPolicy.NetLogFilters = netLogFilters
+
+		if err := json.Unmarshal(sysLogFiltersByte, &sysLogFilters); err != nil {
+			return nil, err
+		}
+		cfg.ConfigSysPolicy.SystemLogFilters = sysLogFilters
 
 		configs = append(configs, cfg)
 	}
@@ -900,10 +925,10 @@ func UpdateConfiguration(cfg types.ConfigDB, configName string, updateConfig typ
 		"network_log_file=?," +
 		"network_policy_to=?," +
 		"network_policy_dir=?," +
+		"network_policy_log_filters=?," +
 		"network_policy_types=?," +
 		"network_policy_rule_types=?," +
 		"network_policy_cidr_bits=?," +
-		"network_policy_ignoring_flows=?," +
 		"network_policy_l3_level=?," +
 		"network_policy_l4_level=?," +
 		"network_policy_l7_level=?," +
@@ -914,7 +939,10 @@ func UpdateConfiguration(cfg types.ConfigDB, configName string, updateConfig typ
 		"system_log_from=?," +
 		"system_log_file=?," +
 		"system_policy_to=?," +
-		"system_policy_dir=? " +
+		"system_policy_dir=?," +
+		"system_policy_log_filters=?," +
+		"system_policy_proc_fromsource=?," +
+		"system_policy_file_fromsource=? " +
 
 		"WHERE config_name=?")
 
@@ -935,8 +963,14 @@ func UpdateConfiguration(cfg types.ConfigDB, configName string, updateConfig typ
 		return err
 	}
 
-	ignoringFlowsPtr := &updateConfig.ConfigNetPolicy.NetLogFilters
-	ignoringFlows, err := json.Marshal(ignoringFlowsPtr)
+	netLogFiltersPtr := &updateConfig.ConfigNetPolicy.NetLogFilters
+	netLogFilters, err := json.Marshal(netLogFiltersPtr)
+	if err != nil {
+		return err
+	}
+
+	sysLogFiltersByte := &updateConfig.ConfigSysPolicy.SystemLogFilters
+	sysLogFilters, err := json.Marshal(sysLogFiltersByte)
 	if err != nil {
 		return err
 	}
@@ -952,10 +986,10 @@ func UpdateConfiguration(cfg types.ConfigDB, configName string, updateConfig typ
 		updateConfig.ConfigNetPolicy.NetworkLogFile,
 		updateConfig.ConfigNetPolicy.NetworkPolicyTo,
 		updateConfig.ConfigNetPolicy.NetworkPolicyDir,
+		netLogFilters,
 		updateConfig.ConfigNetPolicy.NetPolicyTypes,
 		updateConfig.ConfigNetPolicy.NetPolicyRuleTypes,
 		updateConfig.ConfigNetPolicy.NetPolicyCIDRBits,
-		ignoringFlows,
 		updateConfig.ConfigNetPolicy.NetPolicyL3Level,
 		updateConfig.ConfigNetPolicy.NetPolicyL4Level,
 		updateConfig.ConfigNetPolicy.NetPolicyL7Level,
@@ -967,6 +1001,9 @@ func UpdateConfiguration(cfg types.ConfigDB, configName string, updateConfig typ
 		updateConfig.ConfigSysPolicy.SystemLogFile,
 		updateConfig.ConfigSysPolicy.SystemPolicyTo,
 		updateConfig.ConfigSysPolicy.SystemPolicyDir,
+		sysLogFilters,
+		updateConfig.ConfigSysPolicy.ProcessFromSource,
+		updateConfig.ConfigSysPolicy.FileFromSource,
 
 		configName,
 	)
@@ -1068,7 +1105,7 @@ func CreateTableConfigurationMySQL(cfg types.ConfigDB) error {
 
 	tableName := cfg.TableConfiguration
 
-	// the number of column --> 26
+	// the number of column --> 28
 	query :=
 		"CREATE TABLE IF NOT EXISTS `" + tableName + "` ( " +
 			"	`id` int NOT NULL AUTO_INCREMENT, " +
@@ -1084,10 +1121,10 @@ func CreateTableConfigurationMySQL(cfg types.ConfigDB) error {
 			"	`network_log_file` varchar(50) DEFAULT NULL, " +
 			"	`network_policy_to` varchar(50) DEFAULT NULL, " +
 			"	`network_policy_dir` varchar(50) DEFAULT NULL, " +
+			"	`network_policy_log_filters` JSON DEFAULT NULL, " +
 			"	`network_policy_types` int DEFAULT NULL, " +
 			"	`network_policy_rule_types` int DEFAULT NULL, " +
 			"	`network_policy_cidr_bits` int DEFAULT NULL, " +
-			"	`network_policy_log_filters` JSON DEFAULT NULL, " +
 			"	`network_policy_l3_level` int DEFAULT NULL, " +
 			"	`network_policy_l4_level` int DEFAULT NULL, " +
 			"	`network_policy_l7_level` int DEFAULT NULL, " +
@@ -1100,8 +1137,8 @@ func CreateTableConfigurationMySQL(cfg types.ConfigDB) error {
 			"	`system_policy_to` varchar(50) DEFAULT NULL, " +
 			"	`system_policy_dir` varchar(50) DEFAULT NULL, " +
 			"	`system_policy_log_filters` JSON DEFAULT NULL, " +
-			"	`system_policy_proc_fromsource` int DEFAULT NULL, " +
-			"	`system_policy_file_fromsource` int DEFAULT NULL, " +
+			"	`system_policy_proc_fromsource` tinyint(1) DEFAULT '0', " +
+			"	`system_policy_file_fromsource` tinyint(1) DEFAULT '0', " +
 
 			"	PRIMARY KEY (`id`) " +
 			"  ); "

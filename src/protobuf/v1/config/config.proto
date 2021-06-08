@@ -25,6 +25,8 @@ message ConfigResponse {
     repeated Config config = 2;
 }
 
+// ============================ //
+
 message ConfigDB {
     string db_driver = 1;
     string db_host = 2;
@@ -33,9 +35,11 @@ message ConfigDB {
     string db_pass = 5;
     string db_name = 6;
 
-    string table_network_flow = 7;
-    string table_discovered_policy = 8;
-    string table_system_log = 9;
+    string table_auto_policy_config = 7;
+    string table_network_log = 8;
+    string table_network_policy = 9;
+    string table_system_log = 10;
+    string table_system_policy = 11;
 }
 
 message ConfigCiliumHubble {
@@ -43,14 +47,73 @@ message ConfigCiliumHubble {
     string hubble_port = 2;
 }
 
-message IgnoringFlows {
-    string ig_selector_namespace = 1;
-    repeated string ig_selector_labels = 2;
-    string ig_target_namespace = 3;
-    repeated string ig_target_labels = 4;
-    string ig_protocol = 5;
-    string ig_port_number = 6;
+// ============================ //
+
+message NetworkLogFilter {
+    string source_namespace = 1;
+    repeated string source_labels = 2;
+    string destination_namespace = 3;
+    repeated string destination_labels = 4;
+    string protocol = 5;
+    string port_number = 6;
 }
+
+message ConfigNetworkPolicy {
+    int32 operation_mode = 1;
+    string cronjob_time_interval = 2;
+    string one_time_job_time_selection = 3;
+
+    string network_log_from = 4;
+    string network_log_file = 5;
+    string network_policy_to = 6;
+    string network_policy_dir = 7;
+
+    int32 network_policy_types = 8;
+    int32 network_policy_rule_types = 9;
+    int32 network_policy_cidrbits = 10;
+
+    repeated NetworkLogFilter network_policy_log_filters = 11;
+
+    int32 network_policy_l3_level = 12;
+    int32 network_policy_l4_level = 13;
+    int32 network_policy_l7_level = 14;
+}
+
+// ============================ //
+
+message SystemLogFilter {
+    string namespace = 1;
+    repeated string labels = 2;
+    repeated string file_formats = 3;
+    repeated string process_formats = 4;
+    repeated string file_dirs = 5;
+    repeated string process_dirs = 6;
+}
+
+message ConfigSystemPolicy {
+    int32 operation_mode = 1;
+    string cronjob_time_interval = 2;
+    string one_time_job_time_selection = 3;
+
+    string system_log_from = 4;
+    string system_log_file = 5;
+    string system_policy_to = 6;
+    string system_policy_dir = 7;
+
+    repeated SystemLogFilter system_policy_log_filters = 8;
+
+    bool system_policy_proc_fromsource = 9;
+    bool system_policy_file_fromsource = 10;
+}
+
+// ============================ //
+
+message ConfigClusterMgmt {
+    string cluster_info_from = 1;
+    string cluster_mgmt_url = 2;
+}
+
+// ============================ //
 
 message Config {
     string config_name = 1;
@@ -59,21 +122,7 @@ message Config {
     ConfigDB config_db = 3;
     ConfigCiliumHubble config_cilium_hubble = 4;
 
-    int32 operation_mode = 5;
-    string cronjob_time_interval = 6;
-    string one_time_job_time_selection = 7;
-
-    string network_log_from = 8;
-    string discovered_policy_to = 9;
-    string policy_dir = 10;
-
-    int32 discovery_policy_types = 11;
-    int32 discovery_rule_types = 12;
-
-    int32 cidr_bits = 13;
-    repeated IgnoringFlows ignoring_flows = 14;
-
-    int32 l3_aggregation_level = 15;
-    int32 l4_compression = 16;
-    int32 l7_aggregation_level = 17;
+    ConfigNetworkPolicy config_network_policy = 5;
+    ConfigSystemPolicy config_system_policy = 6;
+    ConfigClusterMgmt config_cluster_mgmt = 7;
 }

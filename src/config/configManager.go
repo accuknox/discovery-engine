@@ -5,9 +5,7 @@ import (
 	"net"
 
 	"github.com/accuknox/knoxAutoPolicy/src/libs"
-	logger "github.com/accuknox/knoxAutoPolicy/src/logging"
 	types "github.com/accuknox/knoxAutoPolicy/src/types"
-	"github.com/rs/zerolog"
 	"github.com/spf13/viper"
 )
 
@@ -39,10 +37,7 @@ var NetworkPlugIn string
 var IgnoringNetworkNamespaces []string
 var HTTPUrlThreshold int
 
-var log *zerolog.Logger
-
 func init() {
-	log = logger.GetInstance()
 	IgnoringNetworkNamespaces = []string{"kube-system"}
 	HTTPUrlThreshold = 5
 	NetworkPlugIn = "cilium" // for now, cilium only supported
@@ -99,6 +94,7 @@ func LoadDefaultConfig() {
 
 	// default
 	CurrentCfg.ConfigName = "default"
+
 	CurrentCfg.Status = 1 // 1: active 0: inactive
 
 	// load network policy discovery
@@ -116,6 +112,8 @@ func LoadDefaultConfig() {
 		NetPolicyRuleTypes: 511,
 		NetPolicyCIDRBits:  32,
 
+		NetLogFilters: []types.NetworkLogFilter{},
+
 		NetPolicyL3Level: 3,
 		NetPolicyL4Level: 3,
 		NetPolicyL7Level: 3,
@@ -131,6 +129,8 @@ func LoadDefaultConfig() {
 		SystemLogFile:   viper.GetString("application.system.system-log-file"),
 		SystemPolicyTo:  viper.GetString("application.system.system-policy-to"),
 		SystemPolicyDir: viper.GetString("application.system.system-policy-dir"),
+
+		SystemLogFilters: []types.SystemLogFilter{},
 
 		ProcessFromSource: true,
 		FileFromSource:    true,
