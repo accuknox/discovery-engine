@@ -110,15 +110,15 @@ sonar_properties:
 #for sonar credentials use username/API Token combo which was created in jenkins manage credentials.
 #**********************************************************************************************************************************#
   sonar_conf:
-  -   sonar.projectKey: sonar-ci-jenkins
-      sonar.projectName: sonar-ci-jenkins
+  -   sonar.projectKey: knoxAutoPolicy
+      sonar.projectName: knoxAutoPolicy
       sonar.projectVersion: 2.7
       sonar.language: java
       sonar.java.binaries: ./
       sonar.sourcepath: src
       sonar.sourceEncoding : UTF-8
       sonar.web.host: https://sq01.accuknox.com
-      sonar.login: sonar-accu-cred
+      sonar.login: sonar-ci-cred
 
 kubehunter_properties:
   cluster_ip: "35.188.158.69"
