@@ -1,6 +1,6 @@
 ### Builder
 
-FROM golang:1.15.2-buster as builder
+FROM artifactory.accuknox.com/accuknox/golang:1.15.3-buster as builder
 
 WORKDIR /usr/src/knox
 
