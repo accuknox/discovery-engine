@@ -77,7 +77,7 @@ clair_properties:
 #***********************************************************************************************************************************#
 anchore_properties:
   status:
-    enabled: "true"
+    enabled: "false"
   image:
       name: artifactory.accuknox.com/accuknox/anchore-engine-cli:latest
       docker_run_params:  --entrypoint=''

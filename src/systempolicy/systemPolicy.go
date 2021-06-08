@@ -214,7 +214,7 @@ func discoverFileOperationPolicy(results []types.KnoxSystemPolicy, pod types.Pod
 
 		// step 3: build system policies
 		policy := buildSystemPolicy()
-		policy.Metadata["type"] = "file"
+		policy.Metadata["type"] = SYS_OP_FILE
 		policy.Spec.File = types.KnoxSys{}
 		for _, filePath := range aggreatedFilePaths {
 			policy = updateSysPolicySpec(SYS_OP_FILE, policy, src, filePath)
@@ -251,7 +251,7 @@ func discoverProcessOperationPolicy(results []types.KnoxSystemPolicy, pod types.
 
 		// step 3: build system policies
 		policy := buildSystemPolicy()
-		policy.Metadata["type"] = "process"
+		policy.Metadata["type"] = SYS_OP_PROCESS
 		policy.Spec.Process = types.KnoxSys{}
 		for _, processPath := range aggreatedProcessPaths {
 			policy = updateSysPolicySpec(SYS_OP_PROCESS, policy, src, processPath)

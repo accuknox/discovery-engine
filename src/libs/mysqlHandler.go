@@ -1087,7 +1087,7 @@ func CreateTableConfigurationMySQL(cfg types.ConfigDB) error {
 			"	`network_policy_types` int DEFAULT NULL, " +
 			"	`network_policy_rule_types` int DEFAULT NULL, " +
 			"	`network_policy_cidr_bits` int DEFAULT NULL, " +
-			"	`network_policy_ignoring_flows` JSON DEFAULT NULL, " +
+			"	`network_policy_log_filters` JSON DEFAULT NULL, " +
 			"	`network_policy_l3_level` int DEFAULT NULL, " +
 			"	`network_policy_l4_level` int DEFAULT NULL, " +
 			"	`network_policy_l7_level` int DEFAULT NULL, " +
@@ -1099,6 +1099,10 @@ func CreateTableConfigurationMySQL(cfg types.ConfigDB) error {
 			"	`system_log_file` varchar(50) DEFAULT NULL, " +
 			"	`system_policy_to` varchar(50) DEFAULT NULL, " +
 			"	`system_policy_dir` varchar(50) DEFAULT NULL, " +
+			"	`system_policy_log_filters` JSON DEFAULT NULL, " +
+			"	`system_policy_proc_fromsource` int DEFAULT NULL, " +
+			"	`system_policy_file_fromsource` int DEFAULT NULL, " +
+
 			"	PRIMARY KEY (`id`) " +
 			"  ); "
 

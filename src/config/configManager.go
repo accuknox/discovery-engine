@@ -112,8 +112,8 @@ func LoadDefaultConfig() {
 		NetworkPolicyTo:  viper.GetString("application.network.network-policy-to"),
 		NetworkPolicyDir: viper.GetString("application.network.network-policy-dir"),
 
-		NetPolicyTypes:     viper.GetInt("application.network.network-policy-types"),
-		NetPolicyRuleTypes: viper.GetInt("application.network.network-policy-rule-types"),
+		NetPolicyTypes:     3,
+		NetPolicyRuleTypes: 511,
 		NetPolicyCIDRBits:  32,
 
 		NetPolicyL3Level: 3,
@@ -131,6 +131,9 @@ func LoadDefaultConfig() {
 		SystemLogFile:   viper.GetString("application.system.system-log-file"),
 		SystemPolicyTo:  viper.GetString("application.system.system-policy-to"),
 		SystemPolicyDir: viper.GetString("application.system.system-policy-dir"),
+
+		ProcessFromSource: true,
+		FileFromSource:    true,
 	}
 
 	// load cluster resource info
@@ -318,6 +321,14 @@ func GetCfgSystemPolicyDir() string {
 
 func GetCfgSystemLogFilters() []types.SystemLogFilter {
 	return CurrentCfg.ConfigSysPolicy.SystemLogFilters
+}
+
+func GetCfgSystemProcFromSource() bool {
+	return CurrentCfg.ConfigSysPolicy.ProcessFromSource
+}
+
+func GetCfgSystemFileFromSource() bool {
+	return CurrentCfg.ConfigSysPolicy.FileFromSource
 }
 
 // ============================= //

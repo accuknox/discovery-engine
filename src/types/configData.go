@@ -97,7 +97,7 @@ type ConfigNetworkPolicy struct {
 	NetPolicyRuleTypes int `json:"network_policy_rule_types,omitempty" bson:"network_policy_rule_types,omitempty"`
 
 	NetPolicyCIDRBits int                `json:"network_policy_cidrbits,omitempty" bson:"network_policy_cidrbits,omitempty"`
-	NetLogFilters     []NetworkLogFilter `json:"network_log_filters,omitempty" bson:"network_log_filters,omitempty"`
+	NetLogFilters     []NetworkLogFilter `json:"network_policy_log_filters,omitempty" bson:"network_policy_log_filters,omitempty"`
 
 	NetPolicyL3Level int `json:"network_policy_l3_level,omitempty" bson:"network_policy_l3_level,omitempty"`
 	NetPolicyL4Level int `json:"network_policy_l4_level,omitempty" bson:"network_policy_l4_level,omitempty"`
@@ -124,6 +124,9 @@ type ConfigSystemPolicy struct {
 	SystemLogFile   string `json:"system_log_file,omitempty" bson:"system_log_file,omitempty"`
 	SystemPolicyTo  string `json:"system_policy_to,omitempty" bson:"system_policy_to,omitempty"`
 	SystemPolicyDir string `json:"system_policy_dir,omitempty" bson:"system_policy_dir,omitempty"`
+
+	ProcessFromSource bool `json:"system_policy_proc_fromsource,omitempty" bson:"system_policy_proc_fromsource,omitempty"`
+	FileFromSource    bool `json:"system_policy_file_fromsource,omitempty" bson:"system_policy_file_fromsource,omitempty"`
 }
 
 type ConfigClusterMgmt struct {
