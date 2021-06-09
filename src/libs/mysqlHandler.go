@@ -721,9 +721,12 @@ func AddConfiguration(cfg types.ConfigDB, newConfig types.Configuration) error {
 		"system_policy_dir," +
 		"system_policy_log_filters," +
 		"system_policy_proc_fromsource," +
-		"system_policy_file_fromsource)" +
+		"system_policy_file_fromsource," +
 
-		"values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+		"cluster_info_from," +
+		"cluster_mgmt_url) " +
+
+		"values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
 
 	if err != nil {
 		return err
@@ -788,6 +791,9 @@ func AddConfiguration(cfg types.ConfigDB, newConfig types.Configuration) error {
 		sysLogFilters,
 		newConfig.ConfigSysPolicy.ProcessFromSource,
 		newConfig.ConfigSysPolicy.FileFromSource,
+
+		newConfig.ConfigClusterMgmt.ClusterInfoFrom,
+		newConfig.ConfigClusterMgmt.ClusterMgmtURL,
 	)
 
 	if err != nil {
@@ -824,8 +830,9 @@ func GetConfigurations(cfg types.ConfigDB, configName string) ([]types.Configura
 
 	for results.Next() {
 		cfg := types.Configuration{
-			ConfigNetPolicy: types.ConfigNetworkPolicy{},
-			ConfigSysPolicy: types.ConfigSystemPolicy{},
+			ConfigNetPolicy:   types.ConfigNetworkPolicy{},
+			ConfigSysPolicy:   types.ConfigSystemPolicy{},
+			ConfigClusterMgmt: types.ConfigClusterMgmt{},
 		}
 
 		id := 0
@@ -873,6 +880,9 @@ func GetConfigurations(cfg types.ConfigDB, configName string) ([]types.Configura
 			&sysLogFiltersByte,
 			&cfg.ConfigSysPolicy.ProcessFromSource,
 			&cfg.ConfigSysPolicy.FileFromSource,
+
+			&cfg.ConfigClusterMgmt.ClusterInfoFrom,
+			&cfg.ConfigClusterMgmt.ClusterMgmtURL,
 		); err != nil {
 			return nil, err
 		}
@@ -942,7 +952,10 @@ func UpdateConfiguration(cfg types.ConfigDB, configName string, updateConfig typ
 		"system_policy_dir=?," +
 		"system_policy_log_filters=?," +
 		"system_policy_proc_fromsource=?," +
-		"system_policy_file_fromsource=? " +
+		"system_policy_file_fromsource=?," +
+
+		"cluster_info_from=?," +
+		"cluster_mgmt_url=? " +
 
 		"WHERE config_name=?")
 
@@ -1004,6 +1017,9 @@ func UpdateConfiguration(cfg types.ConfigDB, configName string, updateConfig typ
 		sysLogFilters,
 		updateConfig.ConfigSysPolicy.ProcessFromSource,
 		updateConfig.ConfigSysPolicy.FileFromSource,
+
+		updateConfig.ConfigClusterMgmt.ClusterInfoFrom,
+		updateConfig.ConfigClusterMgmt.ClusterMgmtURL,
 
 		configName,
 	)
@@ -1139,6 +1155,9 @@ func CreateTableConfigurationMySQL(cfg types.ConfigDB) error {
 			"	`system_policy_log_filters` JSON DEFAULT NULL, " +
 			"	`system_policy_proc_fromsource` tinyint(1) DEFAULT '0', " +
 			"	`system_policy_file_fromsource` tinyint(1) DEFAULT '0', " +
+
+			"	`cluster_info_from` varchar(50) DEFAULT NULL, " +
+			"	`cluster_mgmt_url` varchar(50) DEFAULT NULL, " +
 
 			"	PRIMARY KEY (`id`) " +
 			"  ); "
