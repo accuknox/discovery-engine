@@ -95,9 +95,9 @@ type ConfigNetworkPolicy struct {
 
 	NetPolicyTypes     int `json:"network_policy_types,omitempty" bson:"network_policy_types,omitempty"`
 	NetPolicyRuleTypes int `json:"network_policy_rule_types,omitempty" bson:"network_policy_rule_types,omitempty"`
+	NetPolicyCIDRBits  int `json:"network_policy_cidrbits,omitempty" bson:"network_policy_cidrbits,omitempty"`
 
-	NetPolicyCIDRBits int                `json:"network_policy_cidrbits,omitempty" bson:"network_policy_cidrbits,omitempty"`
-	NetLogFilters     []NetworkLogFilter `json:"network_log_filters,omitempty" bson:"network_log_filters,omitempty"`
+	NetLogFilters []NetworkLogFilter `json:"network_policy_log_filters,omitempty" bson:"network_policy_log_filters,omitempty"`
 
 	NetPolicyL3Level int `json:"network_policy_l3_level,omitempty" bson:"network_policy_l3_level,omitempty"`
 	NetPolicyL4Level int `json:"network_policy_l4_level,omitempty" bson:"network_policy_l4_level,omitempty"`
@@ -118,12 +118,15 @@ type ConfigSystemPolicy struct {
 	CronJobTimeInterval     string `json:"cronjob_time_interval,omitempty" bson:"cronjob_time_interval,omitempty"`
 	OneTimeJobTimeSelection string `json:"one_time_job_time_selection,omitempty" bson:"one_time_job_time_selection,omitempty"`
 
-	SystemLogFilters []SystemLogFilter `json:"system_log_filters,omitempty" bson:"system_log_filters,omitempty"`
-
 	SystemLogFrom   string `json:"system_log_from,omitempty" bson:"system_log_from,omitempty"`
 	SystemLogFile   string `json:"system_log_file,omitempty" bson:"system_log_file,omitempty"`
 	SystemPolicyTo  string `json:"system_policy_to,omitempty" bson:"system_policy_to,omitempty"`
 	SystemPolicyDir string `json:"system_policy_dir,omitempty" bson:"system_policy_dir,omitempty"`
+
+	SystemLogFilters []SystemLogFilter `json:"system_policy_log_filters,omitempty" bson:"system_policy_log_filters,omitempty"`
+
+	ProcessFromSource bool `json:"system_policy_proc_fromsource,omitempty" bson:"system_policy_proc_fromsource,omitempty"`
+	FileFromSource    bool `json:"system_policy_file_fromsource,omitempty" bson:"system_policy_file_fromsource,omitempty"`
 }
 
 type ConfigClusterMgmt struct {

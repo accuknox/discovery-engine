@@ -7,11 +7,9 @@ application:
     network-log-file: "./flow.json"           # file path
     network-policy-to: "db|file"              # db, file
     network-policy-dir: "./"
-    network-policy-types: 3
-    network-policy-rule-types: 511
   system:
     operation-mode: 1                         # 1: cronjob | 2: one-time-job
-    cron-job-time-interval: "0h0m5s"         # format: XhYmZs 
+    cron-job-time-interval: "0h0m5s"          # format: XhYmZs 
     system-log-from: "db"                     # db|kubearmor
     system-log-file: "./log.json"             # file path
     system-policy-to: "db|file"               # db, file
