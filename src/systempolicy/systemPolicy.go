@@ -37,6 +37,8 @@ const (
 	SYS_OP_PROCESS = "Process"
 	SYS_OP_FILE    = "File"
 	SYS_OP_NETWORK = "Network"
+
+	SOURCE_ALL = "ALL" // for fromSource 'off'
 )
 
 // ====================== //
@@ -60,6 +62,9 @@ var SystemLogFile string
 var SystemPolicyTo string
 
 var SystemLogFilters []types.SystemLogFilter
+
+var ProcessFromSource bool
+var FileFromSource bool
 
 // init Function
 func init() {
@@ -194,6 +199,10 @@ func discoverFileOperationPolicy(results []types.KnoxSystemPolicy, pod types.Pod
 	// step 1: [system logs] -> {source: []destination(resource)}
 	srcToDest := map[string][]string{}
 	for _, log := range logs {
+		if FileFromSource {
+			log.Source = SOURCE_ALL
+		}
+
 		if val, ok := srcToDest[log.Source]; ok {
 			if !libs.ContainsElement(val, log.Resource) {
 				srcToDest[log.Source] = append(srcToDest[log.Source], log.Resource)
@@ -302,18 +311,27 @@ func updateSysPolicySpec(opType string, policy types.KnoxSystemPolicy, src strin
 	if pathSpec.isDir {
 		matchDirs := types.KnoxMatchDirectories{
 			Dir: pathSpec.Path,
-			FromSource: types.KnoxFromSource{
-				Path: []string{src},
-			},
 		}
 
 		if opType == SYS_OP_FILE {
+			if FileFromSource {
+				matchDirs.FromSource = types.KnoxFromSource{
+					Path: []string{src},
+				}
+			}
+
 			if len(policy.Spec.File.MatchDirectories) == 0 {
 				policy.Spec.File.MatchDirectories = []types.KnoxMatchDirectories{matchDirs}
 			} else {
 				policy.Spec.File.MatchDirectories = append(policy.Spec.File.MatchDirectories, matchDirs)
 			}
 		} else if opType == SYS_OP_PROCESS {
+			if ProcessFromSource {
+				matchDirs.FromSource = types.KnoxFromSource{
+					Path: []string{src},
+				}
+			}
+
 			if len(policy.Spec.File.MatchDirectories) == 0 {
 				policy.Spec.Process.MatchDirectories = []types.KnoxMatchDirectories{matchDirs}
 			} else {
@@ -323,18 +341,27 @@ func updateSysPolicySpec(opType string, policy types.KnoxSystemPolicy, src strin
 	} else {
 		matchPaths := types.KnoxMatchPaths{
 			Path: pathSpec.Path,
-			FromSource: types.KnoxFromSource{
-				Path: []string{src},
-			},
 		}
 
 		if opType == SYS_OP_FILE {
+			if FileFromSource {
+				matchPaths.FromSource = types.KnoxFromSource{
+					Path: []string{src},
+				}
+			}
+
 			if len(policy.Spec.File.MatchPaths) == 0 {
 				policy.Spec.File.MatchPaths = []types.KnoxMatchPaths{matchPaths}
 			} else {
 				policy.Spec.File.MatchPaths = append(policy.Spec.File.MatchPaths, matchPaths)
 			}
 		} else if opType == SYS_OP_PROCESS {
+			if ProcessFromSource {
+				matchPaths.FromSource = types.KnoxFromSource{
+					Path: []string{src},
+				}
+			}
+
 			if len(policy.Spec.File.MatchPaths) == 0 {
 				policy.Spec.Process.MatchPaths = []types.KnoxMatchPaths{matchPaths}
 			} else {
@@ -379,6 +406,9 @@ func initSysPolicyDiscoveryConfiguration() {
 	SystemPolicyTo = cfg.GetCfgSystemPolicyTo()
 
 	SystemLogFilters = cfg.GetCfgSystemLogFilters()
+
+	ProcessFromSource = cfg.GetCfgSystemProcFromSource()
+	FileFromSource = cfg.GetCfgSystemFileFromSource()
 }
 
 func DiscoverSystemPolicyMain() {
