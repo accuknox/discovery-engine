@@ -146,7 +146,7 @@ func GetNetworkPoliciesBySelector(cfg types.ConfigDB, cluster, namespace, status
 
 func UpdateOutdatedNetworkPolicy(cfg types.ConfigDB, outdatedPolicy string, latestPolicy string) {
 	if cfg.DBDriver == "mysql" {
-		if err := UpdateOutdatedPolicyFromMySQL(cfg, outdatedPolicy, latestPolicy); err != nil {
+		if err := UpdateOutdatedNetworkPolicyFromMySQL(cfg, outdatedPolicy, latestPolicy); err != nil {
 			log.Error().Msg(err.Error())
 		}
 	}
@@ -236,6 +236,14 @@ func InsertSystemLogToDB(cfg types.ConfigDB, sle []types.SystemLogEvent) error {
 // =================== //
 // == System Policy == //
 // =================== //
+
+func UpdateOutdatedSystemPolicy(cfg types.ConfigDB, outdatedPolicy string, latestPolicy string) {
+	if cfg.DBDriver == "mysql" {
+		if err := UpdateOutdatedNetworkPolicyFromMySQL(cfg, outdatedPolicy, latestPolicy); err != nil {
+			log.Error().Msg(err.Error())
+		}
+	}
+}
 
 func GetSystemPolicies(cfg types.ConfigDB, namespace, status string) []types.KnoxSystemPolicy {
 	results := []types.KnoxSystemPolicy{}
