@@ -459,7 +459,7 @@ func GetNetworkPoliciesFromMySQL(cfg types.ConfigDB, cluster, namespace, status 
 	return policies, nil
 }
 
-func UpdateOutdatedPolicyFromMySQL(cfg types.ConfigDB, outdatedPolicy string, latestPolicy string) error {
+func UpdateOutdatedNetworkPolicyFromMySQL(cfg types.ConfigDB, outdatedPolicy string, latestPolicy string) error {
 	db := connectMySQL(cfg)
 	defer db.Close()
 
@@ -546,6 +546,39 @@ func InsertNetworkPoliciesToMySQL(cfg types.ConfigDB, policies []types.KnoxNetwo
 // =================== //
 // == System Policy == //
 // =================== //
+
+func UpdateOutdatedSystemPolicyFromMySQL(cfg types.ConfigDB, outdatedPolicy string, latestPolicy string) error {
+	db := connectMySQL(cfg)
+	defer db.Close()
+
+	var err error
+
+	// set status -> outdated
+	stmt1, err := db.Prepare("UPDATE " + cfg.TableSystemPolicy + " SET status=? WHERE name=?")
+	if err != nil {
+		return err
+	}
+	defer stmt1.Close()
+
+	_, err = stmt1.Exec("outdated", outdatedPolicy)
+	if err != nil {
+		return err
+	}
+
+	// set outdated -> latest' name
+	stmt2, err := db.Prepare("UPDATE " + cfg.TableNetworkPolicy + " SET outdated=? WHERE name=?")
+	if err != nil {
+		return err
+	}
+	defer stmt2.Close()
+
+	_, err = stmt2.Exec(latestPolicy, outdatedPolicy)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
 
 func GetSystemPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) ([]types.KnoxSystemPolicy, error) {
 	db := connectMySQL(cfg)

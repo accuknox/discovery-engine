@@ -36,7 +36,6 @@ const (
 const (
 	SYS_OP_PROCESS = "Process"
 	SYS_OP_FILE    = "File"
-	SYS_OP_NETWORK = "Network"
 
 	SOURCE_ALL = "ALL" // for fromSource 'off'
 )
@@ -230,7 +229,6 @@ func discoverFileOperationPolicy(results []types.KnoxSystemPolicy, pod types.Pod
 		}
 
 		results = append(results, policy)
-
 	}
 
 	return results
@@ -267,7 +265,6 @@ func discoverProcessOperationPolicy(results []types.KnoxSystemPolicy, pod types.
 		}
 
 		results = append(results, policy)
-
 	}
 
 	return results
@@ -318,6 +315,7 @@ func updateSysPolicySpec(opType string, policy types.KnoxSystemPolicy, src strin
 				matchDirs.FromSource = types.KnoxFromSource{
 					Path: []string{src},
 				}
+				policy.Metadata["fromSource"] = src
 			}
 
 			if len(policy.Spec.File.MatchDirectories) == 0 {
@@ -330,6 +328,7 @@ func updateSysPolicySpec(opType string, policy types.KnoxSystemPolicy, src strin
 				matchDirs.FromSource = types.KnoxFromSource{
 					Path: []string{src},
 				}
+				policy.Metadata["fromSource"] = src
 			}
 
 			if len(policy.Spec.File.MatchDirectories) == 0 {
@@ -348,6 +347,7 @@ func updateSysPolicySpec(opType string, policy types.KnoxSystemPolicy, src strin
 				matchPaths.FromSource = types.KnoxFromSource{
 					Path: []string{src},
 				}
+				policy.Metadata["fromSource"] = src
 			}
 
 			if len(policy.Spec.File.MatchPaths) == 0 {
@@ -360,6 +360,7 @@ func updateSysPolicySpec(opType string, policy types.KnoxSystemPolicy, src strin
 				matchPaths.FromSource = types.KnoxFromSource{
 					Path: []string{src},
 				}
+				policy.Metadata["fromSource"] = src
 			}
 
 			if len(policy.Spec.File.MatchPaths) == 0 {
@@ -447,7 +448,7 @@ func DiscoverSystemPolicyMain() {
 		// filter system logs from configuration
 		cfgFilteredLogs := FilterSystemLogsByConfig(sysLogs, pods)
 
-		// iterate namespace + pod_name
+		// iterate sys log key := [namespace + pod_name]
 		nsPodLogs := clusteringSystemLogsByNamespacePod(cfgFilteredLogs)
 		for sysKey, perPodlogs := range nsPodLogs {
 			pod, err := getPodInstance(sysKey, pods)

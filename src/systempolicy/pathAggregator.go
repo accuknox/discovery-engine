@@ -110,13 +110,21 @@ func (n *Node) aggregateChildNodes() {
 
 	// #child nodes > threshold --> aggreagte it, and make matchDirectories
 	if len(n.childNodes) > Threshold {
-		childPaths := []string{}
-		for _, childNode := range n.childNodes {
-			childPaths = append(childPaths, childNode.path)
-		}
-
 		n.childNodes = nil
 		n.touchCount = 1 // reset touch count
+		n.isDir = true
+	}
+}
+
+func (n *Node) makeChildNodeToDir() {
+	// depth first search
+	for _, childNode := range n.childNodes {
+		childNode.makeChildNodeToDir()
+	}
+
+	// #child nodes > threshold --> aggreagte it, and make matchDirectories
+	if len(n.childNodes) == 0 {
+		n.touchCount = Threshold + 1 // reset touch count
 		n.isDir = true
 	}
 }
@@ -340,6 +348,54 @@ func AggregatePaths(paths []string) []SysPath {
 	}
 
 	// step 4: make result
+	results := []SysPath{}
+	for path, isDir := range aggregatedPaths {
+		sysPath := SysPath{
+			Path:  path,
+			isDir: isDir,
+		}
+		results = append(results, sysPath)
+	}
+
+	return results
+}
+
+// ========================================= //
+// == Update Duplicated Paths/Directories == //
+// ========================================= //
+
+func MergeAndAggregatePaths(dirs []string, paths []string) []SysPath {
+	treeMap := map[string]*Node{}
+
+	// step 1: build path tree from matchDirectories
+	// paths := []string{"/usr/lib/python2.7/UserDict.py", "/usr/lib/python2.7/UserDict.pyo"}
+	// -->
+	// /usr 0 461
+	// /lib 1 328
+	// 		/python2.7 2 328
+	// 				/UserDict.py 3 1
+	// 				/UserDict.pyo 3 1
+	// ...
+	buildPathTree(treeMap, dirs)
+	for _, root := range treeMap {
+		root.makeChildNodeToDir()
+	}
+
+	// step 2: append matchPaths to the path tree
+	buildPathTree(treeMap, paths)
+
+	// step 3: aggregate new paths/directories
+	for _, root := range treeMap {
+		root.aggregateChildNodes()
+	}
+
+	// step 4: generate tree -> path string
+	aggregatedPaths := map[string]bool{}
+	for _, root := range treeMap {
+		root.generatePaths(aggregatedPaths, "")
+	}
+
+	// step 5: make result
 	results := []SysPath{}
 	for path, isDir := range aggregatedPaths {
 		sysPath := SysPath{
