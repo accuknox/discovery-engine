@@ -197,8 +197,9 @@ func getOperationLogs(operation string, logs []types.KnoxSystemLog) []types.Knox
 func discoverFileOperationPolicy(results []types.KnoxSystemPolicy, pod types.Pod, logs []types.KnoxSystemLog) []types.KnoxSystemPolicy {
 	// step 1: [system logs] -> {source: []destination(resource)}
 	srcToDest := map[string][]string{}
+
 	for _, log := range logs {
-		if FileFromSource {
+		if !FileFromSource {
 			log.Source = SOURCE_ALL
 		}
 
@@ -237,7 +238,12 @@ func discoverFileOperationPolicy(results []types.KnoxSystemPolicy, pod types.Pod
 func discoverProcessOperationPolicy(results []types.KnoxSystemPolicy, pod types.Pod, logs []types.KnoxSystemLog) []types.KnoxSystemPolicy {
 	// step 1: [system logs] -> {source: []destination(resource)}
 	srcToDest := map[string][]string{}
+
 	for _, log := range logs {
+		if !ProcessFromSource {
+			log.Source = SOURCE_ALL
+		}
+
 		if val, ok := srcToDest[log.Source]; ok {
 			if !libs.ContainsElement(val, log.Resource) {
 				srcToDest[log.Source] = append(srcToDest[log.Source], log.Resource)
