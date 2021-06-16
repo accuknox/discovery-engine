@@ -122,7 +122,7 @@ func TestGetNetworkPolicies(t *testing.T) {
 	mock.ExpectQuery("^SELECT (.+) FROM network_policy*").
 		WillReturnRows(rows)
 
-	results := GetNetworkPolicies(types.ConfigDB{DBDriver: "mysql", TableNetworkPolicy: "network_policy"}, "", "")
+	results := GetNetworkPolicies(types.ConfigDB{DBDriver: "mysql", TableNetworkPolicy: "network_policy"}, "", "", "")
 	assert.Equal(t, results[0].Kind, "test")
 
 	if err := mock.ExpectationsWereMet(); err != nil {

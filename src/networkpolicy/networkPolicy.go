@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/accuknox/knoxAutoPolicy/src/cluster"
 	cfg "github.com/accuknox/knoxAutoPolicy/src/config"
 	"github.com/accuknox/knoxAutoPolicy/src/libs"
 	logger "github.com/accuknox/knoxAutoPolicy/src/logging"
@@ -89,8 +90,8 @@ var L3DiscoveryLevel int
 var L4DiscoveryLevel int
 var L7DiscoveryLevel int
 
-var IgnoringFlows []types.IgnoringFlows
-var IgnoringNamespaces []string
+var NetworkLogFilters []types.NetworkLogFilter
+var NamespaceFilters []string
 
 // init Function
 func init() {
@@ -1492,7 +1493,7 @@ func DiscoverNetworkPolicy(namespace string,
 func initNetPolicyDiscoveryConfiguration() {
 	CfgDB = cfg.GetCfgDB()
 
-	OneTimeJobTime = cfg.GetCfgOneTime()
+	OneTimeJobTime = cfg.GetCfgNetOneTime()
 
 	NetworkLogFrom = cfg.GetCfgNetworkLogFrom()
 	NetworkLogFile = cfg.GetCfgNetworkLogFile()
@@ -1505,8 +1506,8 @@ func initNetPolicyDiscoveryConfiguration() {
 	CIDRBits = cfg.GetCfgCIDRBits()
 	HTTPThreshold = cfg.GetCfgNetworkHTTPThreshold()
 
-	IgnoringFlows = cfg.GetCfgNetworkIgnoreFlows()
-	IgnoringNamespaces = cfg.GetCfgNetworkSkipNamespaces()
+	NetworkLogFilters = cfg.GetCfgNetworkLogFilters()
+	NamespaceFilters = cfg.GetCfgNetworkSkipNamespaces()
 }
 
 func DiscoverNetworkPolicyMain() {
@@ -1532,25 +1533,23 @@ func DiscoverNetworkPolicyMain() {
 	// get cluster names, iterate each cluster
 	clusteredLogs := clusteringNetworkLogs(allNetworkLogs)
 	for clusterName, networkLogs := range clusteredLogs {
-		clusterInstance := libs.GetClusterFromClusterName(clusterName)
-		if clusterInstance.ClusterID == 0 { // cluster not onboarded
-			continue
-		}
+		log.Info().Msgf("Network policy discovery started for cluster [%s]", clusterName)
 
 		// set cluster global variables
 		initMultiClusterVariables(clusterName)
 
 		// get k8s resources
-		namespaces, services, endpoints, pods := libs.GetAllClusterResources(clusterInstance)
+		namespaces, services, endpoints, pods, err := cluster.GetAllClusterResources(clusterName)
+		if err != nil {
+			log.Error().Msg(err.Error())
+			continue
+		}
 
 		// update DNS req. flows, DNSToIPs map
 		updateDNSFlows(networkLogs)
 
 		// update service ports (k8s service, endpoint, kube-dns)
 		updateServiceEndpoint(services, endpoints, pods)
-
-		// get existing network policies in db
-		existingPolicies := libs.GetNetworkPolicies(CfgDB, "", "")
 
 		// filter ignoring network logs from configuration
 		configFilteredLogs := FilterNetworkLogsByConfig(networkLogs, pods)
@@ -1567,8 +1566,6 @@ func DiscoverNetworkPolicyMain() {
 				continue
 			}
 
-			log.Info().Msgf("Network policy discovery started for namespace: [%s]", namespace)
-
 			// reset flow id track at each target namespace
 			clearTrackFlowIDMaps()
 
@@ -1577,11 +1574,11 @@ func DiscoverNetworkPolicyMain() {
 			// ========================================================= //
 			discoveredNetPolicies := DiscoverNetworkPolicy(namespace, namespaceFilteredLogs, services, endpoints, pods)
 
+			// get existing network policies in db
+			existingPolicies := libs.GetNetworkPolicies(CfgDB, clusterName, namespace, "latest")
+
 			// update duplicated policy
 			newPolicies := UpdateDuplicatedPolicy(existingPolicies, discoveredNetPolicies, DomainToIPs, clusterName)
-			sort.Slice(newPolicies, func(i, j int) bool {
-				return newPolicies[i].Metadata["name"] < newPolicies[j].Metadata["name"]
-			})
 
 			if len(newPolicies) > 0 {
 				// insert discovered policies to db
@@ -1589,13 +1586,13 @@ func DiscoverNetworkPolicyMain() {
 					libs.InsertNetworkPolicies(CfgDB, newPolicies)
 				}
 
-				// insert discovered policies to file
+				// write discovered policies to file
 				if strings.Contains(NetworkPolicyTo, "file") {
-					InsertDiscoveredPoliciesToFile(namespace, services)
+					WriteNetworkPoliciesToFile(clusterName, namespace, services)
 				}
-			}
 
-			log.Info().Msgf("Network policy discovery done for namespace: [%s], [%d] policies discovered", namespace, len(newPolicies))
+				log.Info().Msgf("-> Network policy discovery done for namespace: [%s], [%d] policies discovered", namespace, len(newPolicies))
+			}
 		}
 
 		// update cluster global variables
@@ -1616,7 +1613,7 @@ func StartNetworkCronJob() {
 
 	// init cron job
 	NetworkCronJob = cron.New()
-	err := NetworkCronJob.AddFunc(cfg.GetCfgCronJobTime(), DiscoverNetworkPolicyMain) // time interval
+	err := NetworkCronJob.AddFunc(cfg.GetCfgNetCronJobTime(), DiscoverNetworkPolicyMain) // time interval
 	if err != nil {
 		log.Error().Msg(err.Error())
 		return
@@ -1645,7 +1642,7 @@ func StartNetworkWorker() {
 		return
 	}
 
-	if cfg.GetCfgOperationMode() == OP_MODE_CRONJOB { // every time intervals
+	if cfg.GetCfgNetOperationMode() == OP_MODE_CRONJOB { // every time intervals
 		StartNetworkCronJob()
 	} else { // one-time generation
 		DiscoverNetworkPolicyMain()
@@ -1654,7 +1651,7 @@ func StartNetworkWorker() {
 }
 
 func StopNetworkWorker() {
-	if cfg.GetCfgOperationMode() == OP_MODE_CRONJOB { // every time intervals
+	if cfg.GetCfgNetOperationMode() == OP_MODE_CRONJOB { // every time intervals
 		StopNetworkCronJob()
 	} else {
 		if NetworkWorkerStatus != STATUS_RUNNING {

@@ -1,6 +1,7 @@
 package networkpolicy
 
 import (
+	"sort"
 	"strings"
 
 	"github.com/accuknox/knoxAutoPolicy/src/libs"
@@ -794,11 +795,9 @@ func updateExistCIDRtoNewFQDN(existingPolicies []types.KnoxNetworkPolicy, newPol
 // == Exact Matching == //
 // ==================== //
 
-func IsExistingPolicy(existingPolicies []types.KnoxNetworkPolicy, newPolicy types.KnoxNetworkPolicy) bool {
+func IsExistingPolicySpec(existingPolicies []types.KnoxNetworkPolicy, newPolicy types.KnoxNetworkPolicy) bool {
 	for _, exist := range existingPolicies {
-		if exist.Metadata["cluster_name"] == newPolicy.Metadata["cluster_name"] &&
-			exist.Metadata["namespace"] == newPolicy.Metadata["namespace"] &&
-			cmp.Equal(&exist.Spec, &newPolicy.Spec) {
+		if cmp.Equal(&exist.Spec, &newPolicy.Spec) {
 			return true
 		}
 	}
@@ -822,7 +821,7 @@ func UpdateDuplicatedPolicy(existingPolicies []types.KnoxNetworkPolicy, discover
 	// enumerate discovered network policy
 	for _, policy := range discoveredPolicies {
 		// step 1: compare the total network policy spec
-		if IsExistingPolicy(existingPolicies, policy) {
+		if IsExistingPolicySpec(existingPolicies, policy) {
 			continue
 		}
 
@@ -880,6 +879,10 @@ func UpdateDuplicatedPolicy(existingPolicies []types.KnoxNetworkPolicy, discover
 
 	// step 8: check if existing cidr matchs new fqdn
 	updateExistCIDRtoNewFQDN(existingPolicies, newPolicies, dnsToIPs)
+
+	sort.Slice(newPolicies, func(i, j int) bool {
+		return newPolicies[i].Metadata["name"] < newPolicies[j].Metadata["name"]
+	})
 
 	return newPolicies
 }

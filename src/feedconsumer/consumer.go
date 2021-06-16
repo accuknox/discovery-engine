@@ -60,24 +60,23 @@ type KnoxFeedConsumer struct {
 }
 
 func (cfc *KnoxFeedConsumer) setupKafkaConfig() {
-	bootstrapServers := viper.GetString("kafka.bootstrap-servers")
-	brokderAddressFamily := viper.GetString("kafka.broker-address-family")
-	sessionTimeoutMs := viper.GetString("kafka.session-timeout-ms")
-	autoOffsetReset := viper.GetString("kafka.auto-offset-reset")
+	bootstrapServers := viper.GetString("feed-consumer.kafka.bootstrap-servers")
+	brokderAddressFamily := viper.GetString("feed-consumer.kafka.broker-address-family")
+	sessionTimeoutMs := viper.GetString("feed-consumer.kafka.session-timeout-ms")
+	autoOffsetReset := viper.GetString("feed-consumer.kafka.auto-offset-reset")
 
-	groupID := viper.GetString("kafka.group-id")
-	cfc.topics = viper.GetStringSlice("kafka.topics")
-
-	cfc.eventsBuffer = viper.GetInt("kafka.events.buffer")
+	groupID := viper.GetString("feed-consumer.kafka.group-id")
+	cfc.topics = viper.GetStringSlice("feed-consumer.kafka.topics")
+	cfc.eventsBuffer = viper.GetInt("feed-consumer.kafka.events.buffer")
 
 	netLogEvents = make([]types.NetworkLogEvent, 0, cfc.eventsBuffer)
 	syslogEvents = make([]types.SystemLogEvent, 0, cfc.eventsBuffer)
 
-	sslEnabled := viper.GetBool("kafka.ssl.enabled")
-	securityProtocol := viper.GetString("kafka.security.protocol")
-	sslCALocation := viper.GetString("kafka.ssl.ca.location")
-	sslKeystoreLocation := viper.GetString("kafka.ssl.keystore.location")
-	sslKeystorePassword := viper.GetString("kafka.ssl.keystore.Password")
+	sslEnabled := viper.GetBool("feed-consumer.kafka.ssl.enabled")
+	securityProtocol := viper.GetString("feed-consumer.kafka.security.protocol")
+	sslCALocation := viper.GetString("feed-consumer.kafka.ssl.ca.location")
+	sslKeystoreLocation := viper.GetString("feed-consumer.kafka.ssl.keystore.location")
+	sslKeystorePassword := viper.GetString("feed-consumer.kafka.ssl.keystore.Password")
 
 	// Set up required configs
 	cfc.kafkaConfig = kafka.ConfigMap{
@@ -124,7 +123,7 @@ func (cfc *KnoxFeedConsumer) startConsumer() {
 	log.Debug().Msgf("Topics: %v", cfc.topics)
 
 	run := true
-	for run == true {
+	for run {
 		select {
 		case <-stopChan:
 			log.Info().Msgf("Got a signal to terminate the consumer")

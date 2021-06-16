@@ -50,39 +50,39 @@ func TestLoadDefaultConfig(t *testing.T) {
 
 	LoadDefaultConfig()
 
-	assert.NotEmpty(t, Cfg.ConfigName, "Configuration name should not be empty")
-	assert.NotEmpty(t, Cfg.Status, "Configuration status should not be empty")
+	assert.NotEmpty(t, CurrentCfg.ConfigName, "Configuration name should not be empty")
+	assert.NotEmpty(t, CurrentCfg.Status, "Configuration status should not be empty")
 
-	assert.NotEmpty(t, Cfg.ConfigDB, "Configuration DB should not be empty")
-	assert.NotEmpty(t, Cfg.ConfigCiliumHubble, "Configuration Cilium Hubble should not be empty")
+	assert.NotEmpty(t, CurrentCfg.ConfigDB, "Configuration DB should not be empty")
+	assert.NotEmpty(t, CurrentCfg.ConfigCiliumHubble, "Configuration Cilium Hubble should not be empty")
 
-	assert.NotEmpty(t, Cfg.OperationMode, "Operation mode should not be empty")
-	assert.NotEmpty(t, Cfg.CronJobTimeInterval, "Cron job time interval should not be empty")
+	assert.NotEmpty(t, CurrentCfg.OperationMode, "Operation mode should not be empty")
+	assert.NotEmpty(t, CurrentCfg.CronJobTimeInterval, "Cron job time interval should not be empty")
 	// assert.NotEmpty(t, Cfg.OneTimeJobTimeSelection, "One time job time selection should not be empty")
 
-	assert.NotEmpty(t, Cfg.NetworkLogFrom, "Network log from should not be empty")
-	assert.NotEmpty(t, Cfg.NetworkLogFile, "Network log file should not be empty")
-	assert.NotEmpty(t, Cfg.NetworkPolicyTo, "Network policy to should not be empty")
-	assert.NotEmpty(t, Cfg.NetworkPolicyDir, "Network policy dir should not be empty")
+	assert.NotEmpty(t, CurrentCfg.NetworkLogFrom, "Network log from should not be empty")
+	assert.NotEmpty(t, CurrentCfg.NetworkLogFile, "Network log file should not be empty")
+	assert.NotEmpty(t, CurrentCfg.NetworkPolicyTo, "Network policy to should not be empty")
+	assert.NotEmpty(t, CurrentCfg.NetworkPolicyDir, "Network policy dir should not be empty")
 
-	assert.NotEmpty(t, Cfg.NetPolicyTypes, "Network policy types should not be empty")
-	assert.NotEmpty(t, Cfg.NetPolicyRuleTypes, "Network policy rule types should not be empty")
-	assert.NotEmpty(t, Cfg.NetPolicyCIDRBits, "Network Policy cidr bits should not be empty")
+	assert.NotEmpty(t, CurrentCfg.NetPolicyTypes, "Network policy types should not be empty")
+	assert.NotEmpty(t, CurrentCfg.NetPolicyRuleTypes, "Network policy rule types should not be empty")
+	assert.NotEmpty(t, CurrentCfg.NetPolicyCIDRBits, "Network Policy cidr bits should not be empty")
 
-	assert.NotEmpty(t, Cfg.NetPolicyL3Level, "Network policy L3 level should not be empty")
-	assert.NotEmpty(t, Cfg.NetPolicyL4Level, "Network policy L4 level should not be empty")
-	assert.NotEmpty(t, Cfg.NetPolicyL7Level, "Network policy L7 level should not be empty")
+	assert.NotEmpty(t, CurrentCfg.NetPolicyL3Level, "Network policy L3 level should not be empty")
+	assert.NotEmpty(t, CurrentCfg.NetPolicyL4Level, "Network policy L4 level should not be empty")
+	assert.NotEmpty(t, CurrentCfg.NetPolicyL7Level, "Network policy L7 level should not be empty")
 
-	assert.NotEmpty(t, Cfg.SystemLogFrom, "System log from should not be empty")
-	assert.NotEmpty(t, Cfg.SystemLogFile, "System log file should not be empty")
-	assert.NotEmpty(t, Cfg.SystemPolicyTo, "System policy to should not be empty")
-	assert.NotEmpty(t, Cfg.SystemPolicyDir, "System policy dir should not be empty")
+	assert.NotEmpty(t, CurrentCfg.SystemLogFrom, "System log from should not be empty")
+	assert.NotEmpty(t, CurrentCfg.SystemLogFile, "System log file should not be empty")
+	assert.NotEmpty(t, CurrentCfg.SystemPolicyTo, "System policy to should not be empty")
+	assert.NotEmpty(t, CurrentCfg.SystemPolicyDir, "System policy dir should not be empty")
 }
 
 func TestSetLogFile(t *testing.T) {
 	SetLogFile("test_log.log")
 
-	assert.Equal(t, Cfg.NetworkLogFile, "test_log.log", "network log file should be \"test_log.log\"")
+	assert.Equal(t, CurrentCfg.NetworkLogFile, "test_log.log", "network log file should be \"test_log.log\"")
 }
 
 func TestAddConfiguration(t *testing.T) {

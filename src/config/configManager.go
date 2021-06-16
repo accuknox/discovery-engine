@@ -3,20 +3,19 @@ package config
 import (
 	"errors"
 	"net"
-	"strings"
 
 	"github.com/accuknox/knoxAutoPolicy/src/libs"
-	logger "github.com/accuknox/knoxAutoPolicy/src/logging"
 	types "github.com/accuknox/knoxAutoPolicy/src/types"
-	"github.com/rs/zerolog"
 	"github.com/spf13/viper"
 )
 
 // operation mode: 		 cronjob: 1
 //                 		 onetime job: 2
+
 // network policy types: egress only   : 1
 //                       ingress only  : 2
 //                       all           : 3
+
 // network rule types:   matchLabels: 1
 //                       toPorts    : 2
 //                       toHTTPs    : 4
@@ -32,18 +31,16 @@ import (
 // == Global Variables == //
 // ====================== //
 
-var Cfg types.Configuration
-
-var IgnoringNetworkNamespaces []string
-
-var HTTPUrlThreshold int
+var CurrentCfg types.Configuration
 
 var NetworkPlugIn string
-
-var log *zerolog.Logger
+var IgnoringNetworkNamespaces []string
+var HTTPUrlThreshold int
 
 func init() {
-	log = logger.GetInstance()
+	IgnoringNetworkNamespaces = []string{"kube-system"}
+	HTTPUrlThreshold = 5
+	NetworkPlugIn = "cilium" // for now, cilium only supported
 }
 
 // =========================== //
@@ -73,8 +70,6 @@ func LoadConfigDB() types.ConfigDB {
 	cfgDB.TableSystemLog = viper.GetString("database.table-system-log")
 	cfgDB.TableSystemPolicy = viper.GetString("database.table-system-policy")
 
-	NetworkPlugIn = "cilium" // for now, cilium only supported
-
 	return cfgDB
 }
 
@@ -95,57 +90,63 @@ func LoadConfigCiliumHubble() types.ConfigCiliumHubble {
 }
 
 func LoadDefaultConfig() {
-	Cfg = types.Configuration{}
+	CurrentCfg = types.Configuration{}
 
-	// base
-	Cfg.ConfigName = "default"
-	Cfg.Status = 1
+	// default
+	CurrentCfg.ConfigName = "default"
 
-	Cfg.ConfigDB = LoadConfigDB()
-	Cfg.ConfigCiliumHubble = LoadConfigCiliumHubble()
+	CurrentCfg.Status = 1 // 1: active 0: inactive
 
-	// set worker
-	Cfg.OperationMode = viper.GetInt("application.operation-mode")
-	Cfg.CronJobTimeInterval = viper.GetString("application.cron-job-time-interval")
-	Cfg.OneTimeJobTimeSelection = "" // e.g., 2021-01-20 07:00:23|2021-01-20 07:00:25
+	// load network policy discovery
+	CurrentCfg.ConfigNetPolicy = types.ConfigNetworkPolicy{
+		OperationMode:           viper.GetInt("application.network.operation-mode"),
+		CronJobTimeInterval:     "@every " + viper.GetString("application.network.cron-job-time-interval"),
+		OneTimeJobTimeSelection: "", // e.g., 2021-01-20 07:00:23|2021-01-20 07:00:25
 
-	// set network policy discovery
-	Cfg.NetworkLogFrom = viper.GetString("application.network-log-from")
-	Cfg.NetworkLogFile = viper.GetString("application.network-log-file") // for local testing
-	Cfg.NetworkPolicyTo = viper.GetString("application.network-policy-to")
-	Cfg.NetworkPolicyDir = viper.GetString("application.network-policy-dir")
+		NetworkLogFrom:   viper.GetString("application.network.network-log-from"),
+		NetworkLogFile:   viper.GetString("application.network.network-log-file"),
+		NetworkPolicyTo:  viper.GetString("application.network.network-policy-to"),
+		NetworkPolicyDir: viper.GetString("application.network.network-policy-dir"),
 
-	Cfg.NetPolicyTypes = viper.GetInt("application.network-policy-types")          // 3: all types
-	Cfg.NetPolicyRuleTypes = viper.GetInt("application.network-policy-rule-types") // 511: all rules
-	Cfg.NetPolicyCIDRBits = 32
+		NetPolicyTypes:     3,
+		NetPolicyRuleTypes: 511,
+		NetPolicyCIDRBits:  32,
 
-	igNamespaces := viper.GetString("application.network-policy-ignoring-namespaces")
-	IgnoringNetworkNamespaces = strings.Split(igNamespaces, "|")
+		NetLogFilters: []types.NetworkLogFilter{},
 
-	// aggregation level
-	Cfg.NetPolicyL3Level = 3
-	Cfg.NetPolicyL4Level = 3
-	Cfg.NetPolicyL7Level = 3
-
-	if Cfg.NetPolicyL7Level == 3 {
-		HTTPUrlThreshold = 3
-	} else if Cfg.NetPolicyL7Level == 2 {
-		HTTPUrlThreshold = 5
+		NetPolicyL3Level: 3,
+		NetPolicyL4Level: 3,
+		NetPolicyL7Level: 3,
 	}
 
-	// set system policy discovery
-	Cfg.SystemLogFrom = viper.GetString("application.system-log-from")
-	Cfg.SystemLogFile = viper.GetString("application.system-log-file")
-	Cfg.SystemPolicyTo = viper.GetString("application.system-policy-to")
-	Cfg.SystemPolicyDir = viper.GetString("application.system-policy-dir")
+	// load system policy discovery
+	CurrentCfg.ConfigSysPolicy = types.ConfigSystemPolicy{
+		OperationMode:           viper.GetInt("application.system.operation-mode"),
+		CronJobTimeInterval:     "@every " + viper.GetString("application.system.cron-job-time-interval"),
+		OneTimeJobTimeSelection: "", // e.g., 2021-01-20 07:00:23|2021-01-20 07:00:25
 
-	if err := libs.AddConfiguration(Cfg.ConfigDB, Cfg); err != nil {
-		log.Error().Msg(err.Error())
+		SystemLogFrom:   viper.GetString("application.system.system-log-from"),
+		SystemLogFile:   viper.GetString("application.system.system-log-file"),
+		SystemPolicyTo:  viper.GetString("application.system.system-policy-to"),
+		SystemPolicyDir: viper.GetString("application.system.system-policy-dir"),
+
+		SystemLogFilters: []types.SystemLogFilter{},
+
+		ProcessFromSource: true,
+		FileFromSource:    true,
 	}
-}
 
-func SetLogFile(file string) {
-	Cfg.NetworkLogFile = file
+	// load cluster resource info
+	CurrentCfg.ConfigClusterMgmt = types.ConfigClusterMgmt{
+		ClusterInfoFrom: viper.GetString("application.cluster.cluster-info-from"),
+		ClusterMgmtURL:  viper.GetString("application.cluster.cluster-mgmt-url"),
+	}
+
+	// load database
+	CurrentCfg.ConfigDB = LoadConfigDB()
+
+	// load cilium hubble relay
+	CurrentCfg.ConfigCiliumHubble = LoadConfigCiliumHubble()
 }
 
 // ======================== //
@@ -153,31 +154,31 @@ func SetLogFile(file string) {
 // ======================== //
 
 func AddConfiguration(newConfig types.Configuration) error {
-	return libs.AddConfiguration(Cfg.ConfigDB, newConfig)
+	return libs.AddConfiguration(CurrentCfg.ConfigDB, newConfig)
 }
 
 func GetConfigurations(configName string) ([]types.Configuration, error) {
-	return libs.GetConfigurations(Cfg.ConfigDB, configName)
+	return libs.GetConfigurations(CurrentCfg.ConfigDB, configName)
 }
 
 func UpdateConfiguration(configName string, updateConfig types.Configuration) error {
-	return libs.UpdateConfiguration(Cfg.ConfigDB, configName, updateConfig)
+	return libs.UpdateConfiguration(CurrentCfg.ConfigDB, configName, updateConfig)
 }
 
 func DeleteConfiguration(configName string) error {
-	return libs.DeleteConfiguration(Cfg.ConfigDB, configName)
+	return libs.DeleteConfiguration(CurrentCfg.ConfigDB, configName)
 }
 
 func ApplyConfiguration(configName string) error {
-	if Cfg.ConfigName == configName {
+	if CurrentCfg.ConfigName == configName {
 		return errors.New("Not applied " + configName + " due to same configuration name")
 	}
 
-	if err := libs.ApplyConfiguration(Cfg.ConfigDB, Cfg.ConfigName, configName); err != nil {
+	if err := libs.ApplyConfiguration(CurrentCfg.ConfigDB, CurrentCfg.ConfigName, configName); err != nil {
 		return err
 	}
 
-	appliedConfigs, err := libs.GetConfigurations(Cfg.ConfigDB, configName)
+	appliedConfigs, err := libs.GetConfigurations(CurrentCfg.ConfigDB, configName)
 	if err != nil {
 		return err
 	}
@@ -185,73 +186,91 @@ func ApplyConfiguration(configName string) error {
 	// check if db info is null
 	appliedCfg := appliedConfigs[0]
 	if appliedCfg.ConfigDB.DBHost == "" {
-		appliedCfg.ConfigDB = Cfg.ConfigDB
+		appliedCfg.ConfigDB = CurrentCfg.ConfigDB
 	}
 
 	// update current Cfg
-	Cfg = appliedCfg
+	CurrentCfg = appliedCfg
 
 	return nil
+}
+
+// ============================ //
+// == Set Configuration Info == //
+// ============================ //
+
+func SetLogFile(file string) {
+	CurrentCfg.ConfigNetPolicy.NetworkLogFile = file
 }
 
 // ============================ //
 // == Get Configuration Info == //
 // ============================ //
 
+func GetCurrentCfg() types.Configuration {
+	return CurrentCfg
+}
+
 func GetCfgDB() types.ConfigDB {
-	return Cfg.ConfigDB
+	return CurrentCfg.ConfigDB
 }
 
-func GetCfgOneTime() string {
-	return Cfg.OneTimeJobTimeSelection
+// ============================= //
+// == Get Network Config Info == //
+// ============================= //
+
+func GetCfgNetOperationMode() int {
+	return CurrentCfg.ConfigNetPolicy.OperationMode
 }
 
-func GetCfgCronJobTime() string {
-	return Cfg.CronJobTimeInterval
+func GetCfgNetCronJobTime() string {
+	return CurrentCfg.ConfigNetPolicy.CronJobTimeInterval
 }
 
-func GetCfgOperationMode() int {
-	return Cfg.OperationMode
+func GetCfgNetOneTime() string {
+	return CurrentCfg.ConfigNetPolicy.OneTimeJobTimeSelection
 }
+
+// == //
 
 func GetCfgNetworkLogFrom() string {
-	return Cfg.NetworkLogFrom
+	return CurrentCfg.ConfigNetPolicy.NetworkLogFrom
 }
 
 func GetCfgNetworkLogFile() string {
-	return Cfg.NetworkLogFile
+	return CurrentCfg.ConfigNetPolicy.NetworkLogFile
 }
 
 func GetCfgCiliumHubble() types.ConfigCiliumHubble {
-	return Cfg.ConfigCiliumHubble
+	return CurrentCfg.ConfigCiliumHubble
 }
 
 func GetCfgNetworkPolicyTo() string {
-	return Cfg.NetworkPolicyTo
+	return CurrentCfg.ConfigNetPolicy.NetworkPolicyTo
 }
 
 func GetCfgCIDRBits() int {
-	return Cfg.NetPolicyCIDRBits
+	return CurrentCfg.ConfigNetPolicy.NetPolicyCIDRBits
 }
 
 func GetCfgNetworkPolicyTypes() int {
-	return Cfg.NetPolicyTypes
+	return CurrentCfg.ConfigNetPolicy.NetPolicyTypes
 }
 
 func GetCfgNetworkRuleTypes() int {
-	return Cfg.NetPolicyRuleTypes
+	return CurrentCfg.ConfigNetPolicy.NetPolicyRuleTypes
 }
 
 func GetCfgNetworkL3Level() int {
-	return Cfg.NetPolicyL3Level
+	return CurrentCfg.ConfigNetPolicy.NetPolicyL3Level
 }
 
 func GetCfgNetworkL4Level() int {
-	return Cfg.NetPolicyL4Level
+	return CurrentCfg.ConfigNetPolicy.NetPolicyL4Level
 }
 
 func GetCfgNetworkL7Level() int {
-	return Cfg.NetPolicyL7Level
+	return CurrentCfg.ConfigNetPolicy.NetPolicyL7Level
 }
 
 func GetCfgNetworkHTTPThreshold() int {
@@ -262,18 +281,64 @@ func GetCfgNetworkSkipNamespaces() []string {
 	return IgnoringNetworkNamespaces
 }
 
-func GetCfgNetworkIgnoreFlows() []types.IgnoringFlows {
-	return Cfg.NetPolicyIgnoringFlows
+func GetCfgNetworkLogFilters() []types.NetworkLogFilter {
+	return CurrentCfg.ConfigNetPolicy.NetLogFilters
 }
 
+// ============================ //
+// == Get System Config Info == //
+// ============================ //
+
+func GetCfgSysOperationMode() int {
+	return CurrentCfg.ConfigSysPolicy.OperationMode
+}
+
+func GetCfgSysCronJobTime() string {
+	return CurrentCfg.ConfigSysPolicy.CronJobTimeInterval
+}
+
+func GetCfgSysOneTime() string {
+	return CurrentCfg.ConfigSysPolicy.OneTimeJobTimeSelection
+}
+
+// == //
+
 func GetCfgSystemLogFrom() string {
-	return Cfg.SystemLogFrom
+	return CurrentCfg.ConfigSysPolicy.SystemLogFrom
 }
 
 func GetCfgSystemLogFile() string {
-	return Cfg.SystemLogFile
+	return CurrentCfg.ConfigSysPolicy.SystemLogFile
 }
 
 func GetCfgSystemPolicyTo() string {
-	return Cfg.SystemPolicyTo
+	return CurrentCfg.ConfigSysPolicy.SystemPolicyTo
+}
+
+func GetCfgSystemPolicyDir() string {
+	return CurrentCfg.ConfigSysPolicy.SystemPolicyDir
+}
+
+func GetCfgSystemLogFilters() []types.SystemLogFilter {
+	return CurrentCfg.ConfigSysPolicy.SystemLogFilters
+}
+
+func GetCfgSystemProcFromSource() bool {
+	return CurrentCfg.ConfigSysPolicy.ProcessFromSource
+}
+
+func GetCfgSystemFileFromSource() bool {
+	return CurrentCfg.ConfigSysPolicy.FileFromSource
+}
+
+// ============================= //
+// == Get Cluster Config Info == //
+// ============================= //
+
+func GetCfgClusterInfoFrom() string {
+	return CurrentCfg.ConfigClusterMgmt.ClusterInfoFrom
+}
+
+func GetCfgClusterMgmtURL() string {
+	return CurrentCfg.ConfigClusterMgmt.ClusterMgmtURL
 }

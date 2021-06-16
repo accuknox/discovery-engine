@@ -10,22 +10,12 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/accuknox/knoxAutoPolicy/src/cluster"
 	"github.com/accuknox/knoxAutoPolicy/src/libs"
 	"github.com/accuknox/knoxAutoPolicy/src/plugin"
 	types "github.com/accuknox/knoxAutoPolicy/src/types"
 	"github.com/cilium/cilium/api/v1/flow"
 )
-
-func SkipNamespaceForNetworkPolicy(namespace string) bool {
-	// skip uninterested namespaces
-	if libs.ContainsElement(IgnoringNamespaces, namespace) {
-		return true
-	} else if strings.HasPrefix(namespace, "accuknox-") {
-		return true
-	}
-
-	return false
-}
 
 // ============================= //
 // == Multi Cluster Variables == //
@@ -80,34 +70,45 @@ func updateMultiClusterVariables(clusterName string) {
 	}
 }
 
-// ========================= //
-// == Network Log Filter  == //
-// ========================= //
+// =========================== //
+// == Network Policy Filter == //
+// =========================== //
 
-func getHaveToCheckItems(igFlows types.IgnoringFlows) int {
+func SkipNamespaceForNetworkPolicy(namespace string) bool {
+	// skip uninterested namespaces
+	if libs.ContainsElement(NamespaceFilters, namespace) {
+		return true
+	} else if strings.HasPrefix(namespace, "accuknox-") {
+		return true
+	}
+
+	return false
+}
+
+func getHaveToCheckItems(igFlows types.NetworkLogFilter) int {
 	check := 0
 
-	if igFlows.IgSourceNamespace != "" {
+	if igFlows.SourceNamespace != "" {
 		check = check | 1<<0 // 1
 	}
 
-	if len(igFlows.IgSourceLabels) > 0 {
+	if len(igFlows.SourceLabels) > 0 {
 		check = check | 1<<1 // 2
 	}
 
-	if igFlows.IgDestinationNamespace != "" {
+	if igFlows.DestinationNamespace != "" {
 		check = check | 1<<2 // 4
 	}
 
-	if len(igFlows.IgDestinationLabels) > 0 {
+	if len(igFlows.DestinationLabels) > 0 {
 		check = check | 1<<3 // 8
 	}
 
-	if igFlows.IgProtocol != "" {
+	if igFlows.Protocol != "" {
 		check = check | 1<<4 // 16
 	}
 
-	if igFlows.IgPortNumber != "" {
+	if igFlows.PortNumber != "" {
 		check = check | 1<<5 // 32
 	}
 
@@ -118,52 +119,52 @@ func FilterNetworkLogsByConfig(logs []types.KnoxNetworkLog, pods []types.Pod) []
 	filteredLogs := []types.KnoxNetworkLog{}
 
 	for _, log := range logs {
-		ignored := false
+		filtered := false
 
-		for _, igFlow := range IgnoringFlows {
-			checkItems := getHaveToCheckItems(igFlow)
+		for _, filter := range NetworkLogFilters {
+			checkItems := getHaveToCheckItems(filter)
 
 			checkedItems := 0
 
 			// 1. check src namespace
-			if (checkItems&1 > 0) && igFlow.IgSourceNamespace == log.SrcNamespace {
+			if (checkItems&1 > 0) && filter.SourceNamespace == log.SrcNamespace {
 				checkedItems = checkedItems | 1<<0
 			}
 
 			// 2. check src pod labels
-			if (checkItems&2 > 0) && containLabelByConfiguration("cilium", igFlow.IgSourceLabels, getLabelsFromPod(log.SrcPodName, pods)) {
+			if (checkItems&2 > 0) && containLabelByConfiguration("cilium", filter.SourceLabels, getLabelsFromPod(log.SrcPodName, pods)) {
 				checkedItems = checkedItems | 1<<1
 			}
 
 			// 3. check dest namespace
-			if (checkItems&4 > 0) && igFlow.IgDestinationNamespace == log.DstNamespace {
+			if (checkItems&4 > 0) && filter.DestinationNamespace == log.DstNamespace {
 				checkedItems = checkedItems | 1<<2
 			}
 
 			// 4. check dest pod labels
-			if (checkItems&8 > 0) && containLabelByConfiguration("cilium", igFlow.IgDestinationLabels, getLabelsFromPod(log.DstPodName, pods)) {
+			if (checkItems&8 > 0) && containLabelByConfiguration("cilium", filter.DestinationLabels, getLabelsFromPod(log.DstPodName, pods)) {
 				checkedItems = checkedItems | 1<<3
 			}
 
 			// 5. check protocol
-			if (checkItems&16 > 0) && libs.GetProtocol(log.Protocol) == strings.ToLower(igFlow.IgProtocol) {
+			if (checkItems&16 > 0) && libs.GetProtocol(log.Protocol) == strings.ToLower(filter.Protocol) {
 				checkedItems = checkedItems | 1<<4
 			}
 
 			// 6. check port number (src or dst)
 			if checkItems&32 > 0 {
-				if strconv.Itoa(log.SrcPort) == igFlow.IgPortNumber || strconv.Itoa(log.DstPort) == igFlow.IgPortNumber {
+				if strconv.Itoa(log.SrcPort) == filter.PortNumber || strconv.Itoa(log.DstPort) == filter.PortNumber {
 					checkedItems = checkedItems | 1<<5
 				}
 			}
 
 			if checkItems == checkedItems {
-				ignored = true
+				filtered = true
 				break
 			}
 		}
 
-		if !ignored {
+		if !filtered {
 			filteredLogs = append(filteredLogs, log)
 		}
 	}
@@ -201,7 +202,7 @@ func getNetworkLogs() []types.KnoxNetworkLog {
 	// == Database  == //
 	// =============== //
 	if NetworkLogFrom == "db" {
-		log.Info().Msg("Get network flow from the database")
+		log.Info().Msg("Get network log from the database")
 
 		// get network logs from db
 		netLogs := libs.GetNetworkLogsFromDB(CfgDB, OneTimeJobTime)
@@ -215,7 +216,7 @@ func getNetworkLogs() []types.KnoxNetworkLog {
 		// ========================== //
 		// == Cilium Hubble Relay  == //
 		// ========================== //
-		log.Info().Msg("Get network flow from the Cilium Hubble directly")
+		log.Info().Msg("Get network log from the Cilium Hubble directly")
 
 		// get flows from hubble relay
 		flows := plugin.GetCiliumFlowsFromHubble()
@@ -233,7 +234,7 @@ func getNetworkLogs() []types.KnoxNetworkLog {
 		// =============================== //
 		// == File (.json) for testing  == //
 		// =============================== //
-		log.Info().Msg("Get network flow from the json file : " + NetworkLogFile)
+		log.Info().Msg("Get network log from the json file : " + NetworkLogFile)
 		flows := []*flow.Flow{}
 
 		// Open our jsonFile
@@ -257,7 +258,7 @@ func getNetworkLogs() []types.KnoxNetworkLog {
 		}
 
 		// replace the pod names in prepared-flows with the working pod names
-		pods := libs.GetPodsK8s()
+		pods := cluster.GetPodsFromK8sClient()
 		ReplaceMultiubuntuPodName(flows, pods)
 
 		// convert file flows -> network logs (but, in this case, no flow id..)
@@ -777,9 +778,9 @@ func clearGlobalVariabels() {
 // == File Outputs == //
 // ================== //
 
-func InsertDiscoveredPoliciesToFile(namespace string, services []types.Service) {
+func WriteNetworkPoliciesToFile(cluster, namespace string, services []types.Service) {
 	// retrieve the latest policies from the db
-	latestPolicies := libs.GetNetworkPolicies(CfgDB, namespace, "latest")
+	latestPolicies := libs.GetNetworkPolicies(CfgDB, cluster, namespace, "latest")
 
 	// write discovered policies to files
 	libs.WriteKnoxPolicyToYamlFile(namespace, latestPolicies)

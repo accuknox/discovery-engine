@@ -53,7 +53,7 @@ func connectMySQL(cfg types.ConfigDB) (db *sql.DB) {
 // == Network Log == //
 // ================= //
 
-var networkLogQueryBase string = "SELECT (id,time,cluster_name,traffic_direction,verdict,policy_match_type,drop_reason,event_type,source,destination,ip,l4,l7) FROM "
+var networkLogQueryBase string = "SELECT id,time,cluster_name,traffic_direction,verdict,policy_match_type,drop_reason,event_type,source,destination,ip,l4,l7 FROM "
 
 func convertDateTimeToUnix(dateTime string) (int64, error) {
 	thetime, err := time.Parse(time.RFC3339, dateTime)
@@ -382,7 +382,7 @@ func InsertSystemLogToMySQL(cfg types.ConfigDB, sle []types.SystemLogEvent) erro
 // == Network Policy == //
 // ==================== //
 
-func GetNetworkPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) ([]types.KnoxNetworkPolicy, error) {
+func GetNetworkPoliciesFromMySQL(cfg types.ConfigDB, cluster, namespace, status string) ([]types.KnoxNetworkPolicy, error) {
 	db := connectMySQL(cfg)
 	defer db.Close()
 
@@ -390,18 +390,13 @@ func GetNetworkPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) (
 	var results *sql.Rows
 	var err error
 
-	query := "SELECT (apiVersion,kind,flow_ids,name,cluster_name,namespace,type,rule,status,outdated,spec,generatedTime) FROM " + cfg.TableNetworkPolicy
-	if namespace != "" && status != "" {
-		query = query + " WHERE namespace = ? and status = ? "
-		results, err = db.Query(query, namespace, status)
-	} else if namespace != "" {
-		query = query + " WHERE namespace = ? "
-		results, err = db.Query(query, namespace)
-	} else if status != "" {
-		query = query + " WHERE status = ? "
-		results, err = db.Query(query, status)
+	query := "SELECT apiVersion,kind,flow_ids,name,cluster_name,namespace,type,rule,status,outdated,spec,generatedTime FROM " + cfg.TableNetworkPolicy + " WHERE cluster_name = ? and namespace = ? "
+
+	if status != "" {
+		query = query + " and status = ? "
+		results, err = db.Query(query, cluster, namespace, status)
 	} else {
-		results, err = db.Query(query)
+		results, err = db.Query(query, cluster, namespace)
 	}
 
 	defer results.Close()
@@ -464,7 +459,7 @@ func GetNetworkPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) (
 	return policies, nil
 }
 
-func UpdateOutdatedPolicyFromMySQL(cfg types.ConfigDB, outdatedPolicy string, latestPolicy string) error {
+func UpdateOutdatedNetworkPolicyFromMySQL(cfg types.ConfigDB, outdatedPolicy string, latestPolicy string) error {
 	db := connectMySQL(cfg)
 	defer db.Close()
 
@@ -552,15 +547,48 @@ func InsertNetworkPoliciesToMySQL(cfg types.ConfigDB, policies []types.KnoxNetwo
 // == System Policy == //
 // =================== //
 
-func GetSystemPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) ([]types.KubeArmorSystemPolicy, error) {
+func UpdateOutdatedSystemPolicyFromMySQL(cfg types.ConfigDB, outdatedPolicy string, latestPolicy string) error {
 	db := connectMySQL(cfg)
 	defer db.Close()
 
-	policies := []types.KubeArmorSystemPolicy{}
+	var err error
+
+	// set status -> outdated
+	stmt1, err := db.Prepare("UPDATE " + cfg.TableSystemPolicy + " SET status=? WHERE name=?")
+	if err != nil {
+		return err
+	}
+	defer stmt1.Close()
+
+	_, err = stmt1.Exec("outdated", outdatedPolicy)
+	if err != nil {
+		return err
+	}
+
+	// set outdated -> latest' name
+	stmt2, err := db.Prepare("UPDATE " + cfg.TableNetworkPolicy + " SET outdated=? WHERE name=?")
+	if err != nil {
+		return err
+	}
+	defer stmt2.Close()
+
+	_, err = stmt2.Exec(latestPolicy, outdatedPolicy)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func GetSystemPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) ([]types.KnoxSystemPolicy, error) {
+	db := connectMySQL(cfg)
+	defer db.Close()
+
+	policies := []types.KnoxSystemPolicy{}
 	var results *sql.Rows
 	var err error
 
-	query := "SELECT apiVersion,kind,name,clusterName,namespace,type,spec FROM " +
+	query := "SELECT apiVersion,kind,name,clusterName,namespace,type,status,outdated,spec,generatedTime FROM " +
 		cfg.TableSystemPolicy
 
 	if namespace != "" && status != "" {
@@ -584,11 +612,11 @@ func GetSystemPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) ([
 	}
 
 	for results.Next() {
-		policy := types.KubeArmorSystemPolicy{}
+		policy := types.KnoxSystemPolicy{}
 
-		var name, clusterName, namespace, policyType string
+		var name, clusterName, namespace, policyType, status string
 		specByte := []byte{}
-		spec := types.KubeArmorSpec{}
+		spec := types.KnoxSystemSpec{}
 
 		if err := results.Scan(
 			&policy.APIVersion,
@@ -597,7 +625,10 @@ func GetSystemPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) ([
 			&clusterName,
 			&namespace,
 			&policyType,
+			&status,
+			&policy.Outdated,
 			&specByte,
+			&policy.GeneratedTime,
 		); err != nil {
 			return nil, err
 		}
@@ -622,8 +653,8 @@ func GetSystemPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) ([
 	return policies, nil
 }
 
-func insertSystemPolicy(cfg types.ConfigDB, db *sql.DB, policy types.KubeArmorSystemPolicy) error {
-	stmt, err := db.Prepare("INSERT INTO " + cfg.TableSystemPolicy + "(apiVersion,kind,name,clusterName,namespace,type,spec) values(?,?,?,?,?,?,?)")
+func insertSystemPolicy(cfg types.ConfigDB, db *sql.DB, policy types.KnoxSystemPolicy) error {
+	stmt, err := db.Prepare("INSERT INTO " + cfg.TableSystemPolicy + "(apiVersion,kind,name,clusterName,namespace,type,status,outdated,spec,generatedTime) values(?,?,?,?,?,?,?,?,?,?)")
 	if err != nil {
 		return err
 	}
@@ -642,7 +673,10 @@ func insertSystemPolicy(cfg types.ConfigDB, db *sql.DB, policy types.KubeArmorSy
 		policy.Metadata["clusterName"],
 		policy.Metadata["namespace"],
 		policy.Metadata["type"],
-		spec)
+		policy.Metadata["status"],
+		policy.Outdated,
+		spec,
+		policy.GeneratedTime)
 	if err != nil {
 		return err
 	}
@@ -650,7 +684,7 @@ func insertSystemPolicy(cfg types.ConfigDB, db *sql.DB, policy types.KubeArmorSy
 	return nil
 }
 
-func InsertSystemPoliciesToMySQL(cfg types.ConfigDB, policies []types.KubeArmorSystemPolicy) error {
+func InsertSystemPoliciesToMySQL(cfg types.ConfigDB, policies []types.KnoxSystemPolicy) error {
 	db := connectMySQL(cfg)
 	defer db.Close()
 
@@ -695,25 +729,37 @@ func AddConfiguration(cfg types.ConfigDB, newConfig types.Configuration) error {
 		"status," +
 		"config_db," +
 		"config_cilium_hubble," +
-		"operation_mode," +
-		"cronjob_time_interval," +
-		"one_time_job_time_selection," +
+
+		"network_operation_mode," +
+		"network_cronjob_time_interval," +
+		"network_one_time_job_time_selection," +
 		"network_log_from," +
 		"network_log_file," +
 		"network_policy_to," +
 		"network_policy_dir," +
+		"network_policy_log_filters," +
 		"network_policy_types," +
 		"network_policy_rule_types," +
 		"network_policy_cidr_bits," +
-		"network_policy_ignoring_flows," +
 		"network_policy_l3_level," +
 		"network_policy_l4_level," +
 		"network_policy_l7_level," +
+
+		"system_operation_mode," +
+		"system_cronjob_time_interval," +
+		"system_one_time_job_time_selection," +
 		"system_log_from," +
 		"system_log_file," +
 		"system_policy_to," +
-		"system_policy_dir) " +
-		"values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+		"system_policy_dir," +
+		"system_policy_log_filters," +
+		"system_policy_proc_fromsource," +
+		"system_policy_file_fromsource," +
+
+		"cluster_info_from," +
+		"cluster_mgmt_url) " +
+
+		"values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
 
 	if err != nil {
 		return err
@@ -733,34 +779,55 @@ func AddConfiguration(cfg types.ConfigDB, newConfig types.Configuration) error {
 		return err
 	}
 
-	ignoringFlowsPtr := &newConfig.NetPolicyIgnoringFlows
-	ignoringFlows, err := json.Marshal(ignoringFlowsPtr)
+	// network log filters
+	netLogFiltersPtr := &newConfig.ConfigNetPolicy.NetLogFilters
+	netLogFilters, err := json.Marshal(netLogFiltersPtr)
 	if err != nil {
 		return err
 	}
 
-	_, err = stmt.Exec(newConfig.ConfigName,
+	// system log filters
+	sysLogFiltersPtr := &newConfig.ConfigSysPolicy.SystemLogFilters
+	sysLogFilters, err := json.Marshal(sysLogFiltersPtr)
+	if err != nil {
+		return err
+	}
+
+	_, err = stmt.Exec(
+		newConfig.ConfigName,
 		newConfig.Status,
 		configDB,
 		configCilium,
-		newConfig.OperationMode,
-		newConfig.CronJobTimeInterval,
-		newConfig.OneTimeJobTimeSelection,
-		newConfig.NetworkLogFrom,
-		newConfig.NetworkLogFile,
-		newConfig.NetworkPolicyTo,
-		newConfig.NetworkPolicyDir,
-		newConfig.NetPolicyTypes,
-		newConfig.NetPolicyRuleTypes,
-		newConfig.NetPolicyCIDRBits,
-		ignoringFlows,
-		newConfig.NetPolicyL3Level,
-		newConfig.NetPolicyL4Level,
-		newConfig.NetPolicyL7Level,
-		newConfig.SystemLogFrom,
-		newConfig.SystemLogFile,
-		newConfig.SystemPolicyTo,
-		newConfig.SystemPolicyDir)
+
+		newConfig.ConfigNetPolicy.OperationMode,
+		newConfig.ConfigNetPolicy.CronJobTimeInterval,
+		newConfig.ConfigNetPolicy.OneTimeJobTimeSelection,
+		newConfig.ConfigNetPolicy.NetworkLogFrom,
+		newConfig.ConfigNetPolicy.NetworkLogFile,
+		newConfig.ConfigNetPolicy.NetworkPolicyTo,
+		newConfig.ConfigNetPolicy.NetworkPolicyDir,
+		netLogFilters,
+		newConfig.ConfigNetPolicy.NetPolicyTypes,
+		newConfig.ConfigNetPolicy.NetPolicyRuleTypes,
+		newConfig.ConfigNetPolicy.NetPolicyCIDRBits,
+		newConfig.ConfigNetPolicy.NetPolicyL3Level,
+		newConfig.ConfigNetPolicy.NetPolicyL4Level,
+		newConfig.ConfigNetPolicy.NetPolicyL7Level,
+
+		newConfig.ConfigSysPolicy.OperationMode,
+		newConfig.ConfigSysPolicy.CronJobTimeInterval,
+		newConfig.ConfigSysPolicy.OneTimeJobTimeSelection,
+		newConfig.ConfigSysPolicy.SystemLogFrom,
+		newConfig.ConfigSysPolicy.SystemLogFile,
+		newConfig.ConfigSysPolicy.SystemPolicyTo,
+		newConfig.ConfigSysPolicy.SystemPolicyDir,
+		sysLogFilters,
+		newConfig.ConfigSysPolicy.ProcessFromSource,
+		newConfig.ConfigSysPolicy.FileFromSource,
+
+		newConfig.ConfigClusterMgmt.ClusterInfoFrom,
+		newConfig.ConfigClusterMgmt.ClusterMgmtURL,
+	)
 
 	if err != nil {
 		return err
@@ -795,7 +862,11 @@ func GetConfigurations(cfg types.ConfigDB, configName string) ([]types.Configura
 	defer results.Close()
 
 	for results.Next() {
-		cfg := types.Configuration{}
+		cfg := types.Configuration{
+			ConfigNetPolicy:   types.ConfigNetworkPolicy{},
+			ConfigSysPolicy:   types.ConfigSystemPolicy{},
+			ConfigClusterMgmt: types.ConfigClusterMgmt{},
+		}
 
 		id := 0
 		configDBByte := []byte{}
@@ -804,8 +875,11 @@ func GetConfigurations(cfg types.ConfigDB, configName string) ([]types.Configura
 		hubbleByte := []byte{}
 		hubble := types.ConfigCiliumHubble{}
 
-		ignoringFlowByte := []byte{}
-		ignoringFlows := []types.IgnoringFlows{}
+		netLogFiltersByte := []byte{}
+		netLogFilters := []types.NetworkLogFilter{}
+
+		sysLogFiltersByte := []byte{}
+		sysLogFilters := []types.SystemLogFilter{}
 
 		if err := results.Scan(
 			&id,
@@ -813,24 +887,35 @@ func GetConfigurations(cfg types.ConfigDB, configName string) ([]types.Configura
 			&cfg.Status,
 			&configDBByte,
 			&hubbleByte,
-			&cfg.OperationMode,
-			&cfg.CronJobTimeInterval,
-			&cfg.OneTimeJobTimeSelection,
-			&cfg.NetworkLogFrom,
-			&cfg.NetworkLogFile,
-			&cfg.NetworkPolicyTo,
-			&cfg.NetworkPolicyDir,
-			&cfg.NetPolicyTypes,
-			&cfg.NetPolicyRuleTypes,
-			&cfg.NetPolicyCIDRBits,
-			&ignoringFlowByte,
-			&cfg.NetPolicyL3Level,
-			&cfg.NetPolicyL4Level,
-			&cfg.NetPolicyL7Level,
-			&cfg.SystemLogFrom,
-			&cfg.SystemLogFile,
-			&cfg.SystemPolicyTo,
-			&cfg.SystemPolicyDir,
+
+			&cfg.ConfigNetPolicy.OperationMode,
+			&cfg.ConfigNetPolicy.CronJobTimeInterval,
+			&cfg.ConfigNetPolicy.OneTimeJobTimeSelection,
+			&cfg.ConfigNetPolicy.NetworkLogFrom,
+			&cfg.ConfigNetPolicy.NetworkLogFile,
+			&cfg.ConfigNetPolicy.NetworkPolicyTo,
+			&cfg.ConfigNetPolicy.NetworkPolicyDir,
+			&netLogFiltersByte,
+			&cfg.ConfigNetPolicy.NetPolicyTypes,
+			&cfg.ConfigNetPolicy.NetPolicyRuleTypes,
+			&cfg.ConfigNetPolicy.NetPolicyCIDRBits,
+			&cfg.ConfigNetPolicy.NetPolicyL3Level,
+			&cfg.ConfigNetPolicy.NetPolicyL4Level,
+			&cfg.ConfigNetPolicy.NetPolicyL7Level,
+
+			&cfg.ConfigSysPolicy.OperationMode,
+			&cfg.ConfigSysPolicy.CronJobTimeInterval,
+			&cfg.ConfigSysPolicy.OneTimeJobTimeSelection,
+			&cfg.ConfigSysPolicy.SystemLogFrom,
+			&cfg.ConfigSysPolicy.SystemLogFile,
+			&cfg.ConfigSysPolicy.SystemPolicyTo,
+			&cfg.ConfigSysPolicy.SystemPolicyDir,
+			&sysLogFiltersByte,
+			&cfg.ConfigSysPolicy.ProcessFromSource,
+			&cfg.ConfigSysPolicy.FileFromSource,
+
+			&cfg.ConfigClusterMgmt.ClusterInfoFrom,
+			&cfg.ConfigClusterMgmt.ClusterMgmtURL,
 		); err != nil {
 			return nil, err
 		}
@@ -845,10 +930,15 @@ func GetConfigurations(cfg types.ConfigDB, configName string) ([]types.Configura
 		}
 		cfg.ConfigCiliumHubble = hubble
 
-		if err := json.Unmarshal(ignoringFlowByte, &ignoringFlows); err != nil {
+		if err := json.Unmarshal(netLogFiltersByte, &netLogFilters); err != nil {
 			return nil, err
 		}
-		cfg.NetPolicyIgnoringFlows = ignoringFlows
+		cfg.ConfigNetPolicy.NetLogFilters = netLogFilters
+
+		if err := json.Unmarshal(sysLogFiltersByte, &sysLogFilters); err != nil {
+			return nil, err
+		}
+		cfg.ConfigSysPolicy.SystemLogFilters = sysLogFilters
 
 		configs = append(configs, cfg)
 	}
@@ -870,24 +960,36 @@ func UpdateConfiguration(cfg types.ConfigDB, configName string, updateConfig typ
 	stmt, err := db.Prepare("UPDATE " + table + " SET " +
 		"config_db=?," +
 		"config_cilium_hubble=?," +
-		"operation_mode=?," +
-		"cronjob_time_interval=?," +
-		"one_time_job_time_selection=?," +
+
+		"network_operation_mode=?," +
+		"network_cronjob_time_interval=?," +
+		"network_one_time_job_time_selection=?," +
 		"network_log_from=?," +
 		"network_log_file=?," +
 		"network_policy_to=?," +
 		"network_policy_dir=?," +
+		"network_policy_log_filters=?," +
 		"network_policy_types=?," +
 		"network_policy_rule_types=?," +
 		"network_policy_cidr_bits=?," +
-		"network_policy_ignoring_flows=?," +
 		"network_policy_l3_level=?," +
 		"network_policy_l4_level=?," +
 		"network_policy_l7_level=?," +
+
+		"system_operation_mode=?," +
+		"system_cronjob_time_interval=?," +
+		"system_one_time_job_time_selection=?," +
 		"system_log_from=?," +
 		"system_log_file=?," +
 		"system_policy_to=?," +
-		"system_policy_dir=? " +
+		"system_policy_dir=?," +
+		"system_policy_log_filters=?," +
+		"system_policy_proc_fromsource=?," +
+		"system_policy_file_fromsource=?," +
+
+		"cluster_info_from=?," +
+		"cluster_mgmt_url=? " +
+
 		"WHERE config_name=?")
 
 	if err != nil {
@@ -907,8 +1009,14 @@ func UpdateConfiguration(cfg types.ConfigDB, configName string, updateConfig typ
 		return err
 	}
 
-	ignoringFlowsPtr := &updateConfig.NetPolicyIgnoringFlows
-	ignoringFlows, err := json.Marshal(ignoringFlowsPtr)
+	netLogFiltersPtr := &updateConfig.ConfigNetPolicy.NetLogFilters
+	netLogFilters, err := json.Marshal(netLogFiltersPtr)
+	if err != nil {
+		return err
+	}
+
+	sysLogFiltersByte := &updateConfig.ConfigSysPolicy.SystemLogFilters
+	sysLogFilters, err := json.Marshal(sysLogFiltersByte)
 	if err != nil {
 		return err
 	}
@@ -916,25 +1024,35 @@ func UpdateConfiguration(cfg types.ConfigDB, configName string, updateConfig typ
 	_, err = stmt.Exec(
 		configDB,
 		configCilium,
-		updateConfig.OperationMode,
-		updateConfig.CronJobTimeInterval,
-		updateConfig.OneTimeJobTimeSelection,
 
-		updateConfig.NetworkLogFrom,
-		updateConfig.NetworkLogFile,
-		updateConfig.NetworkPolicyTo,
-		updateConfig.NetworkPolicyDir,
-		updateConfig.NetPolicyTypes,
-		updateConfig.NetPolicyRuleTypes,
-		updateConfig.NetPolicyCIDRBits,
-		ignoringFlows,
-		updateConfig.NetPolicyL3Level,
-		updateConfig.NetPolicyL4Level,
-		updateConfig.NetPolicyL7Level,
-		updateConfig.SystemLogFrom,
-		updateConfig.SystemLogFile,
-		updateConfig.SystemPolicyTo,
-		updateConfig.SystemPolicyDir,
+		updateConfig.ConfigNetPolicy.OperationMode,
+		updateConfig.ConfigNetPolicy.CronJobTimeInterval,
+		updateConfig.ConfigNetPolicy.OneTimeJobTimeSelection,
+		updateConfig.ConfigNetPolicy.NetworkLogFrom,
+		updateConfig.ConfigNetPolicy.NetworkLogFile,
+		updateConfig.ConfigNetPolicy.NetworkPolicyTo,
+		updateConfig.ConfigNetPolicy.NetworkPolicyDir,
+		netLogFilters,
+		updateConfig.ConfigNetPolicy.NetPolicyTypes,
+		updateConfig.ConfigNetPolicy.NetPolicyRuleTypes,
+		updateConfig.ConfigNetPolicy.NetPolicyCIDRBits,
+		updateConfig.ConfigNetPolicy.NetPolicyL3Level,
+		updateConfig.ConfigNetPolicy.NetPolicyL4Level,
+		updateConfig.ConfigNetPolicy.NetPolicyL7Level,
+
+		updateConfig.ConfigSysPolicy.OperationMode,
+		updateConfig.ConfigSysPolicy.CronJobTimeInterval,
+		updateConfig.ConfigSysPolicy.OneTimeJobTimeSelection,
+		updateConfig.ConfigSysPolicy.SystemLogFrom,
+		updateConfig.ConfigSysPolicy.SystemLogFile,
+		updateConfig.ConfigSysPolicy.SystemPolicyTo,
+		updateConfig.ConfigSysPolicy.SystemPolicyDir,
+		sysLogFilters,
+		updateConfig.ConfigSysPolicy.ProcessFromSource,
+		updateConfig.ConfigSysPolicy.FileFromSource,
+
+		updateConfig.ConfigClusterMgmt.ClusterInfoFrom,
+		updateConfig.ConfigClusterMgmt.ClusterMgmtURL,
 
 		configName,
 	)
@@ -1036,7 +1154,7 @@ func CreateTableConfigurationMySQL(cfg types.ConfigDB) error {
 
 	tableName := cfg.TableConfiguration
 
-	// the number of column --> 23
+	// the number of column --> 28
 	query :=
 		"CREATE TABLE IF NOT EXISTS `" + tableName + "` ( " +
 			"	`id` int NOT NULL AUTO_INCREMENT, " +
@@ -1044,24 +1162,36 @@ func CreateTableConfigurationMySQL(cfg types.ConfigDB) error {
 			"	`status` int DEFAULT '0', " +
 			"	`config_db` JSON DEFAULT NULL, " +
 			"	`config_cilium_hubble` JSON DEFAULT NULL, " +
-			"	`operation_mode` int DEFAULT NULL, " +
-			"	`cronjob_time_interval` varchar(50) DEFAULT NULL, " +
-			"	`one_time_job_time_selection` varchar(50) DEFAULT NULL, " +
+
+			"	`network_operation_mode` int DEFAULT NULL, " +
+			"	`network_cronjob_time_interval` varchar(50) DEFAULT NULL, " +
+			"	`network_one_time_job_time_selection` varchar(50) DEFAULT NULL, " +
 			"	`network_log_from` varchar(50) DEFAULT NULL, " +
 			"	`network_log_file` varchar(50) DEFAULT NULL, " +
 			"	`network_policy_to` varchar(50) DEFAULT NULL, " +
 			"	`network_policy_dir` varchar(50) DEFAULT NULL, " +
+			"	`network_policy_log_filters` JSON DEFAULT NULL, " +
 			"	`network_policy_types` int DEFAULT NULL, " +
 			"	`network_policy_rule_types` int DEFAULT NULL, " +
 			"	`network_policy_cidr_bits` int DEFAULT NULL, " +
-			"	`network_policy_ignoring_flows` JSON DEFAULT NULL, " +
 			"	`network_policy_l3_level` int DEFAULT NULL, " +
 			"	`network_policy_l4_level` int DEFAULT NULL, " +
 			"	`network_policy_l7_level` int DEFAULT NULL, " +
+
+			"	`system_operation_mode` int DEFAULT NULL, " +
+			"	`system_cronjob_time_interval` varchar(50) DEFAULT NULL, " +
+			"	`system_one_time_job_time_selection` varchar(50) DEFAULT NULL, " +
 			"	`system_log_from` varchar(50) DEFAULT NULL, " +
 			"	`system_log_file` varchar(50) DEFAULT NULL, " +
 			"	`system_policy_to` varchar(50) DEFAULT NULL, " +
 			"	`system_policy_dir` varchar(50) DEFAULT NULL, " +
+			"	`system_policy_log_filters` JSON DEFAULT NULL, " +
+			"	`system_policy_proc_fromsource` tinyint(1) DEFAULT '0', " +
+			"	`system_policy_file_fromsource` tinyint(1) DEFAULT '0', " +
+
+			"	`cluster_info_from` varchar(50) DEFAULT NULL, " +
+			"	`cluster_mgmt_url` varchar(50) DEFAULT NULL, " +
+
 			"	PRIMARY KEY (`id`) " +
 			"  ); "
 
@@ -1148,28 +1278,29 @@ func CreateTableSystemLogMySQL(cfg types.ConfigDB) error {
 
 	tableName := cfg.TableSystemLog
 
-	query := "CREATE TABLE IF NOT EXISTS `" + tableName + "` (" +
-		"    `id` int NOT NULL AUTO_INCREMENT," +
-		"    `timestamp` int NOT NULL," +
-		"    `updatedTime` varchar(30) NOT NULL," +
-		"    `clusterName` varchar(100) NOT NULL," +
-		"    `hostName` varchar(100) NOT NULL," +
-		"    `namespaceName` varchar(100) NOT NULL," +
-		"    `podName` varchar(200) NOT NULL," +
-		"    `containerID` varchar(200) NOT NULL," +
-		"    `containerName` varchar(200) NOT NULL," +
-		"    `hostPid` int NOT NULL," +
-		"    `ppid` int NOT NULL," +
-		"    `pid` int NOT NULL," +
-		"    `uid` int NOT NULL," +
-		"    `type` varchar(20) NOT NULL," +
-		"    `source` varchar(4000) NOT NULL," +
-		"    `operation` varchar(20) NOT NULL," +
-		"    `resource` varchar(4000) NOT NULL," +
-		"    `data` varchar(1000) DEFAULT NULL," +
-		"    `result` varchar(200) NOT NULL," +
-		"    PRIMARY KEY (`id`)" +
-		");"
+	query :=
+		"CREATE TABLE IF NOT EXISTS `" + tableName + "` (" +
+			"    `id` int NOT NULL AUTO_INCREMENT," +
+			"    `timestamp` int NOT NULL," +
+			"    `updatedTime` varchar(30) NOT NULL," +
+			"    `clusterName` varchar(100) NOT NULL," +
+			"    `hostName` varchar(100) NOT NULL," +
+			"    `namespaceName` varchar(100) NOT NULL," +
+			"    `podName` varchar(200) NOT NULL," +
+			"    `containerID` varchar(200) NOT NULL," +
+			"    `containerName` varchar(200) NOT NULL," +
+			"    `hostPid` int NOT NULL," +
+			"    `ppid` int NOT NULL," +
+			"    `pid` int NOT NULL," +
+			"    `uid` int NOT NULL," +
+			"    `type` varchar(20) NOT NULL," +
+			"    `source` varchar(4000) NOT NULL," +
+			"    `operation` varchar(20) NOT NULL," +
+			"    `resource` varchar(4000) NOT NULL," +
+			"    `data` varchar(1000) DEFAULT NULL," +
+			"    `result` varchar(200) NOT NULL," +
+			"    PRIMARY KEY (`id`)" +
+			");"
 
 	if _, err := db.Query(query); err != nil {
 		return err
@@ -1193,7 +1324,10 @@ func CreateTableSystemPolicyMySQL(cfg types.ConfigDB) error {
 			"	`clusterName` varchar(50) DEFAULT NULL," +
 			"	`namespace` varchar(50) DEFAULT NULL," +
 			"   `type` varchar(20) NOT NULL," +
+			"	`status` varchar(10) DEFAULT NULL," +
+			"	`outdated` varchar(50) DEFAULT NULL," +
 			"	`spec` JSON DEFAULT NULL," +
+			"	`generatedTime` int DEFAULT NULL," +
 			"	PRIMARY KEY (`id`)" +
 			"  );"
 

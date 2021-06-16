@@ -1,4 +1,4 @@
-package libs
+package cluster
 
 import (
 	"testing"
@@ -7,13 +7,13 @@ import (
 )
 
 func TestGetK8sNamespaces(t *testing.T) {
-	actual := GetNamespacesK8s()
+	actual := GetNamespacesFromK8sClient()
 
 	assert.Contains(t, actual, "kube-system")
 }
 
 func TestGetConGroups(t *testing.T) {
-	actual := GetPodsK8s()
+	actual := GetPodsFromK8sClient()
 
 	for _, pod := range actual {
 		if pod.PodName == "" {
@@ -23,7 +23,7 @@ func TestGetConGroups(t *testing.T) {
 }
 
 func TestGetServices(t *testing.T) {
-	actual := GetServicesK8s()
+	actual := GetServicesFromK8sClient()
 
 	for _, svc := range actual {
 		if svc.ServiceName == "" {
@@ -33,7 +33,7 @@ func TestGetServices(t *testing.T) {
 }
 
 func TestGetEndpoints(t *testing.T) {
-	actual := GetEndpointsK8s()
+	actual := GetEndpointsFromK8sClient()
 
 	for _, endpoint := range actual {
 		if endpoint.EndpointName == "" {

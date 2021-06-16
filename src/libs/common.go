@@ -23,6 +23,12 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+var log *zerolog.Logger
+
+func init() {
+	log = logger.GetInstance()
+}
+
 // =================== //
 // == Configuration == //
 // =================== //
@@ -262,7 +268,7 @@ func WriteKnoxPolicyToYamlFile(namespace string, policies []types.KnoxNetworkPol
 	fileName := GetEnv("POLICY_DIR", "./") + "knox_policies_" + namespace + ".yaml"
 
 	if err := os.Remove(fileName); err != nil {
-		log.Error().Msg(err.Error())
+		// log.Error().Msg(err.Error()) // no such file or directory -> ignore
 	}
 
 	// create policy file
@@ -315,9 +321,9 @@ func WriteCiliumPolicyToYamlFile(namespace string, policies []types.CiliumNetwor
 	}
 }
 
-func WriteKubeArmorPolicyToYamlFile(namespace string, policies []types.KubeArmorSystemPolicy) {
+func WriteKubeArmorPolicyToYamlFile(namespace string, policies []types.KubeArmorPolicy) {
 	// create policy file
-	fileName := GetEnv("POLICY_DIR", "./") + "kubearmor_policies_" + namespace + ".yaml"
+	fileName := GetEnv("POLICY_DIR", "./") + "system_policies.yaml"
 
 	if err := os.Remove(fileName); err != nil {
 		log.Error().Msg(err.Error())

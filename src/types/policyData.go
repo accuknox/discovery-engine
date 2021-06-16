@@ -164,70 +164,87 @@ type CiliumNetworkPolicy struct {
 	Spec       CiliumSpec        `json:"spec" yaml:"spec"`
 }
 
-// ============================= //
-// == KubeArmor System Policy == //
-// ============================= //
+// ======================== //
+// == Knox System Policy == //
+// ======================== //
 
-// KubeArmorDir Structure
-type KubeArmorDir struct {
+// KnoxDir Structure
+type KnoxDir struct {
 	Dir       string `json:"dir,omitempty" yaml:"dir,omitempty"`
 	Recursive bool   `json:"resursive,omitempty" yaml:"resursive,omitempty"`
 }
 
-// KubeArmorFromSource Structure
-type KubeArmorFromSource struct {
-	Path []string       `json:"path,omitempty" yaml:"path,omitempty"`
-	Dir  []KubeArmorDir `json:"dir,omitempty" yaml:"dir,omitempty"`
+// KnoxFromSource Structure
+type KnoxFromSource struct {
+	Path []string  `json:"path,omitempty" yaml:"path,omitempty"`
+	Dir  []KnoxDir `json:"dir,omitempty" yaml:"dir,omitempty"`
 }
 
-// KubeArmorMatchPaths Structure
-type KubeArmorMatchPaths struct {
-	Path       string              `json:"path,omitempty" yaml:"path,omitempty"`
-	ReadOnly   bool                `json:"readOnly,omitempty" yaml:"readOnly,omitempty"`
-	OwnerOnly  bool                `json:"ownerOnly,omitempty" yaml:"ownerOnly,omitempty"`
-	FromSource KubeArmorFromSource `json:"fromSource,omitempty" yaml:"fromSource,omitempty"`
+// KnoxMatchPaths Structure
+type KnoxMatchPaths struct {
+	Path       string         `json:"path,omitempty" yaml:"path,omitempty"`
+	ReadOnly   bool           `json:"readOnly,omitempty" yaml:"readOnly,omitempty"`
+	OwnerOnly  bool           `json:"ownerOnly,omitempty" yaml:"ownerOnly,omitempty"`
+	FromSource KnoxFromSource `json:"fromSource,omitempty" yaml:"fromSource,omitempty"`
 }
 
-// KubeArmorMatchDirectories Structure
-type KubeArmorMatchDirectories struct {
-	Dir        string              `json:"dir,omitempty" yaml:"dir,omitempty"`
-	ReadOnly   bool                `json:"readOnly,omitempty" yaml:"readOnly,omitempty"`
-	OwnerOnly  bool                `json:"ownerOnly,omitempty" yaml:"ownerOnly,omitempty"`
-	FromSource KubeArmorFromSource `json:"fromSource,omitempty" yaml:"fromSource,omitempty"`
+// KnoxMatchDirectories Structure
+type KnoxMatchDirectories struct {
+	Dir        string         `json:"dir,omitempty" yaml:"dir,omitempty"`
+	ReadOnly   bool           `json:"readOnly,omitempty" yaml:"readOnly,omitempty"`
+	OwnerOnly  bool           `json:"ownerOnly,omitempty" yaml:"ownerOnly,omitempty"`
+	FromSource KnoxFromSource `json:"fromSource,omitempty" yaml:"fromSource,omitempty"`
 }
 
-// KubeArmorMatchProtocols Structure
-type KubeArmorMatchProtocols struct {
-	Protocol   string              `json:"protocol,omitempty" yaml:"protocol,omitempty"`
-	FromSource KubeArmorFromSource `json:"fromSource,omitempty" yaml:"fromSource,omitempty"`
+// KnoxMatchProtocols Structure
+type KnoxMatchProtocols struct {
+	Protocol   string         `json:"protocol,omitempty" yaml:"protocol,omitempty"`
+	FromSource KnoxFromSource `json:"fromSource,omitempty" yaml:"fromSource,omitempty"`
 }
 
-// KubeArmorSys Structure
-type KubeArmorSys struct {
-	MatchPaths       []KubeArmorMatchPaths       `json:"matchPaths,omitempty" yaml:"matchPaths,omitempty"`
-	MatchDirectories []KubeArmorMatchDirectories `json:"matchDirectories,omitempty" yaml:"matchDirectories,omitempty"`
+// KnoxSys Structure
+type KnoxSys struct {
+	MatchPaths       []KnoxMatchPaths       `json:"matchPaths,omitempty" yaml:"matchPaths,omitempty"`
+	MatchDirectories []KnoxMatchDirectories `json:"matchDirectories,omitempty" yaml:"matchDirectories,omitempty"`
 }
 
-// KubeArmorSpec Structure
-type KubeArmorSpec struct {
+// KnoxSystemSpec Structure
+type KnoxSystemSpec struct {
 	Severity int      `json:"severity,omitempty" yaml:"severity,omitempty"`
 	Tags     []string `json:"tags,omitempty" yaml:"tags,omitempty"`
 	Message  string   `json:"message,omitempty" yaml:"message,omitempty"`
 
 	Selector Selector `json:"selector,omitempty" yaml:"selector,omitempty"`
 
-	Process KubeArmorSys              `json:"process,omitempty" yaml:"process,omitempty"`
-	File    KubeArmorSys              `json:"file,omitempty" yaml:"file,omitempty"`
-	Network []KubeArmorMatchProtocols `json:"network,omitempty" yaml:"network,omitempty"`
+	Process KnoxSys              `json:"process,omitempty" yaml:"process,omitempty"`
+	File    KnoxSys              `json:"file,omitempty" yaml:"file,omitempty"`
+	Network []KnoxMatchProtocols `json:"network,omitempty" yaml:"network,omitempty"`
 
 	Action string `json:"action,omitempty" yaml:"action,omitempty"`
 }
 
-// KubeArmorSystemPolicy Structure
-type KubeArmorSystemPolicy struct {
+// KnoxSystemPolicy Structure
+type KnoxSystemPolicy struct {
+	APIVersion string `json:"apiVersion,omitempty" yaml:"apiVersion,omitempty" bson:"apiVersion,omitempty"`
+	Kind       string `json:"kind,omitempty" yaml:"kind,omitempty" bson:"kind,omitempty"`
+	// LogIDs     []int             `json:"log_ids,omitempty" yaml:"log_ids,omitempty" bson:"log_ids,omitempty"`
+	Metadata map[string]string `json:"metadata,omitempty" yaml:"metadata,omitempty" bson:"metadata,omitempty"`
+	Outdated string            `json:"outdated,omitempty" yaml:"outdated,omitempty" bson:"outdated,omitempty"`
+
+	Spec KnoxSystemSpec `json:"spec,omitempty" yaml:"spec,omitempty" bson:"spec,omitempty"`
+
+	GeneratedTime int64 `json:"generatedTime,omitempty" yaml:"generatedTime,omitempty" bson:"generatedTime,omitempty"`
+}
+
+// ============================= //
+// == KubeArmor System Policy == //
+// ============================= //
+
+// KubeArmorPolicy Structure
+type KubeArmorPolicy struct {
 	APIVersion string            `json:"apiVersion,omitempty" yaml:"apiVersion,omitempty"`
 	Kind       string            `json:"kind,omitempty" yaml:"kind,omitempty"`
 	Metadata   map[string]string `json:"metadata,omitempty" yaml:"metadata,omitempty"`
 
-	Spec KubeArmorSpec `json:"spec,omitempty" yaml:"spec,omitempty"`
+	Spec KnoxSystemSpec `json:"spec,omitempty" yaml:"spec,omitempty"`
 }

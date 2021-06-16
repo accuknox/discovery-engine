@@ -1,7 +1,0 @@
-version: "3"
-services:
-  knoxautopolicy:
-    image: accuknox/knoxautopolicy:latest
-    container_name: knoxautopolicy
-    ports:
-      - "9089:9089"

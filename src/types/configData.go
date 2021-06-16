@@ -54,7 +54,6 @@ cilium-hubble:
   port: 80 
 `)
 
-// ConfigDB ...
 type ConfigDB struct {
 	DBDriver string `json:"db_driver,omitempty" bson:"db_driver,omitempty"`
 	DBHost   string `json:"db_host,omitempty" bson:"db_host,omitempty"`
@@ -64,42 +63,31 @@ type ConfigDB struct {
 	DBName   string `json:"db_name,omitempty" bson:"db_name,omitempty"`
 
 	TableConfiguration string `json:"table_auto_policy_config,omitempty" bson:"table_auto_policy_config,omitempty"`
-
 	TableNetworkLog    string `json:"table_network_log,omitempty" bson:"table_network_log,omitempty"`
 	TableNetworkPolicy string `json:"table_network_policy,omitempty" bson:"table_network_policy,omitempty"`
 	TableSystemLog     string `json:"table_system_log,omitempty" bson:"table_system_log,omitempty"`
 	TableSystemPolicy  string `json:"table_system_policy,omitempty" bson:"table_system_policy,omitempty"`
 }
 
-// ConfigCiliumHubble ...
 type ConfigCiliumHubble struct {
 	HubbleURL  string `json:"hubble_url,omitempty" bson:"hubble_url,omitempty"`
 	HubblePort string `json:"hubble_port,omitempty" bson:"hubble_port,omitempty"`
 }
 
-// IgnoringFlows ...
-type IgnoringFlows struct {
-	IgSourceNamespace      string   `json:"ig_source_namespace,omitempty" bson:"ig_source_namespace,omitempty"`
-	IgSourceLabels         []string `json:"ig_source_labels,omitempty" bson:"ig_source_labels,omitempty"`
-	IgDestinationNamespace string   `json:"ig_destination_namespace,omitempty" bson:"ig_destination_namespace,omitempty"`
-	IgDestinationLabels    []string `json:"ig_destination_labels,omitempty" bson:"ig_destination_labels,omitempty"`
-	IgProtocol             string   `json:"ig_protocol,omitempty" bson:"ig_protocol,omitempty"`
-	IgPortNumber           string   `json:"ig_port_number,omitempty" bson:"ig_port_number,omitempty"`
+type NetworkLogFilter struct {
+	SourceNamespace      string   `json:"source_namespace,omitempty" bson:"source_namespace,omitempty"`
+	SourceLabels         []string `json:"source_labels,omitempty" bson:"source_labels,omitempty"`
+	DestinationNamespace string   `json:"destination_namespace,omitempty" bson:"destination_namespace,omitempty"`
+	DestinationLabels    []string `json:"destination_labels,omitempty" bson:"destination_labels,omitempty"`
+	Protocol             string   `json:"protocol,omitempty" bson:"protocol,omitempty"`
+	PortNumber           string   `json:"port_number,omitempty" bson:"port_number,omitempty"`
 }
 
-// Configuration ...
-type Configuration struct {
-	ConfigName string `json:"config_name,omitempty" bson:"config_name,omitempty"`
-	Status     int    `json:"status,omitempty" bson:"status,omitempty"`
-
-	ConfigDB           ConfigDB           `json:"config_db,omitempty" bson:"config_db,omitempty"`
-	ConfigCiliumHubble ConfigCiliumHubble `json:"config_cilium_hubble,omitempty" bson:"config_cilium_hubble,omitempty"`
-
+type ConfigNetworkPolicy struct {
 	OperationMode           int    `json:"operation_mode,omitempty" bson:"operation_mode,omitempty"`
 	CronJobTimeInterval     string `json:"cronjob_time_interval,omitempty" bson:"cronjob_time_interval,omitempty"`
 	OneTimeJobTimeSelection string `json:"one_time_job_time_selection,omitempty" bson:"one_time_job_time_selection,omitempty"`
 
-	// network policy discovery
 	NetworkLogFrom   string `json:"network_log_from,omitempty" bson:"network_log_from,omitempty"`
 	NetworkLogFile   string `json:"network_log_file,omitempty" bson:"network_log_file,omitempty"`
 	NetworkPolicyTo  string `json:"network_policy_to,omitempty" bson:"network_policy_to,omitempty"`
@@ -107,20 +95,53 @@ type Configuration struct {
 
 	NetPolicyTypes     int `json:"network_policy_types,omitempty" bson:"network_policy_types,omitempty"`
 	NetPolicyRuleTypes int `json:"network_policy_rule_types,omitempty" bson:"network_policy_rule_types,omitempty"`
+	NetPolicyCIDRBits  int `json:"network_policy_cidrbits,omitempty" bson:"network_policy_cidrbits,omitempty"`
 
-	NetPolicyCIDRBits      int             `json:"network_policy_cidrbits,omitempty" bson:"network_policy_cidrbits,omitempty"`
-	NetPolicyIgnoringFlows []IgnoringFlows `json:"network_policy_ignoring_flows,omitempty" bson:"network_policy_ignoring_flows,omitempty"`
+	NetLogFilters []NetworkLogFilter `json:"network_policy_log_filters,omitempty" bson:"network_policy_log_filters,omitempty"`
 
-	// L3 aggregation level
 	NetPolicyL3Level int `json:"network_policy_l3_level,omitempty" bson:"network_policy_l3_level,omitempty"`
-	// L4 compression level
 	NetPolicyL4Level int `json:"network_policy_l4_level,omitempty" bson:"network_policy_l4_level,omitempty"`
-	// L7 aggregation level
 	NetPolicyL7Level int `json:"network_policy_l7_level,omitempty" bson:"network_policy_l7_level,omitempty"`
+}
 
-	// system policy discovery
+type SystemLogFilter struct {
+	Namespace      string   `json:"namespace,omitempty" bson:"namespace,omitempty"`
+	Labels         []string `json:"labels,omitempty" bson:"labels,omitempty"`
+	FileFormats    []string `json:"file_formats,omitempty" bson:"file_formats,omitempty"`
+	ProcessFormats []string `json:"process_formats,omitempty" bson:"process_formats,omitempty"`
+	FileDirs       []string `json:"file_dirs,omitempty" bson:"file_dirs,omitempty"`
+	ProcessDirs    []string `json:"process_dirs,omitempty" bson:"process_dirs,omitempty"`
+}
+
+type ConfigSystemPolicy struct {
+	OperationMode           int    `json:"operation_mode,omitempty" bson:"operation_mode,omitempty"`
+	CronJobTimeInterval     string `json:"cronjob_time_interval,omitempty" bson:"cronjob_time_interval,omitempty"`
+	OneTimeJobTimeSelection string `json:"one_time_job_time_selection,omitempty" bson:"one_time_job_time_selection,omitempty"`
+
 	SystemLogFrom   string `json:"system_log_from,omitempty" bson:"system_log_from,omitempty"`
 	SystemLogFile   string `json:"system_log_file,omitempty" bson:"system_log_file,omitempty"`
 	SystemPolicyTo  string `json:"system_policy_to,omitempty" bson:"system_policy_to,omitempty"`
 	SystemPolicyDir string `json:"system_policy_dir,omitempty" bson:"system_policy_dir,omitempty"`
+
+	SystemLogFilters []SystemLogFilter `json:"system_policy_log_filters,omitempty" bson:"system_policy_log_filters,omitempty"`
+
+	ProcessFromSource bool `json:"system_policy_proc_fromsource,omitempty" bson:"system_policy_proc_fromsource,omitempty"`
+	FileFromSource    bool `json:"system_policy_file_fromsource,omitempty" bson:"system_policy_file_fromsource,omitempty"`
+}
+
+type ConfigClusterMgmt struct {
+	ClusterInfoFrom string `json:"cluster_info_from,omitempty" bson:"cluster_info_from,omitempty"`
+	ClusterMgmtURL  string `json:"cluster_mgmt_url,omitempty" bson:"cluster_mgmt_url,omitempty"`
+}
+
+type Configuration struct {
+	ConfigName string `json:"config_name,omitempty" bson:"config_name,omitempty"`
+	Status     int    `json:"status,omitempty" bson:"status,omitempty"`
+
+	ConfigDB           ConfigDB           `json:"config_db,omitempty" bson:"config_db,omitempty"`
+	ConfigCiliumHubble ConfigCiliumHubble `json:"config_cilium_hubble,omitempty" bson:"config_cilium_hubble,omitempty"`
+
+	ConfigNetPolicy   ConfigNetworkPolicy `json:"config_network_policy,omitempty" bson:"config_network_policy,omitempty"`
+	ConfigSysPolicy   ConfigSystemPolicy  `json:"config_system_policy,omitempty" bson:"config_system_policy,omitempty"`
+	ConfigClusterMgmt ConfigClusterMgmt   `json:"config_cluster_mgmt,omitempty" bson:"config_cluster_mgmt,omitempty"`
 }
