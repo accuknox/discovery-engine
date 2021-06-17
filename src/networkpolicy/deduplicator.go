@@ -187,7 +187,7 @@ func GetLatestMatchLabelsPolicy(existingPolicies []types.KnoxNetworkPolicy, poli
 
 		if exist.Metadata["namespace"] == policy.Metadata["namespace"] &&
 			exist.Metadata["type"] == policy.Metadata["type"] &&
-			policy.Metadata["rule"] == policy.Metadata["rule"] &&
+			exist.Metadata["rule"] == policy.Metadata["rule"] &&
 			exist.Metadata["status"] == "latest" {
 
 			// check selector matchLabels, if not matched, next existing rule
