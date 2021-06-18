@@ -98,8 +98,8 @@ func getIPAddr(ifname string) string {
 	return "None"
 }
 
-func getExternalInterface() string {
-	route := GetCommandOutput("ip", []string{"route", "get", "8.8.8.8"})
+func GetExternalInterface() string {
+	route := GetCommandOutput("ip", []string{"route"})
 	routeData := strings.Split(strings.Split(route, "\n")[0], " ")
 
 	for idx, word := range routeData {
@@ -112,7 +112,7 @@ func getExternalInterface() string {
 }
 
 func GetExternalIPAddr() string {
-	iface := getExternalInterface()
+	iface := GetExternalInterface()
 	if iface != "None" {
 		return getIPAddr(iface)
 	}
