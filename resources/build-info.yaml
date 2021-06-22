@@ -168,20 +168,3 @@ publish_config:
 #for CD git credentials use username/API Token combo which was created in jenkins manage credentials.
 #Pass the CD git repostiry url for publishing helm chart to CD repo
 #***********************************************************************************************************************************#
-
-gcr_config:
-  dev:
-    project: 'accuknox'
-    gcr_credentials: 'gcr'
-  verify:
-    project: 'accuknox'
-    gcr_credentials: 'gcr'
-  prod:
-    project: 'mimetic-kit-294408'
-    gcr_credentials: 'gcr-prod'
-
-deploy_config:
-  cd_credentials: "github-token"
-  cd_repo: github.com/accuknox/Argo-CD-Manifests.git
-  cd_user: 'accuknox'
-  cd_email: 'cd@accuknox.com'
