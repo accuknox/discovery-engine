@@ -264,8 +264,8 @@ func (cfc *KnoxFeedConsumer) PushSystemLogToDB() bool {
 // =================== //
 
 func StartConsumer() {
-	if Status != STATUS_IDLE {
-		log.Info().Msg("There is no idle consumer")
+	if Status == STATUS_RUNNING {
+		log.Info().Msg("There is already running consumer")
 		return
 	}
 
