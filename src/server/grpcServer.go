@@ -20,6 +20,8 @@ import (
 	"github.com/accuknox/knoxAutoPolicy/src/types"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 )
 
@@ -220,6 +222,7 @@ func (s *consumerServer) GetWorkerStatus(ctx context.Context, in *fpb.ConsumerRe
 
 func GetNewServer() *grpc.Server {
 	s := grpc.NewServer()
+	grpc_health_v1.RegisterHealthServer(s, health.NewServer())
 
 	reflection.Register(s)
 
