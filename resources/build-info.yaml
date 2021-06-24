@@ -46,7 +46,7 @@ trivy_properties:
    status:
    #Acceptable Values are CRITICAL, HIGH, MEDIUM, LOW
      enabled: "true"
-     level: high
+     level: medium
      value: "10"
    image:
        name: artifactory.accuknox.com/accuknox/trivy:latest
