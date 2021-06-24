@@ -98,7 +98,7 @@ function stop_and_wait_for_mysql_termination() {
 ## ================== ##
 
 function apply_and_wait_for_microservice_creation() {
-    cd $TEST_HOME/$1/deployment_k8s
+    cd $TEST_HOME/$1/deployment
 
     kubectl apply -f .
     if [ $? != 0 ]; then
@@ -123,7 +123,7 @@ function apply_and_wait_for_microservice_creation() {
 }
 
 function delete_and_wait_for_microserivce_deletion() {
-    cd $TEST_HOME/$1/deployment_k8s
+    cd $TEST_HOME/$1/deployment
 
     kubectl delete -f .
     if [ $? != 0 ]; then
