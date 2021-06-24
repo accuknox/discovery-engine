@@ -278,11 +278,6 @@ func discoverProcessOperationPolicy(results []types.KnoxSystemPolicy, pod types.
 
 func getPodInstance(key SysLogKey, pods []types.Pod) (types.Pod, error) {
 	for _, pod := range pods {
-		// for test //
-		if strings.Contains(pod.PodName, "ubuntu-1") {
-			return pod, nil
-		}
-
 		if key.Namespace == pod.Namespace && key.PodName == pod.PodName {
 			return pod, nil
 		}

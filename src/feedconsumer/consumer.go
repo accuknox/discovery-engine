@@ -201,7 +201,7 @@ func (cfc *KnoxFeedConsumer) processNetworkLogMessage(message []byte) error {
 		if len(netLogEvents) > 0 {
 			isSuccess := cfc.PushNetworkLogToDB()
 			if !isSuccess {
-				return errors.New("Error saving to DB")
+				return errors.New("error saving to DB")
 			}
 			netLogEvents = nil
 			netLogEvents = make([]types.NetworkLogEvent, 0, cfc.eventsBuffer)
@@ -238,7 +238,7 @@ func (cfc *KnoxFeedConsumer) processSystemLogMessage(message []byte) error {
 		if len(syslogEvents) > 0 {
 			isSuccess := cfc.PushSystemLogToDB()
 			if !isSuccess {
-				return errors.New("Error saving to DB")
+				return errors.New("error saving to DB")
 			}
 			syslogEvents = nil
 			syslogEvents = make([]types.SystemLogEvent, 0, cfc.eventsBuffer)
@@ -264,8 +264,8 @@ func (cfc *KnoxFeedConsumer) PushSystemLogToDB() bool {
 // =================== //
 
 func StartConsumer() {
-	if Status != STATUS_IDLE {
-		log.Info().Msg("There is no idle consumer")
+	if Status == STATUS_RUNNING {
+		log.Info().Msg("There is already running consumer")
 		return
 	}
 

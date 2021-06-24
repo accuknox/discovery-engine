@@ -32,6 +32,18 @@ func NewMock() (*sql.DB, sqlmock.Sqlmock) {
 	return db, mock
 }
 
+func waitForDB(db *sql.DB) {
+	for {
+		err := db.Ping()
+		if err != nil {
+			log.Error().Msg("Cannot reach the database, Retrying.")
+			time.Sleep(time.Second * 1)
+		} else {
+			break
+		}
+	}
+}
+
 func connectMySQL(cfg types.ConfigDB) (db *sql.DB) {
 	if MockDB != nil {
 		return MockDB
@@ -45,6 +57,8 @@ func connectMySQL(cfg types.ConfigDB) (db *sql.DB) {
 	}
 
 	db.SetMaxIdleConns(0)
+
+	waitForDB(db)
 
 	return db
 }
