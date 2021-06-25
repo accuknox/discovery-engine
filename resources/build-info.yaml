@@ -176,3 +176,23 @@ gcr_config:
   prod:
     project: 'mimetic-kit-294408'
     gcr_credentials: 'gcr-prod'
+ 
+ #*******************************************************************************************************************************#
+#                             ARGOCD DEPLOY
+# Contains argocd properties for deploying applications using argocd.  
+#*******************************************************************************************************************************#
+argocd:
+#*********************************************************************************************#
+#               Argocd Configuration for dev Environment.
+#*********************************************************************************************#
+  enable: false
+  dev: 
+    server: "argocd01.accuknox.com"                   #Argocd server name or url
+    credentials: "argocdcred"                         #Credentials for Argocd
+    application_name: "accuknox-dev-user-mgmt"        #Application name to create
+    namespace: "accuknox-dev-user-mgmt"               #Namespace to where the application to be deployed
+    project: "user-onboarding"                        #specify poject name in argocd
+    cluster:
+      project: "accuknox"                             #Kubernetes project name
+      name: "accuknox-saas-dev"                       #Kubernetes cluster name
+      region: "us-west1"                              #Kubernetes cluster Region
