@@ -163,8 +163,36 @@ publish_config:
 #      verify: https://artifactory.accuknox.com/repository/maven-artifacts/
 #      prod: https://artifactory.accuknox.com/repository/maven-artifacts/
 
-#***********************************************************************************************************************************#
-# publish helmchart to specified CD git repository
-#for CD git credentials use username/API Token combo which was created in jenkins manage credentials.
-#Pass the CD git repostiry url for publishing helm chart to CD repo
-#***********************************************************************************************************************************#
+gcr_agent_properties:
+  agent: true
+
+gcr_config:
+  dev:
+    project: 'accuknox'
+    gcr_credentials: 'gcr'
+  verify:
+    project: 'accuknox'
+    gcr_credentials: 'gcr'
+  prod:
+    project: 'mimetic-kit-294408'
+    gcr_credentials: 'gcr-prod'
+ 
+ #*******************************************************************************************************************************#
+#                             ARGOCD DEPLOY
+# Contains argocd properties for deploying applications using argocd.  
+#*******************************************************************************************************************************#
+argocd:
+#*********************************************************************************************#
+#               Argocd Configuration for dev Environment.
+#*********************************************************************************************#
+  enable: false
+  dev: 
+    server: "argocd01.accuknox.com"                   #Argocd server name or url
+    credentials: "argocdcred"                         #Credentials for Argocd
+    application_name: "accuknox-dev-user-mgmt"        #Application name to create
+    namespace: "accuknox-dev-user-mgmt"               #Namespace to where the application to be deployed
+    project: "user-onboarding"                        #specify poject name in argocd
+    cluster:
+      project: "accuknox"                             #Kubernetes project name
+      name: "accuknox-saas-dev"                       #Kubernetes cluster name
+      region: "us-west1"                              #Kubernetes cluster Region
