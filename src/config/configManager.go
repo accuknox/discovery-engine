@@ -27,6 +27,11 @@ import (
 //                       fromEntities : 256
 //                       all        : 511
 
+// system policy types: process     : 1
+//                      file        : 2
+//                      network     : 4
+//                      all		    : 7
+
 // ====================== //
 // == Global Variables == //
 // ====================== //
@@ -124,6 +129,8 @@ func LoadDefaultConfig() {
 		OperationMode:           viper.GetInt("application.system.operation-mode"),
 		CronJobTimeInterval:     "@every " + viper.GetString("application.system.cron-job-time-interval"),
 		OneTimeJobTimeSelection: "", // e.g., 2021-01-20 07:00:23|2021-01-20 07:00:25
+
+		SysPolicyTypes: 7,
 
 		SystemLogFrom:   viper.GetString("application.system.system-log-from"),
 		SystemLogFile:   viper.GetString("application.system.system-log-file"),
@@ -317,6 +324,10 @@ func GetCfgSystemPolicyTo() string {
 
 func GetCfgSystemPolicyDir() string {
 	return CurrentCfg.ConfigSysPolicy.SystemPolicyDir
+}
+
+func GetCfgSystemkPolicyTypes() int {
+	return CurrentCfg.ConfigSysPolicy.SysPolicyTypes
 }
 
 func GetCfgSystemLogFilters() []types.SystemLogFilter {

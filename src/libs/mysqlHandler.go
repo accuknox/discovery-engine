@@ -766,6 +766,7 @@ func AddConfiguration(cfg types.ConfigDB, newConfig types.Configuration) error {
 		"system_log_file," +
 		"system_policy_to," +
 		"system_policy_dir," +
+		"system_policy_types," +
 		"system_policy_log_filters," +
 		"system_policy_proc_fromsource," +
 		"system_policy_file_fromsource," +
@@ -773,7 +774,7 @@ func AddConfiguration(cfg types.ConfigDB, newConfig types.Configuration) error {
 		"cluster_info_from," +
 		"cluster_mgmt_url) " +
 
-		"values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+		"values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
 
 	if err != nil {
 		return err
@@ -835,6 +836,7 @@ func AddConfiguration(cfg types.ConfigDB, newConfig types.Configuration) error {
 		newConfig.ConfigSysPolicy.SystemLogFile,
 		newConfig.ConfigSysPolicy.SystemPolicyTo,
 		newConfig.ConfigSysPolicy.SystemPolicyDir,
+		newConfig.ConfigSysPolicy.SysPolicyTypes,
 		sysLogFilters,
 		newConfig.ConfigSysPolicy.ProcessFromSource,
 		newConfig.ConfigSysPolicy.FileFromSource,
@@ -924,6 +926,7 @@ func GetConfigurations(cfg types.ConfigDB, configName string) ([]types.Configura
 			&cfg.ConfigSysPolicy.SystemLogFile,
 			&cfg.ConfigSysPolicy.SystemPolicyTo,
 			&cfg.ConfigSysPolicy.SystemPolicyDir,
+			&cfg.ConfigSysPolicy.SysPolicyTypes,
 			&sysLogFiltersByte,
 			&cfg.ConfigSysPolicy.ProcessFromSource,
 			&cfg.ConfigSysPolicy.FileFromSource,
@@ -997,6 +1000,7 @@ func UpdateConfiguration(cfg types.ConfigDB, configName string, updateConfig typ
 		"system_log_file=?," +
 		"system_policy_to=?," +
 		"system_policy_dir=?," +
+		"system_policy_types=?," +
 		"system_policy_log_filters=?," +
 		"system_policy_proc_fromsource=?," +
 		"system_policy_file_fromsource=?," +
@@ -1061,6 +1065,7 @@ func UpdateConfiguration(cfg types.ConfigDB, configName string, updateConfig typ
 		updateConfig.ConfigSysPolicy.SystemLogFile,
 		updateConfig.ConfigSysPolicy.SystemPolicyTo,
 		updateConfig.ConfigSysPolicy.SystemPolicyDir,
+		updateConfig.ConfigSysPolicy.SysPolicyTypes,
 		sysLogFilters,
 		updateConfig.ConfigSysPolicy.ProcessFromSource,
 		updateConfig.ConfigSysPolicy.FileFromSource,
@@ -1168,7 +1173,7 @@ func CreateTableConfigurationMySQL(cfg types.ConfigDB) error {
 
 	tableName := cfg.TableConfiguration
 
-	// the number of column --> 28
+	// the number of column --> 29
 	query :=
 		"CREATE TABLE IF NOT EXISTS `" + tableName + "` ( " +
 			"	`id` int NOT NULL AUTO_INCREMENT, " +
@@ -1199,6 +1204,7 @@ func CreateTableConfigurationMySQL(cfg types.ConfigDB) error {
 			"	`system_log_file` varchar(50) DEFAULT NULL, " +
 			"	`system_policy_to` varchar(50) DEFAULT NULL, " +
 			"	`system_policy_dir` varchar(50) DEFAULT NULL, " +
+			"	`system_policy_types` int DEFAULT NULL, " +
 			"	`system_policy_log_filters` JSON DEFAULT NULL, " +
 			"	`system_policy_proc_fromsource` tinyint(1) DEFAULT '0', " +
 			"	`system_policy_file_fromsource` tinyint(1) DEFAULT '0', " +
