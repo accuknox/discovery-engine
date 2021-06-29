@@ -1,2 +1,2 @@
-CREATE DATABASE IF NOT EXISTS `knoxautopolicy`;
-USE `knoxautopolicy`;
+CREATE DATABASE IF NOT EXISTS `accuknox`;
+USE `accuknox`;

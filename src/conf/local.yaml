@@ -8,7 +8,7 @@ application:
     network-policy-to: "db|file"              # db, file
     network-policy-dir: "./"
   system:
-    operation-mode: 1                         # 1: cronjob | 2: one-time-job
+    operation-mode: 2                         # 1: cronjob | 2: one-time-job
     cron-job-time-interval: "0h0m5s"          # format: XhYmZs 
     system-log-from: "db"                     # db|kubearmor
     system-log-file: "./log.json"             # file path
@@ -25,7 +25,7 @@ database:
   port: 3306
   user: root
   password: password
-  dbname: knoxautopolicy
+  dbname: accuknox
   table-configuration: auto_policy_config
   table-network-log: network_log
   table-network-policy: network_policy

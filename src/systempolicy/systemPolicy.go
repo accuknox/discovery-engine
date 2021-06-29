@@ -37,6 +37,9 @@ const (
 	SYS_OP_PROCESS = "Process"
 	SYS_OP_FILE    = "File"
 
+	SYS_OP_PROCESS_INT = 1
+	SYS_OP_FILE_INT    = 2
+
 	SOURCE_ALL = "ALL" // for fromSource 'off'
 )
 
@@ -59,6 +62,8 @@ var OneTimeJobTime string
 var SystemLogFrom string
 var SystemLogFile string
 var SystemPolicyTo string
+
+var SystemPolicyTypes int
 
 var SystemLogFilters []types.SystemLogFilter
 
@@ -407,6 +412,8 @@ func initSysPolicyDiscoveryConfiguration() {
 	SystemLogFile = cfg.GetCfgSystemLogFile()
 	SystemPolicyTo = cfg.GetCfgSystemPolicyTo()
 
+	SystemPolicyTypes = cfg.GetCfgSystemkPolicyTypes()
+
 	SystemLogFilters = cfg.GetCfgSystemLogFilters()
 
 	ProcessFromSource = cfg.GetCfgSystemProcFromSource()
@@ -459,12 +466,16 @@ func DiscoverSystemPolicyMain() {
 			}
 
 			// 1. discover file operation system policy
-			fileOpLogs := getOperationLogs(SYS_OP_FILE, perPodlogs)
-			discoveredSysPolicies = discoverFileOperationPolicy(discoveredSysPolicies, pod, fileOpLogs)
+			if SystemPolicyTypes&SYS_OP_FILE_INT > 0 {
+				fileOpLogs := getOperationLogs(SYS_OP_FILE, perPodlogs)
+				discoveredSysPolicies = discoverFileOperationPolicy(discoveredSysPolicies, pod, fileOpLogs)
+			}
 
 			// 2. discover process operation system policy
-			procOpLogs := getOperationLogs(SYS_OP_PROCESS, perPodlogs)
-			discoveredSysPolicies = discoverProcessOperationPolicy(discoveredSysPolicies, pod, procOpLogs)
+			if SystemPolicyTypes&SYS_OP_PROCESS_INT > 0 {
+				procOpLogs := getOperationLogs(SYS_OP_PROCESS, perPodlogs)
+				discoveredSysPolicies = discoverProcessOperationPolicy(discoveredSysPolicies, pod, procOpLogs)
+			}
 
 			// 3. update selector
 			discoveredSysPolicies = updateSysPolicySelector(clusterName, pod, discoveredSysPolicies)
