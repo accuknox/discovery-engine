@@ -1,0 +1,23 @@
+[
+    {
+        "clusterName": "Default",
+        "containerID": "3c26aefbec7053e31e185d23a09762197956e221b48eba389e980d582f90fec1",
+        "containerName": "ubuntu-1-container",
+        "data": "syscall=SYS_EXECVE",
+        "hostName": "cilium-worker1",
+        "hostPid": 14902,
+        "id": 9603,
+        "namespaceName": "multiubuntu",
+        "operation": "Process",
+        "pid": 97,
+        "podName": "ubuntu-1-deployment-5c475fb4fb-gdlzf",
+        "ppid": 8,
+        "resource": "/sbin/ldconfig -p",
+        "result": "Passed",
+        "source": "/http_test.py 8080",
+        "timestamp": 1624925109,
+        "type": "ContainerLog",
+        "uid": 0,
+        "updatedTime": "2021-06-29T00:05:09.202561Z"
+    }
+]
