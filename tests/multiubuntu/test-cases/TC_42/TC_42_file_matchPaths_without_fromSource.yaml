@@ -1,0 +1,16 @@
+apiVersion: security.accuknox.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: autopol-File-ccnfbmmqcjiboxr
+  namespace: multiubuntu
+spec:
+  severity: 1
+  selector:
+    matchLabels:
+      container: ubuntu-1
+      group: group-1
+  file:
+    matchPaths:
+    - path: /lib/x86_64-linux-gnu/libnss_compat.so.2
+  action: Allow
+---

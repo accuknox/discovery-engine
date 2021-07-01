@@ -1,0 +1,23 @@
+[
+   {
+        "clusterName": "Default",
+        "containerID": "3c26aefbec7053e31e185d23a09762197956e221b48eba389e980d582f90fec1",
+        "containerName": "ubuntu-1-container",
+        "data": "syscall=SYS_OPENAT fd=-100 flags=O_RDONLY|O_CLOEXEC",
+        "hostName": "cilium-worker1",
+        "hostPid": 15428,
+        "id": 14092,
+        "namespaceName": "multiubuntu",
+        "operation": "File",
+        "pid": 99,
+        "podName": "ubuntu-1-deployment-5c475fb4fb-gdlzf",
+        "ppid": 15422,
+        "resource": "/lib/x86_64-linux-gnu/libnss_compat.so.2",
+        "result": "Passed",
+        "source": "/bin/sleep 1",
+        "timestamp": 1624925146,
+        "type": "ContainerLog",
+        "uid": 0,
+        "updatedTime": "2021-06-29T00:05:46.847668Z"
+    }
+]
