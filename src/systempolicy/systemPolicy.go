@@ -1,7 +1,10 @@
 package systempolicy
 
 import (
+	"encoding/json"
 	"errors"
+	"io/ioutil"
+	"os"
 	"strings"
 	"sync"
 
@@ -34,13 +37,13 @@ const (
 )
 
 const (
-	SYS_OP_PROCESS = "Process"
+	SYS_OP_PROCESS = "process"
 	SYS_OP_FILE    = "File"
 
 	SYS_OP_PROCESS_INT = 1
 	SYS_OP_FILE_INT    = 2
 
-	SOURCE_ALL = "ALL" // for fromSource 'off'
+	SOURCE_ALL = "/ALL" // for fromSource 'off'
 )
 
 // ====================== //
@@ -77,6 +80,66 @@ func init() {
 	SystemWaitG = sync.WaitGroup{}
 }
 
+// ====================== //
+// == Internal Testing == //
+// ====================== //
+
+func ReplaceMultiubuntuPodName(logs []types.KnoxSystemLog, pods []types.Pod) {
+	var pod1Name, pod2Name, pod3Name, pod4Name, pod5Name string
+
+	for _, pod := range pods {
+		if strings.Contains(pod.PodName, "ubuntu-1-deployment") {
+			pod1Name = pod.PodName
+		}
+
+		if strings.Contains(pod.PodName, "ubuntu-2-deployment") {
+			pod2Name = pod.PodName
+		}
+
+		if strings.Contains(pod.PodName, "ubuntu-3-deployment") {
+			pod3Name = pod.PodName
+		}
+
+		if strings.Contains(pod.PodName, "ubuntu-4-deployment") {
+			pod4Name = pod.PodName
+		}
+
+		if strings.Contains(pod.PodName, "ubuntu-5-deployment") {
+			pod5Name = pod.PodName
+		}
+	}
+
+	for i, log := range logs {
+		if strings.Contains(log.PodName, "ubuntu-1-deployment") {
+			logs[i].PodName = pod1Name
+		}
+
+		///
+
+		if strings.Contains(log.PodName, "ubuntu-2-deployment") {
+			logs[i].PodName = pod2Name
+		}
+
+		///
+
+		if strings.Contains(log.PodName, "ubuntu-3-deployment") {
+			logs[i].PodName = pod3Name
+		}
+
+		///
+
+		if strings.Contains(log.PodName, "ubuntu-4-deployment") {
+			logs[i].PodName = pod4Name
+		}
+
+		///
+
+		if strings.Contains(log.PodName, "ubuntu-5-deployment") {
+			logs[i].PodName = pod5Name
+		}
+	}
+}
+
 // ========================== //
 // == Inner Structure Type == //
 // ========================== //
@@ -103,7 +166,7 @@ func getSystemLogs() []types.KnoxSystemLog {
 	// =============== //
 	// == Database  == //
 	// =============== //
-	if cfg.GetCfgSystemLogFrom() == "db" {
+	if SystemLogFrom == "db" {
 		log.Info().Msg("Get system log from the database")
 
 		// get system logs from db
@@ -114,8 +177,46 @@ func getSystemLogs() []types.KnoxSystemLog {
 
 		// convert kubearmor system logs -> knox system logs
 		systemLogs = plugin.ConvertKubeArmorSystemLogsToKnoxSystemLogs(cfg.GetCfgDB().DBDriver, sysLogs)
+	} else if SystemLogFrom == "file" {
+		// =============================== //
+		// == File (.json) for testing  == //
+		// =============================== //
+
+		jsonLogs := []map[string]interface{}{}
+		log.Info().Msg("Get system logs from the json file : " + SystemLogFile)
+
+		// Opens jsonFile
+		logFile, err := os.Open(SystemLogFile)
+		if err != nil {
+			log.Error().Msg(err.Error())
+			if err := logFile.Close(); err != nil {
+				log.Error().Msg(err.Error())
+			}
+			return nil
+		}
+
+		byteValue, err := ioutil.ReadAll(logFile)
+		if err != nil {
+			log.Error().Msg(err.Error())
+		}
+
+		if err := json.Unmarshal(byteValue, &jsonLogs); err != nil {
+			log.Error().Msg(err.Error())
+			return nil
+		}
+
+		// raw json --> knoxSystemLog
+		systemLogs = plugin.ConvertMySQLKubeArmorLogsToKnoxSystemLogs(jsonLogs)
+
+		// replace the pod names in prepared-logs with the working pod names
+		pods := cluster.GetPodsFromK8sClient()
+		ReplaceMultiubuntuPodName(systemLogs, pods)
+
+		if err := logFile.Close(); err != nil {
+			log.Error().Msg(err.Error())
+		}
 	} else {
-		log.Error().Msgf("System log from not correct: %s", cfg.GetCfgSystemLogFrom())
+		log.Error().Msgf("System log from not correct: %s", SystemLogFrom)
 		return nil
 	}
 
@@ -220,7 +321,7 @@ func discoverFileOperationPolicy(results []types.KnoxSystemPolicy, pod types.Pod
 	// step 2: aggregate file paths
 	for src, filePaths := range srcToDest {
 		// if the source is not the absolute path, skip it
-		if !strings.Contains(src, "/") {
+		if !strings.HasPrefix(src, "/") {
 			continue
 		}
 
@@ -261,7 +362,7 @@ func discoverProcessOperationPolicy(results []types.KnoxSystemPolicy, pod types.
 	// step 2: aggregate process paths
 	for src, processPaths := range srcToDest {
 		// if the source is not in the absolute path, skip it
-		if !strings.Contains(src, "/") {
+		if !strings.HasPrefix(src, "/") {
 			continue
 		}
 
