@@ -157,42 +157,34 @@ publish_config:
       dev: https://artifactory.accuknox.com/repository/helm-dev/
       verify: https://artifactory.accuknox.com/repository/helm-verify/
       prod: https://artifactory.accuknox.com/repository/helm-prod/
-#    artifacts:
-#      snapshot: https://artifactory.accuknox.com/repository/maven-artifacts/
-#      dev: https://artifactory.accuknox.com/repository/maven-artifacts/
-#      verify: https://artifactory.accuknox.com/repository/maven-artifacts/
-#      prod: https://artifactory.accuknox.com/repository/maven-artifacts/
-
-gcr_agent_properties:
-  agent: true
 
 gcr_config:
   dev:
-    project: 'accuknox'
-    gcr_credentials: 'gcr'
+    project: 'mimetic-kit-294408'
+    gcr_credentials: 'gcr-prod'
   verify:
-    project: 'accuknox'
-    gcr_credentials: 'gcr'
+    project: 'mimetic-kit-294408'
+    gcr_credentials: 'gcr-prod'
   prod:
     project: 'mimetic-kit-294408'
     gcr_credentials: 'gcr-prod'
  
- #*******************************************************************************************************************************#
+#*******************************************************************************************************************************#
 #                             ARGOCD DEPLOY
 # Contains argocd properties for deploying applications using argocd.  
 #*******************************************************************************************************************************#
 argocd:
-#*********************************************************************************************#
-#               Argocd Configuration for dev Environment.
-#*********************************************************************************************#
-  enable: false
+  #*********************************************************************************************#
+  #               Argocd Configuration for dev Environment.
+  #*********************************************************************************************#
+  enable: true
   dev: 
-    server: "argocd01.accuknox.com"                   #Argocd server name or url
-    credentials: "argocdcred"                         #Credentials for Argocd
-    application_name: "accuknox-dev-user-mgmt"        #Application name to create
-    namespace: "accuknox-dev-user-mgmt"               #Namespace to where the application to be deployed
-    project: "user-onboarding"                        #specify poject name in argocd
+    server: "argocd-dev.accuknox.com"                  #Argocd server name or url
+    credentials: "argocdcred"                          #Credentials for Argocd
+    application_name: "accuknox-dev-knoxautopolicy"    #Application name to create
+    namespace: "accuknox-dev-user-mgmt"                #Namespace to where the application to be deployed
+    project: "useronboarding"                          #specify poject name in argocd
     cluster:
-      project: "accuknox"                             #Kubernetes project name
-      name: "accuknox-saas-dev"                       #Kubernetes cluster name
-      region: "us-west1"                              #Kubernetes cluster Region
+      project: "mimetic-kit-294408"                    #Kubernetes project name
+      name: "accuknox-saas-dev"                        #Kubernetes cluster name
+      region: "us-central1-c"                          #Kubernetes cluster Region

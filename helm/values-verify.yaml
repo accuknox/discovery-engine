@@ -5,12 +5,12 @@
 replicaCount: 1
 knoxautopolicy:
   image:
-    repository: gcr.io/mimetic-kit-294408/snapshot/knoxautopolicy
+    repository: gcr.io/mimetic-kit-294408/verify/knoxautopolicy
     pullPolicy: Always
     # Overrides the image tag whose default is the chart appVersion.
-    tag: "1.0"
+    tag: ""
 
-namespace: accuknox-dev-knoxautopolicy
+namespace: accuknox-verify-knoxautopolicy
 
 volumeMounts:
   - mountPath: /conf
@@ -113,11 +113,11 @@ config:
       system-policy-dir: "./"
     cluster:
       cluster-info-from: "accuknox"            # k8sclient|accuknox
-      cluster-mgmt-url: "http://cluster-management-service.accuknox-dev-cluster-mgmt.svc.cluster.local/cm"
+      cluster-mgmt-url: "http://cluster-management-service.accuknox-verify-cluster-mgmt.svc.cluster.local/cm"
 
   database:
     driver: mysql
-    host: accuknox-dev-mysql-haproxy.accuknox-dev-mysql-db.svc.cluster.local
+    host: accuknox-verify-mysql-haproxy.accuknox-verify-mysql-db.svc.cluster.local
     port: 3306
     user: accuknox_user
     password: EAy5Kq4uhc5Gkws
