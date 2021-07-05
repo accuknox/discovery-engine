@@ -182,7 +182,7 @@ argocd:
     server: "argocd-dev.accuknox.com"                  #Argocd server name or url
     credentials: "argocdcred"                          #Credentials for Argocd
     application_name: "accuknox-dev-knoxautopolicy"    #Application name to create
-    namespace: "accuknox-dev-user-mgmt"                #Namespace to where the application to be deployed
+    namespace: "accuknox-dev-knoxautopolicy"           #Namespace to where the application to be deployed
     project: "useronboarding"                          #specify poject name in argocd
     cluster:
       project: "mimetic-kit-294408"                    #Kubernetes project name
