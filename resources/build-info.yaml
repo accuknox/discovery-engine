@@ -187,12 +187,12 @@ argocd:
 #*********************************************************************************************#
   enable: false
   dev: 
-    server: "argocd01.accuknox.com"                   #Argocd server name or url
-    credentials: "argocdcred"                         #Credentials for Argocd
-    application_name: "accuknox-dev-user-mgmt"        #Application name to create
-    namespace: "accuknox-dev-user-mgmt"               #Namespace to where the application to be deployed
-    project: "user-onboarding"                        #specify poject name in argocd
+    server: "argocd-dev.accuknox.com"                           #Argocd server name or url
+    credentials: "argocdcred"                                   #Credentials for Argocd
+    application_name: "accuknox-dev-user-mgmt"                  #Application name to create
+    namespace: "accuknox-dev-user-mgmt"                         #Namespace to where the application to be deployed
+    project: "useronboarding"                                   #specify poject name in argocd
     cluster:
-      project: "accuknox"                             #Kubernetes project name
-      name: "accuknox-saas-dev"                       #Kubernetes cluster name
-      region: "us-west1"                              #Kubernetes cluster Region
+      project: "mimetic-kit-294408"                             #Kubernetes project name
+      name: "accuknox-saas-dev"                                 #Kubernetes cluster name
+      region: "us-central1-c" 
