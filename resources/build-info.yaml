@@ -168,6 +168,12 @@ gcr_config:
   prod:
     project: 'mimetic-kit-294408'
     gcr_credentials: 'gcr-prod'
+    
+deploy_config:
+  cd_credentials: "github-token"
+  cd_repo: github.com/accuknox/Argo-CD-Manifests.git
+  cd_user: 'accuknox'
+  cd_email: 'cd@accuknox.com'    
  
 #*******************************************************************************************************************************#
 #                             ARGOCD DEPLOY
