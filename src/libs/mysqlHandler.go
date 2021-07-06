@@ -313,21 +313,6 @@ func GetSystemLogByTimeFromMySQL(cfg types.ConfigDB, startTime, endTime int64) (
 	return ScanSystemLogs(rows)
 }
 
-func GetSystemLogByIDFromMySQL(cfg types.ConfigDB, id, endTime int64) ([]map[string]interface{}, error) {
-	db := connectMySQL(cfg)
-	defer db.Close()
-
-	QueryBase := systemLogQueryBase + cfg.TableSystemLog
-
-	rows, err := db.Query(QueryBase+" WHERE id > ? ORDER BY id ASC ", id)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	return ScanSystemLogs(rows)
-}
-
 func GetSystemLogByIDTimeFromMySQL(cfg types.ConfigDB, id, endTime int64) ([]map[string]interface{}, error) {
 	db := connectMySQL(cfg)
 	defer db.Close()
@@ -370,6 +355,94 @@ func InsertSystemLogToMySQL(cfg types.ConfigDB, sle []types.SystemLogEvent) erro
 			e.Operation,
 			e.Resource,
 			e.Data,
+			e.Result)
+	}
+
+	//trim the last ','
+	sqlStr = strings.TrimSuffix(sqlStr, ",")
+
+	//prepare the statement
+	stmt, err := db.Prepare(sqlStr)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	//format all vals at once
+	_, err = stmt.Exec(vals...)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ================== //
+// == System Alert == //
+// ================== //
+
+func GetSystemAlertByTimeFromMySQL(cfg types.ConfigDB, startTime, endTime int64) ([]map[string]interface{}, error) {
+	db := connectMySQL(cfg)
+	defer db.Close()
+
+	QueryBase := systemLogQueryBase + cfg.TableSystemAlert
+
+	rows, err := db.Query(QueryBase+" WHERE time >= ? and time <= ?", int(startTime), int(endTime))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return ScanSystemLogs(rows)
+}
+
+func GetSystemAlertByIDTimeFromMySQL(cfg types.ConfigDB, id, endTime int64) ([]map[string]interface{}, error) {
+	db := connectMySQL(cfg)
+	defer db.Close()
+
+	QueryBase := systemLogQueryBase + cfg.TableSystemAlert
+
+	rows, err := db.Query(QueryBase+" WHERE id > ? and timestamp <= ? ORDER BY id ASC ", id, int(endTime))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return ScanSystemLogs(rows)
+}
+
+func InsertSystemAlertToMySQL(cfg types.ConfigDB, sae []types.SystemAlertEvent) error {
+	db := connectMySQL(cfg)
+	defer db.Close()
+
+	sqlStr := "INSERT INTO " + cfg.TableSystemAlert + "(time,cluster_name,node_name,namespace_name,pod_name,container_id,container_name,hostpid,ppid,pid,uid,policyName,severity,tags,message,type,source,operation,resource,data,action,result) VALUES "
+	vals := []interface{}{}
+
+	for _, e := range sae {
+		sqlStr += "(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?),"
+
+		vals = append(vals,
+			e.Timestamp,
+			e.ClusterName,
+			e.HostName,
+			e.NamespaceName,
+			e.PodName,
+			e.ContainerID,
+			e.ContainerName,
+			e.HostPID,
+			e.PPID,
+			e.PID,
+			e.UID,
+			e.PolicyName,
+			e.Severity,
+			e.Tags,
+			e.Message,
+			e.Type,
+			e.Source,
+			e.Operation,
+			e.Resource,
+			e.Data,
+			e.Action,
 			e.Result)
 	}
 

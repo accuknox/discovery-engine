@@ -233,6 +233,79 @@ func InsertSystemLogToDB(cfg types.ConfigDB, sle []types.SystemLogEvent) error {
 	return nil
 }
 
+// ================== //
+// == System Alert == //
+// ================== //
+
+// LastSysAlertID system_alert between [ startTime <= time < endTime ]
+var LastSysAlertID int64 = 0
+var sysAlertStartTime int64 = 0
+var sysAlertEndTime int64 = 0
+
+func GetSystemAlertsFromDB(cfg types.ConfigDB, timeSelection string) []map[string]interface{} {
+	results := []map[string]interface{}{}
+
+	sysAlertEndTime = time.Now().Unix()
+
+	if cfg.DBDriver == "mysql" {
+		if timeSelection == "" {
+			docs, err := GetSystemAlertByIDTimeFromMySQL(cfg, LastSysAlertID, sysAlertEndTime)
+			if err != nil {
+				log.Error().Msg(err.Error())
+				return results
+			}
+			results = docs
+		} else {
+			// given time selection from ~ to
+			times := strings.Split(timeSelection, "|")
+			from := ConvertStrToUnixTime(times[0])
+			to := ConvertStrToUnixTime(times[1])
+
+			docs, err := GetSystemAlertByTimeFromMySQL(cfg, from, to)
+			if err != nil {
+				log.Error().Msg(err.Error())
+				return results
+			}
+			results = docs
+		}
+	} else {
+		return results
+	}
+
+	if len(results) == 0 {
+		log.Info().Msgf("System alerts not exist: from %s ~ to %s",
+			time.Unix(sysAlertStartTime, 0).Format(TimeFormSimple),
+			time.Unix(sysAlertEndTime, 0).Format(TimeFormSimple))
+
+		return results
+	}
+
+	lastDoc := results[len(results)-1]
+
+	// id update for mysql
+	if cfg.DBDriver == "mysql" {
+		LastSyslogID = int64(lastDoc["id"].(uint32))
+	}
+
+	log.Info().Msgf("The total number of system alerts: [%d] from %s ~ to %s", len(results),
+		time.Unix(sysAlertStartTime, 0).Format(TimeFormSimple),
+		time.Unix(sysAlertEndTime, 0).Format(TimeFormSimple))
+
+	sysAlertStartTime = sysAlertEndTime + 1
+
+	return results
+}
+
+func InsertSystemAlertToDB(cfg types.ConfigDB, sae []types.SystemAlertEvent) error {
+	if cfg.DBDriver == "mysql" {
+		if err := InsertSystemAlertToMySQL(cfg, sae); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // =================== //
 // == System Policy == //
 // =================== //

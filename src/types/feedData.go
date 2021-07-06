@@ -48,3 +48,35 @@ type SystemLogEvent struct {
 	Data      string `json:"data,omitempty"`
 	Result    string `json:"result,omitempty"`
 }
+
+type SystemAlertEvent struct {
+	ID        int `json:"id,omitempty"`
+	Timestamp int `json:"timestamp,omitempty"`
+
+	ClusterName   string `json:"clusterName,omitempty"`
+	HostName      string `json:"hostName,omitempty"`
+	NamespaceName string `json:"namespaceName,omitempty"`
+	PodName       string `json:"podName,omitempty"`
+	ContainerID   string `json:"containerID,omitempty"`
+	ContainerName string `json:"containerName,omitempty"`
+
+	HostPID int `json:"hostPid,omitempty"`
+	PPID    int `json:"ppid,omitempty"`
+	PID     int `json:"pid,omitempty"`
+	UID     int `json:"uid,omitempty"`
+
+	PolicyName string `json:"policyName,omitempty"` // added
+	Severity   string `json:"severity,omitempty"`   // added
+	Tags       string `json:"tags,omitempty"`       // added
+	Message    string `json:"message,omitempty"`    // added
+
+	Type      string `json:"type,omitempty"`
+	Source    string `json:"source,omitempty"`
+	Operation string `json:"operation,omitempty"`
+	Resource  string `json:"resource,omitempty"`
+	Data      string `json:"data,omitempty"`
+
+	Action string `json:"action,omitempty"` // added
+
+	Result string `json:"result,omitempty"`
+}
