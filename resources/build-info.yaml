@@ -46,7 +46,7 @@ trivy_properties:
    status:
    #Acceptable Values are CRITICAL, HIGH, MEDIUM, LOW
      enabled: "true"
-     level: high
+     level: medium
      value: "10"
    image:
        name: artifactory.accuknox.com/accuknox/trivy:latest
@@ -157,22 +157,44 @@ publish_config:
       dev: https://artifactory.accuknox.com/repository/helm-dev/
       verify: https://artifactory.accuknox.com/repository/helm-verify/
       prod: https://artifactory.accuknox.com/repository/helm-prod/
-#    artifacts:
-#      snapshot: https://artifactory.accuknox.com/repository/maven-artifacts/
-#      dev: https://artifactory.accuknox.com/repository/maven-artifacts/
-#      verify: https://artifactory.accuknox.com/repository/maven-artifacts/
-#      prod: https://artifactory.accuknox.com/repository/maven-artifacts/
 
-#***********************************************************************************************************************************#
-# publish helmchart to specified CD git repository
-#for CD git credentials use username/API Token combo which was created in jenkins manage credentials.
-#Pass the CD git repostiry url for publishing helm chart to CD repo
-#***********************************************************************************************************************************#
 
+gcr_agent_properties:
+  agent: true
+
+gcr_config:
+  dev:
+    project: 'mimetic-kit-294408'
+    gcr_credentials: 'gcr-prod'
+  verify:
+    project: 'mimetic-kit-294408'
+    gcr_credentials: 'gcr-prod'
+  prod:
+    project: 'mimetic-kit-294408'
+    gcr_credentials: 'gcr-prod'
+    
 deploy_config:
-  project: 'accuknox'
-  gcr_credentials: 'gcr'
   cd_credentials: "github-token"
   cd_repo: github.com/accuknox/Argo-CD-Manifests.git
   cd_user: 'accuknox'
-  cd_email: 'cd@accuknox.com'
+  cd_email: 'cd@accuknox.com'    
+ 
+#*******************************************************************************************************************************#
+#                             ARGOCD DEPLOY
+# Contains argocd properties for deploying applications using argocd.  
+#*******************************************************************************************************************************#
+argocd:
+  #*********************************************************************************************#
+  #               Argocd Configuration for dev Environment.
+  #*********************************************************************************************#
+  enable: true
+  dev: 
+    server: "argocd-dev.accuknox.com"                  #Argocd server name or url
+    credentials: "argocdcred"                          #Credentials for Argocd
+    application_name: "accuknox-dev-knoxautopolicy"    #Application name to create
+    namespace: "accuknox-dev-knoxautopolicy"           #Namespace to where the application to be deployed
+    project: "useronboarding"                          #specify poject name in argocd
+    cluster:
+      project: "mimetic-kit-294408"                    #Kubernetes project name
+      name: "accuknox-saas-dev"                        #Kubernetes cluster name
+      region: "us-central1-c"                          #Kubernetes cluster Region
