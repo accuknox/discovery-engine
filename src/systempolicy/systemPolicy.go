@@ -175,6 +175,12 @@ func getSystemLogs() []types.KnoxSystemLog {
 			return nil
 		}
 
+		// get system alerts from db, and merge it to the system logs
+		sysAlerts := libs.GetSystemAlertsFromDB(cfg.GetCfgDB(), cfg.GetCfgSysOneTime())
+		if len(sysAlerts) != 0 {
+			sysLogs = append(sysLogs, sysAlerts...)
+		}
+
 		// convert kubearmor system logs -> knox system logs
 		systemLogs = plugin.ConvertKubeArmorSystemLogsToKnoxSystemLogs(cfg.GetCfgDB().DBDriver, sysLogs)
 	} else if SystemLogFrom == "file" {

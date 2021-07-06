@@ -66,6 +66,7 @@ type ConfigDB struct {
 	TableNetworkLog    string `json:"table_network_log,omitempty" bson:"table_network_log,omitempty"`
 	TableNetworkPolicy string `json:"table_network_policy,omitempty" bson:"table_network_policy,omitempty"`
 	TableSystemLog     string `json:"table_system_log,omitempty" bson:"table_system_log,omitempty"`
+	TableSystemAlert   string `json:"table_system_alert,omitempty" bson:"table_system_alert,omitempty"`
 	TableSystemPolicy  string `json:"table_system_policy,omitempty" bson:"table_system_policy,omitempty"`
 }
 
