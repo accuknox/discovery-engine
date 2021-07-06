@@ -30,6 +30,7 @@ database:
   table-network-log: network_log
   table-network-policy: network_policy
   table-system-log: system_log
+  table-system-alert: system_alert
   table-system-policy: system_policy
 
 feed-consumer:

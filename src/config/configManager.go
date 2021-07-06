@@ -73,6 +73,7 @@ func LoadConfigDB() types.ConfigDB {
 	cfgDB.TableNetworkLog = viper.GetString("database.table-network-log")
 	cfgDB.TableNetworkPolicy = viper.GetString("database.table-network-policy")
 	cfgDB.TableSystemLog = viper.GetString("database.table-system-log")
+	cfgDB.TableSystemAlert = viper.GetString("database.table-system-alert")
 	cfgDB.TableSystemPolicy = viper.GetString("database.table-system-policy")
 
 	return cfgDB

@@ -1329,6 +1329,48 @@ func CreateTableSystemLogMySQL(cfg types.ConfigDB) error {
 	return nil
 }
 
+func CreateTableSystemAlertMySQL(cfg types.ConfigDB) error {
+	db := connectMySQL(cfg)
+	defer db.Close()
+
+	tableName := cfg.TableSystemAlert
+
+	query :=
+		"CREATE TABLE IF NOT EXISTS `" + tableName + "` (" +
+			"    `id` int NOT NULL AUTO_INCREMENT," +
+			"    `timestamp` int NOT NULL," +
+			"    `updatedTime` varchar(30) NOT NULL," +
+			"    `clusterName` varchar(100) NOT NULL," +
+			"    `hostName` varchar(100) NOT NULL," +
+			"    `namespaceName` varchar(100) NOT NULL," +
+			"    `podName` varchar(200) NOT NULL," +
+			"    `containerID` varchar(200) NOT NULL," +
+			"    `containerName` varchar(200) NOT NULL," +
+			"    `hostPid` int NOT NULL," +
+			"    `ppid` int NOT NULL," +
+			"    `pid` int NOT NULL," +
+			"    `uid` int NOT NULL," +
+			"    `policyName` varchar(1000) NOT NULL," +
+			"    `severity` varchar(100) NOT NULL," +
+			"    `tags` varchar(1000) NOT NULL," +
+			"    `message` varchar(1000) NOT NULL," +
+			"    `type` varchar(20) NOT NULL," +
+			"    `source` varchar(4000) NOT NULL," +
+			"    `operation` varchar(20) NOT NULL," +
+			"    `resource` varchar(4000) NOT NULL," +
+			"    `data` varchar(1000) DEFAULT NULL," +
+			"    `action` varchar(20) NOT NULL," +
+			"    `result` varchar(200) NOT NULL," +
+			"    PRIMARY KEY (`id`)" +
+			");"
+
+	if _, err := db.Query(query); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func CreateTableSystemPolicyMySQL(cfg types.ConfigDB) error {
 	db := connectMySQL(cfg)
 	defer db.Close()

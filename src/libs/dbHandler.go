@@ -293,6 +293,9 @@ func CreateTablesIfNotExist(cfg types.ConfigDB) {
 		if err := CreateTableSystemLogMySQL(cfg); err != nil {
 			log.Error().Msg(err.Error())
 		}
+		if err := CreateTableSystemAlertMySQL(cfg); err != nil {
+			log.Error().Msg(err.Error())
+		}
 		if err := CreateTableSystemPolicyMySQL(cfg); err != nil {
 			log.Error().Msg(err.Error())
 		}
