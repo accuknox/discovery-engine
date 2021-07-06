@@ -158,6 +158,10 @@ publish_config:
       verify: https://artifactory.accuknox.com/repository/helm-verify/
       prod: https://artifactory.accuknox.com/repository/helm-prod/
 
+
+gcr_agent_properties:
+  agent: true
+
 gcr_config:
   dev:
     project: 'mimetic-kit-294408'
