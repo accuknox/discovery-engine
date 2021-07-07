@@ -37,7 +37,7 @@ const (
 )
 
 const (
-	SYS_OP_PROCESS = "process"
+	SYS_OP_PROCESS = "Process"
 	SYS_OP_FILE    = "File"
 
 	SYS_OP_PROCESS_INT = 1
@@ -310,6 +310,9 @@ func discoverFileOperationPolicy(results []types.KnoxSystemPolicy, pod types.Pod
 	// step 1: [system logs] -> {source: []destination(resource)}
 	srcToDest := map[string][]string{}
 
+	// file spec is appended?
+	appended := false
+
 	for _, log := range logs {
 		if !FileFromSource {
 			log.Source = SOURCE_ALL
@@ -324,7 +327,12 @@ func discoverFileOperationPolicy(results []types.KnoxSystemPolicy, pod types.Pod
 		}
 	}
 
-	// step 2: aggregate file paths
+	// step 2: build file operation
+	policy := buildSystemPolicy()
+	policy.Metadata["type"] = SYS_OP_FILE
+	policy.Spec.File = types.KnoxSys{}
+
+	// step 3: aggregate file paths
 	for src, filePaths := range srcToDest {
 		// if the source is not the absolute path, skip it
 		if !strings.HasPrefix(src, "/") {
@@ -333,14 +341,14 @@ func discoverFileOperationPolicy(results []types.KnoxSystemPolicy, pod types.Pod
 
 		aggreatedFilePaths := AggregatePaths(filePaths)
 
-		// step 3: build system policies
-		policy := buildSystemPolicy()
-		policy.Metadata["type"] = SYS_OP_FILE
-		policy.Spec.File = types.KnoxSys{}
+		// step 4: append spec to the policy
 		for _, filePath := range aggreatedFilePaths {
+			appended = true
 			policy = updateSysPolicySpec(SYS_OP_FILE, policy, src, filePath)
 		}
+	}
 
+	if appended {
 		results = append(results, policy)
 	}
 
@@ -350,6 +358,9 @@ func discoverFileOperationPolicy(results []types.KnoxSystemPolicy, pod types.Pod
 func discoverProcessOperationPolicy(results []types.KnoxSystemPolicy, pod types.Pod, logs []types.KnoxSystemLog) []types.KnoxSystemPolicy {
 	// step 1: [system logs] -> {source: []destination(resource)}
 	srcToDest := map[string][]string{}
+
+	// process spec is appended?
+	appended := false
 
 	for _, log := range logs {
 		if !ProcessFromSource {
@@ -365,7 +376,12 @@ func discoverProcessOperationPolicy(results []types.KnoxSystemPolicy, pod types.
 		}
 	}
 
-	// step 2: aggregate process paths
+	// step 2: build process operation
+	policy := buildSystemPolicy()
+	policy.Metadata["type"] = SYS_OP_PROCESS
+	policy.Spec.Process = types.KnoxSys{}
+
+	// step 3: aggregate process paths
 	for src, processPaths := range srcToDest {
 		// if the source is not in the absolute path, skip it
 		if !strings.HasPrefix(src, "/") {
@@ -374,14 +390,14 @@ func discoverProcessOperationPolicy(results []types.KnoxSystemPolicy, pod types.
 
 		aggreatedProcessPaths := AggregatePaths(processPaths)
 
-		// step 3: build system policies
-		policy := buildSystemPolicy()
-		policy.Metadata["type"] = SYS_OP_PROCESS
-		policy.Spec.Process = types.KnoxSys{}
+		// step 4: append spec to the policy
 		for _, processPath := range aggreatedProcessPaths {
+			appended = true
 			policy = updateSysPolicySpec(SYS_OP_PROCESS, policy, src, processPath)
 		}
+	}
 
+	if appended {
 		results = append(results, policy)
 	}
 
@@ -451,6 +467,7 @@ func updateSysPolicySpec(opType string, policy types.KnoxSystemPolicy, src strin
 			}
 		}
 	} else {
+		// matchPaths
 		matchPaths := types.KnoxMatchPaths{
 			Path: pathSpec.Path,
 		}
