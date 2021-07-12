@@ -12,7 +12,7 @@ func ConvertKnoxSystemPolicyToKubeArmorPolicy(knoxPolicies []types.KnoxSystemPol
 
 	for _, policy := range knoxPolicies {
 		kubePolicy := types.KubeArmorPolicy{
-			APIVersion: "security.accuknox.com/v1",
+			APIVersion: "security.kubearmor.com/v1",
 			Kind:       "KubeArmorPolicy",
 			Metadata:   map[string]string{},
 		}

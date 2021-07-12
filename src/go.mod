@@ -15,7 +15,7 @@ require (
 	github.com/confluentinc/confluent-kafka-go v1.6.1
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/gogo/protobuf v1.3.1
-	github.com/golang/protobuf v1.4.3 // indirect
+	github.com/golang/protobuf v1.4.3
 	github.com/google/go-cmp v0.5.3
 	github.com/robfig/cron v1.2.0
 	github.com/rs/zerolog v1.20.0
@@ -31,7 +31,6 @@ require (
 	google.golang.org/protobuf v1.25.0
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	gopkg.in/yaml.v2 v2.3.0
-	gotest.tools v2.2.0+incompatible
 	k8s.io/api v0.19.4 // indirect
 	k8s.io/apimachinery v0.19.4
 	k8s.io/client-go v11.0.0+incompatible

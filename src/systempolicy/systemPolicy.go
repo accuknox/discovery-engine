@@ -282,7 +282,7 @@ func systemLogDeduplication(logs []types.KnoxSystemLog) []types.KnoxSystemLog {
 			continue
 		}
 
-		// if source == resource, skip it
+		// if source == resource, skip
 		if log.Source == log.Resource {
 			continue
 		}
@@ -334,11 +334,6 @@ func discoverFileOperationPolicy(results []types.KnoxSystemPolicy, pod types.Pod
 
 	// step 3: aggregate file paths
 	for src, filePaths := range srcToDest {
-		// if the source is not the absolute path, skip it
-		if !strings.HasPrefix(src, "/") {
-			continue
-		}
-
 		aggreatedFilePaths := AggregatePaths(filePaths)
 
 		// step 4: append spec to the policy
@@ -383,11 +378,6 @@ func discoverProcessOperationPolicy(results []types.KnoxSystemPolicy, pod types.
 
 	// step 3: aggregate process paths
 	for src, processPaths := range srcToDest {
-		// if the source is not in the absolute path, skip it
-		if !strings.HasPrefix(src, "/") {
-			continue
-		}
-
 		aggreatedProcessPaths := AggregatePaths(processPaths)
 
 		// step 4: append spec to the policy
@@ -436,13 +426,15 @@ func updateSysPolicySpec(opType string, policy types.KnoxSystemPolicy, src strin
 	// matchDirectories
 	if pathSpec.isDir {
 		matchDirs := types.KnoxMatchDirectories{
-			Dir: pathSpec.Path,
+			Dir: pathSpec.Path + "/",
 		}
 
 		if opType == SYS_OP_FILE {
 			if FileFromSource {
-				matchDirs.FromSource = types.KnoxFromSource{
-					Path: []string{src},
+				matchDirs.FromSource = []types.KnoxFromSource{
+					types.KnoxFromSource{
+						Path: src,
+					},
 				}
 				policy.Metadata["fromSource"] = src
 			}
@@ -454,8 +446,10 @@ func updateSysPolicySpec(opType string, policy types.KnoxSystemPolicy, src strin
 			}
 		} else if opType == SYS_OP_PROCESS {
 			if ProcessFromSource {
-				matchDirs.FromSource = types.KnoxFromSource{
-					Path: []string{src},
+				matchDirs.FromSource = []types.KnoxFromSource{
+					types.KnoxFromSource{
+						Path: src,
+					},
 				}
 				policy.Metadata["fromSource"] = src
 			}
@@ -474,8 +468,10 @@ func updateSysPolicySpec(opType string, policy types.KnoxSystemPolicy, src strin
 
 		if opType == SYS_OP_FILE {
 			if FileFromSource {
-				matchPaths.FromSource = types.KnoxFromSource{
-					Path: []string{src},
+				matchPaths.FromSource = []types.KnoxFromSource{
+					types.KnoxFromSource{
+						Path: src,
+					},
 				}
 				policy.Metadata["fromSource"] = src
 			}
@@ -487,8 +483,10 @@ func updateSysPolicySpec(opType string, policy types.KnoxSystemPolicy, src strin
 			}
 		} else if opType == SYS_OP_PROCESS {
 			if ProcessFromSource {
-				matchPaths.FromSource = types.KnoxFromSource{
-					Path: []string{src},
+				matchPaths.FromSource = []types.KnoxFromSource{
+					types.KnoxFromSource{
+						Path: src,
+					},
 				}
 				policy.Metadata["fromSource"] = src
 			}
@@ -572,7 +570,6 @@ func DiscoverSystemPolicyMain() {
 	for clusterName, sysLogs := range clusteredLogs {
 		// get existing system policies in db
 		existingPolicies := libs.GetSystemPolicies(CfgDB, "", "")
-		discoveredSysPolicies := []types.KnoxSystemPolicy{}
 
 		// get k8s pods
 		pods := cluster.GetPods(clusterName)
@@ -583,6 +580,8 @@ func DiscoverSystemPolicyMain() {
 		// iterate sys log key := [namespace + pod_name]
 		nsPodLogs := clusteringSystemLogsByNamespacePod(cfgFilteredLogs)
 		for sysKey, perPodlogs := range nsPodLogs {
+			discoveredSysPolicies := []types.KnoxSystemPolicy{}
+
 			pod, err := getPodInstance(sysKey, pods)
 			if err != nil {
 				log.Error().Msg(err.Error())
@@ -603,22 +602,22 @@ func DiscoverSystemPolicyMain() {
 
 			// 3. update selector
 			discoveredSysPolicies = updateSysPolicySelector(clusterName, pod, discoveredSysPolicies)
-		}
 
-		// update duplicated policy
-		newPolicies := UpdateDuplicatedPolicy(existingPolicies, discoveredSysPolicies, clusterName)
+			// 4. update duplicated policy
+			newPolicies := UpdateDuplicatedPolicy(existingPolicies, discoveredSysPolicies, clusterName)
 
-		if len(newPolicies) > 0 {
-			// insert discovered policies to db
-			if strings.Contains(SystemPolicyTo, "db") {
-				libs.InsertSystemPolicies(CfgDB, newPolicies)
+			if len(newPolicies) > 0 {
+				// insert discovered policies to db
+				if strings.Contains(SystemPolicyTo, "db") {
+					libs.InsertSystemPolicies(CfgDB, newPolicies)
+				}
+
+				log.Info().Msgf("-> System policy discovery done for cluster/namespace/pod: [%s/%s/%s], [%d] policies discovered", clusterName, pod.Namespace, pod.PodName, len(newPolicies))
 			}
 
-			log.Info().Msgf("-> System policy discovery done for cluster: [%s], [%d] policies discovered", clusterName, len(newPolicies))
-		}
-
-		if strings.Contains(SystemPolicyTo, "file") {
-			WriteSystemPoliciesToFile(clusterName, "multiubuntu")
+			if len(newPolicies) > 0 && strings.Contains(SystemPolicyTo, "file") {
+				WriteSystemPoliciesToFile(clusterName, "multiubuntu")
+			}
 		}
 	}
 }
