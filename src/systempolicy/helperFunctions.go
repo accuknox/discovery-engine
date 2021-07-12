@@ -85,6 +85,22 @@ func FilterSystemLogsByConfig(logs []types.KnoxSystemLog, pods []types.Pod) []ty
 	for _, log := range logs {
 		filtered := false
 
+		// basic checking
+		// if namespace or pod name is blank, skip
+		if log.Namespace == "" || log.PodName == "" {
+			continue
+		}
+
+		// if result is not Passed or Permission denied, skip
+		if log.Result != "Passed" && log.Result != "Permission denied" {
+			continue
+		}
+
+		// if the source is not the absolute path, skip it
+		if !strings.HasPrefix(log.Source, "/") {
+			continue
+		}
+
 		for _, filter := range SystemLogFilters {
 			checkItems := getHaveToCheckItems(filter)
 
