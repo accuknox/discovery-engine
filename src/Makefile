@@ -3,7 +3,7 @@ CURDIR=$(shell pwd)
 .PHONY: build
 build:
 	# for build_image -> CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -ldflags '-s -w' -o knoxAutoPolicy main.go
-	cd $(CURDIR); go build -o knoxAutoPolicy main.go
+	cd $(CURDIR); go mod tidy; go build -o knoxAutoPolicy main.go
 
 .PHONY: test
 test:
