@@ -3,6 +3,7 @@ package systempolicy
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -568,11 +569,14 @@ func DiscoverSystemPolicyMain() {
 	clusteredLogs := clusteringSystemLogsByCluster(allSystemkLogs)
 
 	for clusterName, sysLogs := range clusteredLogs {
+		log.Info().Msgf("System policy discovery started for cluster [%s]", clusterName)
+
 		// get existing system policies in db
 		existingPolicies := libs.GetSystemPolicies(CfgDB, "", "")
 
 		// get k8s pods
 		pods := cluster.GetPods(clusterName)
+		fmt.Println(len(pods))
 
 		// filter system logs from configuration
 		cfgFilteredLogs := FilterSystemLogsByConfig(sysLogs, pods)
