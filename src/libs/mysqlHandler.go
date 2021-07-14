@@ -332,14 +332,15 @@ func InsertSystemLogToMySQL(cfg types.ConfigDB, sle []types.SystemLogEvent) erro
 	db := connectMySQL(cfg)
 	defer db.Close()
 
-	sqlStr := "INSERT INTO " + cfg.TableSystemLog + "(timestamp,clusterName,hostName,namespaceName,podName,containerID,containerName,hostPid,ppid,pid,uid,type,source,operation,resource,data,result) VALUES "
+	sqlStr := "INSERT INTO " + cfg.TableSystemLog + "(timestamp,updatedTime,clusterName,hostName,namespaceName,podName,containerID,containerName,hostPid,ppid,pid,uid,type,source,operation,resource,data,result) VALUES "
 	vals := []interface{}{}
 
 	for _, e := range sle {
-		sqlStr += "(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?),"
+		sqlStr += "(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?),"
 
 		vals = append(vals,
 			e.Timestamp,
+			e.UpdatedTime,
 			e.ClusterName,
 			e.HostName,
 			e.NamespaceName,
@@ -415,14 +416,15 @@ func InsertSystemAlertToMySQL(cfg types.ConfigDB, sae []types.SystemAlertEvent) 
 	db := connectMySQL(cfg)
 	defer db.Close()
 
-	sqlStr := "INSERT INTO " + cfg.TableSystemAlert + "(timestamp,clusterName,hostName,namespaceName,podName,containerID,containerName,hostpid,ppid,pid,uid,policyName,severity,tags,message,type,source,operation,resource,data,action,result) VALUES "
+	sqlStr := "INSERT INTO " + cfg.TableSystemAlert + "(timestamp,updatedTime,clusterName,hostName,namespaceName,podName,containerID,containerName,hostpid,ppid,pid,uid,policyName,severity,tags,message,type,source,operation,resource,data,action,result) VALUES "
 	vals := []interface{}{}
 
 	for _, e := range sae {
-		sqlStr += "(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?),"
+		sqlStr += "(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?),"
 
 		vals = append(vals,
 			e.Timestamp,
+			e.UpdatedTime,
 			e.ClusterName,
 			e.HostName,
 			e.NamespaceName,
