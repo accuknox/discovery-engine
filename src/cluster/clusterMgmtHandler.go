@@ -68,7 +68,7 @@ func getResponseBytes(mothod string, url string, data map[string]interface{}) []
 	}
 
 	if !strings.Contains(string(resByte), "result") {
-		log.Error().Msgf("There is no results from the url: %s, msg: %s", url, string(resByte))
+		log.Error().Msgf("There is no results from the url: %s, input:%s, msg: %s", url, string(jsonData), string(resByte))
 		return nil
 	}
 
