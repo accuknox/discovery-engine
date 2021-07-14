@@ -332,7 +332,7 @@ func InsertSystemLogToMySQL(cfg types.ConfigDB, sle []types.SystemLogEvent) erro
 	db := connectMySQL(cfg)
 	defer db.Close()
 
-	sqlStr := "INSERT INTO " + cfg.TableSystemLog + "(time,cluster_name,node_name,namespace_name,pod_name,container_id,container_name,hostpid,ppid,pid,uid,type,source,operation,resource,data,result) VALUES "
+	sqlStr := "INSERT INTO " + cfg.TableSystemLog + "(timestamp,cluster_name,node_name,namespace_name,pod_name,container_id,container_name,hostpid,ppid,pid,uid,type,source,operation,resource,data,result) VALUES "
 	vals := []interface{}{}
 
 	for _, e := range sle {
@@ -415,7 +415,7 @@ func InsertSystemAlertToMySQL(cfg types.ConfigDB, sae []types.SystemAlertEvent) 
 	db := connectMySQL(cfg)
 	defer db.Close()
 
-	sqlStr := "INSERT INTO " + cfg.TableSystemAlert + "(time,cluster_name,node_name,namespace_name,pod_name,container_id,container_name,hostpid,ppid,pid,uid,policyName,severity,tags,message,type,source,operation,resource,data,action,result) VALUES "
+	sqlStr := "INSERT INTO " + cfg.TableSystemAlert + "(timestamp,cluster_name,node_name,namespace_name,pod_name,container_id,container_name,hostpid,ppid,pid,uid,policyName,severity,tags,message,type,source,operation,resource,data,action,result) VALUES "
 	vals := []interface{}{}
 
 	for _, e := range sae {
