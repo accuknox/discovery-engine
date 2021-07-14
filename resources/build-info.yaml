@@ -70,6 +70,9 @@ clair_properties:
        name: nordri/clair-scanner:latest  #nordri/clair-scanner:latest #artifactory.accuknox.com/accuknox/clair-scanner:alpine-3.12.4 
        docker_run_params:  --entrypoint='' -v /var/run/docker.sock:/var/run/docker.sock -v /root/.cache/:/root/.cache/
 
+slack_properties:
+   slack_url: https://hooks.slack.com/services/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
+
 #***********************************************************************************************************************************#
 #if we need to scan the image with anchore change the status: enable: "true" if need to disable the scan change this to "false" 
 #Pass the anchore cli artifactory image
