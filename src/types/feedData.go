@@ -26,8 +26,9 @@ type NetworkLogEvent struct {
 }
 
 type SystemLogEvent struct {
-	ID        int `json:"id,omitempty"`
-	Timestamp int `json:"timestamp,omitempty"`
+	ID          int    `json:"id,omitempty"`
+	Timestamp   int    `json:"timestamp,omitempty"`
+	UpdatedTime string `json:"updatedTime,omitempty"`
 
 	ClusterName   string `json:"clusterName,omitempty"`
 	HostName      string `json:"hostName,omitempty"`
@@ -50,8 +51,9 @@ type SystemLogEvent struct {
 }
 
 type SystemAlertEvent struct {
-	ID        int `json:"id,omitempty"`
-	Timestamp int `json:"timestamp,omitempty"`
+	ID          int    `json:"id,omitempty"`
+	Timestamp   int    `json:"timestamp,omitempty"`
+	UpdatedTime string `json:"updatedTime,omitempty"`
 
 	ClusterName   string `json:"clusterName,omitempty"`
 	HostName      string `json:"hostName,omitempty"`
