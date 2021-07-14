@@ -113,7 +113,7 @@ config:
       system-policy-dir: "./"
     cluster:
       cluster-info-from: "accuknox"            # k8sclient|accuknox
-      cluster-mgmt-url: "http://cluster-management-service.accuknox-dev-cluster-mgmt.svc.cluster.local/cm"
+      cluster-mgmt-url: "http://cluster-management-service.accuknox-dev-cluster-mgmt.svc.cluster.local"
 
   database:
     driver: mysql
