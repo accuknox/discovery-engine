@@ -137,7 +137,7 @@ config:
       bootstrap-servers: "dev-kafka-kafka-bootstrap.accuknox-dev-kafka.svc.cluster.local:9092"
       group-id: policy.cilium
       topics: 
-        - cilium-telemetry
+        - cilium-telemetry-new
         - kubearmor-syslogs
       ssl:
         enabled: false
