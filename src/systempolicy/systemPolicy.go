@@ -593,6 +593,7 @@ func DiscoverSystemPolicyMain() {
 			}
 
 			fmt.Println(pod, len(perPodlogs))
+			fmt.Println(perPodlogs)
 
 			// 1. discover file operation system policy
 			if SystemPolicyTypes&SYS_OP_FILE_INT > 0 {
@@ -609,8 +610,6 @@ func DiscoverSystemPolicyMain() {
 				discoveredSysPolicies = discoverProcessOperationPolicy(discoveredSysPolicies, pod, procOpLogs)
 				fmt.Println(discoveredSysPolicies)
 			}
-
-			fmt.Println("")
 
 			// 3. update selector
 			discoveredSysPolicies = updateSysPolicySelector(clusterName, pod, discoveredSysPolicies)
