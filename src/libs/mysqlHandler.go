@@ -1285,7 +1285,7 @@ func CreateTableConfigurationMySQL(cfg types.ConfigDB) error {
 			"	`system_policy_file_fromsource` tinyint(1) DEFAULT '0', " +
 
 			"	`cluster_info_from` varchar(50) DEFAULT NULL, " +
-			"	`cluster_mgmt_url` varchar(50) DEFAULT NULL, " +
+			"	`cluster_mgmt_url` varchar(1000) DEFAULT NULL, " +
 
 			"	PRIMARY KEY (`id`) " +
 			"  ); "
