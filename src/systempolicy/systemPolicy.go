@@ -3,7 +3,6 @@ package systempolicy
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -592,23 +591,16 @@ func DiscoverSystemPolicyMain() {
 				continue
 			}
 
-			fmt.Println(pod, len(perPodlogs))
-			fmt.Println(perPodlogs)
-
 			// 1. discover file operation system policy
 			if SystemPolicyTypes&SYS_OP_FILE_INT > 0 {
 				fileOpLogs := getOperationLogs(SYS_OP_FILE, perPodlogs)
-				fmt.Println(fileOpLogs)
 				discoveredSysPolicies = discoverFileOperationPolicy(discoveredSysPolicies, pod, fileOpLogs)
-				fmt.Println(discoveredSysPolicies)
 			}
 
 			// 2. discover process operation system policy
 			if SystemPolicyTypes&SYS_OP_PROCESS_INT > 0 {
 				procOpLogs := getOperationLogs(SYS_OP_PROCESS, perPodlogs)
-				fmt.Println(procOpLogs)
 				discoveredSysPolicies = discoverProcessOperationPolicy(discoveredSysPolicies, pod, procOpLogs)
-				fmt.Println(discoveredSysPolicies)
 			}
 
 			// 3. update selector
