@@ -3,7 +3,6 @@ package systempolicy
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -576,7 +575,6 @@ func DiscoverSystemPolicyMain() {
 
 		// get k8s pods
 		pods := cluster.GetPods(clusterName)
-		fmt.Println(len(pods))
 
 		// filter system logs from configuration
 		cfgFilteredLogs := FilterSystemLogsByConfig(sysLogs, pods)

@@ -30,7 +30,9 @@ type SystemLogEvent struct {
 	Timestamp   int    `json:"timestamp,omitempty"`
 	UpdatedTime string `json:"updatedTime,omitempty"`
 
-	ClusterName   string `json:"cluster_name,omitempty"`
+	Clustername string `json:"cluster_name,omitempty"` // for knox feeder consumer
+
+	ClusterName   string `json:"clusterName,omitempty"`
 	HostName      string `json:"hostName,omitempty"`
 	NamespaceName string `json:"namespaceName,omitempty"`
 	PodName       string `json:"podName,omitempty"`
@@ -55,7 +57,9 @@ type SystemAlertEvent struct {
 	Timestamp   int    `json:"timestamp,omitempty"`
 	UpdatedTime string `json:"updatedTime,omitempty"`
 
-	ClusterName   string `json:"cluster_name,omitempty"`
+	Clustername string `json:"cluster_name,omitempty"` // for knox feeder consumer
+
+	ClusterName   string `json:"clusterName,omitempty"`
 	HostName      string `json:"hostName,omitempty"`
 	NamespaceName string `json:"namespaceName,omitempty"`
 	PodName       string `json:"podName,omitempty"`
