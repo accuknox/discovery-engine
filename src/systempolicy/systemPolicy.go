@@ -576,17 +576,13 @@ func DiscoverSystemPolicyMain() {
 
 		// get k8s pods
 		pods := cluster.GetPods(clusterName)
-		fmt.Println("Pod, syslogs ", len(pods), len(sysLogs))
 
 		// filter system logs from configuration
 		cfgFilteredLogs := FilterSystemLogsByConfig(sysLogs, pods)
-		fmt.Println("cfgFilteredLogs ", len(cfgFilteredLogs))
 
 		// iterate sys log key := [namespace + pod_name]
 		nsPodLogs := clusteringSystemLogsByNamespacePod(cfgFilteredLogs)
-		fmt.Println("nsPodLogs ", len(nsPodLogs))
 		for sysKey, perPodlogs := range nsPodLogs {
-			fmt.Println("sysKey ", sysKey, len(perPodlogs))
 
 			discoveredSysPolicies := []types.KnoxSystemPolicy{}
 
@@ -595,19 +591,26 @@ func DiscoverSystemPolicyMain() {
 				log.Error().Msg(err.Error())
 				continue
 			}
-			fmt.Println("pod ", pod)
+
+			fmt.Println(pod, len(perPodlogs))
 
 			// 1. discover file operation system policy
 			if SystemPolicyTypes&SYS_OP_FILE_INT > 0 {
 				fileOpLogs := getOperationLogs(SYS_OP_FILE, perPodlogs)
+				fmt.Println(fileOpLogs)
 				discoveredSysPolicies = discoverFileOperationPolicy(discoveredSysPolicies, pod, fileOpLogs)
+				fmt.Println(discoveredSysPolicies)
 			}
 
 			// 2. discover process operation system policy
 			if SystemPolicyTypes&SYS_OP_PROCESS_INT > 0 {
 				procOpLogs := getOperationLogs(SYS_OP_PROCESS, perPodlogs)
+				fmt.Println(procOpLogs)
 				discoveredSysPolicies = discoverProcessOperationPolicy(discoveredSysPolicies, pod, procOpLogs)
+				fmt.Println(discoveredSysPolicies)
 			}
+
+			fmt.Println("")
 
 			// 3. update selector
 			discoveredSysPolicies = updateSysPolicySelector(clusterName, pod, discoveredSysPolicies)
