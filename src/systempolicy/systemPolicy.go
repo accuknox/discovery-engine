@@ -3,6 +3,7 @@ package systempolicy
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -575,13 +576,18 @@ func DiscoverSystemPolicyMain() {
 
 		// get k8s pods
 		pods := cluster.GetPods(clusterName)
+		fmt.Println("Pod, syslogs ", len(pods), len(sysLogs))
 
 		// filter system logs from configuration
 		cfgFilteredLogs := FilterSystemLogsByConfig(sysLogs, pods)
+		fmt.Println("cfgFilteredLogs ", len(cfgFilteredLogs))
 
 		// iterate sys log key := [namespace + pod_name]
 		nsPodLogs := clusteringSystemLogsByNamespacePod(cfgFilteredLogs)
+		fmt.Println("nsPodLogs ", len(nsPodLogs))
 		for sysKey, perPodlogs := range nsPodLogs {
+			fmt.Println("sysKey ", sysKey, len(perPodlogs))
+
 			discoveredSysPolicies := []types.KnoxSystemPolicy{}
 
 			pod, err := getPodInstance(sysKey, pods)
@@ -589,6 +595,7 @@ func DiscoverSystemPolicyMain() {
 				log.Error().Msg(err.Error())
 				continue
 			}
+			fmt.Println("pod ", pod)
 
 			// 1. discover file operation system policy
 			if SystemPolicyTypes&SYS_OP_FILE_INT > 0 {
