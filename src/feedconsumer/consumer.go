@@ -88,6 +88,8 @@ func (cfc *KnoxFeedConsumer) setupKafkaConfig() {
 		"auto.offset.reset":     autoOffsetReset,
 	}
 
+	fmt.Println(autoOffsetReset)
+
 	// Set up SSL specific configs if SSL is enabled
 	if sslEnabled {
 		if err := cfc.kafkaConfig.SetKey("security.protocol", securityProtocol); err != nil {
@@ -231,10 +233,6 @@ func (cfc *KnoxFeedConsumer) processSystemLogMessage(message []byte) error {
 		log.Error().Msgf("Error unumarshaling event: %s\n", err.Error())
 		return err
 	}
-
-	fmt.Println(string(message))
-	fmt.Println(syslogEvent.Time)
-	fmt.Println("")
 
 	syslogEvents = append(syslogEvents, syslogEvent)
 	syslogEventsCount++
