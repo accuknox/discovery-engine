@@ -27,6 +27,7 @@ type NetworkLogEvent struct {
 
 type SystemLogEvent struct {
 	ID          int    `json:"id,omitempty"`
+	Time        string `json:"time,omitempty"`
 	Timestamp   int    `json:"timestamp,omitempty"`
 	UpdatedTime string `json:"updatedTime,omitempty"`
 

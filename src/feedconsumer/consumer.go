@@ -3,6 +3,7 @@ package feedconsumer
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"sync"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
@@ -230,6 +231,10 @@ func (cfc *KnoxFeedConsumer) processSystemLogMessage(message []byte) error {
 		log.Error().Msgf("Error unumarshaling event: %s\n", err.Error())
 		return err
 	}
+
+	fmt.Println(string(message))
+	fmt.Println(syslogEvent.Time)
+	fmt.Println("")
 
 	syslogEvents = append(syslogEvents, syslogEvent)
 	syslogEventsCount++
