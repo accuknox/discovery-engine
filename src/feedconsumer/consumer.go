@@ -3,7 +3,6 @@ package feedconsumer
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"sync"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
@@ -87,8 +86,6 @@ func (cfc *KnoxFeedConsumer) setupKafkaConfig() {
 		"session.timeout.ms":    sessionTimeoutMs,
 		"auto.offset.reset":     autoOffsetReset,
 	}
-
-	fmt.Println(autoOffsetReset)
 
 	// Set up SSL specific configs if SSL is enabled
 	if sslEnabled {
