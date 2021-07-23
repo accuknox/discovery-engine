@@ -12,11 +12,11 @@ fi
 # fetch upstream
 git fetch upstream
 
-# switch to master
-git checkout master
+# switch to dev
+git checkout dev
 
 # merge upstream/master
-git merge upstream/master
+git merge upstream/dev
 
 # push to my repo
-git push origin master
+git push origin dev
