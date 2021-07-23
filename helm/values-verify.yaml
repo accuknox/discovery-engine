@@ -139,7 +139,7 @@ config:
         - cilium-telemetry
         - kubearmor-syslogs
       ssl:
-        enabled: false
+        enabled: true
       events:
         buffer: 50
 
