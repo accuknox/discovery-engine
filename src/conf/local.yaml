@@ -37,16 +37,18 @@ feed-consumer:
   kafka:
     broker-address-family: v4
     session-timeout-ms: 6000
-    auto-offset-reset: "earliest"
+    auto-offset-reset: "latest"
     bootstrap-servers: "dev-kafka-kafka-bootstrap.accuknox-dev-kafka.svc.cluster.local:9092"
     group-id: policy.cilium
     topics: 
-      - cilium-telemetry
+      - cilium-telemetry-new
       - kubearmor-syslogs
+    security:
+      protocol: SSL
     ssl:
       enabled: false
     events:
-      buffer: 50
+      buffer: 100
 
 logging:
   level: "INFO"

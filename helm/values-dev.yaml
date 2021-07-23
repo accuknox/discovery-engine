@@ -139,10 +139,12 @@ config:
       topics: 
         - cilium-telemetry-new
         - kubearmor-syslogs
+      security:
+        protocol: SSL
       ssl:
         enabled: false
       events:
-        buffer: 50
+        buffer: 100
 
   logging:
     level: "INFO"
