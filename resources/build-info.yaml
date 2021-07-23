@@ -135,7 +135,7 @@ helm_build:
   - name: Helm-Build
     image:
       name: "artifactory.accuknox.com/accuknox/custom-helm-image:latest"
-      docker_run_params: ""artifactory
+      docker_run_params: ""
     helm_dir: helm
     tag: 1.0.0
     commands:
