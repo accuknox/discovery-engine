@@ -138,7 +138,7 @@ config:
     kafka:
       broker-address-family: v4
       session-timeout-ms: 6000
-      auto-offset-reset: "earliest"
+      auto-offset-reset: "latest"
       bootstrap-servers: "dev-kafka-kafka-external-bootstrap.accuknox-dev-kafka.svc.cluster.local:9095"
       group-id: policy.cilium
       topics: 
