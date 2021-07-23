@@ -148,11 +148,11 @@ config:
         protocol: SSL
       ssl:
         enabled: true
-        ca:
-          location: /kafka-ssl/ca.pem
-        keystore:
-          location: /kafka-ssl/user.p12
-          pword: DHmHwNYy22At
+      ca:
+        location: /kafka-ssl/ca.pem
+      keystore:
+        location: /kafka-ssl/user.p12
+        pword: DHmHwNYy22At
       events:
         buffer: 100
 

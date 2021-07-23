@@ -74,9 +74,9 @@ func (cfc *KnoxFeedConsumer) setupKafkaConfig() {
 
 	sslEnabled := viper.GetBool("feed-consumer.kafka.ssl.enabled")
 	securityProtocol := viper.GetString("feed-consumer.kafka.security.protocol")
-	sslCALocation := viper.GetString("feed-consumer.kafka.ssl.ca.location")
-	sslKeystoreLocation := viper.GetString("feed-consumer.kafka.ssl.keystore.location")
-	sslKeystorePassword := viper.GetString("feed-consumer.kafka.ssl.keystore.pword")
+	sslCALocation := viper.GetString("feed-consumer.kafka.ca.location")
+	sslKeystoreLocation := viper.GetString("feed-consumer.kafka.keystore.location")
+	sslKeystorePassword := viper.GetString("feed-consumer.kafka.keystore.pword")
 
 	// Set up required configs
 	cfc.kafkaConfig = kafka.ConfigMap{
