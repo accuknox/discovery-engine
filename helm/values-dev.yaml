@@ -154,7 +154,7 @@ config:
         location: /kafka-ssl/user.p12
         pword: DHmHwNYy22At
       events:
-        buffer: 100
+        buffer: 50
 
   logging:
     level: "INFO"
