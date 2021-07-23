@@ -27,8 +27,6 @@ RUN go build -o knoxAutoPolicy main.go
 #FROM debian:latest
 FROM artifactory.accuknox.com/accuknox/ubuntu:21.10
 
-RUN apt-get update -y && apt-get install -y ca-certificates
-
 COPY ./src/conf/local.yaml conf/conf.yaml
 COPY --from=builder /usr/src/knox/knoxAutoPolicy /knoxAutoPolicy
 
