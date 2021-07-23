@@ -138,8 +138,8 @@ config:
     kafka:
       broker-address-family: v4
       session-timeout-ms: 6000
-      auto-offset-reset: "latest"
-      bootstrap-servers: "dev-kafka-kafka-bootstrap.accuknox-dev-kafka.svc.cluster.local:9095"
+      auto-offset-reset: "earliest"
+      bootstrap-servers: "dev-kafka-kafka-external-bootstrap.accuknox-dev-kafka.svc.cluster.local:9095"
       group-id: policy.cilium
       topics: 
         - cilium-telemetry-new
@@ -152,9 +152,9 @@ config:
         location: /kafka-ssl/ca.pem
       keystore:
         location: /kafka-ssl/user.p12
-        password: DHmHwNYy22At
+        pword: DHmHwNYy22At
       events:
-        buffer: 50
+        buffer: 100
 
   logging:
     level: "INFO"
