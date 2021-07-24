@@ -65,7 +65,7 @@ func (cfc *KnoxFeedConsumer) setupKafkaConfig() {
 	sessionTimeoutMs := viper.GetString("feed-consumer.kafka.session-timeout-ms")
 	autoOffsetReset := viper.GetString("feed-consumer.kafka.auto-offset-reset")
 
-	// groupID := viper.GetString("feed-consumer.kafka.group-id")
+	groupID := viper.GetString("feed-consumer.kafka.group-id")
 	cfc.topics = viper.GetStringSlice("feed-consumer.kafka.topics")
 	cfc.eventsBuffer = viper.GetInt("feed-consumer.kafka.events.buffer")
 
@@ -80,11 +80,13 @@ func (cfc *KnoxFeedConsumer) setupKafkaConfig() {
 
 	// Set up required configs
 	cfc.kafkaConfig = kafka.ConfigMap{
-		"bootstrap.servers":     bootstrapServers,
-		"broker.address.family": brokderAddressFamily,
-		// "group.id":              groupID,
-		"session.timeout.ms": sessionTimeoutMs,
-		"auto.offset.reset":  autoOffsetReset,
+		"enable.auto.commit":      true,
+		"auto.commit.interval.ms": 1000,
+		"bootstrap.servers":       bootstrapServers,
+		"broker.address.family":   brokderAddressFamily,
+		"group.id":                groupID,
+		"session.timeout.ms":      sessionTimeoutMs,
+		"auto.offset.reset":       autoOffsetReset,
 	}
 
 	// Set up SSL specific configs if SSL is enabled
