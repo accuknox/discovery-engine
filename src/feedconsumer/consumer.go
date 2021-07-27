@@ -25,6 +25,9 @@ const ( // status
 // == Gloabl Variables == //
 // ====================== //
 
+var numOfConsumers int
+var consumers []*KnoxFeedConsumer
+
 var consumer *KnoxFeedConsumer
 
 var Status string
@@ -47,6 +50,9 @@ func init() {
 	consumer = &KnoxFeedConsumer{}
 
 	Status = STATUS_IDLE
+
+	numOfConsumers = 3
+	consumers = []*KnoxFeedConsumer{}
 }
 
 // ======================== //
@@ -54,6 +60,7 @@ func init() {
 // ======================== //
 
 type KnoxFeedConsumer struct {
+	id           int
 	kafkaConfig  kafka.ConfigMap
 	topics       []string
 	eventsBuffer int
@@ -128,7 +135,7 @@ func (cfc *KnoxFeedConsumer) startConsumer() {
 	for run {
 		select {
 		case <-stopChan:
-			log.Info().Msgf("Got a signal to terminate the consumer")
+			log.Info().Msgf("Got a signal to terminate the consumer %d", cfc.id)
 			run = false
 
 		default:
@@ -170,7 +177,7 @@ func (cfc *KnoxFeedConsumer) startConsumer() {
 		}
 	}
 
-	log.Info().Msgf("Closing consumer")
+	log.Info().Msgf("Closing consumer %d", cfc.id)
 	if err := c.Close(); err != nil {
 		log.Error().Msg(err.Error())
 	}
@@ -267,21 +274,32 @@ func (cfc *KnoxFeedConsumer) PushSystemLogToDB() bool {
 
 func StartConsumer() {
 	if Status == STATUS_RUNNING {
-		log.Info().Msg("There is already running consumer")
+		log.Info().Msg("There is already running consumer(s)")
 		return
 	}
 
-	consumer.setupKafkaConfig()
+	n := 0
+	for n < numOfConsumers {
+		c := &KnoxFeedConsumer{
+			id: n + 1,
+		}
+
+		c.setupKafkaConfig()
+		consumers = append(consumers, c)
+		go c.startConsumer()
+		waitG.Add(1)
+		n++
+	}
+
 	stopChan = make(chan struct{})
-	go consumer.startConsumer()
 	Status = STATUS_RUNNING
-	waitG.Add(1)
-	log.Info().Msg("Knox feed consumer started")
+
+	log.Info().Msg("Knox feed consumer(s) started")
 }
 
 func StopConsumer() {
 	if Status != STATUS_RUNNING {
-		log.Info().Msg("There is no running consumer")
+		log.Info().Msg("There is no running consumer(s)")
 		return
 	}
 
@@ -289,5 +307,7 @@ func StopConsumer() {
 	close(stopChan)
 	waitG.Wait()
 
-	log.Info().Msg("Knox feed consumer stopped")
+	consumers = []*KnoxFeedConsumer{} // clear
+
+	log.Info().Msg("Knox feed consumer(s) stopped")
 }
