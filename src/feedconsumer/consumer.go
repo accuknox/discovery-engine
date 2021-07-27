@@ -289,9 +289,7 @@ func StartConsumer() {
 	n := 0
 	for n < numOfConsumers {
 		c := &KnoxFeedConsumer{
-			id:           n + 1,
-			netLogEvents: []types.NetworkLogEvent{},
-			syslogEvents: []types.SystemLogEvent{},
+			id: n + 1,
 		}
 
 		c.setupKafkaConfig()
