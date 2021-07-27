@@ -35,20 +35,27 @@ database:
 
 feed-consumer:
   kafka:
+    number-of-consumers: 3
     broker-address-family: v4
     session-timeout-ms: 6000
     auto-offset-reset: "earliest"
-    bootstrap-servers: "dev-kafka-kafka-bootstrap.accuknox-dev-kafka.svc.cluster.local:9092"
-    group-id: policy.cilium
+    # auto-offset-reset: "latest"
+    bootstrap-servers: "dev-kafka-kafka-external-bootstrap.accuknox-dev-kafka.svc.cluster.local:9095"
+    group-id: knoxautopolicy
     topics: 
       - cilium-telemetry-new
       - kubearmor-syslogs
     security:
       protocol: SSL
     ssl:
-      enabled: false
+      enabled: true
+    ca:
+      location: /kafka-ssl/ca.pem
+    keystore:
+      location: /kafka-ssl/user.p12
+      pword: DHmHwNYy22At
     events:
-      buffer: 100
+      buffer: 50
 
 logging:
   level: "INFO"
