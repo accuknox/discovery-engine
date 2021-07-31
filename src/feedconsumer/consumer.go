@@ -42,6 +42,8 @@ func init() {
 	Status = STATUS_IDLE
 
 	consumers = []*KnoxFeedConsumer{}
+
+	numOfConsumers = viper.GetInt("feed-consumer.kafka.number-of-consumers")
 }
 
 // ======================== //
@@ -62,8 +64,6 @@ type KnoxFeedConsumer struct {
 }
 
 func (cfc *KnoxFeedConsumer) setupKafkaConfig() {
-	numOfConsumers = viper.GetInt("feed-consumer.kafka.number-of-consumers")
-
 	bootstrapServers := viper.GetString("feed-consumer.kafka.bootstrap-servers")
 	brokderAddressFamily := viper.GetString("feed-consumer.kafka.broker-address-family")
 	sessionTimeoutMs := viper.GetString("feed-consumer.kafka.session-timeout-ms")
