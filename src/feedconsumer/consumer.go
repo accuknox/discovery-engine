@@ -3,7 +3,6 @@ package feedconsumer
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"sync"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
@@ -287,8 +286,6 @@ func StartConsumer() {
 		c := &KnoxFeedConsumer{
 			id: n + 1,
 		}
-
-		fmt.Println(n, c)
 
 		c.setupKafkaConfig()
 		consumers = append(consumers, c)

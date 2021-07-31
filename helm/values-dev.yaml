@@ -136,7 +136,7 @@ config:
 
   feed-consumer:
     kafka:
-      number-of-consumers: 3
+      number-of-consumers: 2
       broker-address-family: v4
       session-timeout-ms: 6000
       auto-offset-reset: "earliest"
