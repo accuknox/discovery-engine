@@ -42,8 +42,6 @@ func init() {
 	Status = STATUS_IDLE
 
 	consumers = []*KnoxFeedConsumer{}
-
-	numOfConsumers = viper.GetInt("feed-consumer.kafka.number-of-consumers")
 }
 
 // ======================== //
@@ -272,6 +270,8 @@ func (cfc *KnoxFeedConsumer) PushSystemLogToDB() bool {
 // =================== //
 
 func StartConsumer() {
+	numOfConsumers = viper.GetInt("feed-consumer.kafka.number-of-consumers")
+
 	if Status == STATUS_RUNNING {
 		log.Info().Msg("There is already running consumer(s)")
 		return
