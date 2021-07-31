@@ -126,9 +126,7 @@ func (cfc *KnoxFeedConsumer) startConsumer() {
 		return
 	}
 
-	log.Debug().Msgf("Topics: %v", cfc.topics)
-
-	log.Info().Msgf("Starting consumer %d", cfc.id)
+	log.Info().Msgf("Starting consumer %d, topics: %v", cfc.id, cfc.topics)
 
 	run := true
 	for run {
