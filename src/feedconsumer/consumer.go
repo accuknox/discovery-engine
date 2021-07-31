@@ -278,7 +278,7 @@ func StartConsumer() {
 	}
 
 	n := 0
-	log.Info().Msgf("Knox feed consumer(s) started %d", numOfConsumers)
+	log.Info().Msgf("%d Knox feed consumer(s) started", numOfConsumers)
 
 	for n < numOfConsumers {
 		c := &KnoxFeedConsumer{
