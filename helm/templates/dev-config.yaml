@@ -1,7 +1,7 @@
 apiVersion: v1 
 kind: ConfigMap 
 metadata: 
-    name: knoxautopolicy-config
+    name: {{ .Values.labels.app }}-config
     #namespace: {{ .Release.Namespace }} 
 data:
   conf.yaml: |-

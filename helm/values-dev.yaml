@@ -3,12 +3,16 @@
 # Declare variables to be passed into your templates.
 
 replicaCount: 1
-knoxautopolicy:
-  image:
-    repository: us.gcr.io/mimetic-kit-294408/accuknox-agents/dev/knoxautopolicy
-    pullPolicy: Always
-    # Overrides the image tag whose default is the chart appVersion.
-    tag: ""
+
+image:
+  repository: agents.accuknox.com/repository/docker-dev/knoxautopolicy
+  pullPolicy: Always
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+
+labels:
+  app: knoxautopolicy
+  env: dev
 
 namespace: accuknox-dev-knoxautopolicy
 
@@ -70,21 +74,16 @@ ingress:
   #    hosts:
   #      - chart-example.local
 
-
-resources: {}
-  # We usually recommend not to specify default resources and to leave this as a conscious
-  # choice for the user. This also increases chances charts run on environments with little
-  # resources, such as Minikube. If you do want to specify resources, uncomment the following
-  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
-  # limits:
-  #   cpu: 100m
-  #   memory: 128Mi
-  # requests:
-  #   cpu: 100m
-  #   memory: 128Mi
+resources:
+  requests:
+    cpu: 400m
+    memory: 450Mi
+  limits:
+    cpu: 200m
+    memory: 250Mi
 
 autoscaling:
-  enabled: false
+  enabled: true
   minReplicas: 1
   maxReplicas: 100
   targetCPUUtilizationPercentage: 80

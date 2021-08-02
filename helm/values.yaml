@@ -1,14 +1,17 @@
 # Default values for helm.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
-
 replicaCount: 1
-knoxautopolicy:
-  image:
-    repository: gcr.io/mimetic-kit-294408/snapshot/knoxautopolicy
-    pullPolicy: Always
-    # Overrides the image tag whose default is the chart appVersion.
-    tag: "1.0"
+
+image:
+  repository: gcr.io/accuknox/dev/knoxautopolicy
+  pullPolicy: Always
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+
+labels:
+  app: knoxautopolicy
+  env: dev
 
 namespace: accuknox-dev-knoxautopolicy
 
@@ -49,8 +52,9 @@ securityContext: {}
   # runAsUser: 1000
 
 service:
-  type: ClusterIP
   port: 9089
+  targetPort: 9089
+  protocol: TCP
 
 ingress:
   enabled: false
@@ -65,25 +69,20 @@ ingress:
   #    hosts:
   #      - chart-example.local
 
-
-resources: {}
-  # We usually recommend not to specify default resources and to leave this as a conscious
-  # choice for the user. This also increases chances charts run on environments with little
-  # resources, such as Minikube. If you do want to specify resources, uncomment the following
-  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
-  # limits:
-  #   cpu: 100m
-  #   memory: 128Mi
-  # requests:
-  #   cpu: 100m
-  #   memory: 128Mi
+resources:
+  requests:
+    cpu: 200m
+    memory: 250Mi
+  limits:
+    cpu: 400m
+    memory: 450Mi
 
 autoscaling:
-  enabled: false
+  enabled: true
   minReplicas: 1
   maxReplicas: 100
   targetCPUUtilizationPercentage: 80
-  # targetMemoryUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
 
 nodeSelector: {}
 

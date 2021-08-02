@@ -3,12 +3,16 @@
 # Declare variables to be passed into your templates.
 
 replicaCount: 1
-knoxautopolicy:
-  image:
-    repository: gcr.io/mimetic-kit-294408/verify/knoxautopolicy
-    pullPolicy: Always
-    # Overrides the image tag whose default is the chart appVersion.
-    tag: ""
+
+image:
+  repository: agents.accuknox.com/repository/docker-verify/knoxautopolicy
+  pullPolicy: Always
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+
+labels:
+  app: knoxautopolicy
+  env: verify
 
 namespace: accuknox-verify-knoxautopolicy
 
@@ -66,24 +70,20 @@ ingress:
   #      - chart-example.local
 
 
-resources: {}
-  # We usually recommend not to specify default resources and to leave this as a conscious
-  # choice for the user. This also increases chances charts run on environments with little
-  # resources, such as Minikube. If you do want to specify resources, uncomment the following
-  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
-  # limits:
-  #   cpu: 100m
-  #   memory: 128Mi
-  # requests:
-  #   cpu: 100m
-  #   memory: 128Mi
+resources: 
+  requests:
+    cpu: 400m
+    memory: 450Mi
+  limits:
+    cpu: 200m
+    memory: 250Mi
 
 autoscaling:
-  enabled: false
+  enabled: true
   minReplicas: 1
   maxReplicas: 100
   targetCPUUtilizationPercentage: 80
-  # targetMemoryUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
 
 nodeSelector: {}
 
@@ -133,7 +133,7 @@ config:
       broker-address-family: v4
       session-timeout-ms: 6000
       auto-offset-reset: "earliest"
-      bootstrap-servers: "dev-kafka-kafka-bootstrap.accuknox-dev-kafka.svc.cluster.local:9092"
+      bootstrap-servers: "accuknox-verify-kafka-kafka-bootstrap.accuknox-verify-kafka.svc.cluster.local:9092"
       group-id: policy.cilium
       topics: 
         - cilium-telemetry

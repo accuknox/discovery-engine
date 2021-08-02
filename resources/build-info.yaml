@@ -97,7 +97,7 @@ sonar_properties:
   status:
     enabled: "true"
   quality_gate:
-    enabled: "false"
+    enabled: "true"
     timeout: "3"
   sonarqube_server_name: "sonar-scan"
   sonar_runnner_tools_name: "SonarQubeScanner"
@@ -153,28 +153,24 @@ publish_config:
     docker:
       snapshot: agents.accuknox.com/repository/docker-snapshot
       dev:  agents.accuknox.com/repository/docker-dev
-      verify:  agents.accuknox.com/repository/accu-docker
-      prod:  agents.accuknox.com/repository/accu-docker
+      verify:  agents.accuknox.com/repository/docker-verify
+      prod:  agents.accuknox.com/repository
     helm:
       snapshot: https://agents.accuknox.com/repository/helm-snapshot/
       dev: https://agents.accuknox.com/repository/helm-dev/
       verify: https://agents.accuknox.com/repository/helm-verify/
       prod: https://agents.accuknox.com/repository/helm-prod/
 
-
-gcr_agent_properties:
-  agent: true
-
 gcr_config:
   dev:
     project: 'mimetic-kit-294408'
-    gcr_credentials: 'gcr-prod'
+    gcr_credentials: 'gcr-creds'
   verify:
     project: 'mimetic-kit-294408'
-    gcr_credentials: 'gcr-prod'
+    gcr_credentials: 'gcr-creds'
   prod:
     project: 'mimetic-kit-294408'
-    gcr_credentials: 'gcr-prod'
+    gcr_credentials: 'gcr-creds'
     
 deploy_config:
   cd_credentials: "github-token"
@@ -190,7 +186,7 @@ argocd:
   #*********************************************************************************************#
   #               Argocd Configuration for dev Environment.
   #*********************************************************************************************#
-  enable: true
+  enable: false
   dev: 
     server: "argocd-dev.accuknox.com"                  #Argocd server name or url
     credentials: "argocdcred"                          #Credentials for Argocd
