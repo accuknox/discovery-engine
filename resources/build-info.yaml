@@ -97,7 +97,7 @@ sonar_properties:
   status:
     enabled: "true"
   quality_gate:
-    enabled: "false"
+    enabled: "true"
     timeout: "3"
   sonarqube_server_name: "sonar-scan"
   sonar_runnner_tools_name: "SonarQubeScanner"
