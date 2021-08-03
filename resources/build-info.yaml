@@ -80,14 +80,14 @@ slack_properties:
 #***********************************************************************************************************************************#
 anchore_properties:
   status:
-    enabled: "false"
+    enabled: "true"
   image:
       name: artifactory.accuknox.com/accuknox/anchore-engine-cli:latest
       docker_run_params:  --entrypoint=''
   anchore_conf:
   -   anchore.user: "admin"
       anchore.pass: "foobar"
-      anchore.url: "http://jenkinsm01.accuknox.com:8228/v1/"
+      anchore.url: "http://jmslave01.accuknox.com:8228/v1/"
 
 #***********************************************************************************************************************************#
 #Pass the sonarqube name and sonarrunner name which is configured in Managed-Jenkins.
