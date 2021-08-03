@@ -87,7 +87,7 @@ anchore_properties:
   anchore_conf:
   -   anchore.user: "admin"
       anchore.pass: "foobar"
-      anchore.url: "http://35.184.197.198:8228/v1/" #"http://jenkinsm01.accuknox.com:8228/v1/"
+      anchore.url: "http://jenkinsm01.accuknox.com:8228/v1/"
 
 #***********************************************************************************************************************************#
 #Pass the sonarqube name and sonarrunner name which is configured in Managed-Jenkins.

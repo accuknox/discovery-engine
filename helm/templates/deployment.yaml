@@ -14,9 +14,11 @@ spec:
         container: {{ .Values.labels.app }}
       annotations:
         checksum.helm.kubernetes.io/configmap: {{ include (print $.Chart.Name "/templates/dev-config.yaml") . | sha256sum }}
+        checksum.helm.kubernetes.io/secret: {{ include (print $.Chart.Name "/templates/kafka-secret.yaml") . | sha256sum }}
         checksum.helm.kubernetes.io/secret: {{ include (print $.Chart.Name "/templates/secret.yaml") . | sha256sum }}
     spec:
       imagePullSecrets:
+      - name: agent-creds
       containers:
       - image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
         name: knoxautopolicy
@@ -26,6 +28,6 @@ spec:
         volumeMounts:
 {{ toYaml .Values.volumeMounts | indent 10 }}
         resources: 
-{{ toYaml .Values.volumes | indent 10 }}
+{{ toYaml .Values.resources | indent 10 }}
       volumes:
-{{ toYaml .Values.resources | indent 8 }}
+{{ toYaml .Values.volumes | indent 8 }}
