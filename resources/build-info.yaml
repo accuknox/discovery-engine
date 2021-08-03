@@ -123,8 +123,8 @@ sonar_properties:
       sonar.web.host: https://sq01.accuknox.com
       sonar.login: sonar-ci-cred
 
-kubehunter_properties:
-  cluster_ip: "35.188.158.69"
+#kubehunter_properties:
+# cluster_ip: "35.188.158.69"
 
 #***********************************************************************************************************************************#
 # Lints and package the helm chart
