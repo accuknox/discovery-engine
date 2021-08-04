@@ -1,10 +1,11 @@
 # Default values for helm.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
+
 replicaCount: 1
 
 image:
-  repository: gcr.io/accuknox/dev/knoxautopolicy
+  repository: agents.accuknox.com/repository/docker-dev/knoxautopolicy
   pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""
@@ -19,11 +20,16 @@ volumeMounts:
   - mountPath: /conf
     name: config-volume
     readOnly: true
+  - mountPath: /kafka-ssl
+    name: knoxautopolicy-kafka-ssl-volume
+    readOnly: true
 volumes:
   - name: config-volume
     configMap:
       name: knoxautopolicy-config
-
+  - name: knoxautopolicy-kafka-ssl-volume
+    secret:
+      secretName: knoxautopolicy-kafka-ssl
 
 imagePullSecrets: []
 nameOverride: ""
@@ -52,9 +58,8 @@ securityContext: {}
   # runAsUser: 1000
 
 service:
+  type: ClusterIP
   port: 9089
-  targetPort: 9089
-  protocol: TCP
 
 ingress:
   enabled: false
@@ -79,10 +84,10 @@ resources:
 
 autoscaling:
   enabled: true
-  minReplicas: 1
-  maxReplicas: 100
-  targetCPUUtilizationPercentage: 80
-  targetMemoryUtilizationPercentage: 80
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 75
+  targetMemoryUtilizationPercentage: 75
 
 nodeSelector: {}
 
