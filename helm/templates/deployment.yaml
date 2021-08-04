@@ -6,7 +6,7 @@ metadata:
 {{ toYaml .Values.labels | indent 4 }}
 spec:
   {{- if not .Values.autoscaling.enabled }}
-  replicas: {{ .Values.replica.replicaCount }}
+  replicas: {{ .Values.replicaCount }}
   {{- end }}
   
   selector:
