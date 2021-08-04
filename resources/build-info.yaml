@@ -186,7 +186,7 @@ argocd:
   #*********************************************************************************************#
   #               Argocd Configuration for dev Environment.
   #*********************************************************************************************#
-  enable: true
+  enable: false
   dev: 
     server: "argocd-dev.accuknox.com"                  #Argocd server name or url
     credentials: "argocdcred"                          #Credentials for Argocd
