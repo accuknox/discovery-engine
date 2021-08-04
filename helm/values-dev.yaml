@@ -87,7 +87,7 @@ autoscaling:
   minReplicas: 1
   maxReplicas: 100
   targetCPUUtilizationPercentage: 80
-  # targetMemoryUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
 
 nodeSelector: {}
 
@@ -139,7 +139,6 @@ config:
       broker-address-family: v4
       session-timeout-ms: 6000
       auto-offset-reset: "earliest"
-      # auto-offset-reset: "latest"
       bootstrap-servers: "dev-kafka-kafka-external-bootstrap.accuknox-dev-kafka.svc.cluster.local:9095"
       group-id: knoxautopolicy
       topics: 
