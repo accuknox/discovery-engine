@@ -112,7 +112,7 @@ config:
       system-policy-dir: "./"
     cluster:
       cluster-info-from: "accuknox"            # k8sclient|accuknox
-      cluster-mgmt-url: "http://cluster-management-service.accuknox-dev-cluster-mgmt.svc.cluster.local/cm"
+      cluster-mgmt-url: "http://cluster-management-service.accuknox-dev-cluster-mgmt.svc.cluster.local"
 
   database:
     driver: mysql
@@ -125,20 +125,30 @@ config:
     table-network-log: network_log
     table-network-policy: network_policy
     table-system-log: system_log
+    table-system-alert: system_alert
     table-system-policy: system_policy
 
   feed-consumer:
     kafka:
+      number-of-consumers: 3
       broker-address-family: v4
       session-timeout-ms: 6000
       auto-offset-reset: "earliest"
-      bootstrap-servers: "dev-kafka-kafka-bootstrap.accuknox-dev-kafka.svc.cluster.local:9092"
-      group-id: policy.cilium
+      bootstrap-servers: "dev-kafka-kafka-external-bootstrap.accuknox-dev-kafka.svc.cluster.local:9095"
+      group-id: knoxautopolicy
       topics: 
+        - cilium-telemetry-new
         - cilium-telemetry
         - kubearmor-syslogs
+      security:
+        protocol: SSL
       ssl:
-        enabled: false
+        enabled: true
+      ca:
+        location: /kafka-ssl/ca.pem
+      keystore:
+        location: /kafka-ssl/user.p12
+        pword: DHmHwNYy22At
       events:
         buffer: 50
 
