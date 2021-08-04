@@ -299,6 +299,28 @@ func GetEndpointsFromCluster(cluster types.Cluster) []types.Endpoint {
 		if err := json.Unmarshal(b, &epCluster); err != nil {
 			log.Error().Msg(err.Error())
 		}
+
+		ep := types.Endpoint{
+			EndpointName: epCluster.EndpointName,
+			Namespace:    epCluster.Namespace,
+			Labels:       []string{},
+			Endpoints:    []types.Mapping{},
+		}
+
+		for _, l := range epCluster.Labels {
+			ep.Labels = append(ep.Labels, l["name"]+"="+l["value"])
+		}
+
+		for _, m := range epCluster.Mappings {
+			mapping := types.Mapping{
+				Protocol: m["Protocol"].(string),
+				Port:     m["port"].(int),
+				IP:       m["ip"].(string),
+			}
+			ep.Endpoints = append(ep.Endpoints, mapping)
+		}
+
+		results = append(results, ep)
 	}
 
 	return results
