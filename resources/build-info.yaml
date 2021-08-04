@@ -80,14 +80,14 @@ slack_properties:
 #***********************************************************************************************************************************#
 anchore_properties:
   status:
-    enabled: "false"
+    enabled: "true"
   image:
       name: artifactory.accuknox.com/accuknox/anchore-engine-cli:latest
       docker_run_params:  --entrypoint=''
   anchore_conf:
   -   anchore.user: "admin"
       anchore.pass: "foobar"
-      anchore.url: "http://35.184.197.198:8228/v1/" #"http://jenkinsm01.accuknox.com:8228/v1/"
+      anchore.url: "http://jmslave01.accuknox.com:8228/v1/"
 
 #***********************************************************************************************************************************#
 #Pass the sonarqube name and sonarrunner name which is configured in Managed-Jenkins.
@@ -123,8 +123,8 @@ sonar_properties:
       sonar.web.host: https://sq01.accuknox.com
       sonar.login: sonar-ci-cred
 
-kubehunter_properties:
-  cluster_ip: "35.188.158.69"
+#kubehunter_properties:
+# cluster_ip: "35.188.158.69"
 
 #***********************************************************************************************************************************#
 # Lints and package the helm chart
