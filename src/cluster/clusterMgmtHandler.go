@@ -314,7 +314,7 @@ func GetEndpointsFromCluster(cluster types.Cluster) []types.Endpoint {
 		for _, m := range epCluster.Mappings {
 			mapping := types.Mapping{
 				Protocol: m["Protocol"].(string),
-				Port:     m["port"].(int),
+				Port:     int(m["port"].(float64)),
 				IP:       m["ip"].(string),
 			}
 			ep.Endpoints = append(ep.Endpoints, mapping)

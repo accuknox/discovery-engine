@@ -120,9 +120,9 @@ func LoadDefaultConfig() {
 
 		NetLogFilters: []types.NetworkLogFilter{},
 
-		NetPolicyL3Level: 3,
-		NetPolicyL4Level: 3,
-		NetPolicyL7Level: 3,
+		NetPolicyL3Level: 1,
+		NetPolicyL4Level: 1,
+		NetPolicyL7Level: 1,
 	}
 
 	// load system policy discovery
