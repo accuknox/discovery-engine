@@ -268,7 +268,9 @@ func WriteKnoxPolicyToYamlFile(namespace string, policies []types.KnoxNetworkPol
 	fileName := GetEnv("POLICY_DIR", "./") + "knox_policies_" + namespace + ".yaml"
 
 	if err := os.Remove(fileName); err != nil {
-		// log.Error().Msg(err.Error()) // no such file or directory -> ignore
+		if !strings.Contains(err.Error(), "no such file or directory") {
+			log.Error().Msg(err.Error())
+		}
 	}
 
 	// create policy file
@@ -299,7 +301,9 @@ func WriteCiliumPolicyToYamlFile(namespace string, policies []types.CiliumNetwor
 	fileName := GetEnv("POLICY_DIR", "./") + "cilium_policies_" + namespace + ".yaml"
 
 	if err := os.Remove(fileName); err != nil {
-		log.Error().Msg(err.Error())
+		if !strings.Contains(err.Error(), "no such file or directory") {
+			log.Error().Msg(err.Error())
+		}
 	}
 
 	f, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY, 0600)
