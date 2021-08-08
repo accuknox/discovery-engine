@@ -1,63 +1,8 @@
 apiVersion: v1 
 kind: ConfigMap 
 metadata: 
-    name: knoxautopolicy-config
+    name: {{ .Values.labels.app }}-config
     #namespace: {{ .Release.Namespace }} 
 data:
   conf.yaml: |-
-    application:
-      name: knoxautopolicy
-      network:
-        operation-mode: 1                         # 1: cronjob | 2: one-time-job
-        cron-job-time-interval: "0h0m10s"         # format: XhYmZs 
-        network-log-from: "db"                    # db|hubble
-        network-log-file: "./flow.json"           # file path
-        network-policy-to: "db|file"              # db, file
-        network-policy-dir: "./"
-        network-policy-types: 3
-        network-policy-rule-types: 511
-      system:
-        operation-mode: 1                         # 1: cronjob | 2: one-time-job
-        cron-job-time-interval: "0h0m10s"         # format: XhYmZs 
-        system-log-from: "db"                     # db|kubearmor
-        system-log-file: "./log.json"             # file path
-        system-policy-to: "db|file"               # db, file
-        system-policy-dir: "./"
-      cluster:
-        cluster-info-from: "accuknox"            # k8sclient|accuknox
-        cluster-mgmt-url: "http://cluster-management-service.accuknox-dev-cluster-mgmt.svc.cluster.local/cm"
-
-    database:
-      driver: mysql
-      host: mysql.accuknox-dev-mysql.svc.cluster.local
-      port: 3306
-      user: accuknox_user
-      password: EAy5Kq4uhc5Gkws
-      dbname: accuknox
-      table-configuration: auto_policy_config
-      table-network-log: network_log
-      table-network-policy: network_policy
-      table-system-log: system_log
-      table-system-policy: system_policy
-
-    feed-consumer:
-      kafka:
-        broker-address-family: v4
-        session-timeout-ms: 6000
-        auto-offset-reset: "earliest"
-        bootstrap-servers: "dev-kafka-kafka-bootstrap.accuknox-dev-kafka.svc.cluster.local:9092"
-        group-id: policy.cilium
-        topics: 
-          - cilium-telemetry
-          - kubearmor-syslogs
-        ssl:
-          enabled: false
-        events:
-          buffer: 50
-
-    logging:
-      level: "INFO"
-      
-    cilium-hubble:
-      url: 10.4.41.240
-      port: 80
+{{ toYaml .Values.config | indent 4 }}

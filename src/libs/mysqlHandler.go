@@ -32,6 +32,18 @@ func NewMock() (*sql.DB, sqlmock.Sqlmock) {
 	return db, mock
 }
 
+func waitForDB(db *sql.DB) {
+	for {
+		err := db.Ping()
+		if err != nil {
+			log.Error().Msg("Cannot reach the database, Retrying.")
+			time.Sleep(time.Second * 1)
+		} else {
+			break
+		}
+	}
+}
+
 func connectMySQL(cfg types.ConfigDB) (db *sql.DB) {
 	if MockDB != nil {
 		return MockDB
@@ -45,6 +57,8 @@ func connectMySQL(cfg types.ConfigDB) (db *sql.DB) {
 	}
 
 	db.SetMaxIdleConns(0)
+
+	waitForDB(db)
 
 	return db
 }
@@ -299,21 +313,6 @@ func GetSystemLogByTimeFromMySQL(cfg types.ConfigDB, startTime, endTime int64) (
 	return ScanSystemLogs(rows)
 }
 
-func GetSystemLogByIDFromMySQL(cfg types.ConfigDB, id, endTime int64) ([]map[string]interface{}, error) {
-	db := connectMySQL(cfg)
-	defer db.Close()
-
-	QueryBase := systemLogQueryBase + cfg.TableSystemLog
-
-	rows, err := db.Query(QueryBase+" WHERE id > ? ORDER BY id ASC ", id)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	return ScanSystemLogs(rows)
-}
-
 func GetSystemLogByIDTimeFromMySQL(cfg types.ConfigDB, id, endTime int64) ([]map[string]interface{}, error) {
 	db := connectMySQL(cfg)
 	defer db.Close()
@@ -333,15 +332,16 @@ func InsertSystemLogToMySQL(cfg types.ConfigDB, sle []types.SystemLogEvent) erro
 	db := connectMySQL(cfg)
 	defer db.Close()
 
-	sqlStr := "INSERT INTO " + cfg.TableSystemLog + "(time,cluster_name,node_name,namespace_name,pod_name,container_id,container_name,hostpid,ppid,pid,uid,type,source,operation,resource,data,result) VALUES "
+	sqlStr := "INSERT INTO " + cfg.TableSystemLog + "(timestamp,updatedTime,clusterName,hostName,namespaceName,podName,containerID,containerName,hostPid,ppid,pid,uid,type,source,operation,resource,data,result) VALUES "
 	vals := []interface{}{}
 
 	for _, e := range sle {
-		sqlStr += "(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?),"
+		sqlStr += "(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?),"
 
 		vals = append(vals,
 			e.Timestamp,
-			e.ClusterName,
+			e.UpdatedTime,
+			e.Clustername,
 			e.HostName,
 			e.NamespaceName,
 			e.PodName,
@@ -356,6 +356,95 @@ func InsertSystemLogToMySQL(cfg types.ConfigDB, sle []types.SystemLogEvent) erro
 			e.Operation,
 			e.Resource,
 			e.Data,
+			e.Result)
+	}
+
+	//trim the last ','
+	sqlStr = strings.TrimSuffix(sqlStr, ",")
+
+	//prepare the statement
+	stmt, err := db.Prepare(sqlStr)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	//format all vals at once
+	_, err = stmt.Exec(vals...)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ================== //
+// == System Alert == //
+// ================== //
+
+func GetSystemAlertByTimeFromMySQL(cfg types.ConfigDB, startTime, endTime int64) ([]map[string]interface{}, error) {
+	db := connectMySQL(cfg)
+	defer db.Close()
+
+	QueryBase := systemLogQueryBase + cfg.TableSystemAlert
+
+	rows, err := db.Query(QueryBase+" WHERE time >= ? and time <= ?", int(startTime), int(endTime))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return ScanSystemLogs(rows)
+}
+
+func GetSystemAlertByIDTimeFromMySQL(cfg types.ConfigDB, id, endTime int64) ([]map[string]interface{}, error) {
+	db := connectMySQL(cfg)
+	defer db.Close()
+
+	QueryBase := systemLogQueryBase + cfg.TableSystemAlert
+
+	rows, err := db.Query(QueryBase+" WHERE id > ? and timestamp <= ? ORDER BY id ASC ", id, int(endTime))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return ScanSystemLogs(rows)
+}
+
+func InsertSystemAlertToMySQL(cfg types.ConfigDB, sae []types.SystemAlertEvent) error {
+	db := connectMySQL(cfg)
+	defer db.Close()
+
+	sqlStr := "INSERT INTO " + cfg.TableSystemAlert + "(timestamp,updatedTime,clusterName,hostName,namespaceName,podName,containerID,containerName,hostpid,ppid,pid,uid,policyName,severity,tags,message,type,source,operation,resource,data,action,result) VALUES "
+	vals := []interface{}{}
+
+	for _, e := range sae {
+		sqlStr += "(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?),"
+
+		vals = append(vals,
+			e.Timestamp,
+			e.UpdatedTime,
+			e.Clustername,
+			e.HostName,
+			e.NamespaceName,
+			e.PodName,
+			e.ContainerID,
+			e.ContainerName,
+			e.HostPID,
+			e.PPID,
+			e.PID,
+			e.UID,
+			e.PolicyName,
+			e.Severity,
+			e.Tags,
+			e.Message,
+			e.Type,
+			e.Source,
+			e.Operation,
+			e.Resource,
+			e.Data,
+			e.Action,
 			e.Result)
 	}
 
@@ -752,6 +841,7 @@ func AddConfiguration(cfg types.ConfigDB, newConfig types.Configuration) error {
 		"system_log_file," +
 		"system_policy_to," +
 		"system_policy_dir," +
+		"system_policy_types," +
 		"system_policy_log_filters," +
 		"system_policy_proc_fromsource," +
 		"system_policy_file_fromsource," +
@@ -759,7 +849,7 @@ func AddConfiguration(cfg types.ConfigDB, newConfig types.Configuration) error {
 		"cluster_info_from," +
 		"cluster_mgmt_url) " +
 
-		"values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+		"values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
 
 	if err != nil {
 		return err
@@ -821,6 +911,7 @@ func AddConfiguration(cfg types.ConfigDB, newConfig types.Configuration) error {
 		newConfig.ConfigSysPolicy.SystemLogFile,
 		newConfig.ConfigSysPolicy.SystemPolicyTo,
 		newConfig.ConfigSysPolicy.SystemPolicyDir,
+		newConfig.ConfigSysPolicy.SysPolicyTypes,
 		sysLogFilters,
 		newConfig.ConfigSysPolicy.ProcessFromSource,
 		newConfig.ConfigSysPolicy.FileFromSource,
@@ -910,6 +1001,7 @@ func GetConfigurations(cfg types.ConfigDB, configName string) ([]types.Configura
 			&cfg.ConfigSysPolicy.SystemLogFile,
 			&cfg.ConfigSysPolicy.SystemPolicyTo,
 			&cfg.ConfigSysPolicy.SystemPolicyDir,
+			&cfg.ConfigSysPolicy.SysPolicyTypes,
 			&sysLogFiltersByte,
 			&cfg.ConfigSysPolicy.ProcessFromSource,
 			&cfg.ConfigSysPolicy.FileFromSource,
@@ -983,6 +1075,7 @@ func UpdateConfiguration(cfg types.ConfigDB, configName string, updateConfig typ
 		"system_log_file=?," +
 		"system_policy_to=?," +
 		"system_policy_dir=?," +
+		"system_policy_types=?," +
 		"system_policy_log_filters=?," +
 		"system_policy_proc_fromsource=?," +
 		"system_policy_file_fromsource=?," +
@@ -1047,6 +1140,7 @@ func UpdateConfiguration(cfg types.ConfigDB, configName string, updateConfig typ
 		updateConfig.ConfigSysPolicy.SystemLogFile,
 		updateConfig.ConfigSysPolicy.SystemPolicyTo,
 		updateConfig.ConfigSysPolicy.SystemPolicyDir,
+		updateConfig.ConfigSysPolicy.SysPolicyTypes,
 		sysLogFilters,
 		updateConfig.ConfigSysPolicy.ProcessFromSource,
 		updateConfig.ConfigSysPolicy.FileFromSource,
@@ -1154,7 +1248,7 @@ func CreateTableConfigurationMySQL(cfg types.ConfigDB) error {
 
 	tableName := cfg.TableConfiguration
 
-	// the number of column --> 28
+	// the number of column --> 29
 	query :=
 		"CREATE TABLE IF NOT EXISTS `" + tableName + "` ( " +
 			"	`id` int NOT NULL AUTO_INCREMENT, " +
@@ -1185,12 +1279,13 @@ func CreateTableConfigurationMySQL(cfg types.ConfigDB) error {
 			"	`system_log_file` varchar(50) DEFAULT NULL, " +
 			"	`system_policy_to` varchar(50) DEFAULT NULL, " +
 			"	`system_policy_dir` varchar(50) DEFAULT NULL, " +
+			"	`system_policy_types` int DEFAULT NULL, " +
 			"	`system_policy_log_filters` JSON DEFAULT NULL, " +
 			"	`system_policy_proc_fromsource` tinyint(1) DEFAULT '0', " +
 			"	`system_policy_file_fromsource` tinyint(1) DEFAULT '0', " +
 
 			"	`cluster_info_from` varchar(50) DEFAULT NULL, " +
-			"	`cluster_mgmt_url` varchar(50) DEFAULT NULL, " +
+			"	`cluster_mgmt_url` varchar(1000) DEFAULT NULL, " +
 
 			"	PRIMARY KEY (`id`) " +
 			"  ); "
@@ -1298,6 +1393,48 @@ func CreateTableSystemLogMySQL(cfg types.ConfigDB) error {
 			"    `operation` varchar(20) NOT NULL," +
 			"    `resource` varchar(4000) NOT NULL," +
 			"    `data` varchar(1000) DEFAULT NULL," +
+			"    `result` varchar(200) NOT NULL," +
+			"    PRIMARY KEY (`id`)" +
+			");"
+
+	if _, err := db.Query(query); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func CreateTableSystemAlertMySQL(cfg types.ConfigDB) error {
+	db := connectMySQL(cfg)
+	defer db.Close()
+
+	tableName := cfg.TableSystemAlert
+
+	query :=
+		"CREATE TABLE IF NOT EXISTS `" + tableName + "` (" +
+			"    `id` int NOT NULL AUTO_INCREMENT," +
+			"    `timestamp` int NOT NULL," +
+			"    `updatedTime` varchar(30) NOT NULL," +
+			"    `clusterName` varchar(100) NOT NULL," +
+			"    `hostName` varchar(100) NOT NULL," +
+			"    `namespaceName` varchar(100) NOT NULL," +
+			"    `podName` varchar(200) NOT NULL," +
+			"    `containerID` varchar(200) NOT NULL," +
+			"    `containerName` varchar(200) NOT NULL," +
+			"    `hostPid` int NOT NULL," +
+			"    `ppid` int NOT NULL," +
+			"    `pid` int NOT NULL," +
+			"    `uid` int NOT NULL," +
+			"    `policyName` varchar(1000) NOT NULL," +
+			"    `severity` varchar(100) NOT NULL," +
+			"    `tags` varchar(1000) NOT NULL," +
+			"    `message` varchar(1000) NOT NULL," +
+			"    `type` varchar(20) NOT NULL," +
+			"    `source` varchar(4000) NOT NULL," +
+			"    `operation` varchar(20) NOT NULL," +
+			"    `resource` varchar(4000) NOT NULL," +
+			"    `data` varchar(1000) DEFAULT NULL," +
+			"    `action` varchar(20) NOT NULL," +
 			"    `result` varchar(200) NOT NULL," +
 			"    PRIMARY KEY (`id`)" +
 			");"

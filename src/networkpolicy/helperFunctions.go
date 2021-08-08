@@ -234,10 +234,10 @@ func getNetworkLogs() []types.KnoxNetworkLog {
 		// =============================== //
 		// == File (.json) for testing  == //
 		// =============================== //
-		log.Info().Msg("Get network log from the json file : " + NetworkLogFile)
+		log.Info().Msg("Get network logs from the json file : " + NetworkLogFile)
 		flows := []*flow.Flow{}
 
-		// Open our jsonFile
+		// Open jsonFile
 		logFile, err := os.Open(NetworkLogFile)
 		if err != nil {
 			log.Error().Msg(err.Error())

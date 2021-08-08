@@ -68,7 +68,7 @@ func getResponseBytes(mothod string, url string, data map[string]interface{}) []
 	}
 
 	if !strings.Contains(string(resByte), "result") {
-		log.Error().Msgf("There is no results from the url: %s, msg: %s", url, string(resByte))
+		log.Error().Msgf("There is no results from the url: %s, input:%s, msg: %s", url, string(jsonData), string(resByte))
 		return nil
 	}
 
@@ -299,6 +299,28 @@ func GetEndpointsFromCluster(cluster types.Cluster) []types.Endpoint {
 		if err := json.Unmarshal(b, &epCluster); err != nil {
 			log.Error().Msg(err.Error())
 		}
+
+		ep := types.Endpoint{
+			EndpointName: epCluster.EndpointName,
+			Namespace:    epCluster.Namespace,
+			Labels:       []string{},
+			Endpoints:    []types.Mapping{},
+		}
+
+		for _, l := range epCluster.Labels {
+			ep.Labels = append(ep.Labels, l["name"]+"="+l["value"])
+		}
+
+		for _, m := range epCluster.Mappings {
+			mapping := types.Mapping{
+				Protocol: m["Protocol"].(string),
+				Port:     int(m["port"].(float64)),
+				IP:       m["ip"].(string),
+			}
+			ep.Endpoints = append(ep.Endpoints, mapping)
+		}
+
+		results = append(results, ep)
 	}
 
 	return results

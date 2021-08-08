@@ -44,7 +44,7 @@ func GeneratePolicyName(policyNamesMap map[string]bool, policy types.KnoxSystemP
 	filePrefix := "autopol-file-"
 	netPrefix := "autopol-network-"
 
-	polType := policy.Metadata["type"]
+	polType := strings.ToLower(policy.Metadata["type"])
 	name := "autopol-" + polType + "-" + libs.RandSeq(15)
 
 	for existPolicyName(policyNamesMap, name) {
@@ -122,9 +122,12 @@ func UpdateProcessOperation(newPolicy types.KnoxSystemPolicy, existingPolicies [
 			}
 
 			if src != "" {
-				matchDirs.FromSource = types.KnoxFromSource{
-					Path: []string{src},
+				matchDirs.FromSource = []types.KnoxFromSource{
+					types.KnoxFromSource{
+						Path: src,
+					},
 				}
+
 			}
 
 			if len(newPolicy.Spec.Process.MatchDirectories) == 0 {
@@ -138,8 +141,10 @@ func UpdateProcessOperation(newPolicy types.KnoxSystemPolicy, existingPolicies [
 			}
 
 			if src != "" {
-				matchPaths.FromSource = types.KnoxFromSource{
-					Path: []string{src},
+				matchPaths.FromSource = []types.KnoxFromSource{
+					types.KnoxFromSource{
+						Path: src,
+					},
 				}
 			}
 
@@ -261,8 +266,10 @@ func UpdateFileOperation(newPolicy types.KnoxSystemPolicy, existingPolicies []ty
 			}
 
 			if src != "" {
-				matchDirs.FromSource = types.KnoxFromSource{
-					Path: []string{src},
+				matchDirs.FromSource = []types.KnoxFromSource{
+					types.KnoxFromSource{
+						Path: src,
+					},
 				}
 			}
 
@@ -277,8 +284,10 @@ func UpdateFileOperation(newPolicy types.KnoxSystemPolicy, existingPolicies []ty
 			}
 
 			if src != "" {
-				matchPaths.FromSource = types.KnoxFromSource{
-					Path: []string{src},
+				matchPaths.FromSource = []types.KnoxFromSource{
+					types.KnoxFromSource{
+						Path: src,
+					},
 				}
 			}
 

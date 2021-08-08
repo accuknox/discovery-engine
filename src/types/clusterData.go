@@ -21,11 +21,11 @@ type ServiceCluster struct {
 
 // EndpointCluster Structure
 type EndpointCluster struct {
-	Namespace    string              `json:"namespace,omitempty" bson:"namespace,omitempty"`
-	EndpointName string              `json:"endpoint_name,omitempty" bson:"endpoint_name,omitempty"`
-	IP           string              `json:"ip,omitempty" bson:"ip,omitempty"`
-	Labels       []map[string]string `json:"labels,omitempty" bson:"labels,omitempty"`
-	Mappings     []map[string]string `json:"mappings" bson:"mappings"`
+	Namespace    string                   `json:"namespace,omitempty" bson:"namespace,omitempty"`
+	EndpointName string                   `json:"endpoint_name,omitempty" bson:"endpoint_name,omitempty"`
+	IP           string                   `json:"ip,omitempty" bson:"ip,omitempty"`
+	Labels       []map[string]string      `json:"labels,omitempty" bson:"labels,omitempty"`
+	Mappings     []map[string]interface{} `json:"mappings" bson:"mappings"`
 }
 
 // PodCluster Structure

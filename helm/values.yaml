@@ -3,23 +3,33 @@
 # Declare variables to be passed into your templates.
 
 replicaCount: 1
-knoxautopolicy:
-  image:
-    repository: gcr.io/accuknox/dev/knoxautopolicy
-    pullPolicy: Always
-    # Overrides the image tag whose default is the chart appVersion.
-    tag: ""
 
+image:
+  repository: agents.accuknox.com/repository/docker-dev/knoxautopolicy
+  pullPolicy: Always
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+
+labels:
+  app: knoxautopolicy
+  env: dev
+
+namespace: accuknox-dev-knoxautopolicy
 
 volumeMounts:
   - mountPath: /conf
     name: config-volume
     readOnly: true
+  - mountPath: /kafka-ssl
+    name: knoxautopolicy-kafka-ssl-volume
+    readOnly: true
 volumes:
   - name: config-volume
     configMap:
       name: knoxautopolicy-config
-
+  - name: knoxautopolicy-kafka-ssl-volume
+    secret:
+      secretName: knoxautopolicy-kafka-ssl
 
 imagePullSecrets: []
 nameOverride: ""
@@ -64,28 +74,92 @@ ingress:
   #    hosts:
   #      - chart-example.local
 
-
-resources: {}
-  # We usually recommend not to specify default resources and to leave this as a conscious
-  # choice for the user. This also increases chances charts run on environments with little
-  # resources, such as Minikube. If you do want to specify resources, uncomment the following
-  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
-  # limits:
-  #   cpu: 100m
-  #   memory: 128Mi
-  # requests:
-  #   cpu: 100m
-  #   memory: 128Mi
+resources:
+  requests:
+    cpu: 200m
+    memory: 250Mi
+  limits:
+    cpu: 400m
+    memory: 450Mi
 
 autoscaling:
-  enabled: false
-  minReplicas: 1
-  maxReplicas: 100
-  targetCPUUtilizationPercentage: 80
-  # targetMemoryUtilizationPercentage: 80
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 75
+  targetMemoryUtilizationPercentage: 75
 
 nodeSelector: {}
 
 tolerations: []
 
 affinity: {}
+
+# conf.yaml
+config:
+  application:
+    name: knoxautopolicy
+    network:
+      operation-mode: 1                         # 1: cronjob | 2: one-time-job
+      cron-job-time-interval: "0h0m10s"         # format: XhYmZs 
+      network-log-from: "db"                    # db|hubble
+      network-log-file: "./flow.json"           # file path
+      network-policy-to: "db|file"              # db, file
+      network-policy-dir: "./"
+      network-policy-types: 3
+      network-policy-rule-types: 511
+    system:
+      operation-mode: 1                         # 1: cronjob | 2: one-time-job
+      cron-job-time-interval: "0h0m10s"         # format: XhYmZs 
+      system-log-from: "db"                     # db|kubearmor
+      system-log-file: "./log.json"             # file path
+      system-policy-to: "db|file"               # db, file
+      system-policy-dir: "./"
+    cluster:
+      cluster-info-from: "accuknox"            # k8sclient|accuknox
+      cluster-mgmt-url: "http://cluster-management-service.accuknox-dev-cluster-mgmt.svc.cluster.local"
+
+  database:
+    driver: mysql
+    host: accuknox-dev-mysql-haproxy.accuknox-dev-mysql-db.svc.cluster.local
+    port: 3306
+    user: accuknox_user
+    password: EAy5Kq4uhc5Gkws
+    dbname: accuknox
+    table-configuration: auto_policy_config
+    table-network-log: network_log
+    table-network-policy: network_policy
+    table-system-log: system_log
+    table-system-alert: system_alert
+    table-system-policy: system_policy
+
+  feed-consumer:
+    kafka:
+      number-of-consumers: 3
+      broker-address-family: v4
+      session-timeout-ms: 6000
+      auto-offset-reset: "earliest"
+      bootstrap-servers: "dev-kafka-kafka-external-bootstrap.accuknox-dev-kafka.svc.cluster.local:9095"
+      group-id: knoxautopolicy
+      topics: 
+        - cilium-telemetry-new
+        - cilium-telemetry
+        - kubearmor-syslogs
+      security:
+        protocol: SSL
+      ssl:
+        enabled: true
+      ca:
+        location: /kafka-ssl/ca.pem
+      keystore:
+        location: /kafka-ssl/user.p12
+        pword: DHmHwNYy22At
+      events:
+        buffer: 50
+
+  logging:
+    level: "INFO"
+    
+  cilium-hubble:
+    url: 10.4.41.240
+    port: 80

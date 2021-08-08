@@ -1,13 +1,13 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: knoxautopolicy
+  name: {{ .Values.labels.app }}
   labels:
-    service: knoxautopolicy
+{{ toYaml .Values.labels | indent 4 }}
 spec:
   ports:
-  - port: 9089
-    targetPort: 9089
-    protocol: TCP
+  - port: {{ .Values.service.port }}
+    targetPort: {{ .Values.service.targetPort }} # Port in microservice
+    protocol: {{ .Values.service.protocol }}
   selector:
-    container: knoxautopolicy
+    app: {{ .Values.labels.app }}

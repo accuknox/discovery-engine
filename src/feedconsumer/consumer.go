@@ -25,18 +25,13 @@ const ( // status
 // == Gloabl Variables == //
 // ====================== //
 
-var consumer *KnoxFeedConsumer
+var numOfConsumers int
+var consumers []*KnoxFeedConsumer
 
 var Status string
 
 var waitG sync.WaitGroup
 var stopChan chan struct{}
-
-var netLogEvents []types.NetworkLogEvent
-var netLogEventsCount int
-
-var syslogEvents []types.SystemLogEvent
-var syslogEventsCount int
 
 var log *zerolog.Logger
 
@@ -44,9 +39,9 @@ func init() {
 	log = logger.GetInstance()
 
 	waitG = sync.WaitGroup{}
-	consumer = &KnoxFeedConsumer{}
-
 	Status = STATUS_IDLE
+
+	consumers = []*KnoxFeedConsumer{}
 }
 
 // ======================== //
@@ -54,9 +49,16 @@ func init() {
 // ======================== //
 
 type KnoxFeedConsumer struct {
+	id           int
 	kafkaConfig  kafka.ConfigMap
 	topics       []string
 	eventsBuffer int
+
+	netLogEvents      []types.NetworkLogEvent
+	netLogEventsCount int
+
+	syslogEvents      []types.SystemLogEvent
+	syslogEventsCount int
 }
 
 func (cfc *KnoxFeedConsumer) setupKafkaConfig() {
@@ -69,22 +71,24 @@ func (cfc *KnoxFeedConsumer) setupKafkaConfig() {
 	cfc.topics = viper.GetStringSlice("feed-consumer.kafka.topics")
 	cfc.eventsBuffer = viper.GetInt("feed-consumer.kafka.events.buffer")
 
-	netLogEvents = make([]types.NetworkLogEvent, 0, cfc.eventsBuffer)
-	syslogEvents = make([]types.SystemLogEvent, 0, cfc.eventsBuffer)
+	cfc.netLogEvents = make([]types.NetworkLogEvent, 0, cfc.eventsBuffer)
+	cfc.syslogEvents = make([]types.SystemLogEvent, 0, cfc.eventsBuffer)
 
 	sslEnabled := viper.GetBool("feed-consumer.kafka.ssl.enabled")
 	securityProtocol := viper.GetString("feed-consumer.kafka.security.protocol")
-	sslCALocation := viper.GetString("feed-consumer.kafka.ssl.ca.location")
-	sslKeystoreLocation := viper.GetString("feed-consumer.kafka.ssl.keystore.location")
-	sslKeystorePassword := viper.GetString("feed-consumer.kafka.ssl.keystore.Password")
+	sslCALocation := viper.GetString("feed-consumer.kafka.ca.location")
+	sslKeystoreLocation := viper.GetString("feed-consumer.kafka.keystore.location")
+	sslKeystorePassword := viper.GetString("feed-consumer.kafka.keystore.pword")
 
 	// Set up required configs
 	cfc.kafkaConfig = kafka.ConfigMap{
-		"bootstrap.servers":     bootstrapServers,
-		"broker.address.family": brokderAddressFamily,
-		"group.id":              groupID,
-		"session.timeout.ms":    sessionTimeoutMs,
-		"auto.offset.reset":     autoOffsetReset,
+		"enable.auto.commit":      true,
+		"auto.commit.interval.ms": 1000,
+		"bootstrap.servers":       bootstrapServers,
+		"broker.address.family":   brokderAddressFamily,
+		"group.id":                groupID,
+		"session.timeout.ms":      sessionTimeoutMs,
+		"auto.offset.reset":       autoOffsetReset,
 	}
 
 	// Set up SSL specific configs if SSL is enabled
@@ -120,13 +124,13 @@ func (cfc *KnoxFeedConsumer) startConsumer() {
 		return
 	}
 
-	log.Debug().Msgf("Topics: %v", cfc.topics)
+	log.Info().Msgf("Starting consumer %d, topics: %v", cfc.id, cfc.topics)
 
 	run := true
 	for run {
 		select {
 		case <-stopChan:
-			log.Info().Msgf("Got a signal to terminate the consumer")
+			log.Info().Msgf("Got a signal to terminate the consumer %d", cfc.id)
 			run = false
 
 		default:
@@ -168,7 +172,7 @@ func (cfc *KnoxFeedConsumer) startConsumer() {
 		}
 	}
 
-	log.Info().Msgf("Closing consumer")
+	log.Info().Msgf("Closing consumer %d", cfc.id)
 	if err := c.Close(); err != nil {
 		log.Error().Msg(err.Error())
 	}
@@ -194,33 +198,35 @@ func (cfc *KnoxFeedConsumer) processNetworkLogMessage(message []byte) error {
 
 	// add cluster_name to the event
 	event.ClusterName = clusterNameStr
-	netLogEvents = append(netLogEvents, event)
-	netLogEventsCount++
+	cfc.netLogEvents = append(cfc.netLogEvents, event)
+	cfc.netLogEventsCount++
 
-	if netLogEventsCount == cfc.eventsBuffer {
-		if len(netLogEvents) > 0 {
+	if cfc.netLogEventsCount == cfc.eventsBuffer {
+		if len(cfc.netLogEvents) > 0 {
 			isSuccess := cfc.PushNetworkLogToDB()
 			if !isSuccess {
-				return errors.New("Error saving to DB")
+				return errors.New("error saving to DB")
 			}
-			netLogEvents = nil
-			netLogEvents = make([]types.NetworkLogEvent, 0, cfc.eventsBuffer)
+			cfc.netLogEvents = nil
+			cfc.netLogEvents = make([]types.NetworkLogEvent, 0, cfc.eventsBuffer)
 		}
 
-		netLogEventsCount = 0
+		cfc.netLogEventsCount = 0
 	}
 
 	return nil
 }
 
 func (cfc *KnoxFeedConsumer) PushNetworkLogToDB() bool {
-	if err := libs.InsertNetworkLogToDB(cfg.GetCfgDB(), netLogEvents); err != nil {
+	if err := libs.InsertNetworkLogToDB(cfg.GetCfgDB(), cfc.netLogEvents); err != nil {
 		log.Error().Msgf("InsertNetworkFlowToDB err: %s", err.Error())
 		return false
 	}
 
 	return true
 }
+
+// == //
 
 func (cfc *KnoxFeedConsumer) processSystemLogMessage(message []byte) error {
 	syslogEvent := types.SystemLogEvent{}
@@ -231,27 +237,27 @@ func (cfc *KnoxFeedConsumer) processSystemLogMessage(message []byte) error {
 		return err
 	}
 
-	syslogEvents = append(syslogEvents, syslogEvent)
-	syslogEventsCount++
+	cfc.syslogEvents = append(cfc.syslogEvents, syslogEvent)
+	cfc.syslogEventsCount++
 
-	if syslogEventsCount == cfc.eventsBuffer {
-		if len(syslogEvents) > 0 {
+	if cfc.syslogEventsCount == cfc.eventsBuffer {
+		if len(cfc.syslogEvents) > 0 {
 			isSuccess := cfc.PushSystemLogToDB()
 			if !isSuccess {
-				return errors.New("Error saving to DB")
+				return errors.New("error saving to DB")
 			}
-			syslogEvents = nil
-			syslogEvents = make([]types.SystemLogEvent, 0, cfc.eventsBuffer)
+			cfc.syslogEvents = nil
+			cfc.syslogEvents = make([]types.SystemLogEvent, 0, cfc.eventsBuffer)
 		}
 
-		syslogEventsCount = 0
+		cfc.syslogEventsCount = 0
 	}
 
 	return nil
 }
 
 func (cfc *KnoxFeedConsumer) PushSystemLogToDB() bool {
-	if err := libs.InsertSystemLogToDB(cfg.GetCfgDB(), syslogEvents); err != nil {
+	if err := libs.InsertSystemLogToDB(cfg.GetCfgDB(), cfc.syslogEvents); err != nil {
 		log.Error().Msgf("InsertSystemLogToDB err: %s", err.Error())
 		return false
 	}
@@ -264,22 +270,37 @@ func (cfc *KnoxFeedConsumer) PushSystemLogToDB() bool {
 // =================== //
 
 func StartConsumer() {
-	if Status != STATUS_IDLE {
-		log.Info().Msg("There is no idle consumer")
+	numOfConsumers = viper.GetInt("feed-consumer.kafka.number-of-consumers")
+
+	if Status == STATUS_RUNNING {
+		log.Info().Msg("There is already running consumer(s)")
 		return
 	}
 
-	consumer.setupKafkaConfig()
+	n := 0
+	log.Info().Msgf("%d Knox feed consumer(s) started", numOfConsumers)
+
+	for n < numOfConsumers {
+		c := &KnoxFeedConsumer{
+			id: n + 1,
+		}
+
+		c.setupKafkaConfig()
+		consumers = append(consumers, c)
+		go c.startConsumer()
+		waitG.Add(1)
+		n++
+	}
+
 	stopChan = make(chan struct{})
-	go consumer.startConsumer()
 	Status = STATUS_RUNNING
-	waitG.Add(1)
-	log.Info().Msg("Knox feed consumer started")
+
+	log.Info().Msg("Knox feed consumer(s) started")
 }
 
 func StopConsumer() {
 	if Status != STATUS_RUNNING {
-		log.Info().Msg("There is no running consumer")
+		log.Info().Msg("There is no running consumer(s)")
 		return
 	}
 
@@ -287,5 +308,7 @@ func StopConsumer() {
 	close(stopChan)
 	waitG.Wait()
 
-	log.Info().Msg("Knox feed consumer stopped")
+	consumers = []*KnoxFeedConsumer{} // clear
+
+	log.Info().Msg("Knox feed consumer(s) stopped")
 }

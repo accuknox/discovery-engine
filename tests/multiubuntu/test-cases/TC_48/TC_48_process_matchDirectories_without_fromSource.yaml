@@ -1,0 +1,16 @@
+apiVersion: security.accuknox.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: autopol-process-usuyziqmbsoorvp
+  namespace: multiubuntu
+spec:
+  severity: 1
+  selector:
+    matchLabels:
+      container: ubuntu-1
+      group: group-1
+  process:
+    matchDirectories:
+    - dir: /bin
+  action: Allow
+---

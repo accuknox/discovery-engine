@@ -1,7 +1,10 @@
 package systempolicy
 
 import (
+	"encoding/json"
 	"errors"
+	"io/ioutil"
+	"os"
 	"strings"
 	"sync"
 
@@ -37,7 +40,10 @@ const (
 	SYS_OP_PROCESS = "Process"
 	SYS_OP_FILE    = "File"
 
-	SOURCE_ALL = "ALL" // for fromSource 'off'
+	SYS_OP_PROCESS_INT = 1
+	SYS_OP_FILE_INT    = 2
+
+	SOURCE_ALL = "/ALL" // for fromSource 'off'
 )
 
 // ====================== //
@@ -60,6 +66,8 @@ var SystemLogFrom string
 var SystemLogFile string
 var SystemPolicyTo string
 
+var SystemPolicyTypes int
+
 var SystemLogFilters []types.SystemLogFilter
 
 var ProcessFromSource bool
@@ -70,6 +78,66 @@ func init() {
 	SystemWorkerStatus = STATUS_IDLE
 	SystemStopChan = make(chan struct{})
 	SystemWaitG = sync.WaitGroup{}
+}
+
+// ====================== //
+// == Internal Testing == //
+// ====================== //
+
+func ReplaceMultiubuntuPodName(logs []types.KnoxSystemLog, pods []types.Pod) {
+	var pod1Name, pod2Name, pod3Name, pod4Name, pod5Name string
+
+	for _, pod := range pods {
+		if strings.Contains(pod.PodName, "ubuntu-1-deployment") {
+			pod1Name = pod.PodName
+		}
+
+		if strings.Contains(pod.PodName, "ubuntu-2-deployment") {
+			pod2Name = pod.PodName
+		}
+
+		if strings.Contains(pod.PodName, "ubuntu-3-deployment") {
+			pod3Name = pod.PodName
+		}
+
+		if strings.Contains(pod.PodName, "ubuntu-4-deployment") {
+			pod4Name = pod.PodName
+		}
+
+		if strings.Contains(pod.PodName, "ubuntu-5-deployment") {
+			pod5Name = pod.PodName
+		}
+	}
+
+	for i, log := range logs {
+		if strings.Contains(log.PodName, "ubuntu-1-deployment") {
+			logs[i].PodName = pod1Name
+		}
+
+		///
+
+		if strings.Contains(log.PodName, "ubuntu-2-deployment") {
+			logs[i].PodName = pod2Name
+		}
+
+		///
+
+		if strings.Contains(log.PodName, "ubuntu-3-deployment") {
+			logs[i].PodName = pod3Name
+		}
+
+		///
+
+		if strings.Contains(log.PodName, "ubuntu-4-deployment") {
+			logs[i].PodName = pod4Name
+		}
+
+		///
+
+		if strings.Contains(log.PodName, "ubuntu-5-deployment") {
+			logs[i].PodName = pod5Name
+		}
+	}
 }
 
 // ========================== //
@@ -98,7 +166,7 @@ func getSystemLogs() []types.KnoxSystemLog {
 	// =============== //
 	// == Database  == //
 	// =============== //
-	if cfg.GetCfgSystemLogFrom() == "db" {
+	if SystemLogFrom == "db" {
 		log.Info().Msg("Get system log from the database")
 
 		// get system logs from db
@@ -107,10 +175,54 @@ func getSystemLogs() []types.KnoxSystemLog {
 			return nil
 		}
 
+		// get system alerts from db, and merge it to the system logs
+		sysAlerts := libs.GetSystemAlertsFromDB(cfg.GetCfgDB(), cfg.GetCfgSysOneTime())
+		if len(sysAlerts) != 0 {
+			sysLogs = append(sysLogs, sysAlerts...)
+		}
+
 		// convert kubearmor system logs -> knox system logs
 		systemLogs = plugin.ConvertKubeArmorSystemLogsToKnoxSystemLogs(cfg.GetCfgDB().DBDriver, sysLogs)
+	} else if SystemLogFrom == "file" {
+		// =============================== //
+		// == File (.json) for testing  == //
+		// =============================== //
+
+		jsonLogs := []map[string]interface{}{}
+		log.Info().Msg("Get system logs from the json file : " + SystemLogFile)
+
+		// Opens jsonFile
+		logFile, err := os.Open(SystemLogFile)
+		if err != nil {
+			log.Error().Msg(err.Error())
+			if err := logFile.Close(); err != nil {
+				log.Error().Msg(err.Error())
+			}
+			return nil
+		}
+
+		byteValue, err := ioutil.ReadAll(logFile)
+		if err != nil {
+			log.Error().Msg(err.Error())
+		}
+
+		if err := json.Unmarshal(byteValue, &jsonLogs); err != nil {
+			log.Error().Msg(err.Error())
+			return nil
+		}
+
+		// raw json --> knoxSystemLog
+		systemLogs = plugin.ConvertMySQLKubeArmorLogsToKnoxSystemLogs(jsonLogs)
+
+		// replace the pod names in prepared-logs with the working pod names
+		pods := cluster.GetPodsFromK8sClient()
+		ReplaceMultiubuntuPodName(systemLogs, pods)
+
+		if err := logFile.Close(); err != nil {
+			log.Error().Msg(err.Error())
+		}
 	} else {
-		log.Error().Msgf("System log from not correct: %s", cfg.GetCfgSystemLogFrom())
+		log.Error().Msgf("System log from not correct: %s", SystemLogFrom)
 		return nil
 	}
 
@@ -170,7 +282,7 @@ func systemLogDeduplication(logs []types.KnoxSystemLog) []types.KnoxSystemLog {
 			continue
 		}
 
-		// if source == resource, skip it
+		// if source == resource, skip
 		if log.Source == log.Resource {
 			continue
 		}
@@ -198,6 +310,9 @@ func discoverFileOperationPolicy(results []types.KnoxSystemPolicy, pod types.Pod
 	// step 1: [system logs] -> {source: []destination(resource)}
 	srcToDest := map[string][]string{}
 
+	// file spec is appended?
+	appended := false
+
 	for _, log := range logs {
 		if !FileFromSource {
 			log.Source = SOURCE_ALL
@@ -212,23 +327,23 @@ func discoverFileOperationPolicy(results []types.KnoxSystemPolicy, pod types.Pod
 		}
 	}
 
-	// step 2: aggregate file paths
-	for src, filePaths := range srcToDest {
-		// if the source is not the absolute path, skip it
-		if !strings.Contains(src, "/") {
-			continue
-		}
+	// step 2: build file operation
+	policy := buildSystemPolicy()
+	policy.Metadata["type"] = SYS_OP_FILE
+	policy.Spec.File = types.KnoxSys{}
 
+	// step 3: aggregate file paths
+	for src, filePaths := range srcToDest {
 		aggreatedFilePaths := AggregatePaths(filePaths)
 
-		// step 3: build system policies
-		policy := buildSystemPolicy()
-		policy.Metadata["type"] = SYS_OP_FILE
-		policy.Spec.File = types.KnoxSys{}
+		// step 4: append spec to the policy
 		for _, filePath := range aggreatedFilePaths {
+			appended = true
 			policy = updateSysPolicySpec(SYS_OP_FILE, policy, src, filePath)
 		}
+	}
 
+	if appended {
 		results = append(results, policy)
 	}
 
@@ -238,6 +353,9 @@ func discoverFileOperationPolicy(results []types.KnoxSystemPolicy, pod types.Pod
 func discoverProcessOperationPolicy(results []types.KnoxSystemPolicy, pod types.Pod, logs []types.KnoxSystemLog) []types.KnoxSystemPolicy {
 	// step 1: [system logs] -> {source: []destination(resource)}
 	srcToDest := map[string][]string{}
+
+	// process spec is appended?
+	appended := false
 
 	for _, log := range logs {
 		if !ProcessFromSource {
@@ -253,23 +371,23 @@ func discoverProcessOperationPolicy(results []types.KnoxSystemPolicy, pod types.
 		}
 	}
 
-	// step 2: aggregate process paths
-	for src, processPaths := range srcToDest {
-		// if the source is not in the absolute path, skip it
-		if !strings.Contains(src, "/") {
-			continue
-		}
+	// step 2: build process operation
+	policy := buildSystemPolicy()
+	policy.Metadata["type"] = SYS_OP_PROCESS
+	policy.Spec.Process = types.KnoxSys{}
 
+	// step 3: aggregate process paths
+	for src, processPaths := range srcToDest {
 		aggreatedProcessPaths := AggregatePaths(processPaths)
 
-		// step 3: build system policies
-		policy := buildSystemPolicy()
-		policy.Metadata["type"] = SYS_OP_PROCESS
-		policy.Spec.Process = types.KnoxSys{}
+		// step 4: append spec to the policy
 		for _, processPath := range aggreatedProcessPaths {
+			appended = true
 			policy = updateSysPolicySpec(SYS_OP_PROCESS, policy, src, processPath)
 		}
+	}
 
+	if appended {
 		results = append(results, policy)
 	}
 
@@ -278,11 +396,6 @@ func discoverProcessOperationPolicy(results []types.KnoxSystemPolicy, pod types.
 
 func getPodInstance(key SysLogKey, pods []types.Pod) (types.Pod, error) {
 	for _, pod := range pods {
-		// for test //
-		if strings.Contains(pod.PodName, "ubuntu-1") {
-			return pod, nil
-		}
-
 		if key.Namespace == pod.Namespace && key.PodName == pod.PodName {
 			return pod, nil
 		}
@@ -313,13 +426,15 @@ func updateSysPolicySpec(opType string, policy types.KnoxSystemPolicy, src strin
 	// matchDirectories
 	if pathSpec.isDir {
 		matchDirs := types.KnoxMatchDirectories{
-			Dir: pathSpec.Path,
+			Dir: pathSpec.Path + "/",
 		}
 
 		if opType == SYS_OP_FILE {
 			if FileFromSource {
-				matchDirs.FromSource = types.KnoxFromSource{
-					Path: []string{src},
+				matchDirs.FromSource = []types.KnoxFromSource{
+					types.KnoxFromSource{
+						Path: src,
+					},
 				}
 				policy.Metadata["fromSource"] = src
 			}
@@ -331,8 +446,10 @@ func updateSysPolicySpec(opType string, policy types.KnoxSystemPolicy, src strin
 			}
 		} else if opType == SYS_OP_PROCESS {
 			if ProcessFromSource {
-				matchDirs.FromSource = types.KnoxFromSource{
-					Path: []string{src},
+				matchDirs.FromSource = []types.KnoxFromSource{
+					types.KnoxFromSource{
+						Path: src,
+					},
 				}
 				policy.Metadata["fromSource"] = src
 			}
@@ -344,14 +461,17 @@ func updateSysPolicySpec(opType string, policy types.KnoxSystemPolicy, src strin
 			}
 		}
 	} else {
+		// matchPaths
 		matchPaths := types.KnoxMatchPaths{
 			Path: pathSpec.Path,
 		}
 
 		if opType == SYS_OP_FILE {
 			if FileFromSource {
-				matchPaths.FromSource = types.KnoxFromSource{
-					Path: []string{src},
+				matchPaths.FromSource = []types.KnoxFromSource{
+					types.KnoxFromSource{
+						Path: src,
+					},
 				}
 				policy.Metadata["fromSource"] = src
 			}
@@ -363,8 +483,10 @@ func updateSysPolicySpec(opType string, policy types.KnoxSystemPolicy, src strin
 			}
 		} else if opType == SYS_OP_PROCESS {
 			if ProcessFromSource {
-				matchPaths.FromSource = types.KnoxFromSource{
-					Path: []string{src},
+				matchPaths.FromSource = []types.KnoxFromSource{
+					types.KnoxFromSource{
+						Path: src,
+					},
 				}
 				policy.Metadata["fromSource"] = src
 			}
@@ -412,6 +534,8 @@ func initSysPolicyDiscoveryConfiguration() {
 	SystemLogFile = cfg.GetCfgSystemLogFile()
 	SystemPolicyTo = cfg.GetCfgSystemPolicyTo()
 
+	SystemPolicyTypes = cfg.GetCfgSystemkPolicyTypes()
+
 	SystemLogFilters = cfg.GetCfgSystemLogFilters()
 
 	ProcessFromSource = cfg.GetCfgSystemProcFromSource()
@@ -444,9 +568,10 @@ func DiscoverSystemPolicyMain() {
 	clusteredLogs := clusteringSystemLogsByCluster(allSystemkLogs)
 
 	for clusterName, sysLogs := range clusteredLogs {
+		log.Info().Msgf("System policy discovery started for cluster [%s]", clusterName)
+
 		// get existing system policies in db
 		existingPolicies := libs.GetSystemPolicies(CfgDB, "", "")
-		discoveredSysPolicies := []types.KnoxSystemPolicy{}
 
 		// get k8s pods
 		pods := cluster.GetPods(clusterName)
@@ -457,6 +582,9 @@ func DiscoverSystemPolicyMain() {
 		// iterate sys log key := [namespace + pod_name]
 		nsPodLogs := clusteringSystemLogsByNamespacePod(cfgFilteredLogs)
 		for sysKey, perPodlogs := range nsPodLogs {
+
+			discoveredSysPolicies := []types.KnoxSystemPolicy{}
+
 			pod, err := getPodInstance(sysKey, pods)
 			if err != nil {
 				log.Error().Msg(err.Error())
@@ -464,31 +592,35 @@ func DiscoverSystemPolicyMain() {
 			}
 
 			// 1. discover file operation system policy
-			fileOpLogs := getOperationLogs(SYS_OP_FILE, perPodlogs)
-			discoveredSysPolicies = discoverFileOperationPolicy(discoveredSysPolicies, pod, fileOpLogs)
+			if SystemPolicyTypes&SYS_OP_FILE_INT > 0 {
+				fileOpLogs := getOperationLogs(SYS_OP_FILE, perPodlogs)
+				discoveredSysPolicies = discoverFileOperationPolicy(discoveredSysPolicies, pod, fileOpLogs)
+			}
 
 			// 2. discover process operation system policy
-			procOpLogs := getOperationLogs(SYS_OP_PROCESS, perPodlogs)
-			discoveredSysPolicies = discoverProcessOperationPolicy(discoveredSysPolicies, pod, procOpLogs)
+			if SystemPolicyTypes&SYS_OP_PROCESS_INT > 0 {
+				procOpLogs := getOperationLogs(SYS_OP_PROCESS, perPodlogs)
+				discoveredSysPolicies = discoverProcessOperationPolicy(discoveredSysPolicies, pod, procOpLogs)
+			}
 
 			// 3. update selector
 			discoveredSysPolicies = updateSysPolicySelector(clusterName, pod, discoveredSysPolicies)
-		}
 
-		// update duplicated policy
-		newPolicies := UpdateDuplicatedPolicy(existingPolicies, discoveredSysPolicies, clusterName)
+			// 4. update duplicated policy
+			newPolicies := UpdateDuplicatedPolicy(existingPolicies, discoveredSysPolicies, clusterName)
 
-		if len(newPolicies) > 0 {
-			// insert discovered policies to db
-			if strings.Contains(SystemPolicyTo, "db") {
-				libs.InsertSystemPolicies(CfgDB, newPolicies)
+			if len(newPolicies) > 0 {
+				// insert discovered policies to db
+				if strings.Contains(SystemPolicyTo, "db") {
+					libs.InsertSystemPolicies(CfgDB, newPolicies)
+				}
+
+				log.Info().Msgf("-> System policy discovery done for cluster/namespace/pod: [%s/%s/%s], [%d] policies discovered", clusterName, pod.Namespace, pod.PodName, len(newPolicies))
 			}
 
-			log.Info().Msgf("-> System policy discovery done for cluster: [%s], [%d] policies discovered", clusterName, len(newPolicies))
-		}
-
-		if strings.Contains(SystemPolicyTo, "file") {
-			WriteSystemPoliciesToFile(clusterName, "multiubuntu")
+			if len(newPolicies) > 0 && strings.Contains(SystemPolicyTo, "file") {
+				WriteSystemPoliciesToFile(clusterName, "multiubuntu")
+			}
 		}
 	}
 }

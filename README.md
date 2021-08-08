@@ -1,11 +1,11 @@
 # KnoxAutoPolicy
-KnoxAutoPolicy is a policy recommendation system that suggests network policies based on the collected network logs from the various container network interfaces (CNI) such as Cilium, Bastion, and Calico.
+KnoxAutoPolicy is a policy recommendation system that suggests network and system policies based on the collected network and system logs respectively from the various container network interfaces (CNI) such as Cilium, Bastion, and Calico and container-aware runtime security enforcement system (CRSE) such as KubeArmor.
 
-Basically, KnoxAutoPolicy operates as plug-ins because each CNI employs its own scheme for the network log and network policy. Thus, KnoxAutoPolicy can convert each scheme to Knox General Scheme (network log/policy) and vice versa. From these functionalities, we can minimize its dependency on each CNI.
+Basically, KnoxAutoPolicy operates as plug-ins because each CNI and CRSE employ their own scheme for the network log/policy and system log/policy. Thus, KnoxAutoPolicy can convert each scheme to Knox General Scheme (network log/policy and system log/policy) and vice versa. From these functionalities, we can minimize its dependency on each CNI and CRSE.
 
-KnoxAutoPolicy is designed for Kubernetes environments; it focuses on pods/services, and its fundamental principle is to produce a minimal network policy set covering maximum flows. To do this, we actively use the label information assigned from the Kubernetes workloads/resources.
+KnoxAutoPolicy is designed for Kubernetes environments; it focuses on pods/services, and its fundamental principle is to produce a minimal network and system policy set covering maximum behavior. To do this, we actively use the label information assigned from the Kubernetes workloads/resources.
 
-Currently, KnoxAutoPolicy can discover egress/ingress network policy for Pod-to- Pod, (External)Service, Entity, CIDR, FQDN, HTTP. Further detail is available [here](./getting-started/knox_network_policy_specification.md).
+Currently, KnoxAutoPolicy can discover (i) egress/ingress network policy for Pod-to- Pod, (External)Service, Entity, CIDR, FQDN, HTTP. Further detail is available [here](./getting-started/knox_network_policy_specification.md). And, KnoxAutoPolicy can discover (ii) process, file, and network-relevant system policy.
 
 <center><img src=./getting-started/resources/autopolicy_overview.png></center>
 
@@ -30,7 +30,7 @@ Inevitably, CIDR policies could be discovered if there is no information on the 
 
 Generally, KnoxAutoPolicy discovers the network policies by extracting the network logs from the database every time intervals. In addition, KnoxAutoPolicy can connect to a log monitor directly (e.g., Cilium Hubble), and receive the network log, and then produce the network policies in runtime.
 
-* Support various policy discovery modes 
+* Support various network policy discovery modes
 
 Fundamentally, a pod has two types of network policy in Kubernetes; egress and ingress. The egress policy restricts the outbound network flows and the other way, the ingress policy operates against the inbound network flows. In this context, KnoxAutoPolicy supports three different types of policy discovery modes; egress+ingress, ingress-centric, and egress-centric. Thus, users can choose one of them depending on their demand.
 
@@ -40,6 +40,6 @@ Please take a look at the following documents.
 
 1. [Deployment Guide](./getting-started/deployment_guide.md)
 2. [Knox Network Policy Specification](./getting-started/knox_network_policy_specification.md)
-3. [Policy Discovery Examples](./getting-started/policy_discovery_examples.md)
+3. [Network Policy Discovery Examples](./getting-started/policy_discovery_examples.md)
 4. [Development Guide](./getting-started/development_guide.md)
 

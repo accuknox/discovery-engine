@@ -176,30 +176,30 @@ type KnoxDir struct {
 
 // KnoxFromSource Structure
 type KnoxFromSource struct {
-	Path []string  `json:"path,omitempty" yaml:"path,omitempty"`
-	Dir  []KnoxDir `json:"dir,omitempty" yaml:"dir,omitempty"`
+	Path string  `json:"path,omitempty" yaml:"path,omitempty"`
+	Dir  KnoxDir `json:"dir,omitempty" yaml:"dir,omitempty"`
 }
 
 // KnoxMatchPaths Structure
 type KnoxMatchPaths struct {
-	Path       string         `json:"path,omitempty" yaml:"path,omitempty"`
-	ReadOnly   bool           `json:"readOnly,omitempty" yaml:"readOnly,omitempty"`
-	OwnerOnly  bool           `json:"ownerOnly,omitempty" yaml:"ownerOnly,omitempty"`
-	FromSource KnoxFromSource `json:"fromSource,omitempty" yaml:"fromSource,omitempty"`
+	Path       string           `json:"path,omitempty" yaml:"path,omitempty"`
+	ReadOnly   bool             `json:"readOnly,omitempty" yaml:"readOnly,omitempty"`
+	OwnerOnly  bool             `json:"ownerOnly,omitempty" yaml:"ownerOnly,omitempty"`
+	FromSource []KnoxFromSource `json:"fromSource,omitempty" yaml:"fromSource,omitempty"`
 }
 
 // KnoxMatchDirectories Structure
 type KnoxMatchDirectories struct {
-	Dir        string         `json:"dir,omitempty" yaml:"dir,omitempty"`
-	ReadOnly   bool           `json:"readOnly,omitempty" yaml:"readOnly,omitempty"`
-	OwnerOnly  bool           `json:"ownerOnly,omitempty" yaml:"ownerOnly,omitempty"`
-	FromSource KnoxFromSource `json:"fromSource,omitempty" yaml:"fromSource,omitempty"`
+	Dir        string           `json:"dir,omitempty" yaml:"dir,omitempty"`
+	ReadOnly   bool             `json:"readOnly,omitempty" yaml:"readOnly,omitempty"`
+	OwnerOnly  bool             `json:"ownerOnly,omitempty" yaml:"ownerOnly,omitempty"`
+	FromSource []KnoxFromSource `json:"fromSource,omitempty" yaml:"fromSource,omitempty"`
 }
 
 // KnoxMatchProtocols Structure
 type KnoxMatchProtocols struct {
-	Protocol   string         `json:"protocol,omitempty" yaml:"protocol,omitempty"`
-	FromSource KnoxFromSource `json:"fromSource,omitempty" yaml:"fromSource,omitempty"`
+	Protocol   string           `json:"protocol,omitempty" yaml:"protocol,omitempty"`
+	FromSource []KnoxFromSource `json:"fromSource,omitempty" yaml:"fromSource,omitempty"`
 }
 
 // KnoxSys Structure

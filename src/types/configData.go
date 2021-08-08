@@ -66,6 +66,7 @@ type ConfigDB struct {
 	TableNetworkLog    string `json:"table_network_log,omitempty" bson:"table_network_log,omitempty"`
 	TableNetworkPolicy string `json:"table_network_policy,omitempty" bson:"table_network_policy,omitempty"`
 	TableSystemLog     string `json:"table_system_log,omitempty" bson:"table_system_log,omitempty"`
+	TableSystemAlert   string `json:"table_system_alert,omitempty" bson:"table_system_alert,omitempty"`
 	TableSystemPolicy  string `json:"table_system_policy,omitempty" bson:"table_system_policy,omitempty"`
 }
 
@@ -122,6 +123,8 @@ type ConfigSystemPolicy struct {
 	SystemLogFile   string `json:"system_log_file,omitempty" bson:"system_log_file,omitempty"`
 	SystemPolicyTo  string `json:"system_policy_to,omitempty" bson:"system_policy_to,omitempty"`
 	SystemPolicyDir string `json:"system_policy_dir,omitempty" bson:"system_policy_dir,omitempty"`
+
+	SysPolicyTypes int `json:"system_policy_types,omitempty" bson:"system_policy_types,omitempty"`
 
 	SystemLogFilters []SystemLogFilter `json:"system_policy_log_filters,omitempty" bson:"system_policy_log_filters,omitempty"`
 

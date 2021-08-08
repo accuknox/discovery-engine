@@ -8,7 +8,7 @@ application:
     network-policy-to: "db|file"              # db, file
     network-policy-dir: "./"
   system:
-    operation-mode: 1                         # 1: cronjob | 2: one-time-job
+    operation-mode: 2                         # 1: cronjob | 2: one-time-job
     cron-job-time-interval: "0h0m5s"          # format: XhYmZs 
     system-log-from: "db"                     # db|kubearmor
     system-log-file: "./log.json"             # file path
@@ -25,25 +25,35 @@ database:
   port: 3306
   user: root
   password: password
-  dbname: knoxautopolicy
+  dbname: accuknox
   table-configuration: auto_policy_config
   table-network-log: network_log
   table-network-policy: network_policy
   table-system-log: system_log
+  table-system-alert: system_alert
   table-system-policy: system_policy
 
 feed-consumer:
   kafka:
+    number-of-consumers: 3
     broker-address-family: v4
     session-timeout-ms: 6000
     auto-offset-reset: "earliest"
-    bootstrap-servers: "dev-kafka-kafka-bootstrap.accuknox-dev-kafka.svc.cluster.local:9092"
-    group-id: policy.cilium
+    # auto-offset-reset: "latest"
+    bootstrap-servers: "dev-kafka-kafka-external-bootstrap.accuknox-dev-kafka.svc.cluster.local:9095"
+    group-id: knoxautopolicy
     topics: 
-      - cilium-telemetry
+      - cilium-telemetry-new
       - kubearmor-syslogs
+    security:
+      protocol: SSL
     ssl:
-      enabled: false
+      enabled: true
+    ca:
+      location: /kafka-ssl/ca.pem
+    keystore:
+      location: /kafka-ssl/user.p12
+      pword: DHmHwNYy22At
     events:
       buffer: 50
 

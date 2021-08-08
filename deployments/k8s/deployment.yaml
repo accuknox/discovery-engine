@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: knoxautopolicy
+  name: {{ .Values.labels.app }}
   labels:
     deployment: knoxautopolicy
 spec:
@@ -13,6 +13,7 @@ spec:
       labels:
         container: knoxautopolicy
     spec:
+      serviceAccountName: knoxautopolicy
       containers:
       - image: gcr.io/accuknox/snapshot/knoxautopolicy:latest 
         #image: accuknox/knoxautopolicy:latest

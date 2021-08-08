@@ -1,5 +1,4 @@
 .vscode/
-*.yaml
 src/knoxAutoPolicy
 src/go.sum
 script/log
