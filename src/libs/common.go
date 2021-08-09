@@ -330,7 +330,9 @@ func WriteKubeArmorPolicyToYamlFile(namespace string, policies []types.KubeArmor
 	fileName := GetEnv("POLICY_DIR", "./") + "system_policies.yaml"
 
 	if err := os.Remove(fileName); err != nil {
-		log.Error().Msg(err.Error())
+		if !strings.Contains(err.Error(), "no such file or directory") {
+			log.Error().Msg(err.Error())
+		}
 	}
 
 	f, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY, 0600)
