@@ -308,7 +308,7 @@ func GetCfgSysOperationMode() int {
 }
 
 func GetCfgSysOperationTrigger() int {
-	return CurrentCfg.ConfigNetPolicy.OperationTrigger
+	return CurrentCfg.ConfigSysPolicy.OperationTrigger
 }
 
 func GetCfgSysCronJobTime() string {
