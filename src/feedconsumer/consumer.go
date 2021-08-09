@@ -3,7 +3,9 @@ package feedconsumer
 import (
 	"encoding/json"
 	"errors"
+	"strconv"
 	"sync"
+	"time"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/rs/zerolog"
@@ -67,7 +69,7 @@ func (cfc *KnoxFeedConsumer) setupKafkaConfig() {
 	sessionTimeoutMs := viper.GetString("feed-consumer.kafka.session-timeout-ms")
 	autoOffsetReset := viper.GetString("feed-consumer.kafka.auto-offset-reset")
 
-	groupID := viper.GetString("feed-consumer.kafka.group-id")
+	groupID := viper.GetString("feed-consumer.kafka.group-id") + strconv.FormatUint(uint64(time.Now().Unix()), 10)
 	cfc.topics = viper.GetStringSlice("feed-consumer.kafka.topics")
 	cfc.eventsBuffer = viper.GetInt("feed-consumer.kafka.events.buffer")
 

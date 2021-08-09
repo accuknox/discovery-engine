@@ -142,8 +142,8 @@ config:
       bootstrap-servers: "dev-kafka-kafka-external-bootstrap.accuknox-dev-kafka.svc.cluster.local:9095"
       group-id: knoxautopolicy
       topics: 
-        # - cilium-telemetry-new
-        # - cilium-telemetry
+        - cilium-telemetry-new
+        - cilium-telemetry
         - kubearmor-syslogs
       security:
         protocol: SSL
