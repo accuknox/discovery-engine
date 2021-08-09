@@ -108,6 +108,7 @@ func LoadDefaultConfig() {
 		OperationMode:           viper.GetInt("application.network.operation-mode"),
 		CronJobTimeInterval:     "@every " + viper.GetString("application.network.cron-job-time-interval"),
 		OneTimeJobTimeSelection: "", // e.g., 2021-01-20 07:00:23|2021-01-20 07:00:25
+		OperationTrigger:        viper.GetInt("application.network.operation-trigger"),
 
 		NetworkLogFrom:   viper.GetString("application.network.network-log-from"),
 		NetworkLogFile:   viper.GetString("application.network.network-log-file"),
@@ -130,6 +131,7 @@ func LoadDefaultConfig() {
 		OperationMode:           viper.GetInt("application.system.operation-mode"),
 		CronJobTimeInterval:     "@every " + viper.GetString("application.system.cron-job-time-interval"),
 		OneTimeJobTimeSelection: "", // e.g., 2021-01-20 07:00:23|2021-01-20 07:00:25
+		OperationTrigger:        viper.GetInt("application.network.operation-trigger"),
 
 		SysPolicyTypes: 7,
 
@@ -239,6 +241,10 @@ func GetCfgNetOneTime() string {
 	return CurrentCfg.ConfigNetPolicy.OneTimeJobTimeSelection
 }
 
+func GetCfgNetOperationTrigger() int {
+	return CurrentCfg.ConfigNetPolicy.OperationTrigger
+}
+
 // == //
 
 func GetCfgNetworkLogFrom() string {
@@ -299,6 +305,10 @@ func GetCfgNetworkLogFilters() []types.NetworkLogFilter {
 
 func GetCfgSysOperationMode() int {
 	return CurrentCfg.ConfigSysPolicy.OperationMode
+}
+
+func GetCfgSysOperationTrigger() int {
+	return CurrentCfg.ConfigNetPolicy.OperationTrigger
 }
 
 func GetCfgSysCronJobTime() string {

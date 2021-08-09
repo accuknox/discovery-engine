@@ -26,7 +26,7 @@ func updateTimeInterval(lastDoc map[string]interface{}) {
 	}
 }
 
-func GetNetworkLogsFromDB(cfg types.ConfigDB, timeSelection string) []map[string]interface{} {
+func GetNetworkLogsFromDB(cfg types.ConfigDB, timeSelection string, trigger int) []map[string]interface{} {
 	results := []map[string]interface{}{}
 
 	endTime = time.Now().Unix()
@@ -39,6 +39,11 @@ func GetNetworkLogsFromDB(cfg types.ConfigDB, timeSelection string) []map[string
 				return results
 			}
 			results = docs
+
+			if len(results) != 0 && len(results) < trigger {
+				log.Info().Msgf("The number of network logs [%d] is less than trigger [%d]", len(results), trigger)
+				return results
+			}
 		} else {
 			// given time selection from ~ to
 			times := strings.Split(timeSelection, "|")
@@ -169,7 +174,7 @@ var LastSyslogID int64 = 0
 var syslogStartTime int64 = 0
 var syslogEndTime int64 = 0
 
-func GetSystemLogsFromDB(cfg types.ConfigDB, timeSelection string) []map[string]interface{} {
+func GetSystemLogsFromDB(cfg types.ConfigDB, timeSelection string, trigger int) []map[string]interface{} {
 	results := []map[string]interface{}{}
 
 	syslogEndTime = time.Now().Unix()
@@ -182,6 +187,11 @@ func GetSystemLogsFromDB(cfg types.ConfigDB, timeSelection string) []map[string]
 				return results
 			}
 			results = docs
+
+			if len(results) != 0 && len(results) < trigger {
+				log.Info().Msgf("The number of system logs [%d] is less than trigger [%d]", len(results), trigger)
+				return results
+			}
 		} else {
 			// given time selection from ~ to
 			times := strings.Split(timeSelection, "|")
@@ -242,7 +252,7 @@ var LastSysAlertID int64 = 0
 var sysAlertStartTime int64 = 0
 var sysAlertEndTime int64 = 0
 
-func GetSystemAlertsFromDB(cfg types.ConfigDB, timeSelection string) []map[string]interface{} {
+func GetSystemAlertsFromDB(cfg types.ConfigDB, timeSelection string, trigger int) []map[string]interface{} {
 	results := []map[string]interface{}{}
 
 	sysAlertEndTime = time.Now().Unix()
@@ -255,6 +265,12 @@ func GetSystemAlertsFromDB(cfg types.ConfigDB, timeSelection string) []map[strin
 				return results
 			}
 			results = docs
+
+			// TOOD: checking alert
+			// if len(results) != 0 && len(results) < trigger {
+			// 	log.Info().Msgf("The number of system alerts [%d] is less than trigger [%d]", len(results), trigger)
+			// 	return results
+			// }
 		} else {
 			// given time selection from ~ to
 			times := strings.Split(timeSelection, "|")
