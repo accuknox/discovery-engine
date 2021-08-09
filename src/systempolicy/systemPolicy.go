@@ -59,6 +59,7 @@ var SystemWorkerStatus string
 var SystemCronJob *cron.Cron
 var SystemWaitG sync.WaitGroup
 var SystemStopChan chan struct{} // for hubble
+var OperationTrigger int
 
 var OneTimeJobTime string
 
@@ -170,13 +171,13 @@ func getSystemLogs() []types.KnoxSystemLog {
 		log.Info().Msg("Get system log from the database")
 
 		// get system logs from db
-		sysLogs := libs.GetSystemLogsFromDB(cfg.GetCfgDB(), cfg.GetCfgSysOneTime())
+		sysLogs := libs.GetSystemLogsFromDB(cfg.GetCfgDB(), cfg.GetCfgSysOneTime(), OperationTrigger)
 		if len(sysLogs) == 0 {
 			return nil
 		}
 
 		// get system alerts from db, and merge it to the system logs
-		sysAlerts := libs.GetSystemAlertsFromDB(cfg.GetCfgDB(), cfg.GetCfgSysOneTime())
+		sysAlerts := libs.GetSystemAlertsFromDB(cfg.GetCfgDB(), cfg.GetCfgSysOneTime(), OperationTrigger)
 		if len(sysAlerts) != 0 {
 			sysLogs = append(sysLogs, sysAlerts...)
 		}
@@ -529,6 +530,8 @@ func initSysPolicyDiscoveryConfiguration() {
 	CfgDB = cfg.GetCfgDB()
 
 	OneTimeJobTime = cfg.GetCfgSysOneTime()
+
+	OperationTrigger = cfg.GetCfgSysOperationTrigger()
 
 	SystemLogFrom = cfg.GetCfgSystemLogFrom()
 	SystemLogFile = cfg.GetCfgSystemLogFile()

@@ -88,6 +88,7 @@ type ConfigNetworkPolicy struct {
 	OperationMode           int    `json:"operation_mode,omitempty" bson:"operation_mode,omitempty"`
 	CronJobTimeInterval     string `json:"cronjob_time_interval,omitempty" bson:"cronjob_time_interval,omitempty"`
 	OneTimeJobTimeSelection string `json:"one_time_job_time_selection,omitempty" bson:"one_time_job_time_selection,omitempty"`
+	OperationTrigger        int
 
 	NetworkLogFrom   string `json:"network_log_from,omitempty" bson:"network_log_from,omitempty"`
 	NetworkLogFile   string `json:"network_log_file,omitempty" bson:"network_log_file,omitempty"`
@@ -118,6 +119,7 @@ type ConfigSystemPolicy struct {
 	OperationMode           int    `json:"operation_mode,omitempty" bson:"operation_mode,omitempty"`
 	CronJobTimeInterval     string `json:"cronjob_time_interval,omitempty" bson:"cronjob_time_interval,omitempty"`
 	OneTimeJobTimeSelection string `json:"one_time_job_time_selection,omitempty" bson:"one_time_job_time_selection,omitempty"`
+	OperationTrigger        int
 
 	SystemLogFrom   string `json:"system_log_from,omitempty" bson:"system_log_from,omitempty"`
 	SystemLogFile   string `json:"system_log_file,omitempty" bson:"system_log_file,omitempty"`

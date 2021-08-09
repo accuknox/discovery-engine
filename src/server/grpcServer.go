@@ -226,9 +226,24 @@ func GetNewServer() *grpc.Server {
 
 	reflection.Register(s)
 
-	cpb.RegisterConfigStoreServer(s, &configServer{})
-	wpb.RegisterWorkerServer(s, &workerServer{})
-	fpb.RegisterConsumerServer(s, &consumerServer{})
+	// create server instances
+	configServer := &configServer{}
+	workerServer := &workerServer{}
+	consumerServer := &consumerServer{}
+
+	// register gRPC servers
+	cpb.RegisterConfigStoreServer(s, configServer)
+	wpb.RegisterWorkerServer(s, workerServer)
+	fpb.RegisterConsumerServer(s, consumerServer)
+
+	// start consumer automatically
+	feedconsumer.StartConsumer()
+
+	// start net worker automatically
+	networker.StartNetworkWorker()
+
+	// start sys worker automatically
+	sysworker.StartSystemWorker()
 
 	return s
 }
