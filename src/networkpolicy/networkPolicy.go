@@ -1326,7 +1326,7 @@ func buildNetworkPolicy(namespace string, services []types.Service, aggregatedSr
 				if discoverPolicyTypes&INGRESS > 0 && discoverRuleTypes&FROM_CIDRS > 0 {
 					// add ingress policy
 					ingressPolicy := buildNewIngressPolicyFromSameSelector(namespace, egressPolicy.Spec.Selector)
-					ingressPolicy.Metadata["rule"] = "toCIDRs"
+					ingressPolicy.Metadata["rule"] = "fromCIDRs"
 
 					ingressRule := types.Ingress{}
 
