@@ -3,13 +3,15 @@ application:
   network:
     operation-mode: 1                         # 1: cronjob | 2: one-time-job
     cron-job-time-interval: "0h0m10s"         # format: XhYmZs 
-    network-log-from: "db"                    # db|hubble
+    operation-trigger: 100
+    network-log-from: "hubble"                # db|hubble
     network-log-file: "./flow.json"           # file path
     network-policy-to: "db|file"              # db, file
     network-policy-dir: "./"
   system:
     operation-mode: 2                         # 1: cronjob | 2: one-time-job
-    cron-job-time-interval: "0h0m5s"          # format: XhYmZs 
+    cron-job-time-interval: "0h0m10s"         # format: XhYmZs
+    operation-trigger: 100 
     system-log-from: "db"                     # db|kubearmor
     system-log-file: "./log.json"             # file path
     system-policy-to: "db|file"               # db, file
@@ -44,6 +46,7 @@ feed-consumer:
     group-id: knoxautopolicy
     topics: 
       - cilium-telemetry-new
+      - cilium-telemetry
       - kubearmor-syslogs
     security:
       protocol: SSL
@@ -61,5 +64,5 @@ logging:
   level: "INFO"
   
 cilium-hubble:
-  url: 10.4.41.240
+  url: 10.107.199.164
   port: 80
