@@ -1558,13 +1558,9 @@ func DiscoverNetworkPolicyMain() {
 		configFilteredLogs := FilterNetworkLogsByConfig(networkLogs, pods)
 
 		// iterate each namespace
-		for _, namespace := range namespaces {
-			if SkipNamespaceForNetworkPolicy(namespace) {
-				continue
-			}
-
-			// filter network logs by target namespace
-			namespaceFilteredLogs := FilterNetworkLogsByNamespace(namespace, configFilteredLogs)
+		for _, targetNamespace := range namespaces {
+			// get network logs by target namespace
+			namespaceFilteredLogs := FilterNetworkLogsByNamespace(targetNamespace, configFilteredLogs)
 			if len(namespaceFilteredLogs) == 0 {
 				continue
 			}
@@ -1575,10 +1571,10 @@ func DiscoverNetworkPolicyMain() {
 			// ========================================================= //
 			// == discover network policies based on the network logs == //
 			// ========================================================= //
-			discoveredNetPolicies := DiscoverNetworkPolicy(namespace, namespaceFilteredLogs, services, endpoints, pods)
+			discoveredNetPolicies := DiscoverNetworkPolicy(targetNamespace, namespaceFilteredLogs, services, endpoints, pods)
 
 			// get existing network policies in db
-			existingPolicies := libs.GetNetworkPolicies(CfgDB, clusterName, namespace, "latest")
+			existingPolicies := libs.GetNetworkPolicies(CfgDB, clusterName, targetNamespace, "latest")
 
 			// update duplicated policy
 			newPolicies := UpdateDuplicatedPolicy(existingPolicies, discoveredNetPolicies, DomainToIPs, clusterName)
@@ -1591,10 +1587,10 @@ func DiscoverNetworkPolicyMain() {
 
 				// write discovered policies to file
 				if strings.Contains(NetworkPolicyTo, "file") {
-					WriteNetworkPoliciesToFile(clusterName, namespace, services)
+					WriteNetworkPoliciesToFile(clusterName, targetNamespace, services)
 				}
 
-				log.Info().Msgf("-> Network policy discovery done for namespace: [%s], [%d] policies discovered", namespace, len(newPolicies))
+				log.Info().Msgf("-> Network policy discovery done for namespace: [%s], [%d] policies discovered", targetNamespace, len(newPolicies))
 			}
 		}
 
