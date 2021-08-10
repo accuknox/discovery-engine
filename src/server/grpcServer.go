@@ -7,6 +7,7 @@ import (
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/rs/zerolog"
 
+	cfg "github.com/accuknox/knoxAutoPolicy/src/config"
 	core "github.com/accuknox/knoxAutoPolicy/src/config"
 	"github.com/accuknox/knoxAutoPolicy/src/feedconsumer"
 	logger "github.com/accuknox/knoxAutoPolicy/src/logging"
@@ -236,14 +237,16 @@ func GetNewServer() *grpc.Server {
 	wpb.RegisterWorkerServer(s, workerServer)
 	fpb.RegisterConsumerServer(s, consumerServer)
 
-	// start consumer automatically
-	feedconsumer.StartConsumer()
+	if cfg.GetCurrentCfg().ConfigClusterMgmt.ClusterInfoFrom != "k8sclient" {
+		// start consumer automatically
+		feedconsumer.StartConsumer()
 
-	// start net worker automatically
-	networker.StartNetworkWorker()
+		// start net worker automatically
+		networker.StartNetworkWorker()
 
-	// start sys worker automatically
-	sysworker.StartSystemWorker()
+		// start sys worker automatically
+		sysworker.StartSystemWorker()
+	}
 
 	return s
 }
