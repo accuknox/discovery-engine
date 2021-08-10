@@ -671,18 +671,25 @@ func ConnectHubbleRelay(cfg types.ConfigCiliumHubble) *grpc.ClientConn {
 	return conn
 }
 
-func GetCiliumFlowsFromHubble() []*cilium.Flow {
-	results := CiliumFlows
+func GetCiliumFlowsFromHubble(trigger int) []*cilium.Flow {
+	results := []*cilium.Flow{}
 
 	CiliumFlowsMutex.Lock()
-	CiliumFlows = []*cilium.Flow{} // reset
-	CiliumFlowsMutex.Unlock()
-
-	if len(results) == 0 {
-		log.Info().Msgf("Traffic flow not exist")
-
+	if len(CiliumFlows) == 0 {
+		log.Info().Msgf("Cilium hubble traffic flow not exist")
+		CiliumFlowsMutex.Unlock()
 		return results
 	}
+
+	if len(CiliumFlows) < trigger {
+		log.Info().Msgf("The number of cilium hubble traffic flow [%d] is less than trigger [%d]", len(CiliumFlows), trigger)
+		CiliumFlowsMutex.Unlock()
+		return results
+	}
+
+	results = CiliumFlows          // copy
+	CiliumFlows = []*cilium.Flow{} // reset
+	CiliumFlowsMutex.Unlock()
 
 	fisrtDoc := results[0]
 	lastDoc := results[len(results)-1]
@@ -691,7 +698,7 @@ func GetCiliumFlowsFromHubble() []*cilium.Flow {
 	startTime := fisrtDoc.Time.Seconds
 	endTime := lastDoc.Time.Seconds
 
-	log.Info().Msgf("The total number of traffic flow: [%d] from %s ~ to %s", len(results),
+	log.Info().Msgf("The total number of cilium hubble traffic flow: [%d] from %s ~ to %s", len(results),
 		time.Unix(startTime, 0).Format(libs.TimeFormSimple),
 		time.Unix(endTime, 0).Format(libs.TimeFormSimple))
 

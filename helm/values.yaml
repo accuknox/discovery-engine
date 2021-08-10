@@ -102,6 +102,7 @@ config:
     network:
       operation-mode: 1                         # 1: cronjob | 2: one-time-job
       cron-job-time-interval: "0h0m10s"         # format: XhYmZs 
+      operation-trigger: 100000
       network-log-from: "db"                    # db|hubble
       network-log-file: "./flow.json"           # file path
       network-policy-to: "db|file"              # db, file
@@ -111,6 +112,7 @@ config:
     system:
       operation-mode: 1                         # 1: cronjob | 2: one-time-job
       cron-job-time-interval: "0h0m10s"         # format: XhYmZs 
+      operation-trigger: 1000
       system-log-from: "db"                     # db|kubearmor
       system-log-file: "./log.json"             # file path
       system-policy-to: "db|file"               # db, file

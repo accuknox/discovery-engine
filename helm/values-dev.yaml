@@ -101,7 +101,8 @@ config:
     name: knoxautopolicy
     network:
       operation-mode: 1                         # 1: cronjob | 2: one-time-job
-      cron-job-time-interval: "0h0m10s"         # format: XhYmZs 
+      cron-job-time-interval: "0h0m30s"         # format: XhYmZs 
+      operation-trigger: 1000
       network-log-from: "db"                    # db|hubble
       network-log-file: "./flow.json"           # file path
       network-policy-to: "db|file"              # db, file
@@ -110,7 +111,8 @@ config:
       network-policy-rule-types: 511
     system:
       operation-mode: 1                         # 1: cronjob | 2: one-time-job
-      cron-job-time-interval: "0h0m10s"         # format: XhYmZs 
+      cron-job-time-interval: "0h0m30s"         # format: XhYmZs 
+      operation-trigger: 100
       system-log-from: "db"                     # db|kubearmor
       system-log-file: "./log.json"             # file path
       system-policy-to: "db|file"               # db, file
@@ -138,7 +140,7 @@ config:
       number-of-consumers: 3
       broker-address-family: v4
       session-timeout-ms: 6000
-      auto-offset-reset: "earliest"
+      auto-offset-reset: "latest" # earliest | latest
       bootstrap-servers: "dev-kafka-kafka-external-bootstrap.accuknox-dev-kafka.svc.cluster.local:9095"
       group-id: knoxautopolicy
       topics: 

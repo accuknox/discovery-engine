@@ -74,17 +74,6 @@ func updateMultiClusterVariables(clusterName string) {
 // == Network Policy Filter == //
 // =========================== //
 
-func SkipNamespaceForNetworkPolicy(namespace string) bool {
-	// skip uninterested namespaces
-	if libs.ContainsElement(NamespaceFilters, namespace) {
-		return true
-	} else if strings.HasPrefix(namespace, "accuknox-") {
-		return true
-	}
-
-	return false
-}
-
 func getHaveToCheckItems(igFlows types.NetworkLogFilter) int {
 	check := 0
 
@@ -132,7 +121,7 @@ func FilterNetworkLogsByConfig(logs []types.KnoxNetworkLog, pods []types.Pod) []
 			}
 
 			// 2. check src pod labels
-			if (checkItems&2 > 0) && containLabelByConfiguration("cilium", filter.SourceLabels, getLabelsFromPod(log.SrcPodName, pods)) {
+			if (checkItems&2 > 0) && containLabelByConfiguration(filter.SourceLabels, getLabelsFromPod(log.SrcPodName, pods)) {
 				checkedItems = checkedItems | 1<<1
 			}
 
@@ -142,7 +131,7 @@ func FilterNetworkLogsByConfig(logs []types.KnoxNetworkLog, pods []types.Pod) []
 			}
 
 			// 4. check dest pod labels
-			if (checkItems&8 > 0) && containLabelByConfiguration("cilium", filter.DestinationLabels, getLabelsFromPod(log.DstPodName, pods)) {
+			if (checkItems&8 > 0) && containLabelByConfiguration(filter.DestinationLabels, getLabelsFromPod(log.DstPodName, pods)) {
 				checkedItems = checkedItems | 1<<3
 			}
 
@@ -175,13 +164,15 @@ func FilterNetworkLogsByConfig(logs []types.KnoxNetworkLog, pods []types.Pod) []
 func FilterNetworkLogsByNamespace(targetNamespace string, logs []types.KnoxNetworkLog) []types.KnoxNetworkLog {
 	filteredLogs := []types.KnoxNetworkLog{}
 
-	// case 1: src namespace == target namespace
-	// case 2: dst namespace == target namespace && src namespace == reserved: or kube-system or cilium
 	for _, log := range logs {
+		// case 1: src namespace == target namespace
 		if log.SrcNamespace == targetNamespace {
 			filteredLogs = append(filteredLogs, log)
 
-		} else if log.DstNamespace == targetNamespace {
+		}
+
+		// case 2: dst namespace == target namespace && src namespace == reserved: or kube-system or cilium
+		if log.DstNamespace == targetNamespace {
 			if strings.Contains(log.SrcNamespace, "reserved:") {
 				filteredLogs = append(filteredLogs, log)
 			}
@@ -205,8 +196,8 @@ func getNetworkLogs() []types.KnoxNetworkLog {
 		log.Info().Msg("Get network log from the database")
 
 		// get network logs from db
-		netLogs := libs.GetNetworkLogsFromDB(CfgDB, OneTimeJobTime)
-		if len(netLogs) == 0 {
+		netLogs := libs.GetNetworkLogsFromDB(CfgDB, OneTimeJobTime, OperationTrigger)
+		if len(netLogs) == 0 || len(netLogs) < OperationTrigger {
 			return nil
 		}
 
@@ -219,7 +210,7 @@ func getNetworkLogs() []types.KnoxNetworkLog {
 		log.Info().Msg("Get network log from the Cilium Hubble directly")
 
 		// get flows from hubble relay
-		flows := plugin.GetCiliumFlowsFromHubble()
+		flows := plugin.GetCiliumFlowsFromHubble(OperationTrigger)
 		if len(flows) == 0 {
 			return nil
 		}
@@ -274,6 +265,12 @@ func getNetworkLogs() []types.KnoxNetworkLog {
 	} else {
 		log.Error().Msgf("Network log source not correct: %s", NetworkLogFrom)
 		return nil
+	}
+
+	for i, log := range networkLogs {
+		if log.ClusterName == "" {
+			networkLogs[i].ClusterName = "Default"
+		}
 	}
 
 	return networkLogs
@@ -338,12 +335,8 @@ func containLabel(mergedLabel, targetLabel string) bool {
 	return false
 }
 
-func containLabelByConfiguration(cni string, igLabels []string, flowLabels []string) bool {
-	prefix := ""
-
-	if cni == "cilium" {
-		prefix = "k8s:"
-	}
+func containLabelByConfiguration(igLabels []string, flowLabels []string) bool {
+	prefix := "k8s:"
 
 	for _, label := range igLabels {
 		label = prefix + label
