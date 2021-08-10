@@ -62,7 +62,8 @@ feed-consumer:
 
 logging:
   level: "INFO"
-  
+
+# kubectl -n kube-system port-forward service/hubble-relay --address 0.0.0.0 --address :: 4245:80
 cilium-hubble:
-  url: 10.107.199.164
-  port: 80
+  url: localhost
+  port: 4245

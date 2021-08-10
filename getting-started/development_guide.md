@@ -58,3 +58,43 @@ tests/
   multi-ubuntu  - Example microservices for testing
   unit-tests    - Automated unit test framework for knoxAutoPolicy
 ```
+
+## Setting up dev env
+
+Assuming you have the knoxAutoPolicy repo checked out.
+Setup Cilium env in minikube or in k8s-VMs. Ensure following:
+
+#### Ensure Hubble relay service is enabled and port-forwarding is enabled on the host
+```
+$ kubectl -n kube-system port-forward service/hubble-relay --address 0.0.0.0 --address :: 4245:80
+```
+
+#### Setup mysql
+```
+$ cd tests/mysql
+$ docker-compose -f docker-compose.yml up
+```
+
+#### Compile knoxAutoPolicy
+```
+$ cd src
+$ make
+```
+This should generate the binary `knoxAutoPolicy` in the src folder.
+
+#### Update configuration
+Edit `src/conf/local.yaml` to ensure that:
+* `cilium-hubble: url` address is set to the localhost and port is set to 4245
+* `network-log-from: "hubble"` is set
+* `cluster-info-from: "k8sclient"` is set
+Note that this must already be set to these values by default.
+
+#### Execute knoxAutoPolicy
+```
+$ ./scripts/start_service.sh
+```
+
+#### Trigger policy discovery
+```
+$ ./scripts/start_net_worker.sh
+```
