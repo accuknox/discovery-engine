@@ -222,6 +222,10 @@ func getSystemLogs() []types.KnoxSystemLog {
 		if err := logFile.Close(); err != nil {
 			log.Error().Msg(err.Error())
 		}
+	} else if SystemLogFrom == "kubearmor" {
+		log.Info().Msg("Get system log from the kubearmor relay")
+		go plugin.StartKubeArmorRelay(SystemStopChan, &SystemWaitG)
+		SystemWaitG.Add(1)
 	} else {
 		log.Error().Msgf("System log from not correct: %s", SystemLogFrom)
 		return nil

@@ -1,10 +1,15 @@
 package plugin
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/accuknox/knoxAutoPolicy/src/types"
+	pb "github.com/kubearmor/KubeArmor/protobuf"
+	"google.golang.org/grpc"
 )
 
 func ConvertKnoxSystemPolicyToKubeArmorPolicy(knoxPolicies []types.KnoxSystemPolicy) []types.KubeArmorPolicy {
@@ -88,4 +93,52 @@ func ConvertKubeArmorSystemLogsToKnoxSystemLogs(dbDriver string, docs []map[stri
 	}
 
 	return []types.KnoxSystemLog{}
+}
+
+// ========================= //
+// == KubeArmor Relay == //
+// ========================= //
+
+func ConnectKubeArmorRelay() *grpc.ClientConn {
+	addr := "localhost:32767"
+
+	conn, err := grpc.Dial(addr, grpc.WithInsecure())
+	if err != nil {
+		log.Error().Err(err)
+		return nil
+	}
+
+	log.Info().Msg("connected to KubeArmor Relay")
+	return conn
+}
+
+func StartKubeArmorRelay(StopChan chan struct{}, wg *sync.WaitGroup) {
+	conn := ConnectKubeArmorRelay()
+	defer conn.Close()
+	defer wg.Done()
+
+	client := pb.NewLogServiceClient(conn)
+
+	req := pb.RequestMessage{}
+
+	if stream, err := client.WatchLogs(context.Background(), &req); err == nil {
+		for {
+			select {
+			case <-StopChan:
+				return
+
+			default:
+				res, err := stream.Recv()
+				if err != nil {
+					log.Error().Msg("system log stream stopped: " + err.Error())
+				}
+
+				arr, _ := json.Marshal(res)
+				str := fmt.Sprintf("%s\n", string(arr))
+				fmt.Printf("%s", str)
+			}
+		}
+	} else {
+		log.Error().Msg("unable to stream systems logs: " + err.Error())
+	}
 }
