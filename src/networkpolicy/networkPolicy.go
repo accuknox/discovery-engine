@@ -101,6 +101,28 @@ func init() {
 	NetworkWaitG = sync.WaitGroup{}
 }
 
+func initNetPolicyDiscoveryConfiguration() {
+	CfgDB = cfg.GetCfgDB()
+
+	OneTimeJobTime = cfg.GetCfgNetOneTime()
+
+	OperationTrigger = cfg.GetCfgNetOperationTrigger()
+
+	NetworkLogFrom = cfg.GetCfgNetworkLogFrom()
+	NetworkLogFile = cfg.GetCfgNetworkLogFile()
+	NetworkPolicyTo = cfg.GetCfgNetworkPolicyTo()
+
+	L3DiscoveryLevel = cfg.GetCfgNetworkL3Level()
+	L4DiscoveryLevel = cfg.GetCfgNetworkL4Level()
+	L7DiscoveryLevel = cfg.GetCfgNetworkL7Level()
+
+	CIDRBits = cfg.GetCfgCIDRBits()
+	HTTPThreshold = cfg.GetCfgNetworkHTTPThreshold()
+
+	NetworkLogFilters = cfg.GetCfgNetworkLogFilters()
+	NamespaceFilters = cfg.GetCfgNetworkSkipNamespaces()
+}
+
 // ============================= //
 // == Multi Cluster Variables == //
 // ============================= //
@@ -1491,28 +1513,6 @@ func DiscoverNetworkPolicy(namespace string,
 	return networkPolicies
 }
 
-func initNetPolicyDiscoveryConfiguration() {
-	CfgDB = cfg.GetCfgDB()
-
-	OneTimeJobTime = cfg.GetCfgNetOneTime()
-
-	OperationTrigger = cfg.GetCfgNetOperationTrigger()
-
-	NetworkLogFrom = cfg.GetCfgNetworkLogFrom()
-	NetworkLogFile = cfg.GetCfgNetworkLogFile()
-	NetworkPolicyTo = cfg.GetCfgNetworkPolicyTo()
-
-	L3DiscoveryLevel = cfg.GetCfgNetworkL3Level()
-	L4DiscoveryLevel = cfg.GetCfgNetworkL4Level()
-	L7DiscoveryLevel = cfg.GetCfgNetworkL7Level()
-
-	CIDRBits = cfg.GetCfgCIDRBits()
-	HTTPThreshold = cfg.GetCfgNetworkHTTPThreshold()
-
-	NetworkLogFilters = cfg.GetCfgNetworkLogFilters()
-	NamespaceFilters = cfg.GetCfgNetworkSkipNamespaces()
-}
-
 func DiscoverNetworkPolicyMain() {
 	if NetworkWorkerStatus == STATUS_RUNNING {
 		return
@@ -1568,9 +1568,7 @@ func DiscoverNetworkPolicyMain() {
 			// reset flow id track at each target namespace
 			clearTrackFlowIDMaps()
 
-			// ========================================================= //
-			// == discover network policies based on the network logs == //
-			// ========================================================= //
+			// discover network policies based on the network logs
 			discoveredNetPolicies := DiscoverNetworkPolicy(targetNamespace, namespaceFilteredLogs, services, endpoints, pods)
 
 			// get existing network policies in db

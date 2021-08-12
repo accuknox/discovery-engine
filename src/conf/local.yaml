@@ -9,7 +9,7 @@ application:
     network-policy-to: "db|file"              # db, file
     network-policy-dir: "./"
   system:
-    operation-mode: 2                         # 1: cronjob | 2: one-time-job
+    operation-mode: 1                         # 1: cronjob | 2: one-time-job
     cron-job-time-interval: "0h0m10s"         # format: XhYmZs
     operation-trigger: 100 
     system-log-from: "db"                     # db|kubearmor

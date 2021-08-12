@@ -211,7 +211,7 @@ func getNetworkLogs() []types.KnoxNetworkLog {
 
 		// get flows from hubble relay
 		flows := plugin.GetCiliumFlowsFromHubble(OperationTrigger)
-		if len(flows) == 0 {
+		if len(flows) == 0 || len(flows) < OperationTrigger {
 			return nil
 		}
 

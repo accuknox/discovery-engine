@@ -25,7 +25,7 @@ data:
         system-policy-to: "db|file"               # db, file
         system-policy-dir: "./"
       cluster:
-        cluster-info-from: "accuknox"            # k8sclient|accuknox
+        cluster-info-from: "k8sclient"            # k8sclient|accuknox
         cluster-mgmt-url: "http://cluster-management-service.accuknox-dev-cluster-mgmt.svc.cluster.local/cm"
 
     database:
@@ -39,6 +39,7 @@ data:
       table-network-log: network_log
       table-network-policy: network_policy
       table-system-log: system_log
+      table-system-alert: system_alert
       table-system-policy: system_policy
 
     feed-consumer:
