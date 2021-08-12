@@ -3,14 +3,18 @@ package plugin
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"strings"
 	"sync"
+	"time"
 
+	"github.com/accuknox/knoxAutoPolicy/src/libs"
 	"github.com/accuknox/knoxAutoPolicy/src/types"
 	pb "github.com/kubearmor/KubeArmor/protobuf"
 	"google.golang.org/grpc"
 )
+
+// Global Variable
+var KubeArmorRelayLogs []*pb.Log
 
 func ConvertKnoxSystemPolicyToKubeArmorPolicy(knoxPolicies []types.KnoxSystemPolicy) []types.KubeArmorPolicy {
 	results := []types.KubeArmorPolicy{}
@@ -95,11 +99,49 @@ func ConvertKubeArmorSystemLogsToKnoxSystemLogs(dbDriver string, docs []map[stri
 	return []types.KnoxSystemLog{}
 }
 
+func ConvertKubeArmorRelayLogToKnoxSystemLog(relayLog *pb.Log) types.KnoxSystemLog {
+
+	sources := strings.Split(relayLog.Source, " ")
+	source := ""
+	if len(sources) >= 1 {
+		source = sources[0]
+	}
+
+	resources := strings.Split(relayLog.Resource, " ")
+	resource := ""
+	if len(resources) >= 1 {
+		resource = resources[0]
+	}
+
+	readOnly := false
+	if relayLog.Data != "" && strings.Contains(relayLog.Data, "O_RDONLY") {
+		readOnly = true
+	}
+
+	knoxSystemLog := types.KnoxSystemLog{
+		ClusterName:    relayLog.ClusterName,
+		HostName:       relayLog.HostName,
+		Namespace:      relayLog.NamespaceName,
+		PodName:        relayLog.PodName,
+		Source:         source,
+		SourceOrigin:   relayLog.Source,
+		Operation:      relayLog.Operation,
+		ResourceOrigin: relayLog.Resource,
+		Resource:       resource,
+		Data:           relayLog.Data,
+		ReadOnly:       readOnly,
+		Result:         relayLog.Result,
+	}
+
+	return knoxSystemLog
+}
+
 // ========================= //
 // == KubeArmor Relay == //
 // ========================= //
 
 func ConnectKubeArmorRelay() *grpc.ClientConn {
+	//TODO take in from config file
 	addr := "localhost:32767"
 
 	conn, err := grpc.Dial(addr, grpc.WithInsecure())
@@ -110,6 +152,23 @@ func ConnectKubeArmorRelay() *grpc.ClientConn {
 
 	log.Info().Msg("connected to KubeArmor Relay")
 	return conn
+}
+
+func GetSystemAlertsFromKubeArmorRelay() []*pb.Log {
+	results := []*pb.Log{}
+	if len(KubeArmorRelayLogs) == 0 {
+		log.Info().Msgf("KubeArmor Relay traffic flow not exist")
+		return results
+	}
+
+	results = KubeArmorRelayLogs     // copy
+	KubeArmorRelayLogs = []*pb.Log{} // reset
+
+	log.Info().Msgf("The total number of kubearmor relay traffic flow: [%d] from %s ~ to %s", len(results),
+		time.Unix(results[0].Timestamp, 0).Format(libs.TimeFormSimple),
+		time.Unix(results[len(results)-1].Timestamp, 0).Format(libs.TimeFormSimple))
+
+	return results
 }
 
 func StartKubeArmorRelay(StopChan chan struct{}, wg *sync.WaitGroup) {
@@ -133,9 +192,7 @@ func StartKubeArmorRelay(StopChan chan struct{}, wg *sync.WaitGroup) {
 					log.Error().Msg("system log stream stopped: " + err.Error())
 				}
 
-				arr, _ := json.Marshal(res)
-				str := fmt.Sprintf("%s\n", string(arr))
-				fmt.Printf("%s", str)
+				KubeArmorRelayLogs = append(KubeArmorRelayLogs, res)
 			}
 		}
 	} else {
