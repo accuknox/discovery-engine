@@ -154,17 +154,22 @@ func ConnectKubeArmorRelay() *grpc.ClientConn {
 	return conn
 }
 
-func GetSystemAlertsFromKubeArmorRelay() []*pb.Log {
+func GetSystemAlertsFromKubeArmorRelay(trigger int) []*pb.Log {
 	results := []*pb.Log{}
 	if len(KubeArmorRelayLogs) == 0 {
 		log.Info().Msgf("KubeArmor Relay traffic flow not exist")
 		return results
 	}
 
+	if len(KubeArmorRelayLogs) < trigger {
+		log.Info().Msgf("The number of KubeArmor traffic flow [%d] is less than trigger [%d]", len(KubeArmorRelayLogs), trigger)
+		return results
+	}
+
 	results = KubeArmorRelayLogs     // copy
 	KubeArmorRelayLogs = []*pb.Log{} // reset
 
-	log.Info().Msgf("The total number of kubearmor relay traffic flow: [%d] from %s ~ to %s", len(results),
+	log.Info().Msgf("The total number of KubeArmor relay traffic flow: [%d] from %s ~ to %s", len(results),
 		time.Unix(results[0].Timestamp, 0).Format(libs.TimeFormSimple),
 		time.Unix(results[len(results)-1].Timestamp, 0).Format(libs.TimeFormSimple))
 

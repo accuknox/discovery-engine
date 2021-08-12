@@ -228,8 +228,8 @@ func getSystemLogs() []types.KnoxSystemLog {
 		// ================================ //
 
 		// get system logs from kuberarmor relay
-		relayLogs := plugin.GetSystemAlertsFromKubeArmorRelay()
-		if len(relayLogs) == 0 {
+		relayLogs := plugin.GetSystemAlertsFromKubeArmorRelay(OperationTrigger)
+		if len(relayLogs) == 0 || len(relayLogs) < OperationTrigger {
 			return nil
 		}
 
