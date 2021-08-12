@@ -54,7 +54,7 @@ var Verdict = map[string]int{
 }
 
 // ======================= //
-// == Gloabl Variables  == //
+// == Global Variables  == //
 // ======================= //
 
 var CiliumFlows []*cilium.Flow
