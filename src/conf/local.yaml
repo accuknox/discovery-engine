@@ -3,13 +3,15 @@ application:
   network:
     operation-mode: 1                         # 1: cronjob | 2: one-time-job
     cron-job-time-interval: "0h0m10s"         # format: XhYmZs 
-    network-log-from: "db"                    # db|hubble
+    operation-trigger: 100
+    network-log-from: "hubble"                # db|hubble
     network-log-file: "./flow.json"           # file path
     network-policy-to: "db|file"              # db, file
     network-policy-dir: "./"
   system:
-    operation-mode: 2                         # 1: cronjob | 2: one-time-job
-    cron-job-time-interval: "0h0m5s"          # format: XhYmZs 
+    operation-mode: 1                         # 1: cronjob | 2: one-time-job
+    cron-job-time-interval: "0h0m10s"         # format: XhYmZs
+    operation-trigger: 100 
     system-log-from: "db"                     # db|kubearmor
     system-log-file: "./log.json"             # file path
     system-policy-to: "db|file"               # db, file
@@ -44,6 +46,7 @@ feed-consumer:
     group-id: knoxautopolicy
     topics: 
       - cilium-telemetry-new
+      - cilium-telemetry
       - kubearmor-syslogs
     security:
       protocol: SSL
@@ -59,7 +62,8 @@ feed-consumer:
 
 logging:
   level: "INFO"
-  
+
+# kubectl -n kube-system port-forward service/hubble-relay --address 0.0.0.0 --address :: 4245:80
 cilium-hubble:
-  url: 10.4.41.240
-  port: 80
+  url: localhost
+  port: 4245

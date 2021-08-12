@@ -74,6 +74,7 @@ var NetworkWorkerStatus string
 var NetworkCronJob *cron.Cron
 var NetworkWaitG sync.WaitGroup
 var NetworkStopChan chan struct{} // for hubble
+var OperationTrigger int
 
 var CfgDB types.ConfigDB
 
@@ -98,6 +99,28 @@ func init() {
 	NetworkWorkerStatus = STATUS_IDLE
 	NetworkStopChan = make(chan struct{})
 	NetworkWaitG = sync.WaitGroup{}
+}
+
+func initNetPolicyDiscoveryConfiguration() {
+	CfgDB = cfg.GetCfgDB()
+
+	OneTimeJobTime = cfg.GetCfgNetOneTime()
+
+	OperationTrigger = cfg.GetCfgNetOperationTrigger()
+
+	NetworkLogFrom = cfg.GetCfgNetworkLogFrom()
+	NetworkLogFile = cfg.GetCfgNetworkLogFile()
+	NetworkPolicyTo = cfg.GetCfgNetworkPolicyTo()
+
+	L3DiscoveryLevel = cfg.GetCfgNetworkL3Level()
+	L4DiscoveryLevel = cfg.GetCfgNetworkL4Level()
+	L7DiscoveryLevel = cfg.GetCfgNetworkL7Level()
+
+	CIDRBits = cfg.GetCfgCIDRBits()
+	HTTPThreshold = cfg.GetCfgNetworkHTTPThreshold()
+
+	NetworkLogFilters = cfg.GetCfgNetworkLogFilters()
+	NamespaceFilters = cfg.GetCfgNetworkSkipNamespaces()
 }
 
 // ============================= //
@@ -1325,7 +1348,7 @@ func buildNetworkPolicy(namespace string, services []types.Service, aggregatedSr
 				if discoverPolicyTypes&INGRESS > 0 && discoverRuleTypes&FROM_CIDRS > 0 {
 					// add ingress policy
 					ingressPolicy := buildNewIngressPolicyFromSameSelector(namespace, egressPolicy.Spec.Selector)
-					ingressPolicy.Metadata["rule"] = "toCIDRs"
+					ingressPolicy.Metadata["rule"] = "fromCIDRs"
 
 					ingressRule := types.Ingress{}
 
@@ -1490,26 +1513,6 @@ func DiscoverNetworkPolicy(namespace string,
 	return networkPolicies
 }
 
-func initNetPolicyDiscoveryConfiguration() {
-	CfgDB = cfg.GetCfgDB()
-
-	OneTimeJobTime = cfg.GetCfgNetOneTime()
-
-	NetworkLogFrom = cfg.GetCfgNetworkLogFrom()
-	NetworkLogFile = cfg.GetCfgNetworkLogFile()
-	NetworkPolicyTo = cfg.GetCfgNetworkPolicyTo()
-
-	L3DiscoveryLevel = cfg.GetCfgNetworkL3Level()
-	L4DiscoveryLevel = cfg.GetCfgNetworkL4Level()
-	L7DiscoveryLevel = cfg.GetCfgNetworkL7Level()
-
-	CIDRBits = cfg.GetCfgCIDRBits()
-	HTTPThreshold = cfg.GetCfgNetworkHTTPThreshold()
-
-	NetworkLogFilters = cfg.GetCfgNetworkLogFilters()
-	NamespaceFilters = cfg.GetCfgNetworkSkipNamespaces()
-}
-
 func DiscoverNetworkPolicyMain() {
 	if NetworkWorkerStatus == STATUS_RUNNING {
 		return
@@ -1526,7 +1529,7 @@ func DiscoverNetworkPolicyMain() {
 
 	// get network logs
 	allNetworkLogs := getNetworkLogs()
-	if allNetworkLogs == nil {
+	if allNetworkLogs == nil || len(allNetworkLogs) < OperationTrigger {
 		return
 	}
 
@@ -1555,13 +1558,9 @@ func DiscoverNetworkPolicyMain() {
 		configFilteredLogs := FilterNetworkLogsByConfig(networkLogs, pods)
 
 		// iterate each namespace
-		for _, namespace := range namespaces {
-			if SkipNamespaceForNetworkPolicy(namespace) {
-				continue
-			}
-
-			// filter network logs by target namespace
-			namespaceFilteredLogs := FilterNetworkLogsByNamespace(namespace, configFilteredLogs)
+		for _, targetNamespace := range namespaces {
+			// get network logs by target namespace
+			namespaceFilteredLogs := FilterNetworkLogsByNamespace(targetNamespace, configFilteredLogs)
 			if len(namespaceFilteredLogs) == 0 {
 				continue
 			}
@@ -1569,13 +1568,11 @@ func DiscoverNetworkPolicyMain() {
 			// reset flow id track at each target namespace
 			clearTrackFlowIDMaps()
 
-			// ========================================================= //
-			// == discover network policies based on the network logs == //
-			// ========================================================= //
-			discoveredNetPolicies := DiscoverNetworkPolicy(namespace, namespaceFilteredLogs, services, endpoints, pods)
+			// discover network policies based on the network logs
+			discoveredNetPolicies := DiscoverNetworkPolicy(targetNamespace, namespaceFilteredLogs, services, endpoints, pods)
 
 			// get existing network policies in db
-			existingPolicies := libs.GetNetworkPolicies(CfgDB, clusterName, namespace, "latest")
+			existingPolicies := libs.GetNetworkPolicies(CfgDB, clusterName, targetNamespace, "latest")
 
 			// update duplicated policy
 			newPolicies := UpdateDuplicatedPolicy(existingPolicies, discoveredNetPolicies, DomainToIPs, clusterName)
@@ -1588,10 +1585,10 @@ func DiscoverNetworkPolicyMain() {
 
 				// write discovered policies to file
 				if strings.Contains(NetworkPolicyTo, "file") {
-					WriteNetworkPoliciesToFile(clusterName, namespace, services)
+					WriteNetworkPoliciesToFile(clusterName, targetNamespace, services)
 				}
 
-				log.Info().Msgf("-> Network policy discovery done for namespace: [%s], [%d] policies discovered", namespace, len(newPolicies))
+				log.Info().Msgf("-> Network policy discovery done for namespace: [%s], [%d] policies discovered", targetNamespace, len(newPolicies))
 			}
 		}
 
