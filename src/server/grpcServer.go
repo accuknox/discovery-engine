@@ -240,13 +240,13 @@ func GetNewServer() *grpc.Server {
 	if cfg.GetCurrentCfg().ConfigClusterMgmt.ClusterInfoFrom != "k8sclient" {
 		// start consumer automatically
 		feedconsumer.StartConsumer()
-
-		// start net worker automatically
-		networker.StartNetworkWorker()
-
-		// start sys worker automatically
-		sysworker.StartSystemWorker()
 	}
+
+	// start net worker automatically
+	networker.StartNetworkWorker()
+
+	// start sys worker automatically
+	sysworker.StartSystemWorker()
 
 	return s
 }
