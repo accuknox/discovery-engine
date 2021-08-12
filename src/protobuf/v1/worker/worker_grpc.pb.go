@@ -21,6 +21,7 @@ type WorkerClient interface {
 	GetWorkerStatus(ctx context.Context, in *WorkerRequest, opts ...grpc.CallOption) (*WorkerResponse, error)
 	Start(ctx context.Context, in *WorkerRequest, opts ...grpc.CallOption) (*WorkerResponse, error)
 	Stop(ctx context.Context, in *WorkerRequest, opts ...grpc.CallOption) (*WorkerResponse, error)
+	Convert(ctx context.Context, in *WorkerRequest, opts ...grpc.CallOption) (*WorkerResponse, error)
 }
 
 type workerClient struct {
@@ -58,6 +59,15 @@ func (c *workerClient) Stop(ctx context.Context, in *WorkerRequest, opts ...grpc
 	return out, nil
 }
 
+func (c *workerClient) Convert(ctx context.Context, in *WorkerRequest, opts ...grpc.CallOption) (*WorkerResponse, error) {
+	out := new(WorkerResponse)
+	err := c.cc.Invoke(ctx, "/v1.worker.Worker/Convert", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // WorkerServer is the server API for Worker service.
 // All implementations must embed UnimplementedWorkerServer
 // for forward compatibility
@@ -65,6 +75,7 @@ type WorkerServer interface {
 	GetWorkerStatus(context.Context, *WorkerRequest) (*WorkerResponse, error)
 	Start(context.Context, *WorkerRequest) (*WorkerResponse, error)
 	Stop(context.Context, *WorkerRequest) (*WorkerResponse, error)
+	Convert(context.Context, *WorkerRequest) (*WorkerResponse, error)
 	mustEmbedUnimplementedWorkerServer()
 }
 
@@ -80,6 +91,9 @@ func (UnimplementedWorkerServer) Start(context.Context, *WorkerRequest) (*Worker
 }
 func (UnimplementedWorkerServer) Stop(context.Context, *WorkerRequest) (*WorkerResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Stop not implemented")
+}
+func (UnimplementedWorkerServer) Convert(context.Context, *WorkerRequest) (*WorkerResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Convert not implemented")
 }
 func (UnimplementedWorkerServer) mustEmbedUnimplementedWorkerServer() {}
 
@@ -148,6 +162,24 @@ func _Worker_Stop_Handler(srv interface{}, ctx context.Context, dec func(interfa
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Worker_Convert_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(WorkerRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(WorkerServer).Convert(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/v1.worker.Worker/Convert",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(WorkerServer).Convert(ctx, req.(*WorkerRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Worker_ServiceDesc is the grpc.ServiceDesc for Worker service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -166,6 +198,10 @@ var Worker_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Stop",
 			Handler:    _Worker_Stop_Handler,
+		},
+		{
+			MethodName: "Convert",
+			Handler:    _Worker_Convert_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

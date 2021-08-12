@@ -192,6 +192,20 @@ func (s *workerServer) GetWorkerStatus(ctx context.Context, in *wpb.WorkerReques
 	return &wpb.WorkerResponse{Res: status}, nil
 }
 
+func (s *workerServer) Convert(ctx context.Context, in *wpb.WorkerRequest) (*wpb.WorkerResponse, error) {
+	log.Info().Msg("Convert network/system poolicy called")
+
+	if in.GetPolicytype() == "network" {
+
+	} else if in.GetPolicytype() == "system" {
+
+	} else {
+
+	}
+
+	return &wpb.WorkerResponse{Res: "ok"}, nil
+}
+
 // ====================== //
 // == Consumer Service == //
 // ====================== //
