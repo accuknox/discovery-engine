@@ -85,11 +85,12 @@ type NetworkLogFilter struct {
 }
 
 type ConfigNetworkPolicy struct {
-	OperationMode           int    `json:"operation_mode,omitempty" bson:"operation_mode,omitempty"`
+	OperationMode           int `json:"operation_mode,omitempty" bson:"operation_mode,omitempty"`
+	OperationTrigger        int
 	CronJobTimeInterval     string `json:"cronjob_time_interval,omitempty" bson:"cronjob_time_interval,omitempty"`
 	OneTimeJobTimeSelection string `json:"one_time_job_time_selection,omitempty" bson:"one_time_job_time_selection,omitempty"`
-	OperationTrigger        int
 
+	NetworkLogLimit  int
 	NetworkLogFrom   string `json:"network_log_from,omitempty" bson:"network_log_from,omitempty"`
 	NetworkLogFile   string `json:"network_log_file,omitempty" bson:"network_log_file,omitempty"`
 	NetworkPolicyTo  string `json:"network_policy_to,omitempty" bson:"network_policy_to,omitempty"`
@@ -116,11 +117,12 @@ type SystemLogFilter struct {
 }
 
 type ConfigSystemPolicy struct {
-	OperationMode           int    `json:"operation_mode,omitempty" bson:"operation_mode,omitempty"`
+	OperationMode           int `json:"operation_mode,omitempty" bson:"operation_mode,omitempty"`
+	OperationTrigger        int
 	CronJobTimeInterval     string `json:"cronjob_time_interval,omitempty" bson:"cronjob_time_interval,omitempty"`
 	OneTimeJobTimeSelection string `json:"one_time_job_time_selection,omitempty" bson:"one_time_job_time_selection,omitempty"`
-	OperationTrigger        int
 
+	SystemLogLimit  int
 	SystemLogFrom   string `json:"system_log_from,omitempty" bson:"system_log_from,omitempty"`
 	SystemLogFile   string `json:"system_log_file,omitempty" bson:"system_log_file,omitempty"`
 	SystemPolicyTo  string `json:"system_policy_to,omitempty" bson:"system_policy_to,omitempty"`
