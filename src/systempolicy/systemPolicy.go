@@ -230,12 +230,12 @@ func getSystemLogs() []types.KnoxSystemLog {
 	return systemLogs
 }
 
-func WriteSystemPoliciesToFile(cluster, namespace string) {
+func WriteSystemPoliciesToFile(namespace string) {
 	latestPolicies := libs.GetSystemPolicies(CfgDB, namespace, "latest")
 
-	kubePolicies := plugin.ConvertKnoxSystemPolicyToKubeArmorPolicy(latestPolicies)
+	kubeArmorPolicies := plugin.ConvertKnoxSystemPolicyToKubeArmorPolicy(latestPolicies)
 
-	libs.WriteKubeArmorPolicyToYamlFile("", kubePolicies)
+	libs.WriteKubeArmorPolicyToYamlFile("", kubeArmorPolicies)
 }
 
 // ============================= //
@@ -285,6 +285,11 @@ func systemLogDeduplication(logs []types.KnoxSystemLog) []types.KnoxSystemLog {
 
 		// if source == resource, skip
 		if log.Source == log.Resource {
+			continue
+		}
+
+		// if pod name or namespace == ""
+		if log.PodName == "" || log.Namespace == "" {
 			continue
 		}
 
@@ -526,7 +531,7 @@ func updateSysPolicySelector(clusterName string, pod types.Pod, policies []types
 // == Discover System Policy  == //
 // ============================= //
 
-func initSysPolicyDiscoveryConfiguration() {
+func InitSysPolicyDiscoveryConfiguration() {
 	CfgDB = cfg.GetCfgDB()
 
 	OneTimeJobTime = cfg.GetCfgSysOneTime()
@@ -556,7 +561,7 @@ func DiscoverSystemPolicyMain() {
 		SystemWorkerStatus = STATUS_IDLE
 	}()
 
-	initSysPolicyDiscoveryConfiguration()
+	InitSysPolicyDiscoveryConfiguration()
 
 	// get system logs
 	allSystemkLogs := getSystemLogs()
@@ -585,7 +590,6 @@ func DiscoverSystemPolicyMain() {
 		// iterate sys log key := [namespace + pod_name]
 		nsPodLogs := clusteringSystemLogsByNamespacePod(cfgFilteredLogs)
 		for sysKey, perPodlogs := range nsPodLogs {
-
 			discoveredSysPolicies := []types.KnoxSystemPolicy{}
 
 			pod, err := getPodInstance(sysKey, pods)
@@ -621,8 +625,8 @@ func DiscoverSystemPolicyMain() {
 				log.Info().Msgf("-> System policy discovery done for cluster/namespace/pod: [%s/%s/%s], [%d] policies discovered", clusterName, pod.Namespace, pod.PodName, len(newPolicies))
 			}
 
-			if len(newPolicies) > 0 && strings.Contains(SystemPolicyTo, "file") {
-				WriteSystemPoliciesToFile(clusterName, "multiubuntu")
+			if strings.Contains(SystemPolicyTo, "file") {
+				WriteSystemPoliciesToFile(sysKey.Namespace)
 			}
 		}
 	}
