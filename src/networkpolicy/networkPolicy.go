@@ -101,7 +101,7 @@ func init() {
 	NetworkWaitG = sync.WaitGroup{}
 }
 
-func initNetPolicyDiscoveryConfiguration() {
+func InitNetPolicyDiscoveryConfiguration() {
 	CfgDB = cfg.GetCfgDB()
 
 	OneTimeJobTime = cfg.GetCfgNetOneTime()
@@ -1525,7 +1525,7 @@ func DiscoverNetworkPolicyMain() {
 	}()
 
 	// init the configuration related to the network policy
-	initNetPolicyDiscoveryConfiguration()
+	InitNetPolicyDiscoveryConfiguration()
 
 	// get network logs
 	allNetworkLogs := getNetworkLogs()

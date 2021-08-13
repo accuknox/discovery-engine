@@ -479,13 +479,21 @@ func GetNetworkPoliciesFromMySQL(cfg types.ConfigDB, cluster, namespace, status 
 	var results *sql.Rows
 	var err error
 
-	query := "SELECT apiVersion,kind,flow_ids,name,cluster_name,namespace,type,rule,status,outdated,spec,generatedTime FROM " + cfg.TableNetworkPolicy + " WHERE cluster_name = ? and namespace = ? "
-
-	if status != "" {
-		query = query + " and status = ? "
+	query := "SELECT apiVersion,kind,flow_ids,name,cluster_name,namespace,type,rule,status,outdated,spec,generatedTime FROM " + cfg.TableNetworkPolicy
+	if cluster != "" && namespace != "" && status != "" {
+		query = query + " WHERE cluster_name = ? and namespace = ? and status = ? "
 		results, err = db.Query(query, cluster, namespace, status)
+	} else if cluster != "" && status != "" {
+		query = query + " WHERE cluster_name = ? and status = ? "
+		results, err = db.Query(query, cluster, status)
+	} else if namespace != "" && status != "" {
+		query = query + " WHERE namespace = ? and status = ? "
+		results, err = db.Query(query, namespace, status)
+	} else if status != "" {
+		query = query + " WHERE status = ? "
+		results, err = db.Query(query, status)
 	} else {
-		results, err = db.Query(query, cluster, namespace)
+		results, err = db.Query(query)
 	}
 
 	defer results.Close()
@@ -677,8 +685,7 @@ func GetSystemPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) ([
 	var results *sql.Rows
 	var err error
 
-	query := "SELECT apiVersion,kind,name,clusterName,namespace,type,status,outdated,spec,generatedTime FROM " +
-		cfg.TableSystemPolicy
+	query := "SELECT apiVersion,kind,name,clusterName,namespace,type,status,outdated,spec,generatedTime FROM " + cfg.TableSystemPolicy
 
 	if namespace != "" && status != "" {
 		query = query + " WHERE namespace = ? and status = ? "

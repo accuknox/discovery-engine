@@ -264,8 +264,13 @@ func writeYamlByte(f *os.File, b []byte) {
 	}
 }
 
-func WriteKnoxPolicyToYamlFile(namespace string, policies []types.KnoxNetworkPolicy) {
-	fileName := GetEnv("POLICY_DIR", "./") + "knox_policies_" + namespace + ".yaml"
+func WriteKnoxNetPolicyToYamlFile(namespace string, policies []types.KnoxNetworkPolicy) {
+	fileName := GetEnv("POLICY_DIR", "./")
+	if namespace != "" {
+		fileName = fileName + "knox_net_policies_" + namespace + ".yaml"
+	} else {
+		fileName = fileName + "knox_net_policies.yaml"
+	}
 
 	if err := os.Remove(fileName); err != nil {
 		if !strings.Contains(err.Error(), "no such file or directory") {
@@ -297,8 +302,12 @@ func WriteKnoxPolicyToYamlFile(namespace string, policies []types.KnoxNetworkPol
 }
 
 func WriteCiliumPolicyToYamlFile(namespace string, policies []types.CiliumNetworkPolicy) {
-	// create policy file
-	fileName := GetEnv("POLICY_DIR", "./") + "cilium_policies_" + namespace + ".yaml"
+	fileName := GetEnv("POLICY_DIR", "./")
+	if namespace != "" {
+		fileName = fileName + "cilium_policies_" + namespace + ".yaml"
+	} else {
+		fileName = fileName + "cilium_policies.yaml"
+	}
 
 	if err := os.Remove(fileName); err != nil {
 		if !strings.Contains(err.Error(), "no such file or directory") {
@@ -326,8 +335,12 @@ func WriteCiliumPolicyToYamlFile(namespace string, policies []types.CiliumNetwor
 }
 
 func WriteKubeArmorPolicyToYamlFile(namespace string, policies []types.KubeArmorPolicy) {
-	// create policy file
-	fileName := GetEnv("POLICY_DIR", "./") + "system_policies.yaml"
+	fileName := GetEnv("POLICY_DIR", "./")
+	if namespace != "" {
+		fileName = fileName + "kubearmor_policies_" + namespace + ".yaml"
+	} else {
+		fileName = fileName + "kubearmor_policies.yaml"
+	}
 
 	if err := os.Remove(fileName); err != nil {
 		if !strings.Contains(err.Error(), "no such file or directory") {
