@@ -75,11 +75,11 @@ var NetworkCronJob *cron.Cron
 var NetworkWaitG sync.WaitGroup
 var NetworkStopChan chan struct{} // for hubble
 var OperationTrigger int
-
 var CfgDB types.ConfigDB
 
 var OneTimeJobTime string
 
+var NetworkLogLimit int
 var NetworkLogFrom string
 var NetworkLogFile string
 var NetworkPolicyTo string
@@ -108,6 +108,7 @@ func InitNetPolicyDiscoveryConfiguration() {
 
 	OperationTrigger = cfg.GetCfgNetOperationTrigger()
 
+	NetworkLogLimit = cfg.GetCfgNetLimit()
 	NetworkLogFrom = cfg.GetCfgNetworkLogFrom()
 	NetworkLogFile = cfg.GetCfgNetworkLogFile()
 	NetworkPolicyTo = cfg.GetCfgNetworkPolicyTo()

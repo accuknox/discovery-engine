@@ -63,6 +63,7 @@ var OperationTrigger int
 
 var OneTimeJobTime string
 
+var SystemLogLimit int
 var SystemLogFrom string
 var SystemLogFile string
 var SystemPolicyTo string
@@ -171,13 +172,13 @@ func getSystemLogs() []types.KnoxSystemLog {
 		log.Info().Msg("Get system log from the database")
 
 		// get system logs from db
-		sysLogs := libs.GetSystemLogsFromDB(cfg.GetCfgDB(), cfg.GetCfgSysOneTime(), OperationTrigger)
+		sysLogs := libs.GetSystemLogsFromDB(cfg.GetCfgDB(), cfg.GetCfgSysOneTime(), OperationTrigger, SystemLogLimit)
 		if len(sysLogs) == 0 {
 			return nil
 		}
 
 		// get system alerts from db, and merge it to the system logs
-		sysAlerts := libs.GetSystemAlertsFromDB(cfg.GetCfgDB(), cfg.GetCfgSysOneTime(), OperationTrigger)
+		sysAlerts := libs.GetSystemAlertsFromDB(cfg.GetCfgDB(), cfg.GetCfgSysOneTime(), OperationTrigger, SystemLogLimit)
 		if len(sysAlerts) != 0 {
 			sysLogs = append(sysLogs, sysAlerts...)
 		}
@@ -538,6 +539,7 @@ func InitSysPolicyDiscoveryConfiguration() {
 
 	OperationTrigger = cfg.GetCfgSysOperationTrigger()
 
+	SystemLogLimit = cfg.GetCfgSysLimit()
 	SystemLogFrom = cfg.GetCfgSystemLogFrom()
 	SystemLogFile = cfg.GetCfgSystemLogFile()
 	SystemPolicyTo = cfg.GetCfgSystemPolicyTo()
