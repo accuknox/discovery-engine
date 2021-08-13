@@ -3,7 +3,6 @@ package plugin
 import (
 	"context"
 	"encoding/json"
-	"io"
 	"net/url"
 	"strconv"
 	"strings"
@@ -735,12 +734,9 @@ func StartHubbleRelay(StopChan chan struct{}, wg *sync.WaitGroup, cfg types.Conf
 
 			default:
 				res, err := stream.Recv()
-				if err == io.EOF {
-					log.Info().Msg("end of file: " + err.Error())
-				}
-
 				if err != nil {
-					log.Error().Msg("network flow stream stopped: " + err.Error())
+					log.Error().Msg("Cilium network flow stream stopped: " + err.Error())
+					return
 				}
 
 				switch r := res.ResponseTypes.(type) {
@@ -754,6 +750,6 @@ func StartHubbleRelay(StopChan chan struct{}, wg *sync.WaitGroup, cfg types.Conf
 			}
 		}
 	} else {
-		log.Error().Msg("unable to stream network flow: " + err.Error())
+		log.Error().Msg("Unable to stream network flow: " + err.Error())
 	}
 }
