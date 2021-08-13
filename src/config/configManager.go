@@ -106,10 +106,11 @@ func LoadDefaultConfig() {
 	// load network policy discovery
 	CurrentCfg.ConfigNetPolicy = types.ConfigNetworkPolicy{
 		OperationMode:           viper.GetInt("application.network.operation-mode"),
+		OperationTrigger:        viper.GetInt("application.network.operation-trigger"),
 		CronJobTimeInterval:     "@every " + viper.GetString("application.network.cron-job-time-interval"),
 		OneTimeJobTimeSelection: "", // e.g., 2021-01-20 07:00:23|2021-01-20 07:00:25
-		OperationTrigger:        viper.GetInt("application.network.operation-trigger"),
 
+		NetworkLogLimit:  viper.GetInt("application.network.network-log-limit"),
 		NetworkLogFrom:   viper.GetString("application.network.network-log-from"),
 		NetworkLogFile:   viper.GetString("application.network.network-log-file"),
 		NetworkPolicyTo:  viper.GetString("application.network.network-policy-to"),
@@ -129,12 +130,13 @@ func LoadDefaultConfig() {
 	// load system policy discovery
 	CurrentCfg.ConfigSysPolicy = types.ConfigSystemPolicy{
 		OperationMode:           viper.GetInt("application.system.operation-mode"),
+		OperationTrigger:        viper.GetInt("application.system.operation-trigger"),
 		CronJobTimeInterval:     "@every " + viper.GetString("application.system.cron-job-time-interval"),
 		OneTimeJobTimeSelection: "", // e.g., 2021-01-20 07:00:23|2021-01-20 07:00:25
-		OperationTrigger:        viper.GetInt("application.system.operation-trigger"),
 
 		SysPolicyTypes: 7,
 
+		SystemLogLimit:  viper.GetInt("application.system.system-log-limit"),
 		SystemLogFrom:   viper.GetString("application.system.system-log-from"),
 		SystemLogFile:   viper.GetString("application.system.system-log-file"),
 		SystemPolicyTo:  viper.GetString("application.system.system-policy-to"),
@@ -247,6 +249,10 @@ func GetCfgNetOperationTrigger() int {
 
 // == //
 
+func GetCfgNetLimit() int {
+	return CurrentCfg.ConfigNetPolicy.NetworkLogLimit
+}
+
 func GetCfgNetworkLogFrom() string {
 	return CurrentCfg.ConfigNetPolicy.NetworkLogFrom
 }
@@ -320,6 +326,10 @@ func GetCfgSysOneTime() string {
 }
 
 // == //
+
+func GetCfgSysLimit() int {
+	return CurrentCfg.ConfigSysPolicy.SystemLogLimit
+}
 
 func GetCfgSystemLogFrom() string {
 	return CurrentCfg.ConfigSysPolicy.SystemLogFrom

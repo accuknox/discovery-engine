@@ -388,11 +388,18 @@ func getCoreDNSEndpoint(services []types.Service) ([]types.CiliumEndpoint, []typ
 
 	ciliumPort := types.CiliumPortList{}
 	ciliumPort.Ports = []types.CiliumPort{}
-	for _, svc := range services {
-		if svc.Namespace == "kube-system" && svc.ServiceName == "kube-dns" {
-			ciliumPort.Ports = append(ciliumPort.Ports, types.CiliumPort{
-				Port: strconv.Itoa(svc.ServicePort), Protocol: strings.ToUpper(svc.Protocol)},
-			)
+
+	if len(services) == 0 { // add statically
+		ciliumPort.Ports = append(ciliumPort.Ports, types.CiliumPort{
+			Port: strconv.Itoa(53), Protocol: strings.ToUpper("UDP")},
+		)
+	} else { // search DNS
+		for _, svc := range services {
+			if svc.Namespace == "kube-system" && svc.ServiceName == "kube-dns" {
+				ciliumPort.Ports = append(ciliumPort.Ports, types.CiliumPort{
+					Port: strconv.Itoa(svc.ServicePort), Protocol: strings.ToUpper(svc.Protocol)},
+				)
+			}
 		}
 	}
 
