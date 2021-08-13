@@ -196,7 +196,7 @@ func getNetworkLogs() []types.KnoxNetworkLog {
 		log.Info().Msg("Get network log from the database")
 
 		// get network logs from db
-		netLogs := libs.GetNetworkLogsFromDB(CfgDB, OneTimeJobTime, OperationTrigger)
+		netLogs := libs.GetNetworkLogsFromDB(CfgDB, OneTimeJobTime, OperationTrigger, NetworkLogLimit)
 		if len(netLogs) == 0 || len(netLogs) < OperationTrigger {
 			return nil
 		}
