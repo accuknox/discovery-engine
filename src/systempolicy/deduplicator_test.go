@@ -13,7 +13,7 @@ import (
 // ==================== //
 
 func TestIsExistingPolicy(t *testing.T) {
-	exist := types.KubeArmorPolicy{
+	exist := types.KnoxSystemPolicy{
 		Metadata: map[string]string{
 			"name": "test",
 		},
@@ -27,10 +27,10 @@ func TestIsExistingPolicy(t *testing.T) {
 		},
 	}
 
-	newOne := types.KubeArmorPolicy{}
+	newOne := types.KnoxSystemPolicy{}
 	libs.DeepCopy(&newOne, &exist)
 
-	assert.True(t, IsExistingPolicy([]types.KubeArmorPolicy{exist}, newOne))
+	assert.True(t, IsExistingPolicy([]types.KnoxSystemPolicy{exist}, newOne))
 }
 
 // ======================= //
@@ -38,7 +38,7 @@ func TestIsExistingPolicy(t *testing.T) {
 // ======================= //
 
 func TestGeneratePolicyName(t *testing.T) {
-	exist := types.KubeArmorPolicy{
+	exist := types.KnoxSystemPolicy{
 		Metadata: map[string]string{},
 
 		Spec: types.KnoxSystemSpec{

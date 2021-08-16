@@ -34,10 +34,10 @@ func TestGetNetworkLogsFromDB(t *testing.T) {
 		AddRow(1, 0, "", "", "", 0, 0, []byte{}, []byte{}, []byte{}, []byte{}, []byte{}, []byte{})
 
 	mock.ExpectQuery("^SELECT (.+) FROM network_log*").
-		WithArgs(0).
+		WithArgs(0, 100).
 		WillReturnRows(rows)
 
-	results := GetNetworkLogsFromDB(types.ConfigDB{DBDriver: "mysql", TableNetworkLog: "network_log"}, "")
+	results := GetNetworkLogsFromDB(types.ConfigDB{DBDriver: "mysql", TableNetworkLog: "network_log"}, "", 0, 100)
 	assert.Equal(t, results[0]["id"], uint32(1))
 
 	if err := mock.ExpectationsWereMet(); err != nil {
