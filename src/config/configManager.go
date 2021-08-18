@@ -95,6 +95,23 @@ func LoadConfigCiliumHubble() types.ConfigCiliumHubble {
 	return cfgHubble
 }
 
+func LoadConfigKubeArmor() types.ConfigKubeArmorRelay {
+	cfgKubeArmor := types.ConfigKubeArmorRelay{}
+
+	cfgKubeArmor.KubeArmorRelayURL = viper.GetString("kubearmor.url")
+	// TODO maybe the check for IPv6 should come here
+	addr, err := net.LookupIP(cfgKubeArmor.KubeArmorRelayURL)
+	if err == nil {
+		cfgKubeArmor.KubeArmorRelayURL = addr[0].String()
+	} else {
+		cfgKubeArmor.KubeArmorRelayURL = libs.GetExternalIPAddr()
+	}
+
+	cfgKubeArmor.KubeArmorRelayPort = viper.GetString("kubearmor.port")
+
+	return cfgKubeArmor
+}
+
 func LoadDefaultConfig() {
 	CurrentCfg = types.Configuration{}
 
@@ -159,6 +176,9 @@ func LoadDefaultConfig() {
 
 	// load cilium hubble relay
 	CurrentCfg.ConfigCiliumHubble = LoadConfigCiliumHubble()
+
+	// load kubearmor relay config
+	CurrentCfg.ConfigKubeArmorRelay = LoadConfigKubeArmor()
 }
 
 // ======================== //
@@ -263,6 +283,10 @@ func GetCfgNetworkLogFile() string {
 
 func GetCfgCiliumHubble() types.ConfigCiliumHubble {
 	return CurrentCfg.ConfigCiliumHubble
+}
+
+func GetCfgKubeArmor() types.ConfigKubeArmorRelay {
+	return CurrentCfg.ConfigKubeArmorRelay
 }
 
 func GetCfgNetworkPolicyTo() string {

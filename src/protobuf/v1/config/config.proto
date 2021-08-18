@@ -47,6 +47,11 @@ message ConfigCiliumHubble {
     string hubble_port = 2;
 }
 
+message ConfigKubeArmorRelay {
+    string kubearmor_url = 1;
+    string kubearmor_port = 2;
+}
+
 // ============================ //
 
 message NetworkLogFilter {
@@ -125,4 +130,6 @@ message Config {
     ConfigNetworkPolicy config_network_policy = 5;
     ConfigSystemPolicy config_system_policy = 6;
     ConfigClusterMgmt config_cluster_mgmt = 7;
+    
+    ConfigKubeArmorRelay config_kubearmor_relay = 8;
 }

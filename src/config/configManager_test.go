@@ -45,6 +45,15 @@ func TestLoadConfigCiliumHubble(t *testing.T) {
 	assert.NotEmpty(t, cfg.HubblePort, "Cilium Hubble Port should not be empty")
 }
 
+func TestLoadConfigKubeArmor(t *testing.T) {
+	initMockYaml()
+
+	cfg := LoadConfigKubeArmor()
+
+	assert.NotEmpty(t, cfg.KubeArmorRelayURL, "KubeArmor relay URL should not be empty")
+	assert.NotEmpty(t, cfg.KubeArmorRelayPort, "KubeArmor relay Port should not be empty")
+}
+
 func TestLoadDefaultConfig(t *testing.T) {
 	initMockYaml()
 
@@ -129,17 +138,20 @@ func TestGetConfigurations(t *testing.T) {
 	configHubblePtr := &testCfg.ConfigCiliumHubble
 	configCilium, _ := json.Marshal(configHubblePtr)
 
+	configKubeArmorPtr := &testCfg.ConfigKubeArmorRelay
+	configKubeArmor := json.Marshal(configKubeArmorPtr)
+
 	ignoringFlowsPtr := &testCfg.NetPolicyIgnoringFlows
 	ignoringFlows, _ := json.Marshal(ignoringFlowsPtr)
 
-	rows := mock.NewRows([]string{"id", "config_name", "status", "config_db", "config_cilium_hubble",
+	rows := mock.NewRows([]string{"id", "config_name", "status", "config_db", "config_cilium_hubble", "config_kubearmor_relay",
 		"operation_mode", "cronjob_time_interval", "one_time_job_time_selection",
 		"network_log_from", "network_log_file", "network_policy_to",
 		"network_policy_dir", "network_policy_types", "network_policy_rule_types",
 		"network_policy_cidr_bits", "network_policy_ignoring_flows", "network_policy_l3_level",
 		"network_policy_l4_level", "network_policy_l7_level", "system_log_from", "system_log_file",
 		"system_policy_to", "system_policy_dir"}).
-		AddRow(1, "test_config", 0, configDB, configCilium, 0, "", "", "", "", "", "",
+		AddRow(1, "test_config", 0, configDB, configCilium, configKubeArmor, 0, "", "", "", "", "", "",
 			0, 0, 32, ignoringFlows, 0, 0, 0, "", "", "", "")
 
 	query := "SELECT (.+) FROM auto_policy_config WHERE config_name = ?"

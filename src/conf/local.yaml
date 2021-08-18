@@ -69,3 +69,7 @@ logging:
 cilium-hubble:
   url: localhost
   port: 4245
+
+kubearmor:
+  url: localhost
+  port: 32767
