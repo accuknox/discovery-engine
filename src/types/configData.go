@@ -51,7 +51,11 @@ database:
 
 cilium-hubble:
   url: 10.4.41.240
-  port: 80 
+  port: 80
+
+kubearmor:
+  url: 10.4.41.240
+  port: 8079
 `)
 
 type ConfigDB struct {
@@ -73,6 +77,11 @@ type ConfigDB struct {
 type ConfigCiliumHubble struct {
 	HubbleURL  string `json:"hubble_url,omitempty" bson:"hubble_url,omitempty"`
 	HubblePort string `json:"hubble_port,omitempty" bson:"hubble_port,omitempty"`
+}
+
+type ConfigKubeArmorRelay struct {
+	KubeArmorRelayURL  string `json:"kubearmor_url,omitempty" bson:"kubearmor_url,omitempty"`
+	KubeArmorRelayPort string `json:"kubearmor_port,omitempty" bson:"kubearmor_port,omitempty"`
 }
 
 type NetworkLogFilter struct {
@@ -145,8 +154,9 @@ type Configuration struct {
 	ConfigName string `json:"config_name,omitempty" bson:"config_name,omitempty"`
 	Status     int    `json:"status,omitempty" bson:"status,omitempty"`
 
-	ConfigDB           ConfigDB           `json:"config_db,omitempty" bson:"config_db,omitempty"`
-	ConfigCiliumHubble ConfigCiliumHubble `json:"config_cilium_hubble,omitempty" bson:"config_cilium_hubble,omitempty"`
+	ConfigDB             ConfigDB             `json:"config_db,omitempty" bson:"config_db,omitempty"`
+	ConfigCiliumHubble   ConfigCiliumHubble   `json:"config_cilium_hubble,omitempty" bson:"config_cilium_hubble,omitempty"`
+	ConfigKubeArmorRelay ConfigKubeArmorRelay `json:"config_kubearmor_relay,omitempty" bson:"config_kubearmor_relay,omitempty"`
 
 	ConfigNetPolicy   ConfigNetworkPolicy `json:"config_network_policy,omitempty" bson:"config_network_policy,omitempty"`
 	ConfigSysPolicy   ConfigSystemPolicy  `json:"config_system_policy,omitempty" bson:"config_system_policy,omitempty"`
