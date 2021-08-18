@@ -223,6 +223,22 @@ func getSystemLogs() []types.KnoxSystemLog {
 		if err := logFile.Close(); err != nil {
 			log.Error().Msg(err.Error())
 		}
+	} else if SystemLogFrom == "kubearmor" {
+		// ================================ //
+		// ===		KubeArmor Relay		=== //
+		// ================================ //
+
+		// get system logs from kuberarmor relay
+		relayLogs := plugin.GetSystemAlertsFromKubeArmorRelay(OperationTrigger)
+		if len(relayLogs) == 0 || len(relayLogs) < OperationTrigger {
+			return nil
+		}
+
+		// convert kubearmor relay logs -> knox system logs
+		for _, relayLog := range relayLogs {
+			log := plugin.ConvertKubeArmorRelayLogToKnoxSystemLog(relayLog)
+			systemLogs = append(systemLogs, log)
+		}
 	} else {
 		log.Error().Msgf("System log from not correct: %s", SystemLogFrom)
 		return nil
@@ -639,6 +655,12 @@ func DiscoverSystemPolicyMain() {
 // ==================================== //
 
 func StartSystemCronJob() {
+	//if system log directly from kubearmor relay
+	if cfg.GetCfgSystemLogFrom() == "kubearmor" {
+		go plugin.StartKubeArmorRelay(SystemStopChan, &SystemWaitG)
+		SystemWaitG.Add(1)
+	}
+
 	// init cron job
 	SystemCronJob = cron.New()
 	err := SystemCronJob.AddFunc(cfg.GetCfgSysCronJobTime(), DiscoverSystemPolicyMain) // time interval

@@ -53,7 +53,7 @@ var Verdict = map[string]int{
 }
 
 // ======================= //
-// == Gloabl Variables  == //
+// == Global Variables  == //
 // ======================= //
 
 var CiliumFlows []*cilium.Flow
@@ -64,6 +64,7 @@ var log *zerolog.Logger
 func init() {
 	log = logger.GetInstance()
 	CiliumFlowsMutex = &sync.Mutex{}
+	KubeArmorRelayLogsMutex = &sync.Mutex{}
 }
 
 // ====================== //
