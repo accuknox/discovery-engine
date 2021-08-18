@@ -65,6 +65,7 @@ var log *zerolog.Logger
 func init() {
 	log = logger.GetInstance()
 	CiliumFlowsMutex = &sync.Mutex{}
+	KubeArmorRelayLogsMutex = &sync.Mutex{}
 }
 
 // ====================== //

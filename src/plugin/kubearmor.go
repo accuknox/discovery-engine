@@ -15,6 +15,7 @@ import (
 
 // Global Variable
 var KubeArmorRelayLogs []*pb.Log
+var KubeArmorRelayLogsMutex *sync.Mutex
 
 func ConvertKnoxSystemPolicyToKubeArmorPolicy(knoxPolicies []types.KnoxSystemPolicy) []types.KubeArmorPolicy {
 	results := []types.KubeArmorPolicy{}
@@ -156,18 +157,22 @@ func ConnectKubeArmorRelay() *grpc.ClientConn {
 
 func GetSystemAlertsFromKubeArmorRelay(trigger int) []*pb.Log {
 	results := []*pb.Log{}
+	KubeArmorRelayLogsMutex.Lock()
 	if len(KubeArmorRelayLogs) == 0 {
 		log.Info().Msgf("KubeArmor Relay traffic flow not exist")
+		KubeArmorRelayLogsMutex.Unlock()
 		return results
 	}
 
 	if len(KubeArmorRelayLogs) < trigger {
 		log.Info().Msgf("The number of KubeArmor traffic flow [%d] is less than trigger [%d]", len(KubeArmorRelayLogs), trigger)
+		KubeArmorRelayLogsMutex.Unlock()
 		return results
 	}
 
 	results = KubeArmorRelayLogs     // copy
 	KubeArmorRelayLogs = []*pb.Log{} // reset
+	KubeArmorRelayLogsMutex.Unlock()
 
 	log.Info().Msgf("The total number of KubeArmor relay traffic flow: [%d] from %s ~ to %s", len(results),
 		time.Unix(results[0].Timestamp, 0).Format(libs.TimeFormSimple),
@@ -199,7 +204,9 @@ func StartKubeArmorRelay(StopChan chan struct{}, wg *sync.WaitGroup) {
 						log.Error().Msg("system log stream stopped: " + err.Error())
 					}
 
+					KubeArmorRelayLogsMutex.Lock()
 					KubeArmorRelayLogs = append(KubeArmorRelayLogs, res)
+					KubeArmorRelayLogsMutex.Unlock()
 				}
 			}
 		} else {
@@ -234,7 +241,9 @@ func StartKubeArmorRelay(StopChan chan struct{}, wg *sync.WaitGroup) {
 						Result:        res.Result,
 					}
 
+					KubeArmorRelayLogsMutex.Lock()
 					KubeArmorRelayLogs = append(KubeArmorRelayLogs, &log)
+					KubeArmorRelayLogsMutex.Unlock()
 				}
 			}
 		} else {
