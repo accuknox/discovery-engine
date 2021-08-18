@@ -5,7 +5,7 @@ AUTOPOL_SRC_HOME=$AUTOPOL_HOME/src
 
 # check version
 
-VERSION=latest
+VERSION=dev
 
 if [ ! -z $1 ]; then
     VERSION=$1
