@@ -178,29 +178,67 @@ func GetSystemAlertsFromKubeArmorRelay(trigger int) []*pb.Log {
 
 func StartKubeArmorRelay(StopChan chan struct{}, wg *sync.WaitGroup) {
 	conn := ConnectKubeArmorRelay()
-	defer conn.Close()
 	defer wg.Done()
 
 	client := pb.NewLogServiceClient(conn)
 
 	req := pb.RequestMessage{}
 
-	if stream, err := client.WatchLogs(context.Background(), &req); err == nil {
-		for {
-			select {
-			case <-StopChan:
-				return
+	//Stream Logs
+	go func(client pb.LogServiceClient) {
+		defer conn.Close()
+		if stream, err := client.WatchLogs(context.Background(), &req); err == nil {
+			for {
+				select {
+				case <-StopChan:
+					return
 
-			default:
-				res, err := stream.Recv()
-				if err != nil {
-					log.Error().Msg("system log stream stopped: " + err.Error())
+				default:
+					res, err := stream.Recv()
+					if err != nil {
+						log.Error().Msg("system log stream stopped: " + err.Error())
+					}
+
+					KubeArmorRelayLogs = append(KubeArmorRelayLogs, res)
 				}
-
-				KubeArmorRelayLogs = append(KubeArmorRelayLogs, res)
 			}
+		} else {
+			log.Error().Msg("unable to stream systems logs: " + err.Error())
 		}
-	} else {
-		log.Error().Msg("unable to stream systems logs: " + err.Error())
-	}
+	}(client)
+
+	//Stream Alerts
+	go func() {
+		defer conn.Close()
+		if stream, err := client.WatchAlerts(context.Background(), &req); err == nil {
+			for {
+				select {
+				case <-StopChan:
+					return
+
+				default:
+					res, err := stream.Recv()
+					if err != nil {
+						log.Error().Msg("system alerts stream stopped: " + err.Error())
+					}
+
+					log := pb.Log{
+						ClusterName:   res.ClusterName,
+						HostName:      res.HostName,
+						NamespaceName: res.NamespaceName,
+						PodName:       res.PodName,
+						Source:        res.Source,
+						Operation:     res.Operation,
+						Resource:      res.Resource,
+						Data:          res.Data,
+						Result:        res.Result,
+					}
+
+					KubeArmorRelayLogs = append(KubeArmorRelayLogs, &log)
+				}
+			}
+		} else {
+			log.Error().Msg("unable to stream systems alerts: " + err.Error())
+		}
+	}()
 }
