@@ -159,13 +159,13 @@ func GetNetworkLogByTimeFromMySQL(cfg types.ConfigDB, startTime, endTime int64) 
 	return ScanNetworkLogs(rows)
 }
 
-func GetNetworkLogByIDTimeFromMySQL(cfg types.ConfigDB, id, endTime int64) ([]map[string]interface{}, error) {
+func GetNetworkLogByIDTimeFromMySQL(cfg types.ConfigDB, id, endTime int64, limit int) ([]map[string]interface{}, error) {
 	db := connectMySQL(cfg)
 	defer db.Close()
 
 	QueryBase := networkLogQueryBase + cfg.TableNetworkLog
 
-	rows, err := db.Query(QueryBase+" WHERE id > ? ORDER BY id ASC ", id)
+	rows, err := db.Query(QueryBase+" WHERE id > ? ORDER BY id ASC limit ? ", id, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -313,13 +313,13 @@ func GetSystemLogByTimeFromMySQL(cfg types.ConfigDB, startTime, endTime int64) (
 	return ScanSystemLogs(rows)
 }
 
-func GetSystemLogByIDTimeFromMySQL(cfg types.ConfigDB, id, endTime int64) ([]map[string]interface{}, error) {
+func GetSystemLogByIDTimeFromMySQL(cfg types.ConfigDB, id, endTime int64, limit int) ([]map[string]interface{}, error) {
 	db := connectMySQL(cfg)
 	defer db.Close()
 
 	QueryBase := systemLogQueryBase + cfg.TableSystemLog
 
-	rows, err := db.Query(QueryBase+" WHERE id > ? and timestamp <= ? ORDER BY id ASC ", id, int(endTime))
+	rows, err := db.Query(QueryBase+" WHERE id > ? and timestamp <= ? ORDER BY id ASC limit ? ", id, int(endTime), limit)
 	if err != nil {
 		return nil, err
 	}
@@ -397,13 +397,13 @@ func GetSystemAlertByTimeFromMySQL(cfg types.ConfigDB, startTime, endTime int64)
 	return ScanSystemLogs(rows)
 }
 
-func GetSystemAlertByIDTimeFromMySQL(cfg types.ConfigDB, id, endTime int64) ([]map[string]interface{}, error) {
+func GetSystemAlertByIDTimeFromMySQL(cfg types.ConfigDB, id, endTime int64, limit int) ([]map[string]interface{}, error) {
 	db := connectMySQL(cfg)
 	defer db.Close()
 
 	QueryBase := systemLogQueryBase + cfg.TableSystemAlert
 
-	rows, err := db.Query(QueryBase+" WHERE id > ? and timestamp <= ? ORDER BY id ASC ", id, int(endTime))
+	rows, err := db.Query(QueryBase+" WHERE id > ? and timestamp <= ? ORDER BY id ASC limit ? ", id, int(endTime), limit)
 	if err != nil {
 		return nil, err
 	}
@@ -479,13 +479,21 @@ func GetNetworkPoliciesFromMySQL(cfg types.ConfigDB, cluster, namespace, status 
 	var results *sql.Rows
 	var err error
 
-	query := "SELECT apiVersion,kind,flow_ids,name,cluster_name,namespace,type,rule,status,outdated,spec,generatedTime FROM " + cfg.TableNetworkPolicy + " WHERE cluster_name = ? and namespace = ? "
-
-	if status != "" {
-		query = query + " and status = ? "
+	query := "SELECT apiVersion,kind,flow_ids,name,cluster_name,namespace,type,rule,status,outdated,spec,generatedTime FROM " + cfg.TableNetworkPolicy
+	if cluster != "" && namespace != "" && status != "" {
+		query = query + " WHERE cluster_name = ? and namespace = ? and status = ? "
 		results, err = db.Query(query, cluster, namespace, status)
+	} else if cluster != "" && status != "" {
+		query = query + " WHERE cluster_name = ? and status = ? "
+		results, err = db.Query(query, cluster, status)
+	} else if namespace != "" && status != "" {
+		query = query + " WHERE namespace = ? and status = ? "
+		results, err = db.Query(query, namespace, status)
+	} else if status != "" {
+		query = query + " WHERE status = ? "
+		results, err = db.Query(query, status)
 	} else {
-		results, err = db.Query(query, cluster, namespace)
+		results, err = db.Query(query)
 	}
 
 	defer results.Close()
@@ -677,8 +685,7 @@ func GetSystemPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) ([
 	var results *sql.Rows
 	var err error
 
-	query := "SELECT apiVersion,kind,name,clusterName,namespace,type,status,outdated,spec,generatedTime FROM " +
-		cfg.TableSystemPolicy
+	query := "SELECT apiVersion,kind,name,clusterName,namespace,type,status,outdated,spec,generatedTime FROM " + cfg.TableSystemPolicy
 
 	if namespace != "" && status != "" {
 		query = query + " WHERE namespace = ? and status = ? "
@@ -869,6 +876,12 @@ func AddConfiguration(cfg types.ConfigDB, newConfig types.Configuration) error {
 		return err
 	}
 
+	configKubeArmorRelayPtr := &newConfig.ConfigKubeArmorRelay
+	configKubeArmorRelay, err := json.Marshal(configKubeArmorRelayPtr)
+	if err != nil {
+		return err
+	}
+
 	// network log filters
 	netLogFiltersPtr := &newConfig.ConfigNetPolicy.NetLogFilters
 	netLogFilters, err := json.Marshal(netLogFiltersPtr)
@@ -888,6 +901,7 @@ func AddConfiguration(cfg types.ConfigDB, newConfig types.Configuration) error {
 		newConfig.Status,
 		configDB,
 		configCilium,
+		configKubeArmorRelay,
 
 		newConfig.ConfigNetPolicy.OperationMode,
 		newConfig.ConfigNetPolicy.CronJobTimeInterval,
@@ -966,6 +980,9 @@ func GetConfigurations(cfg types.ConfigDB, configName string) ([]types.Configura
 		hubbleByte := []byte{}
 		hubble := types.ConfigCiliumHubble{}
 
+		kubearmorRelayByte := []byte{}
+		kubearmorRelay := types.ConfigKubeArmorRelay{}
+
 		netLogFiltersByte := []byte{}
 		netLogFilters := []types.NetworkLogFilter{}
 
@@ -978,6 +995,7 @@ func GetConfigurations(cfg types.ConfigDB, configName string) ([]types.Configura
 			&cfg.Status,
 			&configDBByte,
 			&hubbleByte,
+			&kubearmorRelayByte,
 
 			&cfg.ConfigNetPolicy.OperationMode,
 			&cfg.ConfigNetPolicy.CronJobTimeInterval,
@@ -1021,6 +1039,11 @@ func GetConfigurations(cfg types.ConfigDB, configName string) ([]types.Configura
 			return nil, err
 		}
 		cfg.ConfigCiliumHubble = hubble
+
+		if err := json.Unmarshal(kubearmorRelayByte, &kubearmorRelay); err != nil {
+			return nil, err
+		}
+		cfg.ConfigKubeArmorRelay = kubearmorRelay
 
 		if err := json.Unmarshal(netLogFiltersByte, &netLogFilters); err != nil {
 			return nil, err
@@ -1102,6 +1125,12 @@ func UpdateConfiguration(cfg types.ConfigDB, configName string, updateConfig typ
 		return err
 	}
 
+	configKubeArmorRelayPtr := &updateConfig.ConfigKubeArmorRelay
+	configKubeArmorRelay, err := json.Marshal(configKubeArmorRelayPtr)
+	if err != nil {
+		return err
+	}
+
 	netLogFiltersPtr := &updateConfig.ConfigNetPolicy.NetLogFilters
 	netLogFilters, err := json.Marshal(netLogFiltersPtr)
 	if err != nil {
@@ -1117,6 +1146,7 @@ func UpdateConfiguration(cfg types.ConfigDB, configName string, updateConfig typ
 	_, err = stmt.Exec(
 		configDB,
 		configCilium,
+		configKubeArmorRelay,
 
 		updateConfig.ConfigNetPolicy.OperationMode,
 		updateConfig.ConfigNetPolicy.CronJobTimeInterval,

@@ -95,6 +95,23 @@ func LoadConfigCiliumHubble() types.ConfigCiliumHubble {
 	return cfgHubble
 }
 
+func LoadConfigKubeArmor() types.ConfigKubeArmorRelay {
+	cfgKubeArmor := types.ConfigKubeArmorRelay{}
+
+	cfgKubeArmor.KubeArmorRelayURL = viper.GetString("kubearmor.url")
+	// TODO maybe the check for IPv6 should come here
+	addr, err := net.LookupIP(cfgKubeArmor.KubeArmorRelayURL)
+	if err == nil {
+		cfgKubeArmor.KubeArmorRelayURL = addr[0].String()
+	} else {
+		cfgKubeArmor.KubeArmorRelayURL = libs.GetExternalIPAddr()
+	}
+
+	cfgKubeArmor.KubeArmorRelayPort = viper.GetString("kubearmor.port")
+
+	return cfgKubeArmor
+}
+
 func LoadDefaultConfig() {
 	CurrentCfg = types.Configuration{}
 
@@ -106,10 +123,11 @@ func LoadDefaultConfig() {
 	// load network policy discovery
 	CurrentCfg.ConfigNetPolicy = types.ConfigNetworkPolicy{
 		OperationMode:           viper.GetInt("application.network.operation-mode"),
+		OperationTrigger:        viper.GetInt("application.network.operation-trigger"),
 		CronJobTimeInterval:     "@every " + viper.GetString("application.network.cron-job-time-interval"),
 		OneTimeJobTimeSelection: "", // e.g., 2021-01-20 07:00:23|2021-01-20 07:00:25
-		OperationTrigger:        viper.GetInt("application.network.operation-trigger"),
 
+		NetworkLogLimit:  viper.GetInt("application.network.network-log-limit"),
 		NetworkLogFrom:   viper.GetString("application.network.network-log-from"),
 		NetworkLogFile:   viper.GetString("application.network.network-log-file"),
 		NetworkPolicyTo:  viper.GetString("application.network.network-policy-to"),
@@ -129,12 +147,13 @@ func LoadDefaultConfig() {
 	// load system policy discovery
 	CurrentCfg.ConfigSysPolicy = types.ConfigSystemPolicy{
 		OperationMode:           viper.GetInt("application.system.operation-mode"),
+		OperationTrigger:        viper.GetInt("application.system.operation-trigger"),
 		CronJobTimeInterval:     "@every " + viper.GetString("application.system.cron-job-time-interval"),
 		OneTimeJobTimeSelection: "", // e.g., 2021-01-20 07:00:23|2021-01-20 07:00:25
-		OperationTrigger:        viper.GetInt("application.system.operation-trigger"),
 
 		SysPolicyTypes: 7,
 
+		SystemLogLimit:  viper.GetInt("application.system.system-log-limit"),
 		SystemLogFrom:   viper.GetString("application.system.system-log-from"),
 		SystemLogFile:   viper.GetString("application.system.system-log-file"),
 		SystemPolicyTo:  viper.GetString("application.system.system-policy-to"),
@@ -157,6 +176,9 @@ func LoadDefaultConfig() {
 
 	// load cilium hubble relay
 	CurrentCfg.ConfigCiliumHubble = LoadConfigCiliumHubble()
+
+	// load kubearmor relay config
+	CurrentCfg.ConfigKubeArmorRelay = LoadConfigKubeArmor()
 }
 
 // ======================== //
@@ -247,6 +269,10 @@ func GetCfgNetOperationTrigger() int {
 
 // == //
 
+func GetCfgNetLimit() int {
+	return CurrentCfg.ConfigNetPolicy.NetworkLogLimit
+}
+
 func GetCfgNetworkLogFrom() string {
 	return CurrentCfg.ConfigNetPolicy.NetworkLogFrom
 }
@@ -257,6 +283,10 @@ func GetCfgNetworkLogFile() string {
 
 func GetCfgCiliumHubble() types.ConfigCiliumHubble {
 	return CurrentCfg.ConfigCiliumHubble
+}
+
+func GetCfgKubeArmor() types.ConfigKubeArmorRelay {
+	return CurrentCfg.ConfigKubeArmorRelay
 }
 
 func GetCfgNetworkPolicyTo() string {
@@ -320,6 +350,10 @@ func GetCfgSysOneTime() string {
 }
 
 // == //
+
+func GetCfgSysLimit() int {
+	return CurrentCfg.ConfigSysPolicy.SystemLogLimit
+}
 
 func GetCfgSystemLogFrom() string {
 	return CurrentCfg.ConfigSysPolicy.SystemLogFrom

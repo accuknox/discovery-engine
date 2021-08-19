@@ -75,11 +75,11 @@ var NetworkCronJob *cron.Cron
 var NetworkWaitG sync.WaitGroup
 var NetworkStopChan chan struct{} // for hubble
 var OperationTrigger int
-
 var CfgDB types.ConfigDB
 
 var OneTimeJobTime string
 
+var NetworkLogLimit int
 var NetworkLogFrom string
 var NetworkLogFile string
 var NetworkPolicyTo string
@@ -101,13 +101,14 @@ func init() {
 	NetworkWaitG = sync.WaitGroup{}
 }
 
-func initNetPolicyDiscoveryConfiguration() {
+func InitNetPolicyDiscoveryConfiguration() {
 	CfgDB = cfg.GetCfgDB()
 
 	OneTimeJobTime = cfg.GetCfgNetOneTime()
 
 	OperationTrigger = cfg.GetCfgNetOperationTrigger()
 
+	NetworkLogLimit = cfg.GetCfgNetLimit()
 	NetworkLogFrom = cfg.GetCfgNetworkLogFrom()
 	NetworkLogFile = cfg.GetCfgNetworkLogFile()
 	NetworkPolicyTo = cfg.GetCfgNetworkPolicyTo()
@@ -347,7 +348,7 @@ func extractSrcByLabel(labeledSrcsPerDst map[Dst][]SrcSimple, perDst map[Dst][]t
 					PodName:     log.SrcPodName,
 					MatchLabels: k + "=" + v}
 			} else {
-				// else get merged matchlables: "a=b,c=d,e=f"
+				// else get merged and sorted matchlables: "a=b,c=d,e=f"
 				mergedSortedLabels := getMergedSortedLabels(log.SrcNamespace, log.SrcPodName, pods)
 				if mergedSortedLabels == "" {
 					continue
@@ -1483,7 +1484,7 @@ func DiscoverNetworkPolicy(namespace string,
 	/*
 		step 2: {dst: [network logs (src+dst)]} -> {dst: [srcs (labeled)]}
 		+++ here, we start to track flow IDs +++
-		we keep labeledSrcsPerDst map for aggregating the merged policy set in the future
+		we keep LabeledSrcsPerDst map for aggregating the merged policy set in the future
 	*/
 	labeledSrcsPerDst := map[Dst][]SrcSimple{}
 	if val, ok := LabeledSrcsPerDst[namespace]; ok {
@@ -1525,7 +1526,7 @@ func DiscoverNetworkPolicyMain() {
 	}()
 
 	// init the configuration related to the network policy
-	initNetPolicyDiscoveryConfiguration()
+	InitNetPolicyDiscoveryConfiguration()
 
 	// get network logs
 	allNetworkLogs := getNetworkLogs()
@@ -1555,13 +1556,13 @@ func DiscoverNetworkPolicyMain() {
 		updateServiceEndpoint(services, endpoints, pods)
 
 		// filter ignoring network logs from configuration
-		configFilteredLogs := FilterNetworkLogsByConfig(networkLogs, pods)
+		filteredLogs := FilterNetworkLogsByConfig(networkLogs, pods)
 
 		// iterate each namespace
-		for _, targetNamespace := range namespaces {
+		for _, namespace := range namespaces {
 			// get network logs by target namespace
-			namespaceFilteredLogs := FilterNetworkLogsByNamespace(targetNamespace, configFilteredLogs)
-			if len(namespaceFilteredLogs) == 0 {
+			logsPerNamespace := FilterNetworkLogsByNamespace(namespace, filteredLogs)
+			if len(logsPerNamespace) == 0 {
 				continue
 			}
 
@@ -1569,26 +1570,26 @@ func DiscoverNetworkPolicyMain() {
 			clearTrackFlowIDMaps()
 
 			// discover network policies based on the network logs
-			discoveredNetPolicies := DiscoverNetworkPolicy(targetNamespace, namespaceFilteredLogs, services, endpoints, pods)
+			discoveredNetPolicies := DiscoverNetworkPolicy(namespace, logsPerNamespace, services, endpoints, pods)
 
 			// get existing network policies in db
-			existingPolicies := libs.GetNetworkPolicies(CfgDB, clusterName, targetNamespace, "latest")
+			existingNetPolicies := libs.GetNetworkPolicies(CfgDB, clusterName, namespace, "latest")
 
 			// update duplicated policy
-			newPolicies := UpdateDuplicatedPolicy(existingPolicies, discoveredNetPolicies, DomainToIPs, clusterName)
+			newNetPolicies := UpdateDuplicatedPolicy(existingNetPolicies, discoveredNetPolicies, DomainToIPs, clusterName)
 
-			if len(newPolicies) > 0 {
+			if len(newNetPolicies) > 0 {
 				// insert discovered policies to db
 				if strings.Contains(NetworkPolicyTo, "db") {
-					libs.InsertNetworkPolicies(CfgDB, newPolicies)
+					libs.InsertNetworkPolicies(CfgDB, newNetPolicies)
 				}
 
 				// write discovered policies to file
 				if strings.Contains(NetworkPolicyTo, "file") {
-					WriteNetworkPoliciesToFile(clusterName, targetNamespace, services)
+					WriteNetworkPoliciesToFile(clusterName, namespace, services)
 				}
 
-				log.Info().Msgf("-> Network policy discovery done for namespace: [%s], [%d] policies discovered", targetNamespace, len(newPolicies))
+				log.Info().Msgf("-> Network policy discovery done for namespace: [%s], [%d] policies discovered", namespace, len(newNetPolicies))
 			}
 		}
 

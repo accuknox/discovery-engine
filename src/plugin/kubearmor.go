@@ -1,11 +1,21 @@
 package plugin
 
 import (
+	"context"
 	"encoding/json"
 	"strings"
+	"sync"
+	"time"
 
+	"github.com/accuknox/knoxAutoPolicy/src/libs"
 	"github.com/accuknox/knoxAutoPolicy/src/types"
+	pb "github.com/kubearmor/KubeArmor/protobuf"
+	"google.golang.org/grpc"
 )
+
+// Global Variable
+var KubeArmorRelayLogs []*pb.Log
+var KubeArmorRelayLogsMutex *sync.Mutex
 
 func ConvertKnoxSystemPolicyToKubeArmorPolicy(knoxPolicies []types.KnoxSystemPolicy) []types.KubeArmorPolicy {
 	results := []types.KubeArmorPolicy{}
@@ -88,4 +98,155 @@ func ConvertKubeArmorSystemLogsToKnoxSystemLogs(dbDriver string, docs []map[stri
 	}
 
 	return []types.KnoxSystemLog{}
+}
+
+func ConvertKubeArmorRelayLogToKnoxSystemLog(relayLog *pb.Log) types.KnoxSystemLog {
+
+	sources := strings.Split(relayLog.Source, " ")
+	source := ""
+	if len(sources) >= 1 {
+		source = sources[0]
+	}
+
+	resources := strings.Split(relayLog.Resource, " ")
+	resource := ""
+	if len(resources) >= 1 {
+		resource = resources[0]
+	}
+
+	readOnly := false
+	if relayLog.Data != "" && strings.Contains(relayLog.Data, "O_RDONLY") {
+		readOnly = true
+	}
+
+	knoxSystemLog := types.KnoxSystemLog{
+		ClusterName:    relayLog.ClusterName,
+		HostName:       relayLog.HostName,
+		Namespace:      relayLog.NamespaceName,
+		PodName:        relayLog.PodName,
+		Source:         source,
+		SourceOrigin:   relayLog.Source,
+		Operation:      relayLog.Operation,
+		ResourceOrigin: relayLog.Resource,
+		Resource:       resource,
+		Data:           relayLog.Data,
+		ReadOnly:       readOnly,
+		Result:         relayLog.Result,
+	}
+
+	return knoxSystemLog
+}
+
+// ========================= //
+// == KubeArmor Relay == //
+// ========================= //
+
+func ConnectKubeArmorRelay(cfg types.ConfigKubeArmorRelay) *grpc.ClientConn {
+	addr := cfg.KubeArmorRelayURL + ":" + cfg.KubeArmorRelayPort
+
+	conn, err := grpc.Dial(addr, grpc.WithInsecure())
+	if err != nil {
+		log.Error().Err(err)
+		return nil
+	}
+
+	log.Info().Msg("connected to KubeArmor Relay")
+	return conn
+}
+
+func GetSystemAlertsFromKubeArmorRelay(trigger int) []*pb.Log {
+	results := []*pb.Log{}
+	KubeArmorRelayLogsMutex.Lock()
+	if len(KubeArmorRelayLogs) == 0 {
+		log.Info().Msgf("KubeArmor Relay traffic flow not exist")
+		KubeArmorRelayLogsMutex.Unlock()
+		return results
+	}
+
+	if len(KubeArmorRelayLogs) < trigger {
+		log.Info().Msgf("The number of KubeArmor traffic flow [%d] is less than trigger [%d]", len(KubeArmorRelayLogs), trigger)
+		KubeArmorRelayLogsMutex.Unlock()
+		return results
+	}
+
+	results = KubeArmorRelayLogs     // copy
+	KubeArmorRelayLogs = []*pb.Log{} // reset
+	KubeArmorRelayLogsMutex.Unlock()
+
+	log.Info().Msgf("The total number of KubeArmor relay traffic flow: [%d] from %s ~ to %s", len(results),
+		time.Unix(results[0].Timestamp, 0).Format(libs.TimeFormSimple),
+		time.Unix(results[len(results)-1].Timestamp, 0).Format(libs.TimeFormSimple))
+
+	return results
+}
+
+func StartKubeArmorRelay(StopChan chan struct{}, wg *sync.WaitGroup, cfg types.ConfigKubeArmorRelay) {
+	conn := ConnectKubeArmorRelay(cfg)
+	defer wg.Done()
+
+	client := pb.NewLogServiceClient(conn)
+
+	req := pb.RequestMessage{}
+
+	//Stream Logs
+	go func(client pb.LogServiceClient) {
+		defer conn.Close()
+		if stream, err := client.WatchLogs(context.Background(), &req); err == nil {
+			for {
+				select {
+				case <-StopChan:
+					return
+
+				default:
+					res, err := stream.Recv()
+					if err != nil {
+						log.Error().Msg("system log stream stopped: " + err.Error())
+					}
+
+					KubeArmorRelayLogsMutex.Lock()
+					KubeArmorRelayLogs = append(KubeArmorRelayLogs, res)
+					KubeArmorRelayLogsMutex.Unlock()
+				}
+			}
+		} else {
+			log.Error().Msg("unable to stream systems logs: " + err.Error())
+		}
+	}(client)
+
+	//Stream Alerts
+	go func() {
+		defer conn.Close()
+		if stream, err := client.WatchAlerts(context.Background(), &req); err == nil {
+			for {
+				select {
+				case <-StopChan:
+					return
+
+				default:
+					res, err := stream.Recv()
+					if err != nil {
+						log.Error().Msg("system alerts stream stopped: " + err.Error())
+					}
+
+					log := pb.Log{
+						ClusterName:   res.ClusterName,
+						HostName:      res.HostName,
+						NamespaceName: res.NamespaceName,
+						PodName:       res.PodName,
+						Source:        res.Source,
+						Operation:     res.Operation,
+						Resource:      res.Resource,
+						Data:          res.Data,
+						Result:        res.Result,
+					}
+
+					KubeArmorRelayLogsMutex.Lock()
+					KubeArmorRelayLogs = append(KubeArmorRelayLogs, &log)
+					KubeArmorRelayLogsMutex.Unlock()
+				}
+			}
+		} else {
+			log.Error().Msg("unable to stream systems alerts: " + err.Error())
+		}
+	}()
 }

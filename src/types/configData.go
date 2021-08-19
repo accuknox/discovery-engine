@@ -3,38 +3,42 @@ package types
 var MockConfigYaml = []byte(`
 application:
   name: knoxautopolicy
-  operation-mode: 2
-  cron-job-time-interval: "@every 0h0m10s"
-  network-log-from: db
-  network-log-file: "./flow.json"
-  network-policy-to: "db|file"
-  network-policy-dir: "./"
-  network-policy-types: 3
-  network-policy-rule-types: 511
-  network-policy-ignoring-namespaces: "kube-system"
-  system-log-from: db
-  system-log-file: "./log.json"
-  system-policy-to: "db|file"
-  system-policy-dir: "./"
-  #accuknox-cluster-mgmt: "http://cluster-management-service.accuknox-dev-cluster-mgmt.svc.cluster.local/cm"
-  accuknox-cluster-mgmt: "http://localhost:8080"
+  network:
+    operation-mode: 2
+    cron-job-time-interval: "@every 0h0m10s"
+    network-log-from: db
+    network-log-file: "./flow.json"
+    network-policy-to: "db|file"
+    network-policy-dir: "./"
+    network-policy-types: 3
+    network-policy-rule-types: 511
+    network-policy-ignoring-namespaces: "kube-system"
+  system:
+    system-log-from: db
+    system-log-file: "./log.json"
+    system-policy-to: "db|file"
+    system-policy-dir: "./"
+  cluster:
+    #accuknox-cluster-mgmt: "http://cluster-management-service.accuknox-dev-cluster-mgmt.svc.cluster.local/cm"
+    cluster-mgmt: "http://localhost:8080"
 
 logging:
   level: INFO
 
-kafka:
-  broker-address-family: v4
-  session-timeout-ms: 6000
-  auto-offset-reset: "earliest"
-  bootstrap-servers: "dev-kafka-kafka-bootstrap.accuknox-dev-kafka.svc.cluster.local:9092"
-  group-id: policy.cilium
-  topics: 
-    - cilium-telemetry-test
-    - kubearmor-syslogs
-  ssl:
-    enabled: false
-  events:
-    buffer: 50
+feed-consumer:
+  kafka:
+    broker-address-family: v4
+    session-timeout-ms: 6000
+    auto-offset-reset: "earliest"
+    bootstrap-servers: "dev-kafka-kafka-bootstrap.accuknox-dev-kafka.svc.cluster.local:9092"
+    group-id: policy.cilium
+    topics: 
+      - cilium-telemetry-test
+      - kubearmor-syslogs
+    ssl:
+      enabled: false
+    events:
+      buffer: 50
 
 database:
   driver: mysql
@@ -51,7 +55,11 @@ database:
 
 cilium-hubble:
   url: 10.4.41.240
-  port: 80 
+  port: 80
+
+kubearmor:
+  url: 10.4.41.240
+  port: 8079
 `)
 
 type ConfigDB struct {
@@ -75,6 +83,11 @@ type ConfigCiliumHubble struct {
 	HubblePort string `json:"hubble_port,omitempty" bson:"hubble_port,omitempty"`
 }
 
+type ConfigKubeArmorRelay struct {
+	KubeArmorRelayURL  string `json:"kubearmor_url,omitempty" bson:"kubearmor_url,omitempty"`
+	KubeArmorRelayPort string `json:"kubearmor_port,omitempty" bson:"kubearmor_port,omitempty"`
+}
+
 type NetworkLogFilter struct {
 	SourceNamespace      string   `json:"source_namespace,omitempty" bson:"source_namespace,omitempty"`
 	SourceLabels         []string `json:"source_labels,omitempty" bson:"source_labels,omitempty"`
@@ -85,11 +98,12 @@ type NetworkLogFilter struct {
 }
 
 type ConfigNetworkPolicy struct {
-	OperationMode           int    `json:"operation_mode,omitempty" bson:"operation_mode,omitempty"`
+	OperationMode           int `json:"operation_mode,omitempty" bson:"operation_mode,omitempty"`
+	OperationTrigger        int
 	CronJobTimeInterval     string `json:"cronjob_time_interval,omitempty" bson:"cronjob_time_interval,omitempty"`
 	OneTimeJobTimeSelection string `json:"one_time_job_time_selection,omitempty" bson:"one_time_job_time_selection,omitempty"`
-	OperationTrigger        int
 
+	NetworkLogLimit  int
 	NetworkLogFrom   string `json:"network_log_from,omitempty" bson:"network_log_from,omitempty"`
 	NetworkLogFile   string `json:"network_log_file,omitempty" bson:"network_log_file,omitempty"`
 	NetworkPolicyTo  string `json:"network_policy_to,omitempty" bson:"network_policy_to,omitempty"`
@@ -116,11 +130,12 @@ type SystemLogFilter struct {
 }
 
 type ConfigSystemPolicy struct {
-	OperationMode           int    `json:"operation_mode,omitempty" bson:"operation_mode,omitempty"`
+	OperationMode           int `json:"operation_mode,omitempty" bson:"operation_mode,omitempty"`
+	OperationTrigger        int
 	CronJobTimeInterval     string `json:"cronjob_time_interval,omitempty" bson:"cronjob_time_interval,omitempty"`
 	OneTimeJobTimeSelection string `json:"one_time_job_time_selection,omitempty" bson:"one_time_job_time_selection,omitempty"`
-	OperationTrigger        int
 
+	SystemLogLimit  int
 	SystemLogFrom   string `json:"system_log_from,omitempty" bson:"system_log_from,omitempty"`
 	SystemLogFile   string `json:"system_log_file,omitempty" bson:"system_log_file,omitempty"`
 	SystemPolicyTo  string `json:"system_policy_to,omitempty" bson:"system_policy_to,omitempty"`
@@ -143,8 +158,9 @@ type Configuration struct {
 	ConfigName string `json:"config_name,omitempty" bson:"config_name,omitempty"`
 	Status     int    `json:"status,omitempty" bson:"status,omitempty"`
 
-	ConfigDB           ConfigDB           `json:"config_db,omitempty" bson:"config_db,omitempty"`
-	ConfigCiliumHubble ConfigCiliumHubble `json:"config_cilium_hubble,omitempty" bson:"config_cilium_hubble,omitempty"`
+	ConfigDB             ConfigDB             `json:"config_db,omitempty" bson:"config_db,omitempty"`
+	ConfigCiliumHubble   ConfigCiliumHubble   `json:"config_cilium_hubble,omitempty" bson:"config_cilium_hubble,omitempty"`
+	ConfigKubeArmorRelay ConfigKubeArmorRelay `json:"config_kubearmor_relay,omitempty" bson:"config_kubearmor_relay,omitempty"`
 
 	ConfigNetPolicy   ConfigNetworkPolicy `json:"config_network_policy,omitempty" bson:"config_network_policy,omitempty"`
 	ConfigSysPolicy   ConfigSystemPolicy  `json:"config_system_policy,omitempty" bson:"config_system_policy,omitempty"`

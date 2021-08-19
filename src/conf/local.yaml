@@ -2,17 +2,19 @@ application:
   name: knoxautopolicy
   network:
     operation-mode: 1                         # 1: cronjob | 2: one-time-job
-    cron-job-time-interval: "0h0m10s"         # format: XhYmZs 
     operation-trigger: 100
+    cron-job-time-interval: "0h0m10s"         # format: XhYmZs 
+    network-log-limit: 100000
     network-log-from: "hubble"                # db|hubble
     network-log-file: "./flow.json"           # file path
     network-policy-to: "db|file"              # db, file
     network-policy-dir: "./"
   system:
     operation-mode: 1                         # 1: cronjob | 2: one-time-job
+    operation-trigger: 100
     cron-job-time-interval: "0h0m10s"         # format: XhYmZs
-    operation-trigger: 100 
-    system-log-from: "db"                     # db|kubearmor
+    system-log-from: "kubearmor"                     # db|kubearmor
+    system-log-limit: 100000
     system-log-file: "./log.json"             # file path
     system-policy-to: "db|file"               # db, file
     system-policy-dir: "./"
@@ -67,3 +69,7 @@ logging:
 cilium-hubble:
   url: localhost
   port: 4245
+
+kubearmor:
+  url: localhost
+  port: 32767

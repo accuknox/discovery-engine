@@ -25,7 +25,7 @@ COUNT_TESTS=0
 res_start_service=0
 
 function start_and_wait_for_KnoxAutoPolicy_initialization() {
-    $AUTOPOL_HOME/scripts/startService.sh &> /dev/null &
+    $AUTOPOL_HOME/scripts/start_service.sh &> /dev/null &
     if [ $? != 0 ]; then
         res_start_service=1
         exit 1
@@ -56,14 +56,14 @@ function stop_and_wait_for_KnoxAutoPolicy_termination() {
 
 function replace_discovery_mode() {
     if [[ $1 == *"_egress_ingress_"* ]]; then
-        sed -i "s/DISCOVERY_POLICY_TYPES=1/DISCOVERY_POLICY_TYPES=3/" $AUTOPOL_HOME/scripts/startService.sh
-        sed -i "s/DISCOVERY_POLICY_TYPES=2/DISCOVERY_POLICY_TYPES=3/" $AUTOPOL_HOME/scripts/startService.sh
+        sed -i "s/DISCOVERY_POLICY_TYPES=1/DISCOVERY_POLICY_TYPES=3/" $AUTOPOL_HOME/scripts/start_service.sh
+        sed -i "s/DISCOVERY_POLICY_TYPES=2/DISCOVERY_POLICY_TYPES=3/" $AUTOPOL_HOME/scripts/start_service.sh
     elif [[ $1 == *"_egress_"* ]]; then
-        sed -i "s/DISCOVERY_POLICY_TYPES=2/DISCOVERY_POLICY_TYPES=1/" $AUTOPOL_HOME/scripts/startService.sh
-        sed -i "s/DISCOVERY_POLICY_TYPES=3/DISCOVERY_POLICY_TYPES=1/" $AUTOPOL_HOME/scripts/startService.sh
+        sed -i "s/DISCOVERY_POLICY_TYPES=2/DISCOVERY_POLICY_TYPES=1/" $AUTOPOL_HOME/scripts/start_service.sh
+        sed -i "s/DISCOVERY_POLICY_TYPES=3/DISCOVERY_POLICY_TYPES=1/" $AUTOPOL_HOME/scripts/start_service.sh
     else
-        sed -i "s/DISCOVERY_POLICY_TYPES=1/DISCOVERY_POLICY_TYPES=2/" $AUTOPOL_HOME/scripts/startService.sh
-        sed -i "s/DISCOVERY_POLICY_TYPES=3/DISCOVERY_POLICY_TYPES=2/" $AUTOPOL_HOME/scripts/startService.sh
+        sed -i "s/DISCOVERY_POLICY_TYPES=1/DISCOVERY_POLICY_TYPES=2/" $AUTOPOL_HOME/scripts/start_service.sh
+        sed -i "s/DISCOVERY_POLICY_TYPES=3/DISCOVERY_POLICY_TYPES=2/" $AUTOPOL_HOME/scripts/start_service.sh
     fi
 }
 

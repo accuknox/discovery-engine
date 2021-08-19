@@ -63,6 +63,7 @@ var OperationTrigger int
 
 var OneTimeJobTime string
 
+var SystemLogLimit int
 var SystemLogFrom string
 var SystemLogFile string
 var SystemPolicyTo string
@@ -171,13 +172,13 @@ func getSystemLogs() []types.KnoxSystemLog {
 		log.Info().Msg("Get system log from the database")
 
 		// get system logs from db
-		sysLogs := libs.GetSystemLogsFromDB(cfg.GetCfgDB(), cfg.GetCfgSysOneTime(), OperationTrigger)
+		sysLogs := libs.GetSystemLogsFromDB(cfg.GetCfgDB(), cfg.GetCfgSysOneTime(), OperationTrigger, SystemLogLimit)
 		if len(sysLogs) == 0 {
 			return nil
 		}
 
 		// get system alerts from db, and merge it to the system logs
-		sysAlerts := libs.GetSystemAlertsFromDB(cfg.GetCfgDB(), cfg.GetCfgSysOneTime(), OperationTrigger)
+		sysAlerts := libs.GetSystemAlertsFromDB(cfg.GetCfgDB(), cfg.GetCfgSysOneTime(), OperationTrigger, SystemLogLimit)
 		if len(sysAlerts) != 0 {
 			sysLogs = append(sysLogs, sysAlerts...)
 		}
@@ -222,6 +223,22 @@ func getSystemLogs() []types.KnoxSystemLog {
 		if err := logFile.Close(); err != nil {
 			log.Error().Msg(err.Error())
 		}
+	} else if SystemLogFrom == "kubearmor" {
+		// ================================ //
+		// ===		KubeArmor Relay		=== //
+		// ================================ //
+
+		// get system logs from kuberarmor relay
+		relayLogs := plugin.GetSystemAlertsFromKubeArmorRelay(OperationTrigger)
+		if len(relayLogs) == 0 || len(relayLogs) < OperationTrigger {
+			return nil
+		}
+
+		// convert kubearmor relay logs -> knox system logs
+		for _, relayLog := range relayLogs {
+			log := plugin.ConvertKubeArmorRelayLogToKnoxSystemLog(relayLog)
+			systemLogs = append(systemLogs, log)
+		}
 	} else {
 		log.Error().Msgf("System log from not correct: %s", SystemLogFrom)
 		return nil
@@ -230,12 +247,12 @@ func getSystemLogs() []types.KnoxSystemLog {
 	return systemLogs
 }
 
-func WriteSystemPoliciesToFile(cluster, namespace string) {
+func WriteSystemPoliciesToFile(namespace string) {
 	latestPolicies := libs.GetSystemPolicies(CfgDB, namespace, "latest")
 
-	kubePolicies := plugin.ConvertKnoxSystemPolicyToKubeArmorPolicy(latestPolicies)
+	kubeArmorPolicies := plugin.ConvertKnoxSystemPolicyToKubeArmorPolicy(latestPolicies)
 
-	libs.WriteKubeArmorPolicyToYamlFile("", kubePolicies)
+	libs.WriteKubeArmorPolicyToYamlFile("", kubeArmorPolicies)
 }
 
 // ============================= //
@@ -285,6 +302,11 @@ func systemLogDeduplication(logs []types.KnoxSystemLog) []types.KnoxSystemLog {
 
 		// if source == resource, skip
 		if log.Source == log.Resource {
+			continue
+		}
+
+		// if pod name or namespace == ""
+		if log.PodName == "" || log.Namespace == "" {
 			continue
 		}
 
@@ -526,13 +548,14 @@ func updateSysPolicySelector(clusterName string, pod types.Pod, policies []types
 // == Discover System Policy  == //
 // ============================= //
 
-func initSysPolicyDiscoveryConfiguration() {
+func InitSysPolicyDiscoveryConfiguration() {
 	CfgDB = cfg.GetCfgDB()
 
 	OneTimeJobTime = cfg.GetCfgSysOneTime()
 
 	OperationTrigger = cfg.GetCfgSysOperationTrigger()
 
+	SystemLogLimit = cfg.GetCfgSysLimit()
 	SystemLogFrom = cfg.GetCfgSystemLogFrom()
 	SystemLogFile = cfg.GetCfgSystemLogFile()
 	SystemPolicyTo = cfg.GetCfgSystemPolicyTo()
@@ -556,7 +579,7 @@ func DiscoverSystemPolicyMain() {
 		SystemWorkerStatus = STATUS_IDLE
 	}()
 
-	initSysPolicyDiscoveryConfiguration()
+	InitSysPolicyDiscoveryConfiguration()
 
 	// get system logs
 	allSystemkLogs := getSystemLogs()
@@ -585,7 +608,6 @@ func DiscoverSystemPolicyMain() {
 		// iterate sys log key := [namespace + pod_name]
 		nsPodLogs := clusteringSystemLogsByNamespacePod(cfgFilteredLogs)
 		for sysKey, perPodlogs := range nsPodLogs {
-
 			discoveredSysPolicies := []types.KnoxSystemPolicy{}
 
 			pod, err := getPodInstance(sysKey, pods)
@@ -621,8 +643,8 @@ func DiscoverSystemPolicyMain() {
 				log.Info().Msgf("-> System policy discovery done for cluster/namespace/pod: [%s/%s/%s], [%d] policies discovered", clusterName, pod.Namespace, pod.PodName, len(newPolicies))
 			}
 
-			if len(newPolicies) > 0 && strings.Contains(SystemPolicyTo, "file") {
-				WriteSystemPoliciesToFile(clusterName, "multiubuntu")
+			if strings.Contains(SystemPolicyTo, "file") {
+				WriteSystemPoliciesToFile(sysKey.Namespace)
 			}
 		}
 	}
@@ -633,6 +655,12 @@ func DiscoverSystemPolicyMain() {
 // ==================================== //
 
 func StartSystemCronJob() {
+	//if system log directly from kubearmor relay
+	if cfg.GetCfgSystemLogFrom() == "kubearmor" {
+		go plugin.StartKubeArmorRelay(SystemStopChan, &SystemWaitG, cfg.GetCfgKubeArmor())
+		SystemWaitG.Add(1)
+	}
+
 	// init cron job
 	SystemCronJob = cron.New()
 	err := SystemCronJob.AddFunc(cfg.GetCfgSysCronJobTime(), DiscoverSystemPolicyMain) // time interval

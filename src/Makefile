@@ -7,6 +7,7 @@ build:
 
 .PHONY: test
 test:
+	cd $(CURDIR); go mod tidy
 	cd $(CURDIR)/config; go clean -testcache .; go test -v .
 	cd $(CURDIR)/feedconsumer; go clean -testcache .; go test -v .
 	cd $(CURDIR)/libs; go clean -testcache .; go test -v .

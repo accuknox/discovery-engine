@@ -3,7 +3,6 @@ package plugin
 import (
 	"context"
 	"encoding/json"
-	"io"
 	"net/url"
 	"strconv"
 	"strings"
@@ -54,7 +53,7 @@ var Verdict = map[string]int{
 }
 
 // ======================= //
-// == Gloabl Variables  == //
+// == Global Variables  == //
 // ======================= //
 
 var CiliumFlows []*cilium.Flow
@@ -65,6 +64,7 @@ var log *zerolog.Logger
 func init() {
 	log = logger.GetInstance()
 	CiliumFlowsMutex = &sync.Mutex{}
+	KubeArmorRelayLogsMutex = &sync.Mutex{}
 }
 
 // ====================== //
@@ -388,11 +388,18 @@ func getCoreDNSEndpoint(services []types.Service) ([]types.CiliumEndpoint, []typ
 
 	ciliumPort := types.CiliumPortList{}
 	ciliumPort.Ports = []types.CiliumPort{}
-	for _, svc := range services {
-		if svc.Namespace == "kube-system" && svc.ServiceName == "kube-dns" {
-			ciliumPort.Ports = append(ciliumPort.Ports, types.CiliumPort{
-				Port: strconv.Itoa(svc.ServicePort), Protocol: strings.ToUpper(svc.Protocol)},
-			)
+
+	if len(services) == 0 { // add statically
+		ciliumPort.Ports = append(ciliumPort.Ports, types.CiliumPort{
+			Port: strconv.Itoa(53), Protocol: strings.ToUpper("UDP")},
+		)
+	} else { // search DNS
+		for _, svc := range services {
+			if svc.Namespace == "kube-system" && svc.ServiceName == "kube-dns" {
+				ciliumPort.Ports = append(ciliumPort.Ports, types.CiliumPort{
+					Port: strconv.Itoa(svc.ServicePort), Protocol: strings.ToUpper(svc.Protocol)},
+				)
+			}
 		}
 	}
 
@@ -728,12 +735,9 @@ func StartHubbleRelay(StopChan chan struct{}, wg *sync.WaitGroup, cfg types.Conf
 
 			default:
 				res, err := stream.Recv()
-				if err == io.EOF {
-					log.Info().Msg("end of file: " + err.Error())
-				}
-
 				if err != nil {
-					log.Error().Msg("network flow stream stopped: " + err.Error())
+					log.Error().Msg("Cilium network flow stream stopped: " + err.Error())
+					return
 				}
 
 				switch r := res.ResponseTypes.(type) {
@@ -747,6 +751,6 @@ func StartHubbleRelay(StopChan chan struct{}, wg *sync.WaitGroup, cfg types.Conf
 			}
 		}
 	} else {
-		log.Error().Msg("unable to stream network flow: " + err.Error())
+		log.Error().Msg("Unable to stream network flow: " + err.Error())
 	}
 }

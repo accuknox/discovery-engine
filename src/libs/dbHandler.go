@@ -26,14 +26,14 @@ func updateTimeInterval(lastDoc map[string]interface{}) {
 	}
 }
 
-func GetNetworkLogsFromDB(cfg types.ConfigDB, timeSelection string, trigger int) []map[string]interface{} {
+func GetNetworkLogsFromDB(cfg types.ConfigDB, timeSelection string, trigger, limit int) []map[string]interface{} {
 	results := []map[string]interface{}{}
 
 	endTime = time.Now().Unix()
 
 	if cfg.DBDriver == "mysql" {
 		if timeSelection == "" {
-			docs, err := GetNetworkLogByIDTimeFromMySQL(cfg, LastFlowID, endTime)
+			docs, err := GetNetworkLogByIDTimeFromMySQL(cfg, LastFlowID, endTime, limit)
 			if err != nil {
 				log.Error().Msg(err.Error())
 				return results
@@ -174,14 +174,14 @@ var LastSyslogID int64 = 0
 var syslogStartTime int64 = 0
 var syslogEndTime int64 = 0
 
-func GetSystemLogsFromDB(cfg types.ConfigDB, timeSelection string, trigger int) []map[string]interface{} {
+func GetSystemLogsFromDB(cfg types.ConfigDB, timeSelection string, trigger, limit int) []map[string]interface{} {
 	results := []map[string]interface{}{}
 
 	syslogEndTime = time.Now().Unix()
 
 	if cfg.DBDriver == "mysql" {
 		if timeSelection == "" {
-			docs, err := GetSystemLogByIDTimeFromMySQL(cfg, LastSyslogID, syslogEndTime)
+			docs, err := GetSystemLogByIDTimeFromMySQL(cfg, LastSyslogID, syslogEndTime, limit)
 			if err != nil {
 				log.Error().Msg(err.Error())
 				return results
@@ -252,14 +252,14 @@ var LastSysAlertID int64 = 0
 var sysAlertStartTime int64 = 0
 var sysAlertEndTime int64 = 0
 
-func GetSystemAlertsFromDB(cfg types.ConfigDB, timeSelection string, trigger int) []map[string]interface{} {
+func GetSystemAlertsFromDB(cfg types.ConfigDB, timeSelection string, trigger, limit int) []map[string]interface{} {
 	results := []map[string]interface{}{}
 
 	sysAlertEndTime = time.Now().Unix()
 
 	if cfg.DBDriver == "mysql" {
 		if timeSelection == "" {
-			docs, err := GetSystemAlertByIDTimeFromMySQL(cfg, LastSysAlertID, sysAlertEndTime)
+			docs, err := GetSystemAlertByIDTimeFromMySQL(cfg, LastSysAlertID, sysAlertEndTime, limit)
 			if err != nil {
 				log.Error().Msg(err.Error())
 				return results
