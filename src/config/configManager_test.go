@@ -108,42 +108,46 @@ func TestAddConfiguration(t *testing.T) {
 	configHubblePtr := &newCfg.ConfigCiliumHubble
 	configCilium, _ := json.Marshal(configHubblePtr)
 
+	configKubeArmorPtr := &newCfg.ConfigKubeArmorRelay
+	configKubeArmor, _ := json.Marshal(configKubeArmorPtr)
+
 	configFilterPtr := &newCfg.ConfigNetPolicy.NetLogFilters
 	configFilter, _ := json.Marshal(configFilterPtr)
 
 	prep := mock.ExpectPrepare("INSERT INTO auto_policy_config")
 	prep.ExpectExec().WithArgs(
-		"test_config", //config_name
-		0,             //status
-		configDB,      //config_db
-		configCilium,  //config_cilium_hubble
-		0,             //network_operation_mode
-		"",            //network_cronjob_time_interval
-		"",            //network_one_time_job_time_selection
-		"",            //network_log_from
-		"",            //network_log_file
-		"",            //network_policy_to
-		"",            //network_policy_dir
-		configFilter,  //network_policy_log_filters
-		0,             //network_policy_types
-		0,             //network_policy_rule_types
-		32,            //network_policy_cidr_bits
-		0,             //network_policy_l3_level
-		0,             //network_policy_l4_level
-		0,             //network_policy_l7_level
-		0,             //system_operation_mode
-		"",            //system_cronjob_time_interval
-		"",            //system_one_time_job_time_selection
-		"",            //system_log_from
-		"",            //system_log_file
-		"",            //system_policy_to
-		"",            //system_policy_dir
-		0,             //system_policy_types
-		configFilter,  //system_policy_log_filters
-		false,         //system_policy_proc_fromsource
-		false,         //system_policy_file_fromsource
-		"",            //cluster_info_from
-		"",            //cluster_mgmt_url
+		"test_config",   //config_name
+		0,               //status
+		configDB,        //config_db
+		configCilium,    //config_cilium_hubble
+		configKubeArmor, //config_kubearmor_relay
+		0,               //network_operation_mode
+		"",              //network_cronjob_time_interval
+		"",              //network_one_time_job_time_selection
+		"",              //network_log_from
+		"",              //network_log_file
+		"",              //network_policy_to
+		"",              //network_policy_dir
+		configFilter,    //network_policy_log_filters
+		0,               //network_policy_types
+		0,               //network_policy_rule_types
+		32,              //network_policy_cidr_bits
+		0,               //network_policy_l3_level
+		0,               //network_policy_l4_level
+		0,               //network_policy_l7_level
+		0,               //system_operation_mode
+		"",              //system_cronjob_time_interval
+		"",              //system_one_time_job_time_selection
+		"",              //system_log_from
+		"",              //system_log_file
+		"",              //system_policy_to
+		"",              //system_policy_dir
+		0,               //system_policy_types
+		configFilter,    //system_policy_log_filters
+		false,           //system_policy_proc_fromsource
+		false,           //system_policy_file_fromsource
+		"",              //cluster_info_from
+		"",              //cluster_mgmt_url
 	).WillReturnResult(sqlmock.NewResult(0, 1))
 
 	// add configuration
@@ -272,41 +276,45 @@ func TestUpdateConfiguration(t *testing.T) {
 	configHubblePtr := &testCfg.ConfigCiliumHubble
 	configCilium, _ := json.Marshal(configHubblePtr)
 
+	configKubeArmorPtr := &testCfg.ConfigKubeArmorRelay
+	configKubeArmor, _ := json.Marshal(configKubeArmorPtr)
+
 	configFilterPtr := &testCfg.ConfigNetPolicy.NetLogFilters
 	configFilter, _ := json.Marshal(configFilterPtr)
 
 	prep := mock.ExpectPrepare("UPDATE auto_policy_config")
 	prep.ExpectExec().WithArgs(
-		configDB,      //config_db
-		configCilium,  //config_cilium_hubble
-		0,             //network_operation_mode
-		"",            //network_cronjob_time_interval
-		"",            //network_one_time_job_time_selection
-		"",            //network_log_from
-		"",            //network_log_file
-		"",            //network_policy_to
-		"",            //network_policy_dir
-		configFilter,  //network_policy_log_filters
-		0,             //network_policy_types
-		0,             //network_policy_rule_types
-		24,            //network_policy_cidr_bits
-		0,             //network_policy_l3_level
-		0,             //network_policy_l4_level
-		0,             //network_policy_l7_level
-		0,             //system_operation_mode
-		"",            //system_cronjob_time_interval
-		"",            //system_one_time_job_time_selection
-		"",            //system_log_from
-		"",            //system_log_file
-		"",            //system_policy_to
-		"",            //system_policy_dir
-		0,             //system_policy_types
-		configFilter,  //system_policy_log_filters
-		false,         //system_policy_proc_fromsource
-		false,         //system_policy_file_fromsource
-		"",            //cluster_info_from
-		"",            //cluster_mgmt_url).
-		"test_config", //config_name
+		configDB,        //config_db
+		configCilium,    //config_cilium_hubble
+		configKubeArmor, //config_kubearmor_relay
+		0,               //network_operation_mode
+		"",              //network_cronjob_time_interval
+		"",              //network_one_time_job_time_selection
+		"",              //network_log_from
+		"",              //network_log_file
+		"",              //network_policy_to
+		"",              //network_policy_dir
+		configFilter,    //network_policy_log_filters
+		0,               //network_policy_types
+		0,               //network_policy_rule_types
+		24,              //network_policy_cidr_bits
+		0,               //network_policy_l3_level
+		0,               //network_policy_l4_level
+		0,               //network_policy_l7_level
+		0,               //system_operation_mode
+		"",              //system_cronjob_time_interval
+		"",              //system_one_time_job_time_selection
+		"",              //system_log_from
+		"",              //system_log_file
+		"",              //system_policy_to
+		"",              //system_policy_dir
+		0,               //system_policy_types
+		configFilter,    //system_policy_log_filters
+		false,           //system_policy_proc_fromsource
+		false,           //system_policy_file_fromsource
+		"",              //cluster_info_from
+		"",              //cluster_mgmt_url).
+		"test_config",   //config_name
 	).WillReturnResult(sqlmock.NewResult(0, 1))
 
 	// update configuration by name
