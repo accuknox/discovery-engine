@@ -141,9 +141,8 @@ func ConvertKubeArmorRelayLogToKnoxSystemLog(relayLog *pb.Log) types.KnoxSystemL
 // == KubeArmor Relay == //
 // ========================= //
 
-func ConnectKubeArmorRelay() *grpc.ClientConn {
-	//TODO take in from config file
-	addr := "localhost:32767"
+func ConnectKubeArmorRelay(cfg types.ConfigKubeArmorRelay) *grpc.ClientConn {
+	addr := cfg.KubeArmorRelayURL + ":" + cfg.KubeArmorRelayPort
 
 	conn, err := grpc.Dial(addr, grpc.WithInsecure())
 	if err != nil {
@@ -181,8 +180,8 @@ func GetSystemAlertsFromKubeArmorRelay(trigger int) []*pb.Log {
 	return results
 }
 
-func StartKubeArmorRelay(StopChan chan struct{}, wg *sync.WaitGroup) {
-	conn := ConnectKubeArmorRelay()
+func StartKubeArmorRelay(StopChan chan struct{}, wg *sync.WaitGroup, cfg types.ConfigKubeArmorRelay) {
+	conn := ConnectKubeArmorRelay(cfg)
 	defer wg.Done()
 
 	client := pb.NewLogServiceClient(conn)

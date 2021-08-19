@@ -657,7 +657,7 @@ func DiscoverSystemPolicyMain() {
 func StartSystemCronJob() {
 	//if system log directly from kubearmor relay
 	if cfg.GetCfgSystemLogFrom() == "kubearmor" {
-		go plugin.StartKubeArmorRelay(SystemStopChan, &SystemWaitG)
+		go plugin.StartKubeArmorRelay(SystemStopChan, &SystemWaitG, cfg.GetCfgKubeArmor())
 		SystemWaitG.Add(1)
 	}
 
