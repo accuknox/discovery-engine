@@ -87,7 +87,7 @@ func TestProcessMessage(t *testing.T) {
 	 }`
 
 	dataBytes := []byte(cilium)
-	consumer = &KnoxFeedConsumer{}
+	consumer := &KnoxFeedConsumer{}
 
 	err := consumer.processNetworkLogMessage(dataBytes)
 	assert.NoError(t, err)
@@ -117,7 +117,7 @@ func TestProcessSystemLogMessage(t *testing.T) {
 	 }`
 
 	dataBytes := []byte(kubearmor)
-	consumer = &KnoxFeedConsumer{}
+	consumer := &KnoxFeedConsumer{}
 
 	err := consumer.processSystemLogMessage(dataBytes)
 	assert.NoError(t, err)

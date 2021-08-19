@@ -30,7 +30,7 @@ func TestContainLabelByConfiguration(t *testing.T) {
 	ignoreLabels := []string{"ignore=test"}
 	flowLabels := []string{"nonignore=test"}
 
-	results := containLabelByConfiguration("cilium", ignoreLabels, flowLabels)
+	results := containLabelByConfiguration(ignoreLabels, flowLabels)
 
 	assert.Equal(t, false, results, "they should be equal")
 }

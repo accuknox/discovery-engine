@@ -876,6 +876,12 @@ func AddConfiguration(cfg types.ConfigDB, newConfig types.Configuration) error {
 		return err
 	}
 
+	configKubeArmorRelayPtr := &newConfig.ConfigKubeArmorRelay
+	configKubeArmorRelay, err := json.Marshal(configKubeArmorRelayPtr)
+	if err != nil {
+		return err
+	}
+
 	// network log filters
 	netLogFiltersPtr := &newConfig.ConfigNetPolicy.NetLogFilters
 	netLogFilters, err := json.Marshal(netLogFiltersPtr)
@@ -895,6 +901,7 @@ func AddConfiguration(cfg types.ConfigDB, newConfig types.Configuration) error {
 		newConfig.Status,
 		configDB,
 		configCilium,
+		configKubeArmorRelay,
 
 		newConfig.ConfigNetPolicy.OperationMode,
 		newConfig.ConfigNetPolicy.CronJobTimeInterval,
@@ -973,6 +980,9 @@ func GetConfigurations(cfg types.ConfigDB, configName string) ([]types.Configura
 		hubbleByte := []byte{}
 		hubble := types.ConfigCiliumHubble{}
 
+		kubearmorRelayByte := []byte{}
+		kubearmorRelay := types.ConfigKubeArmorRelay{}
+
 		netLogFiltersByte := []byte{}
 		netLogFilters := []types.NetworkLogFilter{}
 
@@ -985,6 +995,7 @@ func GetConfigurations(cfg types.ConfigDB, configName string) ([]types.Configura
 			&cfg.Status,
 			&configDBByte,
 			&hubbleByte,
+			&kubearmorRelayByte,
 
 			&cfg.ConfigNetPolicy.OperationMode,
 			&cfg.ConfigNetPolicy.CronJobTimeInterval,
@@ -1028,6 +1039,11 @@ func GetConfigurations(cfg types.ConfigDB, configName string) ([]types.Configura
 			return nil, err
 		}
 		cfg.ConfigCiliumHubble = hubble
+
+		if err := json.Unmarshal(kubearmorRelayByte, &kubearmorRelay); err != nil {
+			return nil, err
+		}
+		cfg.ConfigKubeArmorRelay = kubearmorRelay
 
 		if err := json.Unmarshal(netLogFiltersByte, &netLogFilters); err != nil {
 			return nil, err
@@ -1109,6 +1125,12 @@ func UpdateConfiguration(cfg types.ConfigDB, configName string, updateConfig typ
 		return err
 	}
 
+	configKubeArmorRelayPtr := &updateConfig.ConfigKubeArmorRelay
+	configKubeArmorRelay, err := json.Marshal(configKubeArmorRelayPtr)
+	if err != nil {
+		return err
+	}
+
 	netLogFiltersPtr := &updateConfig.ConfigNetPolicy.NetLogFilters
 	netLogFilters, err := json.Marshal(netLogFiltersPtr)
 	if err != nil {
@@ -1124,6 +1146,7 @@ func UpdateConfiguration(cfg types.ConfigDB, configName string, updateConfig typ
 	_, err = stmt.Exec(
 		configDB,
 		configCilium,
+		configKubeArmorRelay,
 
 		updateConfig.ConfigNetPolicy.OperationMode,
 		updateConfig.ConfigNetPolicy.CronJobTimeInterval,

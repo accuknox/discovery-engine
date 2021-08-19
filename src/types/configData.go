@@ -3,38 +3,42 @@ package types
 var MockConfigYaml = []byte(`
 application:
   name: knoxautopolicy
-  operation-mode: 2
-  cron-job-time-interval: "@every 0h0m10s"
-  network-log-from: db
-  network-log-file: "./flow.json"
-  network-policy-to: "db|file"
-  network-policy-dir: "./"
-  network-policy-types: 3
-  network-policy-rule-types: 511
-  network-policy-ignoring-namespaces: "kube-system"
-  system-log-from: db
-  system-log-file: "./log.json"
-  system-policy-to: "db|file"
-  system-policy-dir: "./"
-  #accuknox-cluster-mgmt: "http://cluster-management-service.accuknox-dev-cluster-mgmt.svc.cluster.local/cm"
-  accuknox-cluster-mgmt: "http://localhost:8080"
+  network:
+    operation-mode: 2
+    cron-job-time-interval: "@every 0h0m10s"
+    network-log-from: db
+    network-log-file: "./flow.json"
+    network-policy-to: "db|file"
+    network-policy-dir: "./"
+    network-policy-types: 3
+    network-policy-rule-types: 511
+    network-policy-ignoring-namespaces: "kube-system"
+  system:
+    system-log-from: db
+    system-log-file: "./log.json"
+    system-policy-to: "db|file"
+    system-policy-dir: "./"
+  cluster:
+    #accuknox-cluster-mgmt: "http://cluster-management-service.accuknox-dev-cluster-mgmt.svc.cluster.local/cm"
+    cluster-mgmt: "http://localhost:8080"
 
 logging:
   level: INFO
 
-kafka:
-  broker-address-family: v4
-  session-timeout-ms: 6000
-  auto-offset-reset: "earliest"
-  bootstrap-servers: "dev-kafka-kafka-bootstrap.accuknox-dev-kafka.svc.cluster.local:9092"
-  group-id: policy.cilium
-  topics: 
-    - cilium-telemetry-test
-    - kubearmor-syslogs
-  ssl:
-    enabled: false
-  events:
-    buffer: 50
+feed-consumer:
+  kafka:
+    broker-address-family: v4
+    session-timeout-ms: 6000
+    auto-offset-reset: "earliest"
+    bootstrap-servers: "dev-kafka-kafka-bootstrap.accuknox-dev-kafka.svc.cluster.local:9092"
+    group-id: policy.cilium
+    topics: 
+      - cilium-telemetry-test
+      - kubearmor-syslogs
+    ssl:
+      enabled: false
+    events:
+      buffer: 50
 
 database:
   driver: mysql
