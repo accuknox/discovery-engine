@@ -30,7 +30,6 @@ database:
   user: root
   password: password
   dbname: accuknox
-  table-configuration: auto_policy_config
   table-network-log: network_log
   table-network-policy: network_policy
   table-system-log: system_log
