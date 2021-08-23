@@ -122,6 +122,20 @@ function delete_and_wait_for_microserivce_deletion() {
 ## == Test Functions == ##
 ## ==================== ##
 
+function add_label_pods() {
+    if [[ $2 == "TC_16" ]] || [[ $2 == "TC_30" ]]; then
+        cd $1
+        /bin/bash ./add_label.sh $ >/dev/null
+    fi
+}
+
+function del_label_pods() {
+    if [[ $2 == "TC_16" ]] || [[ $2 == "TC_30" ]]; then
+        cd $1
+        /bin/bash ./del_label.sh $ >/dev/null
+    fi
+}
+
 function run_test_case() {
     cd $1
 
@@ -129,6 +143,14 @@ function run_test_case() {
 
     for JSON_FILE in $(ls -r $TC_*.json); do
         for EXPECTED_YAML_FILE in $(ls -r $TC_*.yaml); do
+
+            # check before / after
+            if [[ $JSON_FILE == *"before"* ]] && [[ $EXPECTED_YAML_FILE != *"before"* ]]; then
+                continue
+            elif [[ $JSON_FILE == *"after"* ]] && [[ $EXPECTED_YAML_FILE != *"after"* ]]; then
+                continue
+            fi
+
             echo -e "${GREEN}[INFO] Discovering from $JSON_FILE"
             cp $1/$JSON_FILE test-flow.json
 
@@ -200,7 +222,8 @@ if [ $res_microservice == 0 ]; then
     ## Step 4. Run all the test cases
     cd $TEST_HOME/$microservice/test-cases
     for testcase in $(ls -d $TC_*); do
-        cd
+        add_label_pods $TEST_HOME/$microservice/test-cases/$testcase $testcase
+
         # replace configuration
         JSON_FILE=$(ls $TEST_HOME/$microservice/test-cases/$testcase/*.json)
 
@@ -216,13 +239,19 @@ if [ $res_microservice == 0 ]; then
         fi
 
         # Clear DB for next policy generation
-        echo "[INFO] Clear DB"
-        grpcurl -plaintext -d '{"req": "dbclear"}' localhost:9089 v1.worker.Worker.Start
+        if [[ $JSON_FILE == *"before"* ]]; then
+            echo "[INFO] Not clearing DB"
+        else
+            echo "[INFO] Clear DB"
+            grpcurl -plaintext -d '{"req": "dbclear"}' localhost:9089 v1.worker.Worker.Start
+        fi
 
         # stop knoxAutoPolicy
         echo -e "${ORANGE}[INFO] Stopping KnoxAutoPolicy${NC}"
         stop_and_wait_for_KnoxAutoPolicy_termination
         echo "[INFO] Stopped KnoxAutoPolicy"
+
+        del_label_pods $TEST_HOME/$microservice/test-cases/$testcase $testcase
     done
 
     ## Step 6. Delete Microservice
