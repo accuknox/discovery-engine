@@ -6,6 +6,12 @@ application:
     network-log-file: "./test-flow.json" # file path
     network-policy-to: "db|file" # db, file
     network-policy-dir: "./"
+  system:
+    operation-mode: 2 # 1: cronjob | 2: one-time-job
+    system-log-from: "file" # db|hubble
+    system-log-file: "./test-flow.json" # file path
+    system-policy-to: "db|file" # db, file
+    system-policy-dir: "./"
   cluster:
     cluster-info-from: "k8sclient" # k8sclient|accuknox
     #cluster-mgmt-url: "http://cluster-management-service.accuknox-dev-cluster-mgmt.svc.cluster.local/cm"

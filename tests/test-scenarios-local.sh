@@ -1,5 +1,7 @@
 #!/bin/bash
 
+shopt -s extglob
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 ORANGE='\033[0;33m'
@@ -139,7 +141,7 @@ function del_label_pods() {
 function run_test_case() {
     cd $1
 
-    ACTUAL_YAML_FILE=cilium_policies_$2.yaml
+    ACTUAL_YAML_FILE=@(cilium|kubearmor)_policies*.yaml
 
     for JSON_FILE in $(ls -r $TC_*.json); do
         for EXPECTED_YAML_FILE in $(ls -r $TC_*.yaml); do
@@ -172,10 +174,28 @@ function run_test_case() {
             echo "[INFO] Discovered policies from $JSON_FILE"
 
             echo -e "${GREEN}[INFO] Comparing $EXPECTED_YAML_FILE and $ACTUAL_YAML_FILE${NC}"
+            fail=0
             python3 $TEST_SCRIPTS/diff.py $1/$ACTUAL_YAML_FILE $1/$EXPECTED_YAML_FILE
             if [ $? != 0 ]; then
                 echo -e "${RED}[FAIL] Failed $3${NC}"
                 FAILED_TESTS+=($testcase)
+                fail=1
+            fi
+
+            # Clear DB for next policy generation
+            if [[ $JSON_FILE == *"before"* ]]; then
+                echo "[INFO] Not clearing DB"
+            else
+                echo "[INFO] Clear DB"
+                grpcurl -plaintext -d '{"req": "dbclear"}' localhost:9089 v1.worker.Worker.Start
+            fi
+
+            # stop knoxAutoPolicy
+            echo -e "${ORANGE}[INFO] Stopping KnoxAutoPolicy${NC}"
+            stop_and_wait_for_KnoxAutoPolicy_termination
+            echo "[INFO] Stopped KnoxAutoPolicy"
+
+            if [ $fail != 0 ]; then
                 return
             fi
         done
@@ -237,19 +257,6 @@ if [ $res_microservice == 0 ]; then
             echo "[INFO] Tested $testcase"
             ((COUNT_TESTS++))
         fi
-
-        # Clear DB for next policy generation
-        if [[ $JSON_FILE == *"before"* ]]; then
-            echo "[INFO] Not clearing DB"
-        else
-            echo "[INFO] Clear DB"
-            grpcurl -plaintext -d '{"req": "dbclear"}' localhost:9089 v1.worker.Worker.Start
-        fi
-
-        # stop knoxAutoPolicy
-        echo -e "${ORANGE}[INFO] Stopping KnoxAutoPolicy${NC}"
-        stop_and_wait_for_KnoxAutoPolicy_termination
-        echo "[INFO] Stopped KnoxAutoPolicy"
 
         del_label_pods $TEST_HOME/$microservice/test-cases/$testcase $testcase
     done
