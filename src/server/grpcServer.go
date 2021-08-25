@@ -42,23 +42,30 @@ type workerServer struct {
 func (s *workerServer) Start(ctx context.Context, in *wpb.WorkerRequest) (*wpb.WorkerResponse, error) {
 	log.Info().Msg("Start worker called")
 
+	response := ""
+
 	if in.GetReq() == "dbclear" {
 		libs.ClearDBTables(core.CurrentCfg.ConfigDB)
+		response += "Cleared DB ,"
 	}
 
 	if in.GetLogfile() != "" {
 		core.SetLogFile(in.GetLogfile())
+		response += "Log File Set ,"
 	}
 
-	if in.GetPolicytype() == "network" {
-		networker.StartNetworkWorker()
-	} else if in.GetPolicytype() == "system" {
-		sysworker.StartSystemWorker()
+	if in.GetPolicytype() != "" {
+		if in.GetPolicytype() == "network" {
+			networker.StartNetworkWorker()
+		} else if in.GetPolicytype() == "system" {
+			sysworker.StartSystemWorker()
+		}
+		response += "Starting " + in.GetPolicytype() + " policy discovery"
 	} else {
-		return &wpb.WorkerResponse{Res: "No policy type, choose 'network' or 'system', not [" + in.GetPolicytype() + "]"}, nil
+		response += "No policy type provided, choose 'network' or 'system' to start policy discovery"
 	}
 
-	return &wpb.WorkerResponse{Res: "ok starting " + in.GetPolicytype() + " policy discovery"}, nil
+	return &wpb.WorkerResponse{Res: response}, nil
 }
 
 func (s *workerServer) Stop(ctx context.Context, in *wpb.WorkerRequest) (*wpb.WorkerResponse, error) {
