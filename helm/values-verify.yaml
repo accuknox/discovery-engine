@@ -126,7 +126,6 @@ config:
     user: accuknox_user
     password: EAy5Kq4uhc5Gkws
     dbname: accuknox
-    table-configuration: auto_policy_config
     table-network-log: network_log
     table-network-policy: network_policy
     table-system-log: system_log
