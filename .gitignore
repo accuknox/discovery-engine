@@ -7,3 +7,4 @@ log
 policies/*.yaml
 !policies/.keep
 tests/mysql/logs
+deployments/
