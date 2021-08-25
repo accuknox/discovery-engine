@@ -168,16 +168,11 @@ type CiliumNetworkPolicy struct {
 // == Knox System Policy == //
 // ======================== //
 
-// KnoxDir Structure
-type KnoxDir struct {
-	Dir       string `json:"dir,omitempty" yaml:"dir,omitempty"`
-	Recursive bool   `json:"resursive,omitempty" yaml:"resursive,omitempty"`
-}
-
 // KnoxFromSource Structure
 type KnoxFromSource struct {
-	Path string  `json:"path,omitempty" yaml:"path,omitempty"`
-	Dir  KnoxDir `json:"dir,omitempty" yaml:"dir,omitempty"`
+	Path      string `json:"path,omitempty" yaml:"path,omitempty"`
+	Dir       string `json:"dir,omitempty" yaml:"dir,omitempty"`
+	Recursive bool   `json:"resursive,omitempty" yaml:"resursive,omitempty"`
 }
 
 // KnoxMatchPaths Structure
