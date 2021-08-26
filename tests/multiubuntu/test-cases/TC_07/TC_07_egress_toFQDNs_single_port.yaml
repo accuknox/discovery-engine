@@ -1,7 +1,7 @@
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
-  name: autopol-egress-rswxpldnjobcsnv
+  name: autopol-egress-oounpzvyesirjob
   namespace: multiubuntu
 spec:
   endpointSelector:
@@ -14,7 +14,7 @@ spec:
       - port: "8000"
         protocol: TCP
     toFQDNs:
-    - matchName: app.test.accuknox.com
+    - matchName: 239.8.232.35.bc.googleusercontent.com
   - toEndpoints:
     - matchLabels:
         k8s-app: kube-dns

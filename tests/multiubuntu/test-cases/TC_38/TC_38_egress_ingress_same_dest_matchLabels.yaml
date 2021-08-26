@@ -1,7 +1,7 @@
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
-  name: autopol-egress-xvlbzgbaicmrajw
+  name: autopol-egress-gaxqedigctdoves
   namespace: multiubuntu
 spec:
   endpointSelector:
@@ -11,41 +11,39 @@ spec:
   egress:
   - toEndpoints:
     - matchLabels:
+        container: ubuntu-2
         group: group-1
         k8s:io.kubernetes.pod.namespace: multiubuntu
     toPorts:
     - ports:
       - port: "8000"
         protocol: TCP
-      - port: "8080"
-        protocol: TCP
 ---
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
-  name: autopol-ingress-whthctcuaxhxkqf
+  name: autopol-egress-lzcsheiswbnzzyg
   namespace: multiubuntu
 spec:
   endpointSelector:
     matchLabels:
-      group: group-1
-  ingress:
-  - fromEndpoints:
+      container: ubuntu-5
+      group: group-2
+  egress:
+  - toEndpoints:
     - matchLabels:
-        container: ubuntu-5
-        group: group-2
+        container: ubuntu-3
+        group: group-1
         k8s:io.kubernetes.pod.namespace: multiubuntu
     toPorts:
     - ports:
-      - port: "8000"
-        protocol: TCP
       - port: "8080"
         protocol: TCP
 ---
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
-  name: autopol-egress-dafplsjfbcxoeff
+  name: autopol-egress-wsleycenqbzsbok
   namespace: multiubuntu
 spec:
   endpointSelector:
@@ -61,4 +59,46 @@ spec:
     - ports:
       - port: "53"
         protocol: UDP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autopol-ingress-bjfiaxsstmhxfud
+  namespace: multiubuntu
+spec:
+  endpointSelector:
+    matchLabels:
+      container: ubuntu-2
+      group: group-1
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        container: ubuntu-5
+        group: group-2
+        k8s:io.kubernetes.pod.namespace: multiubuntu
+    toPorts:
+    - ports:
+      - port: "8000"
+        protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autopol-ingress-coctntqqdtdueti
+  namespace: multiubuntu
+spec:
+  endpointSelector:
+    matchLabels:
+      container: ubuntu-3
+      group: group-1
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        container: ubuntu-5
+        group: group-2
+        k8s:io.kubernetes.pod.namespace: multiubuntu
+    toPorts:
+    - ports:
+      - port: "8080"
+        protocol: TCP
 ---

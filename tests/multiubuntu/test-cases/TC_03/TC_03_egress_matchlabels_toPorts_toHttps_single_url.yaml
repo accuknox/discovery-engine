@@ -1,7 +1,7 @@
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
-  name: autopol-egress-xvlbzgbaicmrajw
+  name: autopol-egress-twllqfptxshmsmv
   namespace: multiubuntu
 spec:
   endpointSelector:
@@ -13,6 +13,31 @@ spec:
     - matchLabels:
         container: ubuntu-4
         group: group-2
+        k8s:io.kubernetes.pod.namespace: multiubuntu
+    toPorts:
+    - ports:
+      - port: "8080"
+        protocol: TCP
+      rules:
+        http:
+        - method: GET
+          path: /test1
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autopol-ingress-bpkikavvwyikrqq
+  namespace: multiubuntu
+spec:
+  endpointSelector:
+    matchLabels:
+      container: ubuntu-4
+      group: group-2
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        container: ubuntu-1
+        group: group-1
         k8s:io.kubernetes.pod.namespace: multiubuntu
     toPorts:
     - ports:

@@ -1,11 +1,28 @@
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
-  name: autopol-egress-xvlbzgbaicmrajw
+  name: autopol-egress-fipyzopfytxnbax
   namespace: multiubuntu
 spec:
   endpointSelector:
     matchLabels:
+      container: ubuntu-2
+      group: group-1
+  egress:
+  - toServices:
+    - k8sService:
+        serviceName: external-service
+        namespace: multiubuntu
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autopol-egress-mogvzzvlxfmstyq
+  namespace: multiubuntu
+spec:
+  endpointSelector:
+    matchLabels:
+      container: ubuntu-3
       group: group-1
   egress:
   - toServices:

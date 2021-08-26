@@ -1,7 +1,7 @@
-apiVersion: security.accuknox.com/v1
+apiVersion: security.kubearmor.com/v1
 kind: KubeArmorPolicy
 metadata:
-  name: autopol-File-atsnsffffpwjwte
+  name: autopol-file-vypybpfjrhqarjt
   namespace: multiubuntu
 spec:
   severity: 1
@@ -13,7 +13,6 @@ spec:
     matchPaths:
     - path: /lib/x86_64-linux-gnu/libnss_compat.so.2
       fromSource:
-        path:
-        - /bin/sleep
+      - path: /bin/sleep
   action: Allow
 ---

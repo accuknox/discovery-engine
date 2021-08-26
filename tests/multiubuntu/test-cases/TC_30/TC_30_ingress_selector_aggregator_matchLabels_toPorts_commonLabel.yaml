@@ -1,12 +1,175 @@
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
-  name: autopol-ingress-xvlbzgbaicmrajw
+  name: autopol-egress-bvqxxevaqdjjbmv
   namespace: multiubuntu
 spec:
   endpointSelector:
     matchLabels:
       common: commonselector
+      container: ubuntu-4
+      group: group-2
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        common: commonselector
+        container: ubuntu-2
+        group: group-1
+        k8s:io.kubernetes.pod.namespace: multiubuntu
+    toPorts:
+    - ports:
+      - port: "8080"
+        protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autopol-egress-olklxxrptbvoxrs
+  namespace: multiubuntu
+spec:
+  endpointSelector:
+    matchLabels:
+      common: commonselector
+      container: ubuntu-4
+      group: group-2
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        common: commonselector
+        container: ubuntu-3
+        group: group-1
+        k8s:io.kubernetes.pod.namespace: multiubuntu
+    toPorts:
+    - ports:
+      - port: "8080"
+        protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autopol-egress-rzacyqaeghihkse
+  namespace: multiubuntu
+spec:
+  endpointSelector:
+    matchLabels:
+      common: commonselector
+      container: ubuntu-4
+      group: group-2
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        common: commonselector
+        container: ubuntu-1
+        group: group-1
+        k8s:io.kubernetes.pod.namespace: multiubuntu
+    toPorts:
+    - ports:
+      - port: "8080"
+        protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autopol-egress-zugtkpvvpgexcxx
+  namespace: multiubuntu
+spec:
+  endpointSelector:
+    matchLabels:
+      common: commonselector
+      container: ubuntu-4
+      group: group-2
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        common: commonselector
+        container: ubuntu-5
+        group: group-2
+        k8s:io.kubernetes.pod.namespace: multiubuntu
+    toPorts:
+    - ports:
+      - port: "8080"
+        protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autopol-ingress-mzqrulmfhhrhjza
+  namespace: multiubuntu
+spec:
+  endpointSelector:
+    matchLabels:
+      common: commonselector
+      container: ubuntu-5
+      group: group-2
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        common: commonselector
+        container: ubuntu-4
+        group: group-2
+        k8s:io.kubernetes.pod.namespace: multiubuntu
+    toPorts:
+    - ports:
+      - port: "8080"
+        protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autopol-ingress-orcganpdduggyus
+  namespace: multiubuntu
+spec:
+  endpointSelector:
+    matchLabels:
+      common: commonselector
+      container: ubuntu-1
+      group: group-1
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        common: commonselector
+        container: ubuntu-4
+        group: group-2
+        k8s:io.kubernetes.pod.namespace: multiubuntu
+    toPorts:
+    - ports:
+      - port: "8080"
+        protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autopol-ingress-rhmvvuvavjivmfu
+  namespace: multiubuntu
+spec:
+  endpointSelector:
+    matchLabels:
+      common: commonselector
+      container: ubuntu-2
+      group: group-1
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        common: commonselector
+        container: ubuntu-4
+        group: group-2
+        k8s:io.kubernetes.pod.namespace: multiubuntu
+    toPorts:
+    - ports:
+      - port: "8080"
+        protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autopol-ingress-vjuzjzkooummuab
+  namespace: multiubuntu
+spec:
+  endpointSelector:
+    matchLabels:
+      common: commonselector
+      container: ubuntu-3
+      group: group-1
   ingress:
   - fromEndpoints:
     - matchLabels:

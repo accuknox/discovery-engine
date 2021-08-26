@@ -1,7 +1,7 @@
-apiVersion: security.accuknox.com/v1
+apiVersion: security.kubearmor.com/v1
 kind: KubeArmorPolicy
 metadata:
-  name: autopol-Process-qlxueozgolqilop
+  name: autopol-process-qsmqsubzhlfwzjn
   namespace: multiubuntu
 spec:
   severity: 1
@@ -12,5 +12,7 @@ spec:
   process:
     matchPaths:
     - path: /sbin/ldconfig
+      fromSource:
+      - path: /http_test.py
   action: Allow
 ---

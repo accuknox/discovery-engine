@@ -1,7 +1,7 @@
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
-  name: autopol-egress-whthctcuaxhxkqf
+  name: autopol-egress-rqtfrdqqvfexfgn
   namespace: multiubuntu
 spec:
   endpointSelector:
@@ -15,7 +15,7 @@ spec:
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
-  name: autopol-ingress-dafplsjfbcxoeff
+  name: autopol-ingress-lzrrkamwepbfnzw
   namespace: multiubuntu
 spec:
   endpointSelector:

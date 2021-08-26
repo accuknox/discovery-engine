@@ -1,32 +1,64 @@
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
-  name: autopol-egress-xvlbzgbaicmrajw
+  name: autopol-egress-bjxshvbzurlxatr
   namespace: multiubuntu
 spec:
   endpointSelector:
     matchLabels:
+      container: ubuntu-3
       group: group-1
   egress:
   - toPorts:
     - ports:
       - port: "8000"
         protocol: TCP
-    toFQDNs:
-    - matchName: seungsoo.net
-  - toEndpoints:
-    - matchLabels:
-        k8s-app: kube-dns
-        k8s:io.kubernetes.pod.namespace: kube-system
-    toPorts:
+    toCIDR:
+    - 143.248.36.38/32
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autopol-egress-lhxruhxbazeiogf
+  namespace: multiubuntu
+spec:
+  endpointSelector:
+    matchLabels:
+      container: ubuntu-2
+      group: group-1
+  egress:
+  - toPorts:
     - ports:
-      - port: "53"
-        protocol: UDP
-      - port: "53"
+      - port: "8000"
         protocol: TCP
-      - port: "9153"
-        protocol: TCP
-      rules:
-        dns:
-        - matchPattern: '*'
+    toCIDR:
+    - 143.248.36.38/32
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autopol-ingress-hwohpdcyaybwpwp
+  namespace: multiubuntu
+spec:
+  endpointSelector:
+    matchLabels:
+      container: ubuntu-2
+      group: group-1
+  ingress:
+  - fromCIDR:
+    - 143.248.36.38/32
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autopol-ingress-mwhfaygkvvayhzu
+  namespace: multiubuntu
+spec:
+  endpointSelector:
+    matchLabels:
+      container: ubuntu-3
+      group: group-1
+  ingress:
+  - fromCIDR:
+    - 143.248.36.38/32
 ---
