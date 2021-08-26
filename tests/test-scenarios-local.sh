@@ -290,6 +290,8 @@ if ((${#FAILED_TESTS[@]} > 0)); then
         echo -n " "$casenumber
     done
     echo ")"
+    exit 1
 fi
 
 echo ""
+exit 0
