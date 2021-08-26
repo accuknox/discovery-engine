@@ -1,11 +1,33 @@
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
-  name: autopol-ingress-whthctcuaxhxkqf
+  name: autopol-egress-cxwezxiynentfwx
   namespace: multiubuntu
 spec:
   endpointSelector:
     matchLabels:
+      container: ubuntu-2
+      group: group-1
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        container: ubuntu-5
+        group: group-2
+        k8s:io.kubernetes.pod.namespace: multiubuntu
+    toPorts:
+    - ports:
+      - port: "8000"
+        protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autopol-ingress-wzxozfqtqqigcrj
+  namespace: multiubuntu
+spec:
+  endpointSelector:
+    matchLabels:
+      container: ubuntu-5
       group: group-2
   ingress:
   - fromEndpoints:
@@ -17,6 +39,46 @@ spec:
     - ports:
       - port: "8000"
         protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autopol-egress-velfdchifdhnjol
+  namespace: multiubuntu
+spec:
+  endpointSelector:
+    matchLabels:
+      container: ubuntu-2
+      group: group-1
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        container: ubuntu-4
+        group: group-2
+        k8s:io.kubernetes.pod.namespace: multiubuntu
+    toPorts:
+    - ports:
+      - port: "8080"
+        protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: autopol-ingress-wolnbinhweqtedn
+  namespace: multiubuntu
+spec:
+  endpointSelector:
+    matchLabels:
+      container: ubuntu-4
+      group: group-2
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        container: ubuntu-2
+        group: group-1
+        k8s:io.kubernetes.pod.namespace: multiubuntu
+    toPorts:
+    - ports:
       - port: "8080"
         protocol: TCP
 ---
