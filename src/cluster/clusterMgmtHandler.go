@@ -53,8 +53,9 @@ func getResponseBytes(mothod string, url string, data map[string]interface{}) []
 	req.Header.Add("knox-internal", "true")
 
 	// skip certificate verification
+	skipCertVerification := config.GetCfgNetworkSkipCertVerification()
 	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: config.GetCfgNetworkSkipCertVerification()},
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: skipCertVerification},
 	}
 
 	// send req using http Client
