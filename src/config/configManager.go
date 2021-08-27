@@ -140,6 +140,8 @@ func LoadDefaultConfig() {
 		NetPolicyL3Level: 1,
 		NetPolicyL4Level: 1,
 		NetPolicyL7Level: 1,
+
+		NetSkipCertVerification: viper.GetBool("application.network.skip-cert-verification"),
 	}
 
 	// load system policy discovery
@@ -279,6 +281,10 @@ func GetCfgNetworkSkipNamespaces() []string {
 
 func GetCfgNetworkLogFilters() []types.NetworkLogFilter {
 	return CurrentCfg.ConfigNetPolicy.NetLogFilters
+}
+
+func GetCfgNetworkSkipCertVerification() bool {
+	return CurrentCfg.ConfigNetPolicy.NetSkipCertVerification
 }
 
 // ============================ //
