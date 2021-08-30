@@ -187,28 +187,27 @@ func (cfc *KnoxFeedConsumer) processNetworkLogMessage(message []byte) error {
 		return err
 	}
 
-	clusterName := eventMap["cluster_name"]
-	clusterNameStr := ""
-	if err := json.Unmarshal(clusterName, &clusterNameStr); err != nil {
-		return err
-	}
+	// FIXME
+	// clusterName := eventMap["cluster_name"]
+	// clusterNameStr := ""
+	// if err := json.Unmarshal(clusterName, &clusterNameStr); err != nil {
+	// 	log.Error().Stack().Msg(err.Error())
+	// 	return err
+	// }
 
+	// FIXME if eventMap has flow field unmarshal it
 	flowEvent := eventMap["flow"]
 	if err := json.Unmarshal(flowEvent, &event); err != nil {
 		return err
 	}
 
 	// add cluster_name to the event
-	event.ClusterName = clusterNameStr
+	// event.ClusterName = clusterNameStr FIXME no idea what to do with this?
 	cfc.netLogEvents = append(cfc.netLogEvents, event)
 	cfc.netLogEventsCount++
 
 	if cfc.netLogEventsCount == cfc.eventsBuffer {
 		if len(cfc.netLogEvents) > 0 {
-			isSuccess := cfc.PushNetworkLogToDB()
-			if !isSuccess {
-				return errors.New("error saving to DB")
-			}
 			cfc.netLogEvents = nil
 			cfc.netLogEvents = make([]types.NetworkLogEvent, 0, cfc.eventsBuffer)
 		}
@@ -244,10 +243,6 @@ func (cfc *KnoxFeedConsumer) processSystemLogMessage(message []byte) error {
 
 	if cfc.syslogEventsCount == cfc.eventsBuffer {
 		if len(cfc.syslogEvents) > 0 {
-			isSuccess := cfc.PushSystemLogToDB()
-			if !isSuccess {
-				return errors.New("error saving to DB")
-			}
 			cfc.syslogEvents = nil
 			cfc.syslogEvents = make([]types.SystemLogEvent, 0, cfc.eventsBuffer)
 		}

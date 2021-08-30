@@ -58,6 +58,8 @@ var Verdict = map[string]int{
 
 var CiliumFlows []*cilium.Flow
 var CiliumFlowsMutex *sync.Mutex
+var CiliumFlowsKafka []*cilium.Flow
+var CiliumFlowsKafkaMutex *sync.Mutex
 
 var log *zerolog.Logger
 
@@ -65,6 +67,8 @@ func init() {
 	log = logger.GetInstance()
 	CiliumFlowsMutex = &sync.Mutex{}
 	KubeArmorRelayLogsMutex = &sync.Mutex{}
+	CiliumFlowsKafkaMutex = &sync.Mutex{}
+	KubeArmorKafkaLogsMutex = &sync.Mutex{}
 }
 
 // ====================== //
@@ -753,4 +757,38 @@ func StartHubbleRelay(StopChan chan struct{}, wg *sync.WaitGroup, cfg types.Conf
 	} else {
 		log.Error().Msg("Unable to stream network flow: " + err.Error())
 	}
+}
+
+func GetCiliumFlowsFromKafka(trigger int) []*cilium.Flow {
+	results := []*cilium.Flow{}
+
+	CiliumFlowsKafkaMutex.Lock()
+	if len(CiliumFlowsKafka) == 0 {
+		log.Info().Msgf("Cilium kafka traffic flow not exist")
+		CiliumFlowsKafkaMutex.Unlock()
+		return results
+	}
+
+	if len(CiliumFlowsKafka) < trigger {
+		log.Info().Msgf("The number of cilium kafka traffic flow [%d] is less than trigger [%d]", len(CiliumFlowsKafka), trigger)
+		CiliumFlowsKafkaMutex.Unlock()
+		return results
+	}
+
+	results = CiliumFlowsKafka          // copy
+	CiliumFlowsKafka = []*cilium.Flow{} // reset
+	CiliumFlowsKafkaMutex.Unlock()
+
+	firstDoc := results[0]
+	lastDoc := results[len(results)-1]
+
+	// id/time filter update
+	startTime := firstDoc.Time.Seconds
+	endTime := lastDoc.Time.Seconds
+
+	log.Info().Msgf("The total number of cilium kafka traffic flow: [%d] from %s ~ to %s", len(results),
+		time.Unix(startTime, 0).Format(libs.TimeFormSimple),
+		time.Unix(endTime, 0).Format(libs.TimeFormSimple))
+
+	return results
 }
