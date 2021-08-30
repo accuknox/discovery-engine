@@ -2,7 +2,6 @@ package feedconsumer
 
 import (
 	"encoding/json"
-	"errors"
 	"strconv"
 	"sync"
 	"time"
@@ -15,7 +14,11 @@ import (
 	cfg "github.com/accuknox/knoxAutoPolicy/src/config"
 	"github.com/accuknox/knoxAutoPolicy/src/libs"
 	logger "github.com/accuknox/knoxAutoPolicy/src/logging"
+	"github.com/accuknox/knoxAutoPolicy/src/plugin"
 	types "github.com/accuknox/knoxAutoPolicy/src/types"
+	cilium "github.com/cilium/cilium/api/v1/flow"
+	pb "github.com/kubearmor/KubeArmor/protobuf"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const ( // status
@@ -24,7 +27,7 @@ const ( // status
 )
 
 // ====================== //
-// == Gloabl Variables == //
+// == Global Variables == //
 // ====================== //
 
 var numOfConsumers int
@@ -187,27 +190,98 @@ func (cfc *KnoxFeedConsumer) processNetworkLogMessage(message []byte) error {
 		return err
 	}
 
-	// FIXME
+	// FIXME: Couldn't find any field cluster_name in the received network log
+	// Error Msg: unexpected end of JSON input
+	//
 	// clusterName := eventMap["cluster_name"]
 	// clusterNameStr := ""
 	// if err := json.Unmarshal(clusterName, &clusterNameStr); err != nil {
 	// 	log.Error().Stack().Msg(err.Error())
 	// 	return err
 	// }
+	// add cluster_name to the event
+	// event.ClusterName = clusterNameStr //Refer above comment
 
-	// FIXME if eventMap has flow field unmarshal it
-	flowEvent := eventMap["flow"]
+	flowEvent, exists := eventMap["flow"]
+	if !exists {
+		return nil
+	}
 	if err := json.Unmarshal(flowEvent, &event); err != nil {
 		return err
 	}
 
-	// add cluster_name to the event
-	// event.ClusterName = clusterNameStr FIXME no idea what to do with this?
 	cfc.netLogEvents = append(cfc.netLogEvents, event)
 	cfc.netLogEventsCount++
 
 	if cfc.netLogEventsCount == cfc.eventsBuffer {
 		if len(cfc.netLogEvents) > 0 {
+			for _, netLog := range cfc.netLogEvents {
+				time, _ := strconv.ParseInt(netLog.Time, 10, 64)
+				flow := cilium.Flow{
+					TrafficDirection: cilium.TrafficDirection(plugin.TrafficDirection[netLog.TrafficDirection]),
+					PolicyMatchType:  uint32(netLog.PolicyMatchType),
+					DropReason:       uint32(netLog.DropReason),
+					Verdict:          cilium.Verdict(plugin.Verdict[netLog.Verdict]),
+					Time: &timestamppb.Timestamp{
+						Seconds: time,
+					},
+				}
+				var err error
+				if netLog.EventType != nil {
+					err = json.Unmarshal(netLog.EventType, &flow.EventType)
+					if err != nil {
+						log.Error().Msg("Error while unmarshing event type :" + err.Error())
+						continue
+					}
+				}
+
+				if netLog.Source != nil {
+					err = json.Unmarshal(netLog.Source, &flow.Source)
+					if err != nil {
+						log.Error().Msg("Error while unmarshing source :" + err.Error())
+						continue
+					}
+				}
+
+				if netLog.Destination != nil {
+					err = json.Unmarshal(netLog.Destination, &flow.Destination)
+					if err != nil {
+						log.Error().Msg("Error while unmarshing destination :" + err.Error())
+						continue
+					}
+				}
+
+				if netLog.IP != nil {
+					err = json.Unmarshal(netLog.IP, &flow.IP)
+					if err != nil {
+						log.Error().Msg("Error while unmarshing ip :" + err.Error())
+						continue
+					}
+				}
+
+				if netLog.L4 != nil {
+					err = json.Unmarshal(netLog.L4, &flow.L4)
+					if err != nil {
+						log.Error().Msg("Error while unmarshing l4 :" + err.Error())
+						continue
+					}
+				}
+
+				if netLog.L7 != nil {
+					l7Byte := netLog.L7
+					if len(l7Byte) != 0 {
+						err = json.Unmarshal(l7Byte, &flow.L7)
+						if err != nil {
+							log.Error().Msg("Error while unmarshing l7 :" + err.Error())
+							continue
+						}
+					}
+				}
+
+				plugin.CiliumFlowsKafkaMutex.Lock()
+				plugin.CiliumFlowsKafka = append(plugin.CiliumFlowsKafka, &flow)
+				plugin.CiliumFlowsKafkaMutex.Unlock()
+			}
 			cfc.netLogEvents = nil
 			cfc.netLogEvents = make([]types.NetworkLogEvent, 0, cfc.eventsBuffer)
 		}
@@ -243,6 +317,22 @@ func (cfc *KnoxFeedConsumer) processSystemLogMessage(message []byte) error {
 
 	if cfc.syslogEventsCount == cfc.eventsBuffer {
 		if len(cfc.syslogEvents) > 0 {
+			for _, syslog := range cfc.syslogEvents {
+				log := pb.Log{
+					ClusterName:   syslog.ClusterName,
+					HostName:      syslog.HostName,
+					NamespaceName: syslog.NamespaceName,
+					PodName:       syslog.PodName,
+					Source:        syslog.Source,
+					Operation:     syslog.Operation,
+					Resource:      syslog.Resource,
+					Data:          syslog.Data,
+					Result:        syslog.Result,
+				}
+				plugin.KubeArmorKafkaLogsMutex.Lock()
+				plugin.KubeArmorKafkaLogs = append(plugin.KubeArmorKafkaLogs, &log)
+				plugin.KubeArmorKafkaLogsMutex.Unlock()
+			}
 			cfc.syslogEvents = nil
 			cfc.syslogEvents = make([]types.SystemLogEvent, 0, cfc.eventsBuffer)
 		}
