@@ -190,26 +190,25 @@ func (cfc *KnoxFeedConsumer) processNetworkLogMessage(message []byte) error {
 		return err
 	}
 
-	// FIXME: Couldn't find any field cluster_name in the received network log
-	// Error Msg: unexpected end of JSON input
-	//
-	// clusterName := eventMap["cluster_name"]
-	// clusterNameStr := ""
-	// if err := json.Unmarshal(clusterName, &clusterNameStr); err != nil {
-	// 	log.Error().Stack().Msg(err.Error())
-	// 	return err
-	// }
-	// add cluster_name to the event
-	// event.ClusterName = clusterNameStr //Refer above comment
+	clusterName := eventMap["cluster_name"]
+
+	clusterNameStr := ""
+	if err := json.Unmarshal(clusterName, &clusterNameStr); err != nil {
+		log.Error().Stack().Msg(err.Error())
+		return err
+	}
 
 	flowEvent, exists := eventMap["flow"]
 	if !exists {
 		return nil
 	}
 	if err := json.Unmarshal(flowEvent, &event); err != nil {
+		log.Error().Msg(err.Error())
 		return err
 	}
 
+	// add cluster_name to the event
+	event.ClusterName = clusterNameStr
 	cfc.netLogEvents = append(cfc.netLogEvents, event)
 	cfc.netLogEventsCount++
 
