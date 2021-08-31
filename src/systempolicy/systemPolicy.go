@@ -251,8 +251,7 @@ func getSystemLogs() []types.KnoxSystemLog {
 
 		// convert kubearmor system logs -> knox system logs
 		for _, sysLog := range sysLogs {
-			log := plugin.ConvertKubeArmorLogToKnoxSystemLog(sysLog)
-			systemLogs = append(systemLogs, log)
+			systemLogs = append(systemLogs, *sysLog)
 		}
 	} else {
 		log.Error().Msgf("System log from not correct: %s", SystemLogFrom)

@@ -17,7 +17,7 @@ import (
 var KubeArmorRelayLogs []*pb.Log
 var KubeArmorRelayLogsMutex *sync.Mutex
 
-var KubeArmorKafkaLogs []*pb.Log
+var KubeArmorKafkaLogs []*types.KnoxSystemLog
 var KubeArmorKafkaLogsMutex *sync.Mutex
 
 func ConvertKnoxSystemPolicyToKubeArmorPolicy(knoxPolicies []types.KnoxSystemPolicy) []types.KubeArmorPolicy {
@@ -254,8 +254,8 @@ func StartKubeArmorRelay(StopChan chan struct{}, wg *sync.WaitGroup, cfg types.C
 	}()
 }
 
-func GetSystemLogsFromKafkaConsumer(trigger int) []*pb.Log {
-	results := []*pb.Log{}
+func GetSystemLogsFromKafkaConsumer(trigger int) []*types.KnoxSystemLog {
+	results := []*types.KnoxSystemLog{}
 	KubeArmorKafkaLogsMutex.Lock()
 	if len(KubeArmorKafkaLogs) == 0 {
 		log.Info().Msgf("KubeArmor kafka traffic flow not exist")
@@ -269,13 +269,11 @@ func GetSystemLogsFromKafkaConsumer(trigger int) []*pb.Log {
 		return results
 	}
 
-	results = KubeArmorKafkaLogs     // copy
-	KubeArmorKafkaLogs = []*pb.Log{} // reset
+	results = KubeArmorKafkaLogs                  // copy
+	KubeArmorKafkaLogs = []*types.KnoxSystemLog{} // reset
 	KubeArmorKafkaLogsMutex.Unlock()
 
-	log.Info().Msgf("The total number of KubeArmor kafka traffic flow: [%d] from %s ~ to %s", len(results),
-		time.Unix(int64(results[0].Timestamp), 0).Format(libs.TimeFormSimple),
-		time.Unix(int64(results[len(results)-1].Timestamp), 0).Format(libs.TimeFormSimple))
+	log.Info().Msgf("The total number of KubeArmor kafka traffic flow: [%d]", len(results))
 
 	return results
 }
