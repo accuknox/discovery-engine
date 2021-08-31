@@ -370,9 +370,6 @@ func ClearDBTables(cfg types.ConfigDB) {
 
 func CreateTablesIfNotExist(cfg types.ConfigDB) {
 	if cfg.DBDriver == "mysql" {
-		if err := CreateTableConfigurationMySQL(cfg); err != nil {
-			log.Error().Msg(err.Error())
-		}
 		if err := CreateTableNetworkLogMySQL(cfg); err != nil {
 			log.Error().Msg(err.Error())
 		}

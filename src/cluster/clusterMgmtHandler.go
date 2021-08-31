@@ -2,6 +2,7 @@ package cluster
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
@@ -51,8 +52,14 @@ func getResponseBytes(mothod string, url string, data map[string]interface{}) []
 	req.Header.Add("Accept", "application/json")
 	req.Header.Add("knox-internal", "true")
 
+	// skip certificate verification
+	skipCertVerification := config.GetCfgNetworkSkipCertVerification()
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: skipCertVerification},
+	}
+
 	// send req using http Client
-	client := &http.Client{}
+	client := &http.Client{Transport: tr}
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Error().Msgf("Error on response.\n[ERROR] - %s", err)

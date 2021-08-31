@@ -70,7 +70,6 @@ type ConfigDB struct {
 	DBPass   string `json:"db_pass,omitempty" bson:"db_pass,omitempty"`
 	DBName   string `json:"db_name,omitempty" bson:"db_name,omitempty"`
 
-	TableConfiguration string `json:"table_auto_policy_config,omitempty" bson:"table_auto_policy_config,omitempty"`
 	TableNetworkLog    string `json:"table_network_log,omitempty" bson:"table_network_log,omitempty"`
 	TableNetworkPolicy string `json:"table_network_policy,omitempty" bson:"table_network_policy,omitempty"`
 	TableSystemLog     string `json:"table_system_log,omitempty" bson:"table_system_log,omitempty"`
@@ -118,6 +117,8 @@ type ConfigNetworkPolicy struct {
 	NetPolicyL3Level int `json:"network_policy_l3_level,omitempty" bson:"network_policy_l3_level,omitempty"`
 	NetPolicyL4Level int `json:"network_policy_l4_level,omitempty" bson:"network_policy_l4_level,omitempty"`
 	NetPolicyL7Level int `json:"network_policy_l7_level,omitempty" bson:"network_policy_l7_level,omitempty"`
+
+	NetSkipCertVerification bool `json:"skip_cert_verification,omitempty" bson:"skip_cert_verification,omitempty"`
 }
 
 type SystemLogFilter struct {

@@ -1,7 +1,6 @@
 package config
 
 import (
-	"errors"
 	"net"
 
 	"github.com/accuknox/knoxAutoPolicy/src/libs"
@@ -69,7 +68,6 @@ func LoadConfigDB() types.ConfigDB {
 	}
 	cfgDB.DBPort = viper.GetString("database.port")
 
-	cfgDB.TableConfiguration = viper.GetString("database.table-configuration")
 	cfgDB.TableNetworkLog = viper.GetString("database.table-network-log")
 	cfgDB.TableNetworkPolicy = viper.GetString("database.table-network-policy")
 	cfgDB.TableSystemLog = viper.GetString("database.table-system-log")
@@ -142,6 +140,8 @@ func LoadDefaultConfig() {
 		NetPolicyL3Level: 1,
 		NetPolicyL4Level: 1,
 		NetPolicyL7Level: 1,
+
+		NetSkipCertVerification: viper.GetBool("application.network.skip-cert-verification"),
 	}
 
 	// load system policy discovery
@@ -179,52 +179,6 @@ func LoadDefaultConfig() {
 
 	// load kubearmor relay config
 	CurrentCfg.ConfigKubeArmorRelay = LoadConfigKubeArmor()
-}
-
-// ======================== //
-// == Configuration CRUD == //
-// ======================== //
-
-func AddConfiguration(newConfig types.Configuration) error {
-	return libs.AddConfiguration(CurrentCfg.ConfigDB, newConfig)
-}
-
-func GetConfigurations(configName string) ([]types.Configuration, error) {
-	return libs.GetConfigurations(CurrentCfg.ConfigDB, configName)
-}
-
-func UpdateConfiguration(configName string, updateConfig types.Configuration) error {
-	return libs.UpdateConfiguration(CurrentCfg.ConfigDB, configName, updateConfig)
-}
-
-func DeleteConfiguration(configName string) error {
-	return libs.DeleteConfiguration(CurrentCfg.ConfigDB, configName)
-}
-
-func ApplyConfiguration(configName string) error {
-	if CurrentCfg.ConfigName == configName {
-		return errors.New("Not applied " + configName + " due to same configuration name")
-	}
-
-	if err := libs.ApplyConfiguration(CurrentCfg.ConfigDB, CurrentCfg.ConfigName, configName); err != nil {
-		return err
-	}
-
-	appliedConfigs, err := libs.GetConfigurations(CurrentCfg.ConfigDB, configName)
-	if err != nil {
-		return err
-	}
-
-	// check if db info is null
-	appliedCfg := appliedConfigs[0]
-	if appliedCfg.ConfigDB.DBHost == "" {
-		appliedCfg.ConfigDB = CurrentCfg.ConfigDB
-	}
-
-	// update current Cfg
-	CurrentCfg = appliedCfg
-
-	return nil
 }
 
 // ============================ //
@@ -327,6 +281,10 @@ func GetCfgNetworkSkipNamespaces() []string {
 
 func GetCfgNetworkLogFilters() []types.NetworkLogFilter {
 	return CurrentCfg.ConfigNetPolicy.NetLogFilters
+}
+
+func GetCfgNetworkSkipCertVerification() bool {
+	return CurrentCfg.ConfigNetPolicy.NetSkipCertVerification
 }
 
 // ============================ //
