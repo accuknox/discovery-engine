@@ -235,9 +235,7 @@ func getNetworkLogs() []types.KnoxNetworkLog {
 
 		// convert hubble flows -> network logs (but, in this case, no flow id)
 		for _, flow := range flows {
-			if log, valid := plugin.ConvertCiliumFlowToKnoxNetworkLog(flow); valid {
-				networkLogs = append(networkLogs, log)
-			}
+			networkLogs = append(networkLogs, *flow)
 		}
 	} else if NetworkLogFrom == "file" {
 		// =============================== //

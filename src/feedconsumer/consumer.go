@@ -277,9 +277,13 @@ func (cfc *KnoxFeedConsumer) processNetworkLogMessage(message []byte) error {
 					}
 				}
 
-				plugin.CiliumFlowsKafkaMutex.Lock()
-				plugin.CiliumFlowsKafka = append(plugin.CiliumFlowsKafka, &flow)
-				plugin.CiliumFlowsKafkaMutex.Unlock()
+				knoxFlow, valid := plugin.ConvertCiliumFlowToKnoxNetworkLog(&flow)
+				if valid {
+					knoxFlow.ClusterName = netLog.ClusterName
+					plugin.CiliumFlowsKafkaMutex.Lock()
+					plugin.CiliumFlowsKafka = append(plugin.CiliumFlowsKafka, &knoxFlow)
+					plugin.CiliumFlowsKafkaMutex.Unlock()
+				}
 			}
 			cfc.netLogEvents = nil
 			cfc.netLogEvents = make([]types.NetworkLogEvent, 0, cfc.eventsBuffer)

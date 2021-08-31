@@ -58,7 +58,7 @@ var Verdict = map[string]int{
 
 var CiliumFlows []*cilium.Flow
 var CiliumFlowsMutex *sync.Mutex
-var CiliumFlowsKafka []*cilium.Flow
+var CiliumFlowsKafka []*types.KnoxNetworkLog
 var CiliumFlowsKafkaMutex *sync.Mutex
 
 var log *zerolog.Logger
@@ -759,8 +759,8 @@ func StartHubbleRelay(StopChan chan struct{}, wg *sync.WaitGroup, cfg types.Conf
 	}
 }
 
-func GetCiliumFlowsFromKafka(trigger int) []*cilium.Flow {
-	results := []*cilium.Flow{}
+func GetCiliumFlowsFromKafka(trigger int) []*types.KnoxNetworkLog {
+	results := []*types.KnoxNetworkLog{}
 
 	CiliumFlowsKafkaMutex.Lock()
 	if len(CiliumFlowsKafka) == 0 {
@@ -775,20 +775,11 @@ func GetCiliumFlowsFromKafka(trigger int) []*cilium.Flow {
 		return results
 	}
 
-	results = CiliumFlowsKafka          // copy
-	CiliumFlowsKafka = []*cilium.Flow{} // reset
+	results = CiliumFlowsKafka                   // copy
+	CiliumFlowsKafka = []*types.KnoxNetworkLog{} // reset
 	CiliumFlowsKafkaMutex.Unlock()
 
-	firstDoc := results[0]
-	lastDoc := results[len(results)-1]
-
-	// id/time filter update
-	startTime := firstDoc.Time.Seconds
-	endTime := lastDoc.Time.Seconds
-
-	log.Info().Msgf("The total number of cilium kafka traffic flow: [%d] from %s ~ to %s", len(results),
-		time.Unix(startTime, 0).Format(libs.TimeFormSimple),
-		time.Unix(endTime, 0).Format(libs.TimeFormSimple))
+	log.Info().Msgf("The total number of cilium kafka traffic flow: [%d]", len(results))
 
 	return results
 }
