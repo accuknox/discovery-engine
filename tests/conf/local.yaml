@@ -1,0 +1,34 @@
+application:
+  name: knoxautopolicy
+  network:
+    operation-mode: 2 # 1: cronjob | 2: one-time-job
+    network-log-from: "file" # db|hubble
+    network-log-file: "./test-flow.json" # file path
+    network-policy-to: "db|file" # db, file
+    network-policy-dir: "./"
+  system:
+    operation-mode: 2 # 1: cronjob | 2: one-time-job
+    system-log-from: "file" # db|hubble
+    system-log-file: "./test-flow.json" # file path
+    system-policy-to: "db|file" # db, file
+    system-policy-dir: "./"
+  cluster:
+    cluster-info-from: "k8sclient" # k8sclient|accuknox
+    #cluster-mgmt-url: "http://cluster-management-service.accuknox-dev-cluster-mgmt.svc.cluster.local/cm"
+    cluster-mgmt-url: "http://localhost:8080"
+
+database:
+  driver: mysql
+  host: 127.0.0.1
+  port: 3306
+  user: root
+  password: password
+  dbname: accuknox
+  table-network-log: network_log
+  table-network-policy: network_policy
+  table-system-log: system_log
+  table-system-alert: system_alert
+  table-system-policy: system_policy
+
+logging:
+  level: "INFO"
