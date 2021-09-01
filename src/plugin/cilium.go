@@ -774,21 +774,19 @@ func GetCiliumFlowsFromKafka(trigger int) []*types.KnoxNetworkLog {
 	results := []*types.KnoxNetworkLog{}
 
 	CiliumFlowsKafkaMutex.Lock()
+	defer CiliumFlowsKafkaMutex.Unlock()
 	if len(CiliumFlowsKafka) == 0 {
 		log.Info().Msgf("Cilium kafka traffic flow not exist")
-		CiliumFlowsKafkaMutex.Unlock()
 		return results
 	}
 
 	if len(CiliumFlowsKafka) < trigger {
 		log.Info().Msgf("The number of cilium kafka traffic flow [%d] is less than trigger [%d]", len(CiliumFlowsKafka), trigger)
-		CiliumFlowsKafkaMutex.Unlock()
 		return results
 	}
 
 	results = CiliumFlowsKafka                   // copy
 	CiliumFlowsKafka = []*types.KnoxNetworkLog{} // reset
-	CiliumFlowsKafkaMutex.Unlock()
 
 	log.Info().Msgf("The total number of cilium kafka traffic flow: [%d]", len(results))
 

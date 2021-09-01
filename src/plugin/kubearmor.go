@@ -257,21 +257,19 @@ func StartKubeArmorRelay(StopChan chan struct{}, wg *sync.WaitGroup, cfg types.C
 func GetSystemLogsFromKafkaConsumer(trigger int) []*types.KnoxSystemLog {
 	results := []*types.KnoxSystemLog{}
 	KubeArmorKafkaLogsMutex.Lock()
+	defer KubeArmorKafkaLogsMutex.Unlock()
 	if len(KubeArmorKafkaLogs) == 0 {
 		log.Info().Msgf("KubeArmor kafka traffic flow not exist")
-		KubeArmorKafkaLogsMutex.Unlock()
 		return results
 	}
 
 	if len(KubeArmorKafkaLogs) < trigger {
 		log.Info().Msgf("The number of KubeArmor traffic flow [%d] is less than trigger [%d]", len(KubeArmorKafkaLogs), trigger)
-		KubeArmorKafkaLogsMutex.Unlock()
 		return results
 	}
 
 	results = KubeArmorKafkaLogs                  // copy
 	KubeArmorKafkaLogs = []*types.KnoxSystemLog{} // reset
-	KubeArmorKafkaLogsMutex.Unlock()
 
 	log.Info().Msgf("The total number of KubeArmor kafka traffic flow: [%d]", len(results))
 
