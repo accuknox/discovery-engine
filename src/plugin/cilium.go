@@ -377,6 +377,17 @@ func ConvertCiliumNetworkLogsToKnoxNetworkLogs(dbDriver string, docs []map[strin
 	}
 }
 
+func GetFlowData(netLogEventType []byte, flowEventType interface{}) error {
+	if netLogEventType == nil {
+		return nil
+	}
+	err := json.Unmarshal(netLogEventType, flowEventType)
+	if err != nil {
+		log.Error().Msg("error while unmarshing event type :" + err.Error())
+	}
+	return err
+}
+
 // ============================== //
 // == Network Policy Convertor == //
 // ============================== //

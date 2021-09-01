@@ -216,7 +216,7 @@ func (cfc *KnoxFeedConsumer) processNetworkLogMessage(message []byte) error {
 		if len(cfc.netLogEvents) > 0 {
 			for _, netLog := range cfc.netLogEvents {
 				time, _ := strconv.ParseInt(netLog.Time, 10, 64)
-				flow := cilium.Flow{
+				flow := &cilium.Flow{
 					TrafficDirection: cilium.TrafficDirection(plugin.TrafficDirection[netLog.TrafficDirection]),
 					PolicyMatchType:  uint32(netLog.PolicyMatchType),
 					DropReason:       uint32(netLog.DropReason),
@@ -224,54 +224,22 @@ func (cfc *KnoxFeedConsumer) processNetworkLogMessage(message []byte) error {
 					Time: &timestamppb.Timestamp{
 						Seconds: time,
 					},
-				}
-				var err error
-				if netLog.EventType != nil {
-					err = json.Unmarshal(netLog.EventType, &flow.EventType)
-					if err != nil {
-						log.Error().Msg("Error while unmarshing event type :" + err.Error())
-					}
-				}
-
-				if netLog.Source != nil {
-					err = json.Unmarshal(netLog.Source, &flow.Source)
-					if err != nil {
-						log.Error().Msg("Error while unmarshing source :" + err.Error())
-					}
+					EventType:   &cilium.CiliumEventType{},
+					Source:      &cilium.Endpoint{},
+					Destination: &cilium.Endpoint{},
+					IP:          &cilium.IP{},
+					L4:          &cilium.Layer4{},
+					L7:          &cilium.Layer7{},
 				}
 
-				if netLog.Destination != nil {
-					err = json.Unmarshal(netLog.Destination, &flow.Destination)
-					if err != nil {
-						log.Error().Msg("Error while unmarshing destination :" + err.Error())
-					}
-				}
+				plugin.GetFlowData(netLog.EventType, flow.EventType)
+				plugin.GetFlowData(netLog.Source, flow.Source)
+				plugin.GetFlowData(netLog.Destination, flow.Destination)
+				plugin.GetFlowData(netLog.IP, flow.IP)
+				plugin.GetFlowData(netLog.L4, flow.L4)
+				plugin.GetFlowData(netLog.L7, flow.L7)
 
-				if netLog.IP != nil {
-					err = json.Unmarshal(netLog.IP, &flow.IP)
-					if err != nil {
-						log.Error().Msg("Error while unmarshing ip :" + err.Error())
-					}
-				}
-
-				if netLog.L4 != nil {
-					err = json.Unmarshal(netLog.L4, &flow.L4)
-					if err != nil {
-						log.Error().Msg("Error while unmarshing l4 :" + err.Error())
-					}
-				}
-
-				if netLog.L7 != nil {
-					l7Byte := netLog.L7
-					if len(l7Byte) != 0 {
-						err = json.Unmarshal(l7Byte, &flow.L7)
-						if err != nil {
-							log.Error().Msg("Error while unmarshing l7 :" + err.Error())
-						}
-					}
-				}
-
-				knoxFlow, valid := plugin.ConvertCiliumFlowToKnoxNetworkLog(&flow)
+				knoxFlow, valid := plugin.ConvertCiliumFlowToKnoxNetworkLog(flow)
 				if valid {
 					knoxFlow.ClusterName = netLog.ClusterName
 					plugin.CiliumFlowsKafkaMutex.Lock()
