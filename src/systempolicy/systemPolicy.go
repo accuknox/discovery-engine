@@ -257,7 +257,6 @@ func getSystemLogs() []types.KnoxSystemLog {
 		log.Error().Msgf("System log from not correct: %s", SystemLogFrom)
 		return nil
 	}
-	print(systemLogs)
 
 	return systemLogs
 }
