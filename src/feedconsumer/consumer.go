@@ -230,7 +230,6 @@ func (cfc *KnoxFeedConsumer) processNetworkLogMessage(message []byte) error {
 					err = json.Unmarshal(netLog.EventType, &flow.EventType)
 					if err != nil {
 						log.Error().Msg("Error while unmarshing event type :" + err.Error())
-						continue
 					}
 				}
 
@@ -238,7 +237,6 @@ func (cfc *KnoxFeedConsumer) processNetworkLogMessage(message []byte) error {
 					err = json.Unmarshal(netLog.Source, &flow.Source)
 					if err != nil {
 						log.Error().Msg("Error while unmarshing source :" + err.Error())
-						continue
 					}
 				}
 
@@ -246,7 +244,6 @@ func (cfc *KnoxFeedConsumer) processNetworkLogMessage(message []byte) error {
 					err = json.Unmarshal(netLog.Destination, &flow.Destination)
 					if err != nil {
 						log.Error().Msg("Error while unmarshing destination :" + err.Error())
-						continue
 					}
 				}
 
@@ -254,7 +251,6 @@ func (cfc *KnoxFeedConsumer) processNetworkLogMessage(message []byte) error {
 					err = json.Unmarshal(netLog.IP, &flow.IP)
 					if err != nil {
 						log.Error().Msg("Error while unmarshing ip :" + err.Error())
-						continue
 					}
 				}
 
@@ -262,7 +258,6 @@ func (cfc *KnoxFeedConsumer) processNetworkLogMessage(message []byte) error {
 					err = json.Unmarshal(netLog.L4, &flow.L4)
 					if err != nil {
 						log.Error().Msg("Error while unmarshing l4 :" + err.Error())
-						continue
 					}
 				}
 
@@ -272,7 +267,6 @@ func (cfc *KnoxFeedConsumer) processNetworkLogMessage(message []byte) error {
 						err = json.Unmarshal(l7Byte, &flow.L7)
 						if err != nil {
 							log.Error().Msg("Error while unmarshing l7 :" + err.Error())
-							continue
 						}
 					}
 				}
