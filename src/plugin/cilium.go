@@ -58,6 +58,8 @@ var Verdict = map[string]int{
 
 var CiliumFlows []*cilium.Flow
 var CiliumFlowsMutex *sync.Mutex
+var CiliumFlowsKafka []*types.KnoxNetworkLog
+var CiliumFlowsKafkaMutex *sync.Mutex
 
 var log *zerolog.Logger
 
@@ -65,6 +67,8 @@ func init() {
 	log = logger.GetInstance()
 	CiliumFlowsMutex = &sync.Mutex{}
 	KubeArmorRelayLogsMutex = &sync.Mutex{}
+	CiliumFlowsKafkaMutex = &sync.Mutex{}
+	KubeArmorKafkaLogsMutex = &sync.Mutex{}
 }
 
 // ====================== //
@@ -371,6 +375,17 @@ func ConvertCiliumNetworkLogsToKnoxNetworkLogs(dbDriver string, docs []map[strin
 	} else {
 		return []types.KnoxNetworkLog{}
 	}
+}
+
+func GetFlowData(netLogEventType []byte, flowEventType interface{}) error {
+	if netLogEventType == nil {
+		return nil
+	}
+	err := json.Unmarshal(netLogEventType, flowEventType)
+	if err != nil {
+		log.Error().Msg("error while unmarshing event type :" + err.Error())
+	}
+	return err
 }
 
 // ============================== //
@@ -753,4 +768,27 @@ func StartHubbleRelay(StopChan chan struct{}, wg *sync.WaitGroup, cfg types.Conf
 	} else {
 		log.Error().Msg("Unable to stream network flow: " + err.Error())
 	}
+}
+
+func GetCiliumFlowsFromKafka(trigger int) []*types.KnoxNetworkLog {
+	results := []*types.KnoxNetworkLog{}
+
+	CiliumFlowsKafkaMutex.Lock()
+	defer CiliumFlowsKafkaMutex.Unlock()
+	if len(CiliumFlowsKafka) == 0 {
+		log.Info().Msgf("Cilium kafka traffic flow not exist")
+		return results
+	}
+
+	if len(CiliumFlowsKafka) < trigger {
+		log.Info().Msgf("The number of cilium kafka traffic flow [%d] is less than trigger [%d]", len(CiliumFlowsKafka), trigger)
+		return results
+	}
+
+	results = CiliumFlowsKafka                   // copy
+	CiliumFlowsKafka = []*types.KnoxNetworkLog{} // reset
+
+	log.Info().Msgf("The total number of cilium kafka traffic flow: [%d]", len(results))
+
+	return results
 }

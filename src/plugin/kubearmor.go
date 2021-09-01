@@ -17,6 +17,9 @@ import (
 var KubeArmorRelayLogs []*pb.Log
 var KubeArmorRelayLogsMutex *sync.Mutex
 
+var KubeArmorKafkaLogs []*types.KnoxSystemLog
+var KubeArmorKafkaLogsMutex *sync.Mutex
+
 func ConvertKnoxSystemPolicyToKubeArmorPolicy(knoxPolicies []types.KnoxSystemPolicy) []types.KubeArmorPolicy {
 	results := []types.KubeArmorPolicy{}
 
@@ -100,7 +103,7 @@ func ConvertKubeArmorSystemLogsToKnoxSystemLogs(dbDriver string, docs []map[stri
 	return []types.KnoxSystemLog{}
 }
 
-func ConvertKubeArmorRelayLogToKnoxSystemLog(relayLog *pb.Log) types.KnoxSystemLog {
+func ConvertKubeArmorLogToKnoxSystemLog(relayLog *pb.Log) types.KnoxSystemLog {
 
 	sources := strings.Split(relayLog.Source, " ")
 	source := ""
@@ -249,4 +252,26 @@ func StartKubeArmorRelay(StopChan chan struct{}, wg *sync.WaitGroup, cfg types.C
 			log.Error().Msg("unable to stream systems alerts: " + err.Error())
 		}
 	}()
+}
+
+func GetSystemLogsFromKafkaConsumer(trigger int) []*types.KnoxSystemLog {
+	results := []*types.KnoxSystemLog{}
+	KubeArmorKafkaLogsMutex.Lock()
+	defer KubeArmorKafkaLogsMutex.Unlock()
+	if len(KubeArmorKafkaLogs) == 0 {
+		log.Info().Msgf("KubeArmor kafka traffic flow not exist")
+		return results
+	}
+
+	if len(KubeArmorKafkaLogs) < trigger {
+		log.Info().Msgf("The number of KubeArmor traffic flow [%d] is less than trigger [%d]", len(KubeArmorKafkaLogs), trigger)
+		return results
+	}
+
+	results = KubeArmorKafkaLogs                  // copy
+	KubeArmorKafkaLogs = []*types.KnoxSystemLog{} // reset
+
+	log.Info().Msgf("The total number of KubeArmor kafka traffic flow: [%d]", len(results))
+
+	return results
 }

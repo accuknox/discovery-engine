@@ -221,6 +221,22 @@ func getNetworkLogs() []types.KnoxNetworkLog {
 				networkLogs = append(networkLogs, log)
 			}
 		}
+	} else if NetworkLogFrom == "kafka" {
+		// ================== //
+		// == Cilium kafka == //
+		// ================== //
+		log.Info().Msg("Get network log from the kafka consumer")
+
+		// get flows from kafka consumer
+		flows := plugin.GetCiliumFlowsFromKafka(OperationTrigger)
+		if len(flows) == 0 || len(flows) < OperationTrigger {
+			return nil
+		}
+
+		// convert hubble flows -> network logs (but, in this case, no flow id)
+		for _, flow := range flows {
+			networkLogs = append(networkLogs, *flow)
+		}
 	} else if NetworkLogFrom == "file" {
 		// =============================== //
 		// == File (.json) for testing  == //
