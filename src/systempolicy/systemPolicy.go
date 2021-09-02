@@ -10,7 +10,6 @@ import (
 
 	"github.com/accuknox/knoxAutoPolicy/src/cluster"
 	cfg "github.com/accuknox/knoxAutoPolicy/src/config"
-	"github.com/accuknox/knoxAutoPolicy/src/feedconsumer"
 	"github.com/accuknox/knoxAutoPolicy/src/libs"
 	logger "github.com/accuknox/knoxAutoPolicy/src/logging"
 	"github.com/accuknox/knoxAutoPolicy/src/plugin"
@@ -166,10 +165,10 @@ type SysPath struct {
 func getSystemLogs() []types.KnoxSystemLog {
 	systemLogs := []types.KnoxSystemLog{}
 
+	// =============== //
+	// == Database  == //
+	// =============== //
 	if SystemLogFrom == "db" {
-		// ============== //
-		// == Database == //
-		// ============== //
 		log.Info().Msg("Get system log from the database")
 
 		// get system logs from db
@@ -237,21 +236,8 @@ func getSystemLogs() []types.KnoxSystemLog {
 
 		// convert kubearmor relay logs -> knox system logs
 		for _, relayLog := range relayLogs {
-			log := plugin.ConvertKubeArmorLogToKnoxSystemLog(relayLog)
+			log := plugin.ConvertKubeArmorRelayLogToKnoxSystemLog(relayLog)
 			systemLogs = append(systemLogs, log)
-		}
-	} else if SystemLogFrom == "kafka" {
-		log.Info().Msg("Get system log from kafka consumer")
-
-		// get system logs from kafka consumer
-		sysLogs := plugin.GetSystemLogsFromKafkaConsumer(OperationTrigger)
-		if len(sysLogs) == 0 || len(sysLogs) < OperationTrigger {
-			return nil
-		}
-
-		// convert kubearmor system logs -> knox system logs
-		for _, sysLog := range sysLogs {
-			systemLogs = append(systemLogs, *sysLog)
 		}
 	} else {
 		log.Error().Msgf("System log from not correct: %s", SystemLogFrom)
@@ -673,8 +659,6 @@ func StartSystemCronJob() {
 	if cfg.GetCfgSystemLogFrom() == "kubearmor" {
 		go plugin.StartKubeArmorRelay(SystemStopChan, &SystemWaitG, cfg.GetCfgKubeArmor())
 		SystemWaitG.Add(1)
-	} else if cfg.GetCfgSystemLogFrom() == "kafka" {
-		go feedconsumer.StartConsumer()
 	}
 
 	// init cron job

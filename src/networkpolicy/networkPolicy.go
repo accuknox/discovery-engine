@@ -10,7 +10,6 @@ import (
 
 	"github.com/accuknox/knoxAutoPolicy/src/cluster"
 	cfg "github.com/accuknox/knoxAutoPolicy/src/config"
-	"github.com/accuknox/knoxAutoPolicy/src/feedconsumer"
 	"github.com/accuknox/knoxAutoPolicy/src/libs"
 	logger "github.com/accuknox/knoxAutoPolicy/src/logging"
 	"github.com/accuknox/knoxAutoPolicy/src/plugin"
@@ -1607,9 +1606,6 @@ func StartNetworkCronJob() {
 	// if network from hubble
 	if cfg.GetCfgNetworkLogFrom() == "hubble" {
 		go plugin.StartHubbleRelay(NetworkStopChan, &NetworkWaitG, cfg.GetCfgCiliumHubble())
-		NetworkWaitG.Add(1)
-	} else if cfg.GetCfgNetworkLogFrom() == "kafka" {
-		go feedconsumer.StartConsumer()
 		NetworkWaitG.Add(1)
 	}
 
