@@ -2,7 +2,6 @@ package feedconsumer
 
 import (
 	"encoding/json"
-	"errors"
 	"strconv"
 	"sync"
 	"time"
@@ -15,7 +14,11 @@ import (
 	cfg "github.com/accuknox/knoxAutoPolicy/src/config"
 	"github.com/accuknox/knoxAutoPolicy/src/libs"
 	logger "github.com/accuknox/knoxAutoPolicy/src/logging"
+	"github.com/accuknox/knoxAutoPolicy/src/plugin"
 	types "github.com/accuknox/knoxAutoPolicy/src/types"
+	cilium "github.com/cilium/cilium/api/v1/flow"
+	pb "github.com/kubearmor/KubeArmor/protobuf"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const ( // status
@@ -24,7 +27,7 @@ const ( // status
 )
 
 // ====================== //
-// == Gloabl Variables == //
+// == Global Variables == //
 // ====================== //
 
 var numOfConsumers int
@@ -188,13 +191,19 @@ func (cfc *KnoxFeedConsumer) processNetworkLogMessage(message []byte) error {
 	}
 
 	clusterName := eventMap["cluster_name"]
+
 	clusterNameStr := ""
 	if err := json.Unmarshal(clusterName, &clusterNameStr); err != nil {
+		log.Error().Stack().Msg(err.Error())
 		return err
 	}
 
-	flowEvent := eventMap["flow"]
+	flowEvent, exists := eventMap["flow"]
+	if !exists {
+		return nil
+	}
 	if err := json.Unmarshal(flowEvent, &event); err != nil {
+		log.Error().Msg(err.Error())
 		return err
 	}
 
@@ -205,9 +214,38 @@ func (cfc *KnoxFeedConsumer) processNetworkLogMessage(message []byte) error {
 
 	if cfc.netLogEventsCount == cfc.eventsBuffer {
 		if len(cfc.netLogEvents) > 0 {
-			isSuccess := cfc.PushNetworkLogToDB()
-			if !isSuccess {
-				return errors.New("error saving to DB")
+			for _, netLog := range cfc.netLogEvents {
+				time, _ := strconv.ParseInt(netLog.Time, 10, 64)
+				flow := &cilium.Flow{
+					TrafficDirection: cilium.TrafficDirection(plugin.TrafficDirection[netLog.TrafficDirection]),
+					PolicyMatchType:  uint32(netLog.PolicyMatchType),
+					DropReason:       uint32(netLog.DropReason),
+					Verdict:          cilium.Verdict(plugin.Verdict[netLog.Verdict]),
+					Time: &timestamppb.Timestamp{
+						Seconds: time,
+					},
+					EventType:   &cilium.CiliumEventType{},
+					Source:      &cilium.Endpoint{},
+					Destination: &cilium.Endpoint{},
+					IP:          &cilium.IP{},
+					L4:          &cilium.Layer4{},
+					L7:          &cilium.Layer7{},
+				}
+
+				plugin.GetFlowData(netLog.EventType, flow.EventType)
+				plugin.GetFlowData(netLog.Source, flow.Source)
+				plugin.GetFlowData(netLog.Destination, flow.Destination)
+				plugin.GetFlowData(netLog.IP, flow.IP)
+				plugin.GetFlowData(netLog.L4, flow.L4)
+				plugin.GetFlowData(netLog.L7, flow.L7)
+
+				knoxFlow, valid := plugin.ConvertCiliumFlowToKnoxNetworkLog(flow)
+				if valid {
+					knoxFlow.ClusterName = netLog.ClusterName
+					plugin.CiliumFlowsKafkaMutex.Lock()
+					plugin.CiliumFlowsKafka = append(plugin.CiliumFlowsKafka, &knoxFlow)
+					plugin.CiliumFlowsKafkaMutex.Unlock()
+				}
 			}
 			cfc.netLogEvents = nil
 			cfc.netLogEvents = make([]types.NetworkLogEvent, 0, cfc.eventsBuffer)
@@ -244,9 +282,24 @@ func (cfc *KnoxFeedConsumer) processSystemLogMessage(message []byte) error {
 
 	if cfc.syslogEventsCount == cfc.eventsBuffer {
 		if len(cfc.syslogEvents) > 0 {
-			isSuccess := cfc.PushSystemLogToDB()
-			if !isSuccess {
-				return errors.New("error saving to DB")
+			for _, syslog := range cfc.syslogEvents {
+				log := pb.Log{
+					ClusterName:   syslog.ClusterName,
+					HostName:      syslog.HostName,
+					NamespaceName: syslog.NamespaceName,
+					PodName:       syslog.PodName,
+					Source:        syslog.Source,
+					Operation:     syslog.Operation,
+					Resource:      syslog.Resource,
+					Data:          syslog.Data,
+					Result:        syslog.Result,
+				}
+
+				knoxLog := plugin.ConvertKubeArmorLogToKnoxSystemLog(&log)
+				knoxLog.ClusterName = syslog.Clustername
+				plugin.KubeArmorKafkaLogsMutex.Lock()
+				plugin.KubeArmorKafkaLogs = append(plugin.KubeArmorKafkaLogs, &knoxLog)
+				plugin.KubeArmorKafkaLogsMutex.Unlock()
 			}
 			cfc.syslogEvents = nil
 			cfc.syslogEvents = make([]types.SystemLogEvent, 0, cfc.eventsBuffer)
