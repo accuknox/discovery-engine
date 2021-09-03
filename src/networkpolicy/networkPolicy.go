@@ -1346,22 +1346,31 @@ func buildNetworkPolicy(namespace string, services []types.Service, aggregatedSr
 					networkPolicies = append(networkPolicies, egressPolicy)
 				}
 
-				// check ingress & fromCIDRs rule
-				if discoverPolicyTypes&INGRESS > 0 && discoverRuleTypes&FROM_CIDRS > 0 {
-					// add ingress policy
-					ingressPolicy := buildNewIngressPolicyFromSameSelector(namespace, egressPolicy.Spec.Selector)
-					ingressPolicy.Metadata["rule"] = "fromCIDRs"
+				/*
+					We were generating ingress policies corresponding to egress flows
+					for requests made from pods to external CIDRs
+					but the responses should be matched with request itself
+					so we shouldn't be generating ingress policies for that.
+					Hence commenting out the below code block which performed this.
 
-					ingressRule := types.Ingress{}
+					// check ingress & fromCIDRs rule
+					if discoverPolicyTypes&INGRESS > 0 && discoverRuleTypes&FROM_CIDRS > 0 {
+						// add ingress policy
+						ingressPolicy := buildNewIngressPolicyFromSameSelector(namespace, egressPolicy.Spec.Selector)
+						ingressPolicy.Metadata["rule"] = "fromCIDRs"
 
-					fromcidr := types.SpecCIDR{
-						CIDRs: cidrSlice,
+						ingressRule := types.Ingress{}
+
+						fromcidr := types.SpecCIDR{
+							CIDRs: cidrSlice,
+						}
+
+						ingressRule.FromCIDRs = []types.SpecCIDR{fromcidr}
+						ingressPolicy.Spec.Ingress = append(ingressPolicy.Spec.Ingress, ingressRule)
+						networkPolicies = append(networkPolicies, ingressPolicy)
 					}
+				*/
 
-					ingressRule.FromCIDRs = []types.SpecCIDR{fromcidr}
-					ingressPolicy.Spec.Ingress = append(ingressPolicy.Spec.Ingress, ingressRule)
-					networkPolicies = append(networkPolicies, ingressPolicy)
-				}
 			} else if dst.Namespace == "reserved:dns" && len(dst.Additionals) > 0 {
 				egressPolicy.Metadata["rule"] = "toFQDNs"
 
