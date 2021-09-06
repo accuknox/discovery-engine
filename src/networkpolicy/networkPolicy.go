@@ -181,6 +181,7 @@ type DstSimple struct {
 	Namespace  string
 	PodName    string
 	Additional string
+	Direction  string
 }
 
 type Dst struct {
@@ -190,6 +191,7 @@ type Dst struct {
 	MatchLabels string
 	Protocol    int
 	DstPort     int
+	Direction   string
 }
 
 type MergedPortDst struct {
@@ -197,6 +199,7 @@ type MergedPortDst struct {
 
 	Namespace   string
 	PodName     string
+	Direction   string
 	Additionals []string
 	MatchLabels string
 	ToPorts     []types.SpecPort
@@ -268,6 +271,7 @@ func getDst(log types.KnoxNetworkLog, endpoints []types.Endpoint, cidrBits int) 
 			Additional: externalInfo,
 			Protocol:   log.Protocol,
 			DstPort:    log.DstPort,
+			Direction:  log.Direction,
 		}
 
 		return dst, true
@@ -290,6 +294,7 @@ func getDst(log types.KnoxNetworkLog, endpoints []types.Endpoint, cidrBits int) 
 		Additional: externalInfo,
 		Protocol:   log.Protocol,
 		DstPort:    dstPort,
+		Direction:  log.Direction,
 	}
 
 	return dst, true
@@ -529,6 +534,9 @@ func mergeCIDR(mergedSrcPerMergedDst map[string][]MergedPortDst) {
 		// cidrFlowIDMap key: cidr addr, val: flow ids
 		cidrFlowIDMap := map[string][]int{}
 
+		//Direction
+		var cidrDirection string
+
 		// step 1: get cidr
 		for _, dst := range dsts {
 			if dst.Namespace == "reserved:cidr" {
@@ -568,6 +576,8 @@ func mergeCIDR(mergedSrcPerMergedDst map[string][]MergedPortDst) {
 					}
 				}
 
+				cidrDirection = dst.Direction
+
 			} else {
 				// if no reserved:cidr
 				newDsts = append(newDsts, dst)
@@ -581,6 +591,7 @@ func mergeCIDR(mergedSrcPerMergedDst map[string][]MergedPortDst) {
 				Namespace:   "reserved:cidr",
 				Additionals: []string{cidrAddr},
 				ToPorts:     toPorts,
+				Direction:   cidrDirection,
 			}
 			newDsts = append(newDsts, newDNS)
 		}
@@ -708,11 +719,13 @@ func mergeProtocolPorts(mergedDsts []MergedPortDst, dst Dst, flowIDs []int) []Me
 		simple1 := DstSimple{
 			Namespace:  dstPort.Namespace,
 			PodName:    dstPort.PodName,
+			Direction:  dst.Direction,
 			Additional: dstPort.Additionals[0]}
 
 		simple2 := DstSimple{
 			Namespace:  dst.Namespace,
 			PodName:    dst.PodName,
+			Direction:  dst.Direction,
 			Additional: dst.Additional}
 
 		// matched, append protocol+port info
@@ -743,6 +756,7 @@ func mergeProtocolPorts(mergedDsts []MergedPortDst, dst Dst, flowIDs []int) []Me
 		FlowIDs:     flowIDs,
 		Namespace:   dst.Namespace,
 		PodName:     dst.PodName,
+		Direction:   dst.Direction,
 		Additionals: []string{dst.Additional},
 		ToPorts:     []types.SpecPort{port},
 	}
@@ -784,7 +798,9 @@ func mergeDstByProtoPort(aggregatedSrcsPerDst map[Dst][]string) map[string][]Mer
 				dstSimple := DstSimple{
 					Namespace:  dst.Namespace,
 					PodName:    dst.PodName,
-					Additional: dst.Additional}
+					Additional: dst.Additional,
+					Direction:  dst.Direction,
+				}
 
 				if val, ok := dstSimpleCounts[dstSimple]; !ok {
 					dstSimpleCounts[dstSimple] = 1
@@ -815,7 +831,9 @@ func mergeDstByProtoPort(aggregatedSrcsPerDst map[Dst][]string) map[string][]Mer
 						dstSimple := DstSimple{
 							Namespace:  dst.Namespace,
 							PodName:    dst.PodName,
-							Additional: dst.Additional}
+							Additional: dst.Additional,
+							Direction:  dst.Direction,
+						}
 
 						if dstCount.DstSimple == dstSimple {
 							// get tracked flowIDs
@@ -950,7 +968,7 @@ func groupingDstMergeds(label string, dsts []MergedPortDst) MergedPortDst {
 
 	for _, dst := range dsts {
 		newMerged.Namespace = dst.Namespace
-
+		newMerged.Direction = dst.Direction
 		// if there is additionals, append it
 		if len(dst.Additionals) > 0 {
 			if newMerged.Additionals != nil {
@@ -1319,7 +1337,6 @@ func buildNetworkPolicy(namespace string, services []types.Service, aggregatedSr
 				}
 			} else if dst.Namespace == "reserved:cidr" && len(dst.Additionals) > 0 {
 				egressPolicy.Metadata["rule"] = "toCIDRs"
-
 				// =============== //
 				// build CIDR rule //
 				// =============== //
@@ -1342,34 +1359,26 @@ func buildNetworkPolicy(namespace string, services []types.Service, aggregatedSr
 
 				// check egress
 				egressPolicy.Spec.Egress = append(egressPolicy.Spec.Egress, egressRule)
-				if discoverPolicyTypes&EGRESS > 0 {
+				if dst.Direction == "EGRESS" && discoverPolicyTypes&EGRESS > 0 {
 					networkPolicies = append(networkPolicies, egressPolicy)
 				}
 
-				/*
-					We were generating ingress policies corresponding to egress flows
-					for requests made from pods to external CIDRs
-					but the responses should be matched with request itself
-					so we shouldn't be generating ingress policies for that.
-					Hence commenting out the below code block which performed this.
+				// check ingress & fromCIDRs rule
+				if dst.Direction == "INGRESS" && discoverPolicyTypes&INGRESS > 0 && discoverRuleTypes&FROM_CIDRS > 0 {
+					// add ingress policy
+					ingressPolicy := buildNewIngressPolicyFromSameSelector(namespace, egressPolicy.Spec.Selector)
+					ingressPolicy.Metadata["rule"] = "fromCIDRs"
 
-					// check ingress & fromCIDRs rule
-					if discoverPolicyTypes&INGRESS > 0 && discoverRuleTypes&FROM_CIDRS > 0 {
-						// add ingress policy
-						ingressPolicy := buildNewIngressPolicyFromSameSelector(namespace, egressPolicy.Spec.Selector)
-						ingressPolicy.Metadata["rule"] = "fromCIDRs"
+					ingressRule := types.Ingress{}
 
-						ingressRule := types.Ingress{}
-
-						fromcidr := types.SpecCIDR{
-							CIDRs: cidrSlice,
-						}
-
-						ingressRule.FromCIDRs = []types.SpecCIDR{fromcidr}
-						ingressPolicy.Spec.Ingress = append(ingressPolicy.Spec.Ingress, ingressRule)
-						networkPolicies = append(networkPolicies, ingressPolicy)
+					fromcidr := types.SpecCIDR{
+						CIDRs: cidrSlice,
 					}
-				*/
+
+					ingressRule.FromCIDRs = []types.SpecCIDR{fromcidr}
+					ingressPolicy.Spec.Ingress = append(ingressPolicy.Spec.Ingress, ingressRule)
+					networkPolicies = append(networkPolicies, ingressPolicy)
+				}
 
 			} else if dst.Namespace == "reserved:dns" && len(dst.Additionals) > 0 {
 				egressPolicy.Metadata["rule"] = "toFQDNs"
