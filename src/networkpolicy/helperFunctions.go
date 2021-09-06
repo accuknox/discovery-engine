@@ -110,6 +110,10 @@ func FilterNetworkLogsByConfig(logs []types.KnoxNetworkLog, pods []types.Pod) []
 	for _, log := range logs {
 		filtered := false
 
+		if log.Protocol == 6 && !log.SynFlag { // In case of TCP only handle flows with SYN flag
+			continue
+		}
+
 		for _, filter := range NetworkLogFilters {
 			checkItems := getHaveToCheckItems(filter)
 

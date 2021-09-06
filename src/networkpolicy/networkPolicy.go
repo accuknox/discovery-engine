@@ -250,11 +250,13 @@ func getDst(log types.KnoxNetworkLog, endpoints []types.Endpoint, cidrBits int) 
 			// 1. check if it is the external service policy
 			log.DstNamespace = endpoint.Namespace
 			externalInfo = endpoint.EndpointName
-		} else if names, err := net.LookupAddr(log.DstPodName); err == nil {
-			// 2. check if it can be reversed to the domain name,
-			log.DstNamespace = "reserved:dns"
-			dnsname := strings.TrimSuffix(names[0], ".")
-			externalInfo = dnsname
+			/*
+				} else if names, err := net.LookupAddr(log.DstPodName); err == nil {
+					// 2. check if it can be reversed to the domain name,
+					log.DstNamespace = "reserved:dns"
+					dnsname := strings.TrimSuffix(names[0], ".")
+					externalInfo = dnsname
+			*/
 		} else {
 			// 3. else, handle it as cidr policy
 			log.DstNamespace = "reserved:cidr"
