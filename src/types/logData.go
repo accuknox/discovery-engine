@@ -21,6 +21,7 @@ type KnoxNetworkLog struct {
 	DstPort  int    `json:"dst_port,omitempty" bson:"dst_port"`
 
 	SynFlag bool `json:"syn_flag,omitempty" bson:"syn_flag"` // for tcp
+	IsReply bool `json:"is_reply,omitempty" bson:"is_reply"` // is_reply
 
 	DNSQuery  string   `json:"dns_query,omitempty" bson:"dns_query"`       // for L7 dns
 	DNSRes    string   `json:"dns_response,omitempty" bson:"dns_response"` // for L7 dns
