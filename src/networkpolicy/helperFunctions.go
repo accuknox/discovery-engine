@@ -114,6 +114,14 @@ func FilterNetworkLogsByConfig(logs []types.KnoxNetworkLog, pods []types.Pod) []
 			continue
 		}
 
+		if log.Protocol == 17 && log.IsReply && log.DstNamespace == "reserved:world" {
+			/*
+				fmt.Printf("dropping UDP SrcPort:%v DstPort:%v DstNamespace:%v\n",
+					log.SrcPort, log.DstPort, log.DstNamespace)
+			*/
+			continue
+		}
+
 		for _, filter := range NetworkLogFilters {
 			checkItems := getHaveToCheckItems(filter)
 

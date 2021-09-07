@@ -205,6 +205,7 @@ func ConvertCiliumFlowToKnoxNetworkLog(ciliumFlow *cilium.Flow) (types.KnoxNetwo
 	} else {
 		log.DstPodName = ciliumFlow.Destination.GetPodName()
 	}
+	log.IsReply = ciliumFlow.GetIsReply().GetValue()
 
 	// get L3
 	if ciliumFlow.IP != nil {
