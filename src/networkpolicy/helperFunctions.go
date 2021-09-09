@@ -110,6 +110,18 @@ func FilterNetworkLogsByConfig(logs []types.KnoxNetworkLog, pods []types.Pod) []
 	for _, log := range logs {
 		filtered := false
 
+		if log.Protocol == 6 && !log.SynFlag { // In case of TCP only handle flows with SYN flag
+			continue
+		}
+
+		if log.Protocol == 17 && log.IsReply && log.DstNamespace == "reserved:world" {
+			/*
+				fmt.Printf("dropping UDP SrcPort:%v DstPort:%v DstNamespace:%v\n",
+					log.SrcPort, log.DstPort, log.DstNamespace)
+			*/
+			continue
+		}
+
 		for _, filter := range NetworkLogFilters {
 			checkItems := getHaveToCheckItems(filter)
 
