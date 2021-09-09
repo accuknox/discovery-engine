@@ -71,11 +71,11 @@ ingress:
 
 resources:
   requests:
-    cpu: 200m
-    memory: 250Mi
+    cpu: 800m
+    memory: 2Gi
   limits:
-    cpu: 400m
-    memory: 450Mi
+    cpu: 800m
+    memory: 2Gi
 
 autoscaling:
   enabled: true
@@ -96,27 +96,28 @@ config:
     name: knoxautopolicy
     network:
       operation-mode: 1                         # 1: cronjob | 2: one-time-job
-      cron-job-time-interval: "0h0m10s"         # format: XhYmZs 
+      cron-job-time-interval: "0h0m30s"         # format: XhYmZs 
       operation-trigger: 100000
       network-log-limit: 100000
-      network-log-from: "db"                    # db|hubble
+      network-log-from: "kafka"                    # db|hubble
       network-log-file: "./flow.json"           # file path
       network-policy-to: "db|file"              # db, file
       network-policy-dir: "./"
       network-policy-types: 3
       network-policy-rule-types: 511
+      skip-cert-verification: true
     system:
       operation-mode: 1                         # 1: cronjob | 2: one-time-job
-      cron-job-time-interval: "0h0m10s"         # format: XhYmZs
+      cron-job-time-interval: "0h0m30s"         # format: XhYmZs
       operation-trigger: 1000
       system-log-limit: 100000 
-      system-log-from: "db"                     # db|kubearmor
+      system-log-from: "kafka"                     # db|kubearmor
       system-log-file: "./log.json"             # file path
       system-policy-to: "db|file"               # db, file
       system-policy-dir: "./"
     cluster:
       cluster-info-from: "accuknox"            # k8sclient|accuknox
-      cluster-mgmt-url: "http://cluster-management-service.accuknox-prod-cluster-mgmt.svc.cluster.local/cm"
+      cluster-mgmt-url: "https://api-dev.accuknox.com"
 
   database:
     driver: mysql
@@ -141,7 +142,6 @@ config:
       group-id: knoxautopolicy
       topics: 
         - cilium-telemetry-new
-        - cilium-telemetry
         - kubearmor-syslogs
       security:
         protocol: SSL
