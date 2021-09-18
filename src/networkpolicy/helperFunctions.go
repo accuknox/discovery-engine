@@ -148,7 +148,7 @@ func FilterNetworkLogsByConfig(logs []types.KnoxNetworkLog, pods []types.Pod) []
 			}
 
 			// 5. check protocol
-			if (checkItems&16 > 0) && libs.GetProtocol(log.Protocol) == strings.ToLower(filter.Protocol) {
+			if (checkItems&16 > 0) && libs.GetProtocol(log.Protocol) == strings.ToUpper(filter.Protocol) {
 				checkedItems = checkedItems | 1<<4
 			}
 
@@ -647,7 +647,7 @@ func removeDstFromMergedDstSlice(dsts []MergedPortDst, remove MergedPortDst) []M
 func checkK8sExternalService(log types.KnoxNetworkLog, endpoints []types.Endpoint) (types.Endpoint, bool) {
 	for _, endpoint := range endpoints {
 		for _, port := range endpoint.Endpoints {
-			if (libs.GetProtocol(log.Protocol) == strings.ToLower(port.Protocol)) &&
+			if (libs.GetProtocol(log.Protocol) == strings.ToUpper(port.Protocol)) &&
 				log.DstPort == port.Port &&
 				log.DstIP == port.IP {
 				return endpoint, true

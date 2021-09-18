@@ -25,7 +25,7 @@ func TestGetExternalIPAddr(t *testing.T) {
 func TestGetProtocol(t *testing.T) {
 	actual := GetProtocol(1)
 
-	assert.Equal(t, "icmp", actual, "they should be equal")
+	assert.Equal(t, "ICMP", actual, "they should be equal")
 }
 
 // ============ //
