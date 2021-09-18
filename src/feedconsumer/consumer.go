@@ -232,12 +232,13 @@ func (cfc *KnoxFeedConsumer) processNetworkLogMessage(message []byte) error {
 					L7:          &cilium.Layer7{},
 				}
 
-				plugin.GetFlowData(netLog.EventType, flow.EventType)
-				plugin.GetFlowData(netLog.Source, flow.Source)
-				plugin.GetFlowData(netLog.Destination, flow.Destination)
-				plugin.GetFlowData(netLog.IP, flow.IP)
-				plugin.GetFlowData(netLog.L4, flow.L4)
-				plugin.GetFlowData(netLog.L7, flow.L7)
+				// _ = is to ignore the return value
+				_ = plugin.GetFlowData(netLog.EventType, flow.EventType)
+				_ = plugin.GetFlowData(netLog.Source, flow.Source)
+				_ = plugin.GetFlowData(netLog.Destination, flow.Destination)
+				_ = plugin.GetFlowData(netLog.IP, flow.IP)
+				_ = plugin.GetFlowData(netLog.L4, flow.L4)
+				_ = plugin.GetFlowData(netLog.L7, flow.L7)
 
 				knoxFlow, valid := plugin.ConvertCiliumFlowToKnoxNetworkLog(flow)
 				if valid {

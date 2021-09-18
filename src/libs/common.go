@@ -122,10 +122,10 @@ func GetExternalIPAddr() string {
 
 func GetProtocol(protocol int) string {
 	protocolMap := map[int]string{
-		1:   "icmp",
-		6:   "tcp",
-		17:  "udp",
-		132: "stcp",
+		1:   "ICMP",
+		6:   "TCP",
+		17:  "UDP",
+		132: "STCP",
 	}
 
 	return protocolMap[protocol]
