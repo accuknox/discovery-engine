@@ -25,8 +25,19 @@ import (
 
 var log *zerolog.Logger
 
+var GitCommit string
+var GitBranch string
+var BuildDate string
+var Version string
+
+func printBuildDetails() {
+	log.Info().Msgf("BUILD-INFO: commit:%v, branch: %v, date: %v, version: %v",
+		GitCommit, GitBranch, BuildDate, Version)
+}
+
 func init() {
 	log = logger.GetInstance()
+	printBuildDetails()
 }
 
 // =================== //
@@ -34,8 +45,15 @@ func init() {
 // =================== //
 
 func LoadConfigurationFile() {
+	version1 := flag.Bool("v", false, "print version and exit")
+	version2 := flag.Bool("version", false, "print version and exit")
+
 	configFilePath := flag.String("config-path", "conf/", "conf/")
 	flag.Parse()
+
+	if *version1 || *version2 {
+		os.Exit(0)
+	}
 
 	viper.SetConfigName(GetEnv("CONF_FILE_NAME", "conf"))
 	viper.SetConfigType("yaml")
