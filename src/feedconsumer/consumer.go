@@ -11,8 +11,6 @@ import (
 
 	"github.com/spf13/viper"
 
-	cfg "github.com/accuknox/knoxAutoPolicy/src/config"
-	"github.com/accuknox/knoxAutoPolicy/src/libs"
 	logger "github.com/accuknox/knoxAutoPolicy/src/logging"
 	"github.com/accuknox/knoxAutoPolicy/src/plugin"
 	types "github.com/accuknox/knoxAutoPolicy/src/types"
@@ -258,15 +256,6 @@ func (cfc *KnoxFeedConsumer) processNetworkLogMessage(message []byte) error {
 	return nil
 }
 
-func (cfc *KnoxFeedConsumer) PushNetworkLogToDB() bool {
-	if err := libs.InsertNetworkLogToDB(cfg.GetCfgDB(), cfc.netLogEvents); err != nil {
-		log.Error().Msgf("InsertNetworkFlowToDB err: %s", err.Error())
-		return false
-	}
-
-	return true
-}
-
 // == //
 
 func (cfc *KnoxFeedConsumer) processSystemLogMessage(message []byte) error {
@@ -310,15 +299,6 @@ func (cfc *KnoxFeedConsumer) processSystemLogMessage(message []byte) error {
 	}
 
 	return nil
-}
-
-func (cfc *KnoxFeedConsumer) PushSystemLogToDB() bool {
-	if err := libs.InsertSystemLogToDB(cfg.GetCfgDB(), cfc.syslogEvents); err != nil {
-		log.Error().Msgf("InsertSystemLogToDB err: %s", err.Error())
-		return false
-	}
-
-	return true
 }
 
 // =================== //
