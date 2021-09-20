@@ -1,6 +1,5 @@
 .vscode/
 src/knoxAutoPolicy
-src/go.sum
 script/log
 src/log
 log
