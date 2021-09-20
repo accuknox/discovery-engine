@@ -3,6 +3,7 @@ package plugin
 import (
 	"context"
 	"encoding/json"
+	"net"
 	"strings"
 	"sync"
 	"time"
@@ -145,7 +146,7 @@ func ConvertKubeArmorLogToKnoxSystemLog(relayLog *pb.Log) types.KnoxSystemLog {
 // ========================= //
 
 func ConnectKubeArmorRelay(cfg types.ConfigKubeArmorRelay) *grpc.ClientConn {
-	addr := cfg.KubeArmorRelayURL + ":" + cfg.KubeArmorRelayPort
+	addr := net.JoinHostPort(cfg.KubeArmorRelayURL, cfg.KubeArmorRelayPort)
 
 	conn, err := grpc.Dial(addr, grpc.WithInsecure())
 	if err != nil {
