@@ -254,30 +254,6 @@ func GetLatestEntityPolicy(existingPolicies []types.KnoxNetworkPolicy, policy ty
 	return latestPolicies
 }
 
-func GetLatestServicePolicy(existingPolicies []types.KnoxNetworkPolicy, policy types.KnoxNetworkPolicy) []types.KnoxNetworkPolicy {
-	latestPolicies := []types.KnoxNetworkPolicy{}
-
-	for _, exist := range existingPolicies {
-		existPolicyType := exist.Metadata["type"]
-		existRule := exist.Metadata["rule"]
-
-		if exist.Metadata["namespace"] == policy.Metadata["namespace"] &&
-			existPolicyType == policy.Metadata["type"] &&
-			existRule == policy.Metadata["rule"] &&
-			exist.Metadata["status"] == "latest" {
-
-			// check selector matchLabels, if not matched, next existing rule
-			if !includeSelectorLabels(policy.Spec.Selector.MatchLabels, exist.Spec.Selector.MatchLabels) {
-				continue
-			}
-
-			latestPolicies = append(latestPolicies, exist)
-		}
-	}
-
-	return latestPolicies
-}
-
 // ============================ //
 // == Update Outdated Policy == //
 // ============================ //
@@ -600,7 +576,7 @@ func UpdateEntity(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.Kn
 
 func UpdateService(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.KnoxNetworkPolicy) (types.KnoxNetworkPolicy, bool) {
 	// case 1: if there is no latest, policy is new one
-	latestPolicies := GetLatestServicePolicy(existingPolicies, newPolicy)
+	latestPolicies := GetLatestEntityPolicy(existingPolicies, newPolicy)
 	if len(latestPolicies) == 0 {
 		return newPolicy, true
 	}

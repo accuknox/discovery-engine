@@ -17,14 +17,13 @@ require (
 	github.com/golang/protobuf v1.4.3 // indirect
 	github.com/google/go-cmp v0.5.3
 	github.com/kubearmor/KubeArmor/protobuf v0.0.0-20210812055730-4a539401e3d9
+	github.com/nyrahul/turnip v0.0.0-20210920174037-12f7fbdd392e
 	github.com/robfig/cron v1.2.0
-	github.com/rs/zerolog v1.20.0
+	github.com/rs/zerolog v1.25.0
 	github.com/spf13/viper v1.6.1
 	github.com/stretchr/testify v1.6.1
 	go.mongodb.org/mongo-driver v1.4.3
-	golang.org/x/net v0.0.0-20201224014010-6772e930b67b // indirect
 	golang.org/x/oauth2 v0.0.0-20201109201403-9fd604954f58 // indirect
-	golang.org/x/sys v0.0.0-20210113181707-4bcb84eeeb78 // indirect
 	golang.org/x/text v0.3.5 // indirect
 	google.golang.org/genproto v0.0.0-20210113195801-ae06605f4595 // indirect
 	google.golang.org/grpc v1.35.0

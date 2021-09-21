@@ -240,7 +240,7 @@ func TestGetLatestServicePolicy(t *testing.T) {
 
 	existings := []types.KnoxNetworkPolicy{exist1, exist2}
 
-	result := GetLatestServicePolicy(existings, toServicePolicy)
+	result := GetLatestEntityPolicy(existings, toServicePolicy)
 	assert.Equal(t, result[0], exist1, "they should be equal")
 }
 
