@@ -101,7 +101,7 @@ sonar_properties:
     timeout: "3"
   sonarqube_server_name: "sonar-scan"
   sonar_runnner_tools_name: "SonarQubeScanner"
-  qualitygate_result_ignore: "no"
+  qualitygate_result_ignore: "yes"
 
   image:
       name: artifactory.accuknox.com/accuknox/sonar-scanner-cli:latest
