@@ -10,6 +10,8 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+const ShouldBeEqual = "they should be equal"
+
 // ============= //
 // == Network == //
 // ============= //
@@ -25,7 +27,7 @@ func TestGetExternalIPAddr(t *testing.T) {
 func TestGetProtocol(t *testing.T) {
 	actual := GetProtocol(1)
 
-	assert.Equal(t, "ICMP", actual, "they should be equal")
+	assert.Equal(t, "ICMP", actual, ShouldBeEqual)
 }
 
 // ============ //
@@ -35,7 +37,7 @@ func TestGetProtocol(t *testing.T) {
 func TestGetEnv(t *testing.T) {
 	actual := GetEnv("KNOX_UNIT_TEST_GET_ENV", "fallback")
 
-	assert.Equal(t, "fallback", actual, "they should be equal")
+	assert.Equal(t, "fallback", actual, ShouldBeEqual)
 }
 
 func TestContainsElement(t *testing.T) {
@@ -56,7 +58,7 @@ func TestRandSeq(t *testing.T) {
 func TestGetCommandOutput(t *testing.T) {
 	actual := GetCommandOutput("echo", []string{"test"})
 
-	assert.Equal(t, "test\n", actual, "they should be equal")
+	assert.Equal(t, "test\n", actual, ShouldBeEqual)
 }
 
 // ========== //
@@ -66,5 +68,5 @@ func TestGetCommandOutput(t *testing.T) {
 func TestConvertUnixTSToDateTime(t *testing.T) {
 	actual := ConvertUnixTSToDateTime(100)
 
-	assert.Equal(t, primitive.NewDateTimeFromTime(time.Unix(100, 0)), actual, "they should be equal")
+	assert.Equal(t, primitive.NewDateTimeFromTime(time.Unix(100, 0)), actual, ShouldBeEqual)
 }

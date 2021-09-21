@@ -25,6 +25,8 @@ import (
 
 var log *zerolog.Logger
 
+const NoSuchFileOrDir = "no such file or directory"
+
 var GitCommit string
 var GitBranch string
 var BuildDate string
@@ -291,7 +293,7 @@ func WriteKnoxNetPolicyToYamlFile(namespace string, policies []types.KnoxNetwork
 	}
 
 	if err := os.Remove(fileName); err != nil {
-		if !strings.Contains(err.Error(), "no such file or directory") {
+		if !strings.Contains(err.Error(), NoSuchFileOrDir) {
 			log.Error().Msg(err.Error())
 		}
 	}
@@ -328,7 +330,7 @@ func WriteCiliumPolicyToYamlFile(namespace string, policies []types.CiliumNetwor
 	}
 
 	if err := os.Remove(fileName); err != nil {
-		if !strings.Contains(err.Error(), "no such file or directory") {
+		if !strings.Contains(err.Error(), NoSuchFileOrDir) {
 			log.Error().Msg(err.Error())
 		}
 	}
@@ -361,7 +363,7 @@ func WriteKubeArmorPolicyToYamlFile(namespace string, policies []types.KubeArmor
 	}
 
 	if err := os.Remove(fileName); err != nil {
-		if !strings.Contains(err.Error(), "no such file or directory") {
+		if !strings.Contains(err.Error(), NoSuchFileOrDir) {
 			log.Error().Msg(err.Error())
 		}
 	}

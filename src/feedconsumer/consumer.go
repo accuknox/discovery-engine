@@ -113,6 +113,35 @@ func (cfc *KnoxFeedConsumer) setupKafkaConfig() {
 	}
 }
 
+func (cfc *KnoxFeedConsumer) HandlePollEvent(ev interface{}) bool {
+	run := true
+	switch e := ev.(type) {
+	case *kafka.Message:
+		if *e.TopicPartition.Topic != "kubearmor-syslogs" { // cilium-hubble
+			if err := cfc.processNetworkLogMessage(e.Value); err != nil {
+				log.Error().Msg(err.Error())
+			}
+		} else { // kubearmor-syslogs
+			if err := cfc.processSystemLogMessage(e.Value); err != nil {
+				log.Error().Msg(err.Error())
+			}
+		}
+	case kafka.Error:
+		// Errors should generally be considered
+		// informational, the client will try to
+		// automatically recover.
+		// But in this example we choose to terminate
+		// the application if all brokers are down.
+		log.Error().Msgf("Error: %v: %v\n", e.Code(), e)
+		if e.Code() == kafka.ErrAllBrokersDown {
+			run = false
+		}
+	default:
+		log.Debug().Msgf("Ignored %v\n", e)
+	}
+	return run
+}
+
 func (cfc *KnoxFeedConsumer) startConsumer() {
 	defer waitG.Done()
 
@@ -143,37 +172,7 @@ func (cfc *KnoxFeedConsumer) startConsumer() {
 			if ev == nil {
 				continue
 			}
-
-			switch e := ev.(type) {
-			case *kafka.Message:
-				if *e.TopicPartition.Topic != "kubearmor-syslogs" { // cilium-hubble
-					if err := cfc.processNetworkLogMessage(e.Value); err != nil {
-						log.Error().Msg(err.Error())
-					}
-					if e.Headers != nil {
-						log.Debug().Msgf("Headers: %v", e.Headers)
-					}
-				} else { // kubearmor-syslogs
-					if err := cfc.processSystemLogMessage(e.Value); err != nil {
-						log.Error().Msg(err.Error())
-					}
-					if e.Headers != nil {
-						log.Debug().Msgf("Headers: %v", e.Headers)
-					}
-				}
-			case kafka.Error:
-				// Errors should generally be considered
-				// informational, the client will try to
-				// automatically recover.
-				// But in this example we choose to terminate
-				// the application if all brokers are down.
-				log.Error().Msgf("Error: %v: %v\n", e.Code(), e)
-				if e.Code() == kafka.ErrAllBrokersDown {
-					run = false
-				}
-			default:
-				log.Debug().Msgf("Ignored %v\n", e)
-			}
+			run = cfc.HandlePollEvent(ev)
 		}
 	}
 
