@@ -97,11 +97,11 @@ sonar_properties:
   status:
     enabled: "true"
   quality_gate:
-    enabled: "true"
+    enabled: "false"
     timeout: "3"
   sonarqube_server_name: "sonar-scan"
   sonar_runnner_tools_name: "SonarQubeScanner"
-  qualitygate_result_ignore: "yes"
+  qualitygate_result_ignore: "no"
 
   image:
       name: artifactory.accuknox.com/accuknox/sonar-scanner-cli:latest
