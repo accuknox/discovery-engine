@@ -439,10 +439,8 @@ func getMergedSortedLabels(namespace, podName string, pods []types.Pod) string {
 			// remove common name identities
 			labels := []string{}
 
-			for _, label := range pod.Labels {
-				/* TODO: do we need to skip the hash labels? */
-				labels = append(labels, label)
-			}
+			/* TODO: do we need to skip the hash labels? */
+			labels = append(labels, pod.Labels...)
 
 			// sorting labels alphabetically
 			sort.Slice(labels, func(i, j int) bool {

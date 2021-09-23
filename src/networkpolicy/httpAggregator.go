@@ -114,9 +114,7 @@ func setHTTPTree(targetSrc string, targetDst MergedPortDst, tree map[string]map[
 			HTTPTree:    tree,
 		}
 
-		for _, toPort := range targetDst.ToPorts {
-			httpDst.ToPorts = append(httpDst.ToPorts, toPort)
-		}
+		httpDst.ToPorts = append(httpDst.ToPorts, targetDst.ToPorts...)
 
 		MergedSrcPerMergedDstForHTTP[targetSrc] = []*HTTPDst{&httpDst}
 	}

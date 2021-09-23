@@ -234,9 +234,7 @@ func ConvertCiliumFlowToKnoxNetworkLog(ciliumFlow *cilium.Flow) (types.KnoxNetwo
 
 			log.DNSRes = query
 			log.DNSResIPs = []string{}
-			for _, ip := range ips {
-				log.DNSResIPs = append(log.DNSResIPs, ip)
-			}
+			log.DNSResIPs = append(log.DNSResIPs, ips...)
 		}
 	}
 
@@ -488,9 +486,7 @@ func ConvertKnoxNetworkPolicyToCiliumPolicy(services []types.Service, inPolicy t
 				// =============== //
 				for _, toCIDR := range knoxEgress.ToCIDRs {
 					cidrs := []string{}
-					for _, cidr := range toCIDR.CIDRs {
-						cidrs = append(cidrs, cidr)
-					}
+					cidrs = append(cidrs, toCIDR.CIDRs...)
 					ciliumEgress.ToCIDRs = cidrs
 
 					// update toPorts if exist
@@ -628,9 +624,7 @@ func ConvertKnoxNetworkPolicyToCiliumPolicy(services []types.Service, inPolicy t
 			// build CIDR rule //
 			// =============== //
 			for _, fromCIDR := range knoxIngress.FromCIDRs {
-				for _, cidr := range fromCIDR.CIDRs {
-					ciliumIngress.FromCIDRs = append(ciliumIngress.FromCIDRs, cidr)
-				}
+				ciliumIngress.FromCIDRs = append(ciliumIngress.FromCIDRs, fromCIDR.CIDRs...)
 			}
 
 			// ================= //

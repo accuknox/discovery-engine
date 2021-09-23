@@ -1042,9 +1042,7 @@ func aggregateDstByLabel(aggregatedSrcPerMergedDst map[string][]MergedPortDst, p
 			}
 
 			// not grouped dst remains, append it
-			for _, mergedDst := range mergedDsts {
-				aggregatedSrcPerAggregatedDst[aggregatedSrc] = append(aggregatedSrcPerAggregatedDst[aggregatedSrc], mergedDst)
-			}
+			aggregatedSrcPerAggregatedDst[aggregatedSrc] = append(aggregatedSrcPerAggregatedDst[aggregatedSrc], mergedDsts...)
 		}
 	}
 
