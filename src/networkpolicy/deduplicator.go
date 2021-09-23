@@ -18,15 +18,12 @@ func includeSelectorLabels(newSelectorLabels map[string]string, existSelectorLab
 	includeSelector := true
 
 	for k, v := range newSelectorLabels {
-		if val, ok := existSelectorLabels[k]; !ok {
+
+		if existSelectorLabels[k] == "" || existSelectorLabels[k] != v {
 			includeSelector = false
 			break
-		} else {
-			if val != v {
-				includeSelector = false
-				break
-			}
 		}
+
 	}
 
 	return includeSelector
@@ -206,23 +203,10 @@ func GetLatestMatchLabelsPolicy(existingPolicies []types.KnoxNetworkPolicy, poli
 				existMatchLabels = exist.Spec.Ingress[0].MatchLabels
 			}
 
-			matchLables := true
-
-			// check target matchLabels
 			for k, v := range newMatchLabels {
-				if val, ok := existMatchLabels[k]; !ok {
-					matchLables = false
-					break
-				} else {
-					if val != v {
-						matchLables = false
-						break
-					}
+				if !(existMatchLabels[k] == "" || existMatchLabels[k] != v) {
+					latestPolicies = append(latestPolicies, exist)
 				}
-			}
-
-			if matchLables {
-				latestPolicies = append(latestPolicies, exist)
 			}
 		}
 	}
