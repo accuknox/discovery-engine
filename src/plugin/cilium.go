@@ -84,10 +84,6 @@ func convertTrafficDirectionToInt(tType interface{}) int {
 	return TrafficDirection[tType.(string)]
 }
 
-func convertTraceObservationPointToInt(tType interface{}) int {
-	return TraceObservationPoint[tType.(string)]
-}
-
 func isSynFlagOnly(tcp *cilium.TCP) bool {
 	if tcp.Flags != nil && tcp.Flags.SYN && !tcp.Flags.ACK {
 		return true
@@ -116,18 +112,6 @@ func getProtocol(l4 *cilium.Layer4) int {
 		return 1
 	} else {
 		return 0 // unknown?
-	}
-}
-
-func getProtocolStr(l4 *cilium.Layer4) string {
-	if l4.GetTCP() != nil {
-		return "tcp"
-	} else if l4.GetUDP() != nil {
-		return "udp"
-	} else if l4.GetICMPv4() != nil {
-		return "icmp"
-	} else {
-		return "unknown" // unknown?
 	}
 }
 

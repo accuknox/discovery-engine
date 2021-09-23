@@ -321,34 +321,6 @@ func (n *Node) mergeSameChildNodes() {
 // == Tree Handling == //
 // =================== //
 
-func findByName(root *Node, path string, depth int) *Node {
-	queue := make([]*Node, 0)
-	queue = append(queue, root)
-
-	for len(queue) > 0 {
-		nextUp := queue[0]
-		queue = queue[1:]
-
-		if len(nextUp.childNodes) > 0 {
-			for i := 0; i < nextUp.depth; i++ {
-				fmt.Print("\t")
-			}
-			for _, child := range nextUp.childNodes {
-				for i := 0; i < child.depth; i++ {
-					fmt.Print("\t")
-				}
-				queue = append(queue, child)
-			}
-		} else {
-			for i := 0; i < nextUp.depth; i++ {
-				fmt.Print("\t")
-			}
-		}
-	}
-
-	return nil
-}
-
 func printTree(node *Node) {
 	for i := 0; i < node.depth; i++ {
 		fmt.Print("\t")
@@ -434,51 +406,6 @@ func buildPathTree(treeMap map[string]*Node, paths []string) {
 // ========================== //
 // == Aggreagtion function == //
 // ========================== //
-
-func aggreateHTTPPathsNaive(paths []string) []string {
-	aggregatedPaths := []string{}
-
-	sort.Strings(paths)
-
-	depthToPaths := map[string][]string{}
-
-	pathLevel := 1
-
-	for _, path := range paths {
-		// if path in /apple/banana
-		if len(strings.Split(path, "/")) >= pathLevel+2 {
-			base := "/" + strings.Split(path, "/")[pathLevel]
-			if depPaths, ok := depthToPaths[base]; ok {
-				if !libs.ContainsElement(depPaths, path) {
-					depPaths = append(depPaths, path)
-				}
-				depthToPaths[base] = depPaths
-			} else {
-				depthToPaths[base] = []string{path}
-			}
-		} else {
-			// root path or <= depths
-			if path == "/" || !libs.ContainsElement(aggregatedPaths, path) {
-				aggregatedPaths = append(aggregatedPaths, path)
-			}
-		}
-	}
-
-	for key, paths := range depthToPaths {
-		// if threshold over, aggregate it
-		if len(paths) >= HTTPThreshold {
-			aggregatedPaths = append(aggregatedPaths, key+"/.*")
-		} else {
-			for _, path := range paths {
-				if !libs.ContainsElement(aggregatedPaths, path) {
-					aggregatedPaths = append(aggregatedPaths, path)
-				}
-			}
-		}
-	}
-
-	return aggregatedPaths
-}
 
 func AggregatePaths(treeMap map[string]*Node, paths []string) []string {
 	// build path tree

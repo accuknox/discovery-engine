@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
-	"strconv"
-	"strings"
 
 	"github.com/accuknox/knoxAutoPolicy/src/libs"
 	types "github.com/accuknox/knoxAutoPolicy/src/types"
@@ -198,34 +196,6 @@ func (n *Node) mergeSameChildNodes() {
 // == Tree Handling == //
 // =================== //
 
-func findByName(root *Node, path string, depth int) *Node {
-	queue := make([]*Node, 0)
-	queue = append(queue, root)
-
-	for len(queue) > 0 {
-		nextUp := queue[0]
-		queue = queue[1:]
-
-		if len(nextUp.childNodes) > 0 {
-			for i := 0; i < nextUp.depth; i++ {
-				fmt.Print("\t")
-			}
-			for _, child := range nextUp.childNodes {
-				for i := 0; i < child.depth; i++ {
-					fmt.Print("\t")
-				}
-				queue = append(queue, child)
-			}
-		} else {
-			for i := 0; i < nextUp.depth; i++ {
-				fmt.Print("\t")
-			}
-		}
-	}
-
-	return nil
-}
-
 func printTree(node *Node) {
 	for i := 0; i < node.depth; i++ {
 		fmt.Print("\t")
@@ -240,33 +210,6 @@ func printTree(node *Node) {
 
 		printTree(child)
 	}
-}
-
-func checkSamePathLength(paths []string) bool {
-	pathLength := map[int]bool{}
-
-	for _, path := range paths {
-		pathLength[len(path)] = true
-	}
-
-	if len(pathLength) > 1 {
-		return false
-	}
-
-	return true
-}
-
-func checkDigitsOnly(paths []string) bool {
-	isDigit := true
-
-	for _, path := range paths {
-		woSlash := strings.Split(path, "/")[1]
-		if _, err := strconv.Atoi(woSlash); err != nil {
-			isDigit = false
-		}
-	}
-
-	return isDigit
 }
 
 // ===================== //

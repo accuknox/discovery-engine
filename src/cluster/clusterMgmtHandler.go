@@ -15,7 +15,6 @@ import (
 	"github.com/accuknox/knoxAutoPolicy/src/types"
 
 	"github.com/rs/zerolog"
-	"github.com/spf13/viper"
 )
 
 var BaseURL string
@@ -94,38 +93,6 @@ func getResponseBytes(mothod string, url string, data map[string]interface{}) []
 	}
 
 	return resultByte
-}
-
-// =========== //
-// == Login == //
-// =========== //
-
-func authLogin() error {
-	user := viper.GetString("accuknox-cluster-mgmt.username")
-	password := viper.GetString("accuknox-cluster-mgmt.password")
-	autourl := viper.GetString("accuknox-cluster-mgmt.url-auth")
-
-	values := map[string]string{"username": user, "password": password}
-	json_data, err := json.Marshal(values)
-	if err != nil {
-		return err
-	}
-
-	resp, err := http.Post(autourl, "application/json",
-		bytes.NewBuffer(json_data))
-
-	if err != nil {
-		return err
-	}
-
-	var res map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
-		return err
-	}
-
-	BearerToken = res["access_token"].(string)
-
-	return nil
 }
 
 // ====================== //

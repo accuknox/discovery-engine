@@ -2,7 +2,6 @@ package libs
 
 import (
 	"github.com/accuknox/knoxAutoPolicy/src/types"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 // ================= //
@@ -11,17 +10,6 @@ import (
 
 // LastFlowID network flow between [ startTime <= time < endTime ]
 var LastFlowID int64 = 0
-var startTime int64 = 0
-var endTime int64 = 0
-
-func updateTimeInterval(lastDoc map[string]interface{}) {
-	if val, ok := lastDoc["timestamp"].(primitive.DateTime); ok {
-		ts := val
-		startTime = ts.Time().Unix() + 1
-	} else if val, ok := lastDoc["timestamp"].(uint32); ok {
-		startTime = int64(val) + 1
-	}
-}
 
 // ==================== //
 // == Network Policy == //
@@ -99,8 +87,6 @@ func InsertNetworkPolicies(cfg types.ConfigDB, policies []types.KnoxNetworkPolic
 
 // LastSyslogID system log between [ startTime <= time < endTime ]
 var LastSyslogID int64 = 0
-var syslogStartTime int64 = 0
-var syslogEndTime int64 = 0
 
 // ================== //
 // == System Alert == //
@@ -108,8 +94,6 @@ var syslogEndTime int64 = 0
 
 // LastSysAlertID system_alert between [ startTime <= time < endTime ]
 var LastSysAlertID int64 = 0
-var sysAlertStartTime int64 = 0
-var sysAlertEndTime int64 = 0
 
 // =================== //
 // == System Policy == //
