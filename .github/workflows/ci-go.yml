@@ -21,6 +21,10 @@ jobs:
         run: gofmt -s -d $(find . -type f -name '*.go' -print)
         working-directory: src
 
+      - name: verify modules
+        run: go mod verify
+        working-directory: src
+
   go-lint:
     runs-on: ubuntu-latest
     steps:
