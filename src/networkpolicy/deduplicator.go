@@ -68,7 +68,7 @@ func GetLatestCIDRPolicy(existingPolicies []types.KnoxNetworkPolicy, policy type
 	return latestPolicies
 }
 
-func GetLastedFQDNPolicy(existingPolicies []types.KnoxNetworkPolicy, policy types.KnoxNetworkPolicy) []types.KnoxNetworkPolicy {
+func GetLatestFQDNPolicy(existingPolicies []types.KnoxNetworkPolicy, policy types.KnoxNetworkPolicy) []types.KnoxNetworkPolicy {
 	latestPolicies := []types.KnoxNetworkPolicy{}
 
 	for _, exist := range existingPolicies {
@@ -359,7 +359,7 @@ func UpdateToPorts(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.K
 	if newPolicy.Metadata["rule"] == "toCIDRs+toPorts" {
 		latestPolicies = GetLatestCIDRPolicy(existingPolicies, newPolicy)
 	} else if newPolicy.Metadata["rule"] == "toFQDNs+toPorts" {
-		latestPolicies = GetLastedFQDNPolicy(existingPolicies, newPolicy)
+		latestPolicies = GetLatestFQDNPolicy(existingPolicies, newPolicy)
 	} else {
 		return newPolicy, true
 	}
@@ -492,7 +492,7 @@ func UpdateMatchLabels(newPolicy types.KnoxNetworkPolicy, existingPolicies []typ
 		updated = true
 	}
 
-	// at least one updated occured
+	// at least one updated occurred
 	if updated {
 		if newPolicy.Metadata["type"] == "egress" {
 			newPolicy.Spec.Egress[0].ToPorts = newToPorts

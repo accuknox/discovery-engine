@@ -483,8 +483,8 @@ func AggregateHTTPRule(aggregatedSrcPerAggregatedDst map[string][]MergedPortDst)
 					httpPathTree = existed
 				}
 
-				aggreatedPaths := AggregatePaths(httpPathTree, paths)
-				for _, aggPath := range aggreatedPaths {
+				aggregatedPaths := AggregatePaths(httpPathTree, paths)
+				for _, aggPath := range aggregatedPaths {
 					updatedAdditionals = append(updatedAdditionals, method+"|"+aggPath)
 				}
 

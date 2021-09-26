@@ -48,7 +48,7 @@ const (
 )
 
 // ====================== //
-// == Gloabl Variables == //
+// == Global Variables == //
 // ====================== //
 
 var CfgDB types.ConfigDB
@@ -351,10 +351,10 @@ func discoverFileOperationPolicy(results []types.KnoxSystemPolicy, pod types.Pod
 
 	// step 3: aggregate file paths
 	for src, filePaths := range srcToDest {
-		aggreatedFilePaths := AggregatePaths(filePaths)
+		aggregatedFilePaths := AggregatePaths(filePaths)
 
 		// step 4: append spec to the policy
-		for _, filePath := range aggreatedFilePaths {
+		for _, filePath := range aggregatedFilePaths {
 			appended = true
 			policy = updateSysPolicySpec(SYS_OP_FILE, policy, src, filePath)
 		}
@@ -395,10 +395,10 @@ func discoverProcessOperationPolicy(results []types.KnoxSystemPolicy, pod types.
 
 	// step 3: aggregate process paths
 	for src, processPaths := range srcToDest {
-		aggreatedProcessPaths := AggregatePaths(processPaths)
+		aggregatedProcessPaths := AggregatePaths(processPaths)
 
 		// step 4: append spec to the policy
-		for _, processPath := range aggreatedProcessPaths {
+		for _, processPath := range aggregatedProcessPaths {
 			appended = true
 			policy = updateSysPolicySpec(SYS_OP_PROCESS, policy, src, processPath)
 		}
