@@ -151,7 +151,8 @@ func ConvertCiliumFlowToKnoxNetworkLog(ciliumFlow *cilium.Flow) (types.KnoxNetwo
 	log := types.KnoxNetworkLog{}
 
 	// TODO: packet is dropped (flow.Verdict == 2) and drop reason == 181 (Flows denied by deny policy)?
-	if ciliumFlow.Verdict == cilium.Verdict_DROPPED && ciliumFlow.DropReason == 181 {
+	// http://github.com/cilium/cilium/blob/f3887bd83f6f7495f5d487fe1002896488b9495f/bpf/lib/common.h#L432s
+	if ciliumFlow.Verdict == cilium.Verdict_DROPPED && ciliumFlow.GetDropReasonDesc() == 181 {
 		return log, false
 	}
 
