@@ -3,6 +3,7 @@ package plugin
 import (
 	"context"
 	"encoding/json"
+	"net"
 	"net/url"
 	"strconv"
 	"strings"
@@ -682,7 +683,7 @@ func ConvertKnoxPoliciesToCiliumPolicies(services []types.Service, policies []ty
 // ========================= //
 
 func ConnectHubbleRelay(cfg types.ConfigCiliumHubble) *grpc.ClientConn {
-	addr := cfg.HubbleURL + ":" + cfg.HubblePort
+	addr := net.JoinHostPort(cfg.HubbleURL, cfg.HubblePort)
 
 	conn, err := grpc.Dial(addr, grpc.WithInsecure())
 	if err != nil {
