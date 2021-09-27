@@ -201,21 +201,7 @@ func FilterNetworkLogsByNamespace(targetNamespace string, logs []types.KnoxNetwo
 func getNetworkLogs() []types.KnoxNetworkLog {
 	networkLogs := []types.KnoxNetworkLog{}
 
-	// =============== //
-	// == Database  == //
-	// =============== //
-	if NetworkLogFrom == "db" {
-		log.Info().Msg("Get network log from the database")
-
-		// get network logs from db
-		netLogs := libs.GetNetworkLogsFromDB(CfgDB, OneTimeJobTime, OperationTrigger, NetworkLogLimit)
-		if len(netLogs) == 0 || len(netLogs) < OperationTrigger {
-			return nil
-		}
-
-		// convert cilium network logs -> knox network logs
-		networkLogs = plugin.ConvertCiliumNetworkLogsToKnoxNetworkLogs(CfgDB.DBDriver, netLogs)
-	} else if NetworkLogFrom == "hubble" {
+	if NetworkLogFrom == "hubble" {
 		// ========================== //
 		// == Cilium Hubble Relay  == //
 		// ========================== //

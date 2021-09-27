@@ -166,27 +166,7 @@ type SysPath struct {
 func getSystemLogs() []types.KnoxSystemLog {
 	systemLogs := []types.KnoxSystemLog{}
 
-	if SystemLogFrom == "db" {
-		// ============== //
-		// == Database == //
-		// ============== //
-		log.Info().Msg("Get system log from the database")
-
-		// get system logs from db
-		sysLogs := libs.GetSystemLogsFromDB(cfg.GetCfgDB(), cfg.GetCfgSysOneTime(), OperationTrigger, SystemLogLimit)
-		if len(sysLogs) == 0 {
-			return nil
-		}
-
-		// get system alerts from db, and merge it to the system logs
-		sysAlerts := libs.GetSystemAlertsFromDB(cfg.GetCfgDB(), cfg.GetCfgSysOneTime(), OperationTrigger, SystemLogLimit)
-		if len(sysAlerts) != 0 {
-			sysLogs = append(sysLogs, sysAlerts...)
-		}
-
-		// convert kubearmor system logs -> knox system logs
-		systemLogs = plugin.ConvertKubeArmorSystemLogsToKnoxSystemLogs(cfg.GetCfgDB().DBDriver, sysLogs)
-	} else if SystemLogFrom == "file" {
+	if SystemLogFrom == "file" {
 		// =============================== //
 		// == File (.json) for testing  == //
 		// =============================== //
