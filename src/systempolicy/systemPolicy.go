@@ -257,11 +257,7 @@ func clusteringSystemLogsByCluster(logs []types.KnoxSystemLog) map[string][]type
 	results := map[string][]types.KnoxSystemLog{} // key: cluster name - val: system logs
 
 	for _, log := range logs {
-		if _, ok := results[log.ClusterName]; ok {
-			results[log.ClusterName] = append(results[log.ClusterName], log)
-		} else {
-			results[log.ClusterName] = []types.KnoxSystemLog{log}
-		}
+		results[log.ClusterName] = append(results[log.ClusterName], log)
 	}
 
 	return results
@@ -276,11 +272,7 @@ func clusteringSystemLogsByNamespacePod(logs []types.KnoxSystemLog) map[SysLogKe
 			PodName:   log.PodName,
 		}
 
-		if _, ok := results[key]; ok {
-			results[key] = append(results[key], log)
-		} else {
-			results[key] = []types.KnoxSystemLog{log}
-		}
+		results[key] = append(results[key], log)
 	}
 
 	return results

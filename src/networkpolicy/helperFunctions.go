@@ -294,11 +294,7 @@ func clusteringNetworkLogs(networkLogs []types.KnoxNetworkLog) map[string][]type
 	clusterNameMap := map[string][]types.KnoxNetworkLog{}
 
 	for _, log := range networkLogs {
-		if _, ok := clusterNameMap[log.ClusterName]; ok {
-			clusterNameMap[log.ClusterName] = append(clusterNameMap[log.ClusterName], log)
-		} else {
-			clusterNameMap[log.ClusterName] = []types.KnoxNetworkLog{log}
-		}
+		clusterNameMap[log.ClusterName] = append(clusterNameMap[log.ClusterName], log)
 	}
 
 	return clusterNameMap
