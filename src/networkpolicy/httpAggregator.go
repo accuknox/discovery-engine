@@ -1,7 +1,6 @@
 package networkpolicy
 
 import (
-	"fmt"
 	"net/http"
 	"regexp"
 	"sort"
@@ -318,22 +317,6 @@ func (n *Node) mergeSameChildNodes() {
 // =================== //
 // == Tree Handling == //
 // =================== //
-
-func printTree(node *Node) {
-	for i := 0; i < node.depth; i++ {
-		fmt.Print("\t")
-	}
-
-	fmt.Println(node.path, node.depth, node.touchCount)
-
-	for _, child := range node.childNodes {
-		for i := 0; i < node.depth; i++ {
-			fmt.Print("\t")
-		}
-
-		printTree(child)
-	}
-}
 
 func checkSamePathLength(paths []string) bool {
 	pathLength := map[int]bool{}

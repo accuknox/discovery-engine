@@ -1,7 +1,6 @@
 package systempolicy
 
 import (
-	"fmt"
 	"regexp"
 	"sort"
 
@@ -50,16 +49,6 @@ type HTTPDst struct {
 	MatchLabels string
 	ToPorts     []types.SpecPort
 	HTTPTree    map[string]map[string]*Node
-}
-
-func (n *Node) getChildNodesCount() int {
-	results := 0
-
-	for _, childNode := range n.childNodes {
-		results = results + childNode.touchCount
-	}
-
-	return results
 }
 
 func (n *Node) generatePaths(results map[string]bool, parentPath string) {
@@ -142,74 +131,6 @@ func (n *Node) findChildNode(path string, depth int) *Node {
 	}
 
 	return nil
-}
-
-func (n *Node) mergeSameChildNodes() {
-	if len(n.childNodes) == 0 {
-		return
-	}
-
-	nodeMap := map[MergedNode][]*Node{}
-	nodeMapTouchCount := map[MergedNode]int{}
-
-	merged := false
-
-	for _, childNode := range n.childNodes {
-		temp := MergedNode{
-			path:  childNode.path,
-			depth: childNode.depth,
-		}
-
-		// check existing same child nodes
-		if exist, ok := nodeMap[temp]; ok {
-			exist = append(exist, childNode.childNodes...)
-			nodeMap[temp] = exist
-			merged = true
-		} else {
-			nodeMap[temp] = childNode.childNodes
-		}
-
-		// merge touch count
-		nodeMapTouchCount[temp] = nodeMapTouchCount[temp] + childNode.touchCount
-	}
-
-	// if not merged, return
-	if !merged {
-		return
-	}
-
-	n.childNodes = []*Node{}
-
-	for uniqueChildNodes, grandChildNodes := range nodeMap {
-		newChildNode := &Node{
-			depth:      uniqueChildNodes.depth,
-			path:       uniqueChildNodes.path,
-			touchCount: nodeMapTouchCount[uniqueChildNodes],
-			childNodes: grandChildNodes,
-		}
-
-		n.childNodes = append(n.childNodes, newChildNode)
-	}
-}
-
-// =================== //
-// == Tree Handling == //
-// =================== //
-
-func printTree(node *Node) {
-	for i := 0; i < node.depth; i++ {
-		fmt.Print("\t")
-	}
-
-	fmt.Println(node.path, node.isDir, node.depth, node.touchCount)
-
-	for _, child := range node.childNodes {
-		for i := 0; i < node.depth; i++ {
-			fmt.Print("\t")
-		}
-
-		printTree(child)
-	}
 }
 
 // ===================== //
