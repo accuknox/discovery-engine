@@ -818,12 +818,28 @@ func WriteNetworkPoliciesToFile(cluster, namespace string, services []types.Serv
 // ====================== //
 
 func ReplaceMultiubuntuPodName(flows []*flow.Flow, pods []types.Pod) {
-	var podName string
+	var pod1Name, pod2Name, pod3Name, pod4Name, pod5Name string
 	var kubeDNS string
 
 	for _, pod := range pods {
-		if strings.Contains(pod.PodName, "ubuntu") {
-			podName = pod.PodName
+		if strings.Contains(pod.PodName, "ubuntu-1-deployment") {
+			pod1Name = pod.PodName
+		}
+
+		if strings.Contains(pod.PodName, "ubuntu-2-deployment") {
+			pod2Name = pod.PodName
+		}
+
+		if strings.Contains(pod.PodName, "ubuntu-3-deployment") {
+			pod3Name = pod.PodName
+		}
+
+		if strings.Contains(pod.PodName, "ubuntu-4-deployment") {
+			pod4Name = pod.PodName
+		}
+
+		if strings.Contains(pod.PodName, "ubuntu-5-deployment") {
+			pod5Name = pod.PodName
 		}
 
 		if strings.Contains(pod.PodName, "kube-dns") && !strings.Contains(pod.PodName, "kube-dns-autoscaler") {
@@ -836,12 +852,52 @@ func ReplaceMultiubuntuPodName(flows []*flow.Flow, pods []types.Pod) {
 	}
 
 	for i, flow := range flows {
-		if strings.Contains(flow.GetSource().GetPodName(), "ubuntu") {
-			flows[i].Source.PodName = podName
+		if strings.Contains(flow.GetSource().GetPodName(), "ubuntu-1-deployment") {
+			flows[i].Source.PodName = pod1Name
 		}
 
-		if strings.Contains(flow.GetDestination().GetPodName(), "ubuntu") {
-			flows[i].Destination.PodName = podName
+		if strings.Contains(flow.GetDestination().GetPodName(), "ubuntu-1-deployment") {
+			flows[i].Destination.PodName = pod1Name
+		}
+
+		///
+
+		if strings.Contains(flow.GetSource().GetPodName(), "ubuntu-2-deployment") {
+			flows[i].Source.PodName = pod2Name
+		}
+
+		if strings.Contains(flow.GetDestination().GetPodName(), "ubuntu-2-deployment") {
+			flows[i].Destination.PodName = pod2Name
+		}
+
+		///
+
+		if strings.Contains(flow.GetSource().GetPodName(), "ubuntu-3-deployment") {
+			flows[i].Source.PodName = pod3Name
+		}
+
+		if strings.Contains(flow.GetDestination().GetPodName(), "ubuntu-3-deployment") {
+			flows[i].Destination.PodName = pod3Name
+		}
+
+		///
+
+		if strings.Contains(flow.GetSource().GetPodName(), "ubuntu-4-deployment") {
+			flows[i].Source.PodName = pod4Name
+		}
+
+		if strings.Contains(flow.GetDestination().GetPodName(), "ubuntu-4-deployment") {
+			flows[i].Destination.PodName = pod4Name
+		}
+
+		///
+
+		if strings.Contains(flow.GetSource().GetPodName(), "ubuntu-5-deployment") {
+			flows[i].Source.PodName = pod5Name
+		}
+
+		if strings.Contains(flow.GetDestination().GetPodName(), "ubuntu-5-deployment") {
+			flows[i].Destination.PodName = pod5Name
 		}
 
 		///

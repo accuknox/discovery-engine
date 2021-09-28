@@ -585,9 +585,9 @@ func InitSysPolicyDiscoveryConfiguration() {
 func DiscoverSystemPolicyMain() {
 	if SystemWorkerStatus == STATUS_RUNNING {
 		return
-	} else {
-		SystemWorkerStatus = STATUS_RUNNING
 	}
+
+	SystemWorkerStatus = STATUS_RUNNING
 
 	defer func() {
 		SystemWorkerStatus = STATUS_IDLE
