@@ -342,11 +342,7 @@ func checkSamePathLength(paths []string) bool {
 		pathLength[len(path)] = true
 	}
 
-	if len(pathLength) > 1 {
-		return false
-	}
-
-	return true
+	return len(pathLength) <= 1
 }
 
 func checkDigitsOnly(paths []string) bool {
