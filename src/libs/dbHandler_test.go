@@ -43,7 +43,7 @@ func TestGetNetworkLogsFromDB(t *testing.T) {
 	assert.Equal(t, results[0]["id"], uint32(1))
 
 	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("Unmet expectation error: %s", err)
+		t.Errorf(Unmet+"%s", err)
 	}
 }
 
