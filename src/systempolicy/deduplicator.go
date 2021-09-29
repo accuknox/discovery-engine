@@ -170,14 +170,10 @@ func includeSelectorLabels(newSelectorLabels map[string]string, existSelectorLab
 	includeSelector := true
 
 	for k, v := range newSelectorLabels {
-		if val, ok := existSelectorLabels[k]; !ok {
+
+		if existSelectorLabels[k] != v {
 			includeSelector = false
 			break
-		} else {
-			if val != v {
-				includeSelector = false
-				break
-			}
 		}
 	}
 
