@@ -84,10 +84,6 @@ func convertTrafficDirectionToInt(tType interface{}) int {
 	return TrafficDirection[tType.(string)]
 }
 
-func convertTraceObservationPointToInt(tType interface{}) int {
-	return TraceObservationPoint[tType.(string)]
-}
-
 func isSynFlagOnly(tcp *cilium.TCP) bool {
 	if tcp.Flags != nil && tcp.Flags.SYN && !tcp.Flags.ACK {
 		return true
@@ -116,18 +112,6 @@ func getProtocol(l4 *cilium.Layer4) int {
 		return 1
 	} else {
 		return 0 // unknown?
-	}
-}
-
-func getProtocolStr(l4 *cilium.Layer4) string {
-	if l4.GetTCP() != nil {
-		return "tcp"
-	} else if l4.GetUDP() != nil {
-		return "udp"
-	} else if l4.GetICMPv4() != nil {
-		return "icmp"
-	} else {
-		return "unknown" // unknown?
 	}
 }
 
@@ -167,7 +151,8 @@ func ConvertCiliumFlowToKnoxNetworkLog(ciliumFlow *cilium.Flow) (types.KnoxNetwo
 	log := types.KnoxNetworkLog{}
 
 	// TODO: packet is dropped (flow.Verdict == 2) and drop reason == 181 (Flows denied by deny policy)?
-	if ciliumFlow.Verdict == cilium.Verdict_DROPPED && ciliumFlow.DropReason == 181 {
+	// http://github.com/cilium/cilium/blob/f3887bd83f6f7495f5d487fe1002896488b9495f/bpf/lib/common.h#L432s
+	if ciliumFlow.Verdict == cilium.Verdict_DROPPED && ciliumFlow.GetDropReasonDesc() == 181 {
 		return log, false
 	}
 
@@ -250,9 +235,7 @@ func ConvertCiliumFlowToKnoxNetworkLog(ciliumFlow *cilium.Flow) (types.KnoxNetwo
 
 			log.DNSRes = query
 			log.DNSResIPs = []string{}
-			for _, ip := range ips {
-				log.DNSResIPs = append(log.DNSResIPs, ip)
-			}
+			log.DNSResIPs = append(log.DNSResIPs, ips...)
 		}
 	}
 
@@ -504,9 +487,7 @@ func ConvertKnoxNetworkPolicyToCiliumPolicy(services []types.Service, inPolicy t
 				// =============== //
 				for _, toCIDR := range knoxEgress.ToCIDRs {
 					cidrs := []string{}
-					for _, cidr := range toCIDR.CIDRs {
-						cidrs = append(cidrs, cidr)
-					}
+					cidrs = append(cidrs, toCIDR.CIDRs...)
 					ciliumEgress.ToCIDRs = cidrs
 
 					// update toPorts if exist
@@ -644,9 +625,7 @@ func ConvertKnoxNetworkPolicyToCiliumPolicy(services []types.Service, inPolicy t
 			// build CIDR rule //
 			// =============== //
 			for _, fromCIDR := range knoxIngress.FromCIDRs {
-				for _, cidr := range fromCIDR.CIDRs {
-					ciliumIngress.FromCIDRs = append(ciliumIngress.FromCIDRs, cidr)
-				}
+				ciliumIngress.FromCIDRs = append(ciliumIngress.FromCIDRs, fromCIDR.CIDRs...)
 			}
 
 			// ================= //

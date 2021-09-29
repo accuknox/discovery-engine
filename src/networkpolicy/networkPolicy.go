@@ -65,7 +65,7 @@ const (
 var Externals = []string{"reserved:world", "external"}
 
 // ====================== //
-// == Gloabl Variables == //
+// == Global Variables == //
 // ====================== //
 
 // NetworkWorkerStatus global worker
@@ -448,7 +448,7 @@ func checkIncludeAllSrcPods(superSetLabels string, srcs []SrcSimple, pods []type
 		}
 	}
 
-	// 3. comapre two slices
+	// 3. compare two slices
 	srcIncludeAllK8sPods := true
 	for _, pod := range podNamesFromSrcs {
 		if libs.ContainsElement(podNamesFromK8s, pod) {
@@ -932,7 +932,7 @@ func checkIncludeAllDstPods(superSetLabels string, dsts []MergedPortDst, pods []
 		}
 	}
 
-	// 3. comapre two slices
+	// 3. compare two slices
 	dstIncludeAllK8sPods := true
 	for _, pod := range podNamesFromDsts {
 		if libs.ContainsElement(podNamesFromK8s, pod) {
@@ -1042,9 +1042,7 @@ func aggregateDstByLabel(aggregatedSrcPerMergedDst map[string][]MergedPortDst, p
 			}
 
 			// not grouped dst remains, append it
-			for _, mergedDst := range mergedDsts {
-				aggregatedSrcPerAggregatedDst[aggregatedSrc] = append(aggregatedSrcPerAggregatedDst[aggregatedSrc], mergedDst)
-			}
+			aggregatedSrcPerAggregatedDst[aggregatedSrc] = append(aggregatedSrcPerAggregatedDst[aggregatedSrc], mergedDsts...)
 		}
 	}
 
@@ -1138,7 +1136,7 @@ func buildNewIngressPolicyFromSameSelector(namespace string, selector types.Sele
 
 func checkIngressEntities(namespace string, mergedSrcPerMergedDst map[string][]MergedPortDst, networkPolicies []types.KnoxNetworkPolicy) []types.KnoxNetworkPolicy {
 	for aggregatedSrc, aggregatedMergedDsts := range mergedSrcPerMergedDst {
-		// if src inlcudes "reserved" prefix, it means Ingress Policy
+		// if src includes "reserved" prefix, it means Ingress Policy
 		if strings.Contains(aggregatedSrc, "reserved") {
 			entity := strings.Split(aggregatedSrc, "=")[1]
 
@@ -1195,7 +1193,7 @@ func buildNetworkPolicy(namespace string, services []types.Service, aggregatedSr
 	discoverRuleTypes := cfg.GetCfgNetworkRuleTypes()
 
 	for aggregatedSrc, aggregatedMergedDsts := range aggregatedSrcPerAggregatedDst {
-		// if src inlcudes "reserved" prefix, process later
+		// if src includes "reserved" prefix, process later
 		if strings.Contains(aggregatedSrc, "reserved") {
 			continue
 		}

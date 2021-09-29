@@ -48,7 +48,7 @@ func TestGetLatestCIDRs(t *testing.T) {
 	assert.Equal(t, result[0], exist1, "they should be equal")
 }
 
-func TestGetLastedFQDNs(t *testing.T) {
+func TestGetLatestFQDNs(t *testing.T) {
 	exist1 := types.KnoxNetworkPolicy{
 		Metadata: map[string]string{
 			"status": "latest",
@@ -84,7 +84,7 @@ func TestGetLastedFQDNs(t *testing.T) {
 
 	existings := []types.KnoxNetworkPolicy{exist1, exist2}
 
-	result := GetLastedFQDNPolicy(existings, fqdnPolicy)
+	result := GetLatestFQDNPolicy(existings, fqdnPolicy)
 	assert.Equal(t, result[0], exist1, "they should be equal")
 }
 

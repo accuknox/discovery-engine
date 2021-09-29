@@ -173,11 +173,9 @@ func includeSelectorLabels(newSelectorLabels map[string]string, existSelectorLab
 		if val, ok := existSelectorLabels[k]; !ok {
 			includeSelector = false
 			break
-		} else {
-			if val != v {
-				includeSelector = false
-				break
-			}
+		} else if val != v {
+			includeSelector = false
+			break
 		}
 	}
 
