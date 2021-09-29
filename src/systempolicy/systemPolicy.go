@@ -48,7 +48,7 @@ const (
 )
 
 // ====================== //
-// == Gloabl Variables == //
+// == Global Variables == //
 // ====================== //
 
 var CfgDB types.ConfigDB
@@ -166,27 +166,7 @@ type SysPath struct {
 func getSystemLogs() []types.KnoxSystemLog {
 	systemLogs := []types.KnoxSystemLog{}
 
-	if SystemLogFrom == "db" {
-		// ============== //
-		// == Database == //
-		// ============== //
-		log.Info().Msg("Get system log from the database")
-
-		// get system logs from db
-		sysLogs := libs.GetSystemLogsFromDB(cfg.GetCfgDB(), cfg.GetCfgSysOneTime(), OperationTrigger, SystemLogLimit)
-		if len(sysLogs) == 0 {
-			return nil
-		}
-
-		// get system alerts from db, and merge it to the system logs
-		sysAlerts := libs.GetSystemAlertsFromDB(cfg.GetCfgDB(), cfg.GetCfgSysOneTime(), OperationTrigger, SystemLogLimit)
-		if len(sysAlerts) != 0 {
-			sysLogs = append(sysLogs, sysAlerts...)
-		}
-
-		// convert kubearmor system logs -> knox system logs
-		systemLogs = plugin.ConvertKubeArmorSystemLogsToKnoxSystemLogs(cfg.GetCfgDB().DBDriver, sysLogs)
-	} else if SystemLogFrom == "file" {
+	if SystemLogFrom == "file" {
 		// =============================== //
 		// == File (.json) for testing  == //
 		// =============================== //
@@ -277,11 +257,7 @@ func clusteringSystemLogsByCluster(logs []types.KnoxSystemLog) map[string][]type
 	results := map[string][]types.KnoxSystemLog{} // key: cluster name - val: system logs
 
 	for _, log := range logs {
-		if _, ok := results[log.ClusterName]; ok {
-			results[log.ClusterName] = append(results[log.ClusterName], log)
-		} else {
-			results[log.ClusterName] = []types.KnoxSystemLog{log}
-		}
+		results[log.ClusterName] = append(results[log.ClusterName], log)
 	}
 
 	return results
@@ -296,11 +272,7 @@ func clusteringSystemLogsByNamespacePod(logs []types.KnoxSystemLog) map[SysLogKe
 			PodName:   log.PodName,
 		}
 
-		if _, ok := results[key]; ok {
-			results[key] = append(results[key], log)
-		} else {
-			results[key] = []types.KnoxSystemLog{log}
-		}
+		results[key] = append(results[key], log)
 	}
 
 	return results
@@ -371,10 +343,10 @@ func discoverFileOperationPolicy(results []types.KnoxSystemPolicy, pod types.Pod
 
 	// step 3: aggregate file paths
 	for src, filePaths := range srcToDest {
-		aggreatedFilePaths := AggregatePaths(filePaths)
+		aggregatedFilePaths := AggregatePaths(filePaths)
 
 		// step 4: append spec to the policy
-		for _, filePath := range aggreatedFilePaths {
+		for _, filePath := range aggregatedFilePaths {
 			appended = true
 			policy = updateSysPolicySpec(SYS_OP_FILE, policy, src, filePath)
 		}
@@ -415,10 +387,10 @@ func discoverProcessOperationPolicy(results []types.KnoxSystemPolicy, pod types.
 
 	// step 3: aggregate process paths
 	for src, processPaths := range srcToDest {
-		aggreatedProcessPaths := AggregatePaths(processPaths)
+		aggregatedProcessPaths := AggregatePaths(processPaths)
 
 		// step 4: append spec to the policy
-		for _, processPath := range aggreatedProcessPaths {
+		for _, processPath := range aggregatedProcessPaths {
 			appended = true
 			policy = updateSysPolicySpec(SYS_OP_PROCESS, policy, src, processPath)
 		}

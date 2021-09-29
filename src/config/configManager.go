@@ -97,7 +97,6 @@ func LoadConfigKubeArmor() types.ConfigKubeArmorRelay {
 	cfgKubeArmor := types.ConfigKubeArmorRelay{}
 
 	cfgKubeArmor.KubeArmorRelayURL = viper.GetString("kubearmor.url")
-	// TODO maybe the check for IPv6 should come here
 	addr, err := net.LookupIP(cfgKubeArmor.KubeArmorRelayURL)
 	if err == nil {
 		cfgKubeArmor.KubeArmorRelayURL = addr[0].String()
