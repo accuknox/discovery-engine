@@ -201,21 +201,7 @@ func FilterNetworkLogsByNamespace(targetNamespace string, logs []types.KnoxNetwo
 func getNetworkLogs() []types.KnoxNetworkLog {
 	networkLogs := []types.KnoxNetworkLog{}
 
-	// =============== //
-	// == Database  == //
-	// =============== //
-	if NetworkLogFrom == "db" {
-		log.Info().Msg("Get network log from the database")
-
-		// get network logs from db
-		netLogs := libs.GetNetworkLogsFromDB(CfgDB, OneTimeJobTime, OperationTrigger, NetworkLogLimit)
-		if len(netLogs) == 0 || len(netLogs) < OperationTrigger {
-			return nil
-		}
-
-		// convert cilium network logs -> knox network logs
-		networkLogs = plugin.ConvertCiliumNetworkLogsToKnoxNetworkLogs(CfgDB.DBDriver, netLogs)
-	} else if NetworkLogFrom == "hubble" {
+	if NetworkLogFrom == "hubble" {
 		// ========================== //
 		// == Cilium Hubble Relay  == //
 		// ========================== //
@@ -308,11 +294,7 @@ func clusteringNetworkLogs(networkLogs []types.KnoxNetworkLog) map[string][]type
 	clusterNameMap := map[string][]types.KnoxNetworkLog{}
 
 	for _, log := range networkLogs {
-		if _, ok := clusterNameMap[log.ClusterName]; ok {
-			clusterNameMap[log.ClusterName] = append(clusterNameMap[log.ClusterName], log)
-		} else {
-			clusterNameMap[log.ClusterName] = []types.KnoxNetworkLog{log}
-		}
+		clusterNameMap[log.ClusterName] = append(clusterNameMap[log.ClusterName], log)
 	}
 
 	return clusterNameMap
@@ -453,10 +435,8 @@ func getMergedSortedLabels(namespace, podName string, pods []types.Pod) string {
 			// remove common name identities
 			labels := []string{}
 
-			for _, label := range pod.Labels {
-				/* TODO: do we need to skip the hash labels? */
-				labels = append(labels, label)
-			}
+			/* TODO: do we need to skip the hash labels? */
+			labels = append(labels, pod.Labels...)
 
 			// sorting labels alphabetically
 			sort.Slice(labels, func(i, j int) bool {
@@ -676,31 +656,6 @@ func isExposedPort(protocol int, port int) bool {
 	return false
 }
 
-func removeKubeDNSPort(toPorts []types.SpecPort) []types.SpecPort {
-	filtered := []types.SpecPort{}
-
-	for _, toPort := range toPorts {
-		isDNS := false
-		for _, dnsSvc := range K8sDNSServices {
-			if toPort.Port == strconv.Itoa(dnsSvc.ServicePort) &&
-				toPort.Protocol == strings.ToLower(dnsSvc.Protocol) {
-				isDNS = true
-				break
-			}
-		}
-
-		if !isDNS {
-			filtered = append(filtered, toPort)
-		}
-	}
-
-	if len(filtered) == 0 {
-		return nil
-	}
-
-	return filtered
-}
-
 func updateServiceEndpoint(services []types.Service, endpoints []types.Endpoint, pods []types.Pod) {
 	// step 1: service port update
 	for _, service := range services {
@@ -773,26 +728,6 @@ func updateServiceEndpoint(services []types.Service, endpoints []types.Endpoint,
 func clearTrackFlowIDMaps() {
 	FlowIDTrackerFirst = map[FlowIDTrackingFirst][]int{}
 	FlowIDTrackerSecond = map[FlowIDTrackingSecond][]int{}
-}
-
-func clearDomainToIPs() {
-	DomainToIPs = map[string][]string{}
-}
-
-func cleargLabeledSrcsPerDst() {
-	LabeledSrcsPerDst = map[string]labeledSrcsPerDstMap{}
-}
-
-func clearHTTPAggregator() {
-	WildPaths = []string{WildPathDigit, WildPathChar}
-	MergedSrcPerMergedDstForHTTP = map[string][]*HTTPDst{}
-}
-
-func clearGlobalVariabels() {
-	clearDomainToIPs()
-	cleargLabeledSrcsPerDst()
-	clearHTTPAggregator()
-	clearTrackFlowIDMaps()
 }
 
 // ================== //

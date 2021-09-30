@@ -1,11 +1,8 @@
 package systempolicy
 
 import (
-	"fmt"
 	"regexp"
 	"sort"
-	"strconv"
-	"strings"
 
 	"github.com/accuknox/knoxAutoPolicy/src/libs"
 	types "github.com/accuknox/knoxAutoPolicy/src/types"
@@ -52,16 +49,6 @@ type HTTPDst struct {
 	MatchLabels string
 	ToPorts     []types.SpecPort
 	HTTPTree    map[string]map[string]*Node
-}
-
-func (n *Node) getChildNodesCount() int {
-	results := 0
-
-	for _, childNode := range n.childNodes {
-		results = results + childNode.touchCount
-	}
-
-	return results
 }
 
 func (n *Node) generatePaths(results map[string]bool, parentPath string) {
@@ -144,129 +131,6 @@ func (n *Node) findChildNode(path string, depth int) *Node {
 	}
 
 	return nil
-}
-
-func (n *Node) mergeSameChildNodes() {
-	if len(n.childNodes) == 0 {
-		return
-	}
-
-	nodeMap := map[MergedNode][]*Node{}
-	nodeMapTouchCount := map[MergedNode]int{}
-
-	merged := false
-
-	for _, childNode := range n.childNodes {
-		temp := MergedNode{
-			path:  childNode.path,
-			depth: childNode.depth,
-		}
-
-		// check existing same child nodes
-		if exist, ok := nodeMap[temp]; ok {
-			exist = append(exist, childNode.childNodes...)
-			nodeMap[temp] = exist
-			merged = true
-		} else {
-			nodeMap[temp] = childNode.childNodes
-		}
-
-		// merge touch count
-		nodeMapTouchCount[temp] = nodeMapTouchCount[temp] + childNode.touchCount
-	}
-
-	// if not merged, return
-	if !merged {
-		return
-	}
-
-	n.childNodes = []*Node{}
-
-	for uniqueChildNodes, grandChildNodes := range nodeMap {
-		newChildNode := &Node{
-			depth:      uniqueChildNodes.depth,
-			path:       uniqueChildNodes.path,
-			touchCount: nodeMapTouchCount[uniqueChildNodes],
-			childNodes: grandChildNodes,
-		}
-
-		n.childNodes = append(n.childNodes, newChildNode)
-	}
-}
-
-// =================== //
-// == Tree Handling == //
-// =================== //
-
-func findByName(root *Node, path string, depth int) *Node {
-	queue := make([]*Node, 0)
-	queue = append(queue, root)
-
-	for len(queue) > 0 {
-		nextUp := queue[0]
-		queue = queue[1:]
-
-		if len(nextUp.childNodes) > 0 {
-			for i := 0; i < nextUp.depth; i++ {
-				fmt.Print("\t")
-			}
-			for _, child := range nextUp.childNodes {
-				for i := 0; i < child.depth; i++ {
-					fmt.Print("\t")
-				}
-				queue = append(queue, child)
-			}
-		} else {
-			for i := 0; i < nextUp.depth; i++ {
-				fmt.Print("\t")
-			}
-		}
-	}
-
-	return nil
-}
-
-func printTree(node *Node) {
-	for i := 0; i < node.depth; i++ {
-		fmt.Print("\t")
-	}
-
-	fmt.Println(node.path, node.isDir, node.depth, node.touchCount)
-
-	for _, child := range node.childNodes {
-		for i := 0; i < node.depth; i++ {
-			fmt.Print("\t")
-		}
-
-		printTree(child)
-	}
-}
-
-func checkSamePathLength(paths []string) bool {
-	pathLength := map[int]bool{}
-
-	for _, path := range paths {
-		pathLength[len(path)] = true
-	}
-
-	if len(pathLength) > 1 {
-		return false
-	}
-
-	return true
-}
-
-func checkDigitsOnly(paths []string) bool {
-	isDigit := true
-
-	for _, path := range paths {
-		woSlash := strings.Split(path, "/")[1]
-		if _, err := strconv.Atoi(woSlash); err != nil {
-			isDigit = false
-		}
-	}
-
-	return isDigit
 }
 
 // ===================== //
