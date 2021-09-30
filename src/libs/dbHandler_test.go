@@ -9,6 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const Unmet = "unmet expectation error: "
+
 // ================= //
 // == Network Log == //
 // ================= //
@@ -50,7 +52,7 @@ func TestGetNetworkPolicies(t *testing.T) {
 	assert.Equal(t, results[0].Kind, "test")
 
 	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("unmet expectation error: %s", err)
+		t.Errorf(Unmet+"%s", err)
 	}
 }
 
@@ -93,6 +95,6 @@ func TestInsertNetworkPolicies(t *testing.T) {
 	assert.NoError(t, err)
 
 	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("unmet expectation error: %s", err)
+		t.Errorf(Unmet+"%s", err)
 	}
 }
