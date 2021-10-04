@@ -7,6 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const ShouldBeEqual = "they should be equal"
+
 // =========== //
 // == Label == //
 // =========== //
@@ -23,7 +25,7 @@ func TestDescendingLabelCountMap(t *testing.T) {
 
 	results := descendingLabelCountMap(labelCountMap)
 
-	assert.Equal(t, expected, results, "they should be equal")
+	assert.Equal(t, expected, results, ShouldBeEqual)
 }
 
 func TestContainLabelByConfiguration(t *testing.T) {
@@ -32,7 +34,7 @@ func TestContainLabelByConfiguration(t *testing.T) {
 
 	results := containLabelByConfiguration(ignoreLabels, flowLabels)
 
-	assert.Equal(t, false, results, "they should be equal")
+	assert.Equal(t, false, results, ShouldBeEqual)
 }
 
 func TestCombinationLabels(t *testing.T) {
@@ -41,7 +43,7 @@ func TestCombinationLabels(t *testing.T) {
 	results := combinationLabels(elements, 2)
 	expected := [][]string{{"a", "b"}, {"a", "c"}, {"b", "c"}}
 
-	assert.Equal(t, expected, results, "they should be equal")
+	assert.Equal(t, expected, results, ShouldBeEqual)
 }
 
 // ==================================== //
@@ -65,7 +67,7 @@ func TestRemoveSrcFromSlice(t *testing.T) {
 			PodName: "testPod1"},
 	}
 
-	assert.Equal(t, expected, results, "they should be equal")
+	assert.Equal(t, expected, results, ShouldBeEqual)
 }
 
 func TestRemoveDstFromSlice(t *testing.T) {
@@ -85,7 +87,7 @@ func TestRemoveDstFromSlice(t *testing.T) {
 			PodName: "testPod1"},
 	}
 
-	assert.Equal(t, expected, results, "they should be equal")
+	assert.Equal(t, expected, results, ShouldBeEqual)
 }
 
 func TestRemoveDstFromMergedDstSlice(t *testing.T) {
@@ -129,5 +131,5 @@ func TestRemoveDstFromMergedDstSlice(t *testing.T) {
 		},
 	}
 
-	assert.Equal(t, expected, results, "they should be equal")
+	assert.Equal(t, expected, results, ShouldBeEqual)
 }
