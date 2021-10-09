@@ -4,6 +4,7 @@ import (
 	"net"
 	"os"
 
+	analyzer "github.com/accuknox/knoxAutoPolicy/src/analyzer"
 	"github.com/accuknox/knoxAutoPolicy/src/config"
 	libs "github.com/accuknox/knoxAutoPolicy/src/libs"
 	logger "github.com/accuknox/knoxAutoPolicy/src/logging"
@@ -45,6 +46,8 @@ func main() {
 		os.Exit(1)
 	}
 	server := grpcserver.GetNewServer()
+
+	go analyzer.StartAnalyzerTest()
 
 	// start autopolicy service
 	log.Info().Msgf("KnoxAutoPolicy gRPC server on %s port started", grpcserver.PortNumber)
