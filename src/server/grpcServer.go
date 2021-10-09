@@ -5,6 +5,7 @@ import (
 
 	"github.com/rs/zerolog"
 
+	analyzer "github.com/accuknox/knoxAutoPolicy/src/analyzer"
 	cfg "github.com/accuknox/knoxAutoPolicy/src/config"
 	core "github.com/accuknox/knoxAutoPolicy/src/config"
 	"github.com/accuknox/knoxAutoPolicy/src/feedconsumer"
@@ -13,6 +14,7 @@ import (
 	sysworker "github.com/accuknox/knoxAutoPolicy/src/systempolicy"
 
 	"github.com/accuknox/knoxAutoPolicy/src/libs"
+	apb "github.com/accuknox/knoxAutoPolicy/src/protobuf/v1/analyzer"
 	fpb "github.com/accuknox/knoxAutoPolicy/src/protobuf/v1/consumer"
 	wpb "github.com/accuknox/knoxAutoPolicy/src/protobuf/v1/worker"
 	"github.com/accuknox/knoxAutoPolicy/src/types"
@@ -139,6 +141,26 @@ func (s *consumerServer) GetWorkerStatus(ctx context.Context, in *fpb.ConsumerRe
 	return &fpb.ConsumerResponse{Res: feedconsumer.Status}, nil
 }
 
+// ====================== //
+// == Analyzer Service == //
+// ====================== //
+
+type analyzerServer struct {
+	apb.AnalyzerServer
+}
+
+func (s *analyzerServer) GetNetworkPolicies(ctx context.Context, in *apb.NetworkLogs) (*apb.NetworkPolicies, error) {
+	pbNetworkPolicies := apb.NetworkPolicies{}
+	pbNetworkPolicies.NwPolicies = analyzer.GetNetworkPolicies(in.GetNwLog())
+	return &pbNetworkPolicies, nil
+}
+
+func (s *analyzerServer) GetSystemPolicies(ctx context.Context, in *apb.SystemLogs) (*apb.SystemPolicies, error) {
+	pbSystemPolicies := apb.SystemPolicies{}
+	pbSystemPolicies.SysPolicies = analyzer.GetSystemPolicies(in.GetSysLog())
+	return &pbSystemPolicies, nil
+}
+
 // ================= //
 // == gRPC server == //
 // ================= //
@@ -152,10 +174,12 @@ func GetNewServer() *grpc.Server {
 	// create server instances
 	workerServer := &workerServer{}
 	consumerServer := &consumerServer{}
+	analyzerServer := &analyzerServer{}
 
 	// register gRPC servers
 	wpb.RegisterWorkerServer(s, workerServer)
 	fpb.RegisterConsumerServer(s, consumerServer)
+	apb.RegisterAnalyzerServer(s, analyzerServer)
 
 	if cfg.GetCurrentCfg().ConfigClusterMgmt.ClusterInfoFrom != "k8sclient" {
 		// start consumer automatically

@@ -554,30 +554,15 @@ func InitSysPolicyDiscoveryConfiguration() {
 	FileFromSource = cfg.GetCfgSystemFileFromSource()
 }
 
-func DiscoverSystemPolicyMain() {
-	if SystemWorkerStatus == STATUS_RUNNING {
-		return
-	}
+func PopulateSystemPoliciesFromSystemLogs(sysLogs []types.KnoxSystemLog) []types.KnoxSystemPolicy {
 
-	SystemWorkerStatus = STATUS_RUNNING
-
-	defer func() {
-		SystemWorkerStatus = STATUS_IDLE
-	}()
-
-	InitSysPolicyDiscoveryConfiguration()
-
-	// get system logs
-	allSystemkLogs := getSystemLogs()
-	if allSystemkLogs == nil {
-		return
-	}
+	discoveredSystemPolicies := []types.KnoxSystemPolicy{}
 
 	// delete duplicate logs
-	allSystemkLogs = systemLogDeduplication(allSystemkLogs)
+	sysLogs = systemLogDeduplication(sysLogs)
 
 	// get cluster names, iterate each cluster
-	clusteredLogs := clusteringSystemLogsByCluster(allSystemkLogs)
+	clusteredLogs := clusteringSystemLogsByCluster(sysLogs)
 
 	for clusterName, sysLogs := range clusteredLogs {
 		log.Info().Msgf("System policy discovery started for cluster [%s]", clusterName)
@@ -616,6 +601,7 @@ func DiscoverSystemPolicyMain() {
 
 			// 3. update selector
 			discoveredSysPolicies = updateSysPolicySelector(clusterName, pod, discoveredSysPolicies)
+			discoveredSystemPolicies = append(discoveredSystemPolicies, discoveredSysPolicies...)
 
 			// 4. update duplicated policy
 			newPolicies := UpdateDuplicatedPolicy(existingPolicies, discoveredSysPolicies, clusterName)
@@ -634,6 +620,31 @@ func DiscoverSystemPolicyMain() {
 			}
 		}
 	}
+
+	return discoveredSystemPolicies
+}
+
+func DiscoverSystemPolicyMain() {
+	if SystemWorkerStatus == STATUS_RUNNING {
+		return
+	}
+
+	SystemWorkerStatus = STATUS_RUNNING
+
+	defer func() {
+		SystemWorkerStatus = STATUS_IDLE
+	}()
+
+	InitSysPolicyDiscoveryConfiguration()
+
+	// get system logs
+	allSystemkLogs := getSystemLogs()
+	if allSystemkLogs == nil {
+		return
+	}
+
+	PopulateSystemPoliciesFromSystemLogs(allSystemkLogs)
+
 }
 
 // ==================================== //
