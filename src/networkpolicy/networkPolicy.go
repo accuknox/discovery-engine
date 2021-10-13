@@ -1521,6 +1521,8 @@ func PopulateNetworkPoliciesFromNetworkLogs(sysLogs []types.KnoxNetworkLog) []ty
 
 	// get cluster names, iterate each cluster
 	clusteredLogs := clusteringNetworkLogs(sysLogs)
+	log.Info().Msgf("PopulateNetworkPoliciesFromNetworkLogs - clusteredLogs [%v]", clusteredLogs)
+
 	for clusterName, networkLogs := range clusteredLogs {
 		log.Info().Msgf("Network policy discovery started for cluster [%s]", clusterName)
 
@@ -1542,6 +1544,7 @@ func PopulateNetworkPoliciesFromNetworkLogs(sysLogs []types.KnoxNetworkLog) []ty
 
 		// filter ignoring network logs from configuration
 		filteredLogs := FilterNetworkLogsByConfig(networkLogs, pods)
+		log.Info().Msgf("PopulateNetworkPoliciesFromNetworkLogs - clusteredLogs [%v]", filteredLogs)
 
 		// iterate each namespace
 		for _, namespace := range namespaces {
@@ -1550,12 +1553,15 @@ func PopulateNetworkPoliciesFromNetworkLogs(sysLogs []types.KnoxNetworkLog) []ty
 			if len(logsPerNamespace) == 0 {
 				continue
 			}
+			log.Info().Msgf("PopulateNetworkPoliciesFromNetworkLogs - logsPerNamespace [%v]", logsPerNamespace)
 
 			// reset flow id track at each target namespace
 			clearTrackFlowIDMaps()
 
 			// discover network policies based on the network logs
 			discoveredNetPolicies := DiscoverNetworkPolicy(namespace, logsPerNamespace, services, endpoints, pods)
+			log.Info().Msgf("PopulateNetworkPoliciesFromNetworkLogs - discoveredNetPolicies [%v]", discoveredNetPolicies)
+
 			discoveredNetworkPolicies = append(discoveredNetworkPolicies, discoveredNetPolicies...)
 
 			// get existing network policies in db
@@ -1605,6 +1611,8 @@ func DiscoverNetworkPolicyMain() {
 	if allNetworkLogs == nil || len(allNetworkLogs) < OperationTrigger {
 		return
 	}
+
+	PopulateNetworkPoliciesFromNetworkLogs(allNetworkLogs)
 
 }
 

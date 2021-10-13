@@ -6,7 +6,9 @@ import (
 	"log"
 	"time"
 
+	nwpolicy "github.com/accuknox/knoxAutoPolicy/src/networkpolicy"
 	apb "github.com/accuknox/knoxAutoPolicy/src/protobuf/v1/analyzer"
+	syspolicy "github.com/accuknox/knoxAutoPolicy/src/systempolicy"
 	"google.golang.org/grpc"
 )
 
@@ -15,42 +17,30 @@ var (
 )
 
 func analyzerSystemTest() {
-	time.Sleep(10 * time.Second)
+	time.Sleep(2 * 60 * time.Second)
 	fmt.Println("START ANALYZER SYSTEM POLICY TEST")
 	systemLogs := apb.SystemLogs{}
-	systemTestLogData1 := apb.KnoxSystemLog{}
-	systemTestLogData2 := apb.KnoxSystemLog{}
+	syslogs := syspolicy.GetSystemLogs()
 
-	// Test data
-	systemTestLogData1.LogID = 100
-	systemTestLogData1.ClusterName = "Test-Cluster-001"
-	systemTestLogData1.HostName = "host-001"
-	systemTestLogData1.Namespace = "linux-001"
-	systemTestLogData1.PodName = "MyPod-001"
-	systemTestLogData1.SourceOrigin = "origin-001"
-	systemTestLogData1.Source = "source-001"
-	systemTestLogData1.Operation = "operation-001"
-	systemTestLogData1.ResourceOrigin = "resource-origin-001"
-	systemTestLogData1.Resource = "resource-001"
-	systemTestLogData1.Data = "data-001"
-	systemTestLogData1.ReadOnly = true
-	systemTestLogData1.Result = "result-001"
-	systemLogs.SysLog = append(systemLogs.SysLog, &systemTestLogData1)
+	for _, syslog := range syslogs {
+		pbsyslog := apb.KnoxSystemLog{}
+		pbsyslog.LogID = int32(syslog.LogID)
+		pbsyslog.ClusterName = syslog.ClusterName
+		pbsyslog.HostName = syslog.Namespace
+		pbsyslog.PodName = syslog.Namespace
+		pbsyslog.SourceOrigin = syslog.SourceOrigin
+		pbsyslog.Source = syslog.Source
+		pbsyslog.Operation = syslog.Operation
+		pbsyslog.ResourceOrigin = syslog.ResourceOrigin
+		pbsyslog.Resource = syslog.Resource
+		pbsyslog.Data = syslog.Data
+		pbsyslog.ReadOnly = syslog.ReadOnly
+		pbsyslog.Result = syslog.Result
 
-	systemTestLogData2.LogID = 200
-	systemTestLogData2.ClusterName = "Test-Cluster-002"
-	systemTestLogData2.HostName = "host-002"
-	systemTestLogData2.Namespace = "linux-002"
-	systemTestLogData2.PodName = "MyPod-002"
-	systemTestLogData2.SourceOrigin = "origin-002"
-	systemTestLogData2.Source = "source-002"
-	systemTestLogData2.Operation = "operation-002"
-	systemTestLogData2.ResourceOrigin = "resource-origin-002"
-	systemTestLogData2.Resource = "resource-002"
-	systemTestLogData2.Data = "data-002"
-	systemTestLogData2.ReadOnly = false
-	systemTestLogData2.Result = "result-002"
-	systemLogs.SysLog = append(systemLogs.SysLog, &systemTestLogData2)
+		systemLogs.SysLog = append(systemLogs.SysLog, &pbsyslog)
+
+		fmt.Printf("Converted PB sys log :%v\n", pbsyslog)
+	}
 
 	response, err := client.GetSystemPolicies(context.Background(), &systemLogs)
 	if err != nil {
@@ -61,63 +51,49 @@ func analyzerSystemTest() {
 }
 
 func analyzerNetworkTest() {
-	time.Sleep(20 * time.Second)
-	fmt.Println("START ANALYZER NETWORK POLICY TEST")
+
 	netLogs := apb.NetworkLogs{}
-	netTestLogData1 := apb.KnoxNetworkLog{}
-	netTestLogData2 := apb.KnoxNetworkLog{}
 
-	netTestLogData1.FlowID = 100
-	netTestLogData1.ClusterName = "net-test-001"
-	netTestLogData1.SrcNamespace = "net-ns-001"
-	netTestLogData1.SrcPodName = "net-pod-001"
-	netTestLogData1.DstNamespace = "net-dst-001"
-	netTestLogData1.DstPodName = "dst-pod-001"
-	netTestLogData1.EtherType = 1
-	netTestLogData1.Protocol = 2
-	netTestLogData1.SrcIP = "192.168.0.100"
-	netTestLogData1.DstIP = "192.168.0.101"
-	netTestLogData1.SrcPort = 3
-	netTestLogData1.DstPort = 4
-	netTestLogData1.SynFlag = true
-	netTestLogData1.IsReply = false
-	netTestLogData1.DNSQuery = "query-001"
-	netTestLogData1.DNSRes = "dnsres-001"
-	netTestLogData1.DNSResIPs = nil
-	netTestLogData1.HTTPMethod = "net-http-method-001"
-	netTestLogData1.HTTPPath = "net-http-path-001"
-	netTestLogData1.Direction = "net-http-direction-001"
-	netTestLogData1.Action = "Block"
-	netLogs.NwLog = append(netLogs.NwLog, &netTestLogData1)
+	time.Sleep(60 * time.Second)
+	fmt.Println("START ANALYZER NETWORK POLICY TEST")
 
-	netTestLogData2.FlowID = 200
-	netTestLogData2.ClusterName = "net-test-002"
-	netTestLogData2.SrcNamespace = "net-ns-002"
-	netTestLogData2.SrcPodName = "net-pod-002"
-	netTestLogData2.DstNamespace = "net-dst-002"
-	netTestLogData2.DstPodName = "dst-pod-002"
-	netTestLogData2.EtherType = 5
-	netTestLogData2.Protocol = 6
-	netTestLogData2.SrcIP = "192.168.0.102"
-	netTestLogData2.DstIP = "192.168.0.103"
-	netTestLogData2.SrcPort = 7
-	netTestLogData2.DstPort = 8
-	netTestLogData2.SynFlag = false
-	netTestLogData2.IsReply = true
-	netTestLogData2.DNSQuery = "query-002"
-	netTestLogData2.DNSRes = "dnsres-002"
-	netTestLogData2.DNSResIPs = nil
-	netTestLogData2.HTTPMethod = "net-http-method-002"
-	netTestLogData2.HTTPPath = "net-http-path-002"
-	netTestLogData2.Direction = "net-http-direction-002"
-	netTestLogData2.Action = "Allow"
-	netLogs.NwLog = append(netLogs.NwLog, &netTestLogData2)
+	nwlogs := nwpolicy.GetNetworkLogs()
+	fmt.Printf("analyzerNetworkTest - nwlogs [%v]\n", nwlogs)
+
+	for _, nwlog := range nwlogs {
+		pbNetLog := apb.KnoxNetworkLog{}
+		pbNetLog.FlowID = int32(nwlog.FlowID)
+		pbNetLog.ClusterName = nwlog.ClusterName
+		pbNetLog.SrcNamespace = nwlog.SrcNamespace
+		pbNetLog.SrcPodName = nwlog.SrcPodName
+		pbNetLog.DstNamespace = nwlog.DstNamespace
+		pbNetLog.DstPodName = nwlog.DstPodName
+		pbNetLog.EtherType = int32(nwlog.EtherType)
+		pbNetLog.Protocol = int32(nwlog.Protocol)
+		pbNetLog.SrcIP = nwlog.SrcIP
+		pbNetLog.DstIP = nwlog.DstIP
+		pbNetLog.SrcPort = int32(nwlog.SrcPort)
+		pbNetLog.DstPort = int32(nwlog.DstPort)
+		pbNetLog.SynFlag = nwlog.SynFlag
+		pbNetLog.IsReply = nwlog.IsReply
+		pbNetLog.DNSQuery = nwlog.DNSQuery
+		pbNetLog.DNSRes = nwlog.DNSRes
+		pbNetLog.DNSResIPs = nwlog.DNSResIPs
+		pbNetLog.HTTPMethod = nwlog.HTTPMethod
+		pbNetLog.HTTPPath = nwlog.HTTPPath
+		pbNetLog.Direction = nwlog.Direction
+		pbNetLog.Action = nwlog.Action
+
+		fmt.Printf("Converted PB nw log :%v\n", pbNetLog)
+
+		netLogs.NwLog = append(netLogs.NwLog, &pbNetLog)
+	}
 
 	response, err := client.GetNetworkPolicies(context.Background(), &netLogs)
 	if err != nil {
 		log.Fatal("Error")
 	} else {
-		log.Printf("Network test Response : %v\n", response)
+		fmt.Printf("Network test Response : %v\n", response)
 	}
 }
 
@@ -143,4 +119,5 @@ func StartAnalyzerTest() {
 
 	go analyzerSystemTest()
 	go analyzerNetworkTest()
+
 }

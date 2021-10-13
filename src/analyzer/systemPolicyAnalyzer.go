@@ -12,6 +12,8 @@ import (
 
 func extractSystemPoliciesFromSystemLogs(systemLogs []types.KnoxSystemLog) []*apb.KnoxSystemPolicy {
 
+	fmt.Printf("ESWAR extractSystemPoliciesFromSystemLogs -- %v\n", systemLogs)
+
 	pbSystemPolicies := []*apb.KnoxSystemPolicy{}
 	systemPolicies := syspolicy.PopulateSystemPoliciesFromSystemLogs(systemLogs)
 

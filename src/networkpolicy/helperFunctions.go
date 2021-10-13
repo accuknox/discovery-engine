@@ -194,6 +194,10 @@ func FilterNetworkLogsByNamespace(targetNamespace string, logs []types.KnoxNetwo
 	return filteredLogs
 }
 
+func GetNetworkLogs() []types.KnoxNetworkLog {
+	return getNetworkLogs()
+}
+
 // ================= //
 // == Network Log == //
 // ================= //
