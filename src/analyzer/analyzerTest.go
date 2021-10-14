@@ -52,48 +52,51 @@ func analyzerSystemTest() {
 
 func analyzerNetworkTest() {
 
-	netLogs := apb.NetworkLogs{}
+	for {
 
-	time.Sleep(60 * time.Second)
-	fmt.Println("START ANALYZER NETWORK POLICY TEST")
+		netLogs := apb.NetworkLogs{}
 
-	nwlogs := nwpolicy.GetNetworkLogs()
-	fmt.Printf("analyzerNetworkTest - nwlogs [%v]\n", nwlogs)
+		time.Sleep(60 * time.Second)
+		fmt.Println("START ANALYZER NETWORK POLICY TEST")
 
-	for _, nwlog := range nwlogs {
-		pbNetLog := apb.KnoxNetworkLog{}
-		pbNetLog.FlowID = int32(nwlog.FlowID)
-		pbNetLog.ClusterName = nwlog.ClusterName
-		pbNetLog.SrcNamespace = nwlog.SrcNamespace
-		pbNetLog.SrcPodName = nwlog.SrcPodName
-		pbNetLog.DstNamespace = nwlog.DstNamespace
-		pbNetLog.DstPodName = nwlog.DstPodName
-		pbNetLog.EtherType = int32(nwlog.EtherType)
-		pbNetLog.Protocol = int32(nwlog.Protocol)
-		pbNetLog.SrcIP = nwlog.SrcIP
-		pbNetLog.DstIP = nwlog.DstIP
-		pbNetLog.SrcPort = int32(nwlog.SrcPort)
-		pbNetLog.DstPort = int32(nwlog.DstPort)
-		pbNetLog.SynFlag = nwlog.SynFlag
-		pbNetLog.IsReply = nwlog.IsReply
-		pbNetLog.DNSQuery = nwlog.DNSQuery
-		pbNetLog.DNSRes = nwlog.DNSRes
-		pbNetLog.DNSResIPs = nwlog.DNSResIPs
-		pbNetLog.HTTPMethod = nwlog.HTTPMethod
-		pbNetLog.HTTPPath = nwlog.HTTPPath
-		pbNetLog.Direction = nwlog.Direction
-		pbNetLog.Action = nwlog.Action
+		nwlogs := nwpolicy.GetNetworkLogs()
+		fmt.Printf("analyzerNetworkTest - nwlogs [%v]\n", nwlogs)
 
-		fmt.Printf("Converted PB nw log :%v\n", pbNetLog)
+		for _, nwlog := range nwlogs {
+			pbNetLog := apb.KnoxNetworkLog{}
+			pbNetLog.FlowID = int32(nwlog.FlowID)
+			pbNetLog.ClusterName = nwlog.ClusterName
+			pbNetLog.SrcNamespace = nwlog.SrcNamespace
+			pbNetLog.SrcPodName = nwlog.SrcPodName
+			pbNetLog.DstNamespace = nwlog.DstNamespace
+			pbNetLog.DstPodName = nwlog.DstPodName
+			pbNetLog.EtherType = int32(nwlog.EtherType)
+			pbNetLog.Protocol = int32(nwlog.Protocol)
+			pbNetLog.SrcIP = nwlog.SrcIP
+			pbNetLog.DstIP = nwlog.DstIP
+			pbNetLog.SrcPort = int32(nwlog.SrcPort)
+			pbNetLog.DstPort = int32(nwlog.DstPort)
+			pbNetLog.SynFlag = nwlog.SynFlag
+			pbNetLog.IsReply = nwlog.IsReply
+			pbNetLog.DNSQuery = nwlog.DNSQuery
+			pbNetLog.DNSRes = nwlog.DNSRes
+			pbNetLog.DNSResIPs = nwlog.DNSResIPs
+			pbNetLog.HTTPMethod = nwlog.HTTPMethod
+			pbNetLog.HTTPPath = nwlog.HTTPPath
+			pbNetLog.Direction = nwlog.Direction
+			pbNetLog.Action = nwlog.Action
 
-		netLogs.NwLog = append(netLogs.NwLog, &pbNetLog)
-	}
+			fmt.Printf("Converted PB nw log :%v\n", pbNetLog)
 
-	response, err := client.GetNetworkPolicies(context.Background(), &netLogs)
-	if err != nil {
-		log.Fatal("Error")
-	} else {
-		fmt.Printf("Network test Response : %v\n", response)
+			netLogs.NwLog = append(netLogs.NwLog, &pbNetLog)
+		}
+
+		response, err := client.GetNetworkPolicies(context.Background(), &netLogs)
+		if err != nil {
+			log.Fatal("Error")
+		} else {
+			fmt.Printf("Network test Response : %v\n", response)
+		}
 	}
 }
 
