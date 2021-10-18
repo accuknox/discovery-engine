@@ -2,28 +2,22 @@ package analyzer
 
 import (
 	"encoding/json"
-	"fmt"
 
 	apb "github.com/accuknox/knoxAutoPolicy/src/protobuf/v1/analyzer"
 	syspolicy "github.com/accuknox/knoxAutoPolicy/src/systempolicy"
 	types "github.com/accuknox/knoxAutoPolicy/src/types"
-	"github.com/rs/zerolog/log"
 )
 
 func extractSystemPoliciesFromSystemLogs(systemLogs []types.KnoxSystemLog) []*apb.KnoxSystemPolicy {
 
-	fmt.Printf("ESWAR extractSystemPoliciesFromSystemLogs -- %v\n", systemLogs)
-
 	pbSystemPolicies := []*apb.KnoxSystemPolicy{}
 	systemPolicies := syspolicy.PopulateSystemPoliciesFromSystemLogs(systemLogs)
-
-	fmt.Printf("systemPolicies : %v\n", systemPolicies)
 
 	for _, sysPolicy := range systemPolicies {
 		pbSysPolicy := apb.KnoxSystemPolicy{}
 		pbSysPolicyBytes, err := json.Marshal(sysPolicy)
 		if err != nil {
-			log.Printf("Failed to marshall : %v\n", err)
+			return nil
 		} else {
 			pbSysPolicy.SystemPolicy = pbSysPolicyBytes
 			pbSystemPolicies = append(pbSystemPolicies, &pbSysPolicy)
@@ -35,8 +29,6 @@ func extractSystemPoliciesFromSystemLogs(systemLogs []types.KnoxSystemLog) []*ap
 
 func populateSystemLogs(pbSysLogs []*apb.KnoxSystemLog) []types.KnoxSystemLog {
 	sysLogs := []types.KnoxSystemLog{}
-
-	fmt.Printf("\n ESWAR : populateSystemLogs -- ENTRY --  pbSysLogs: %v\n", pbSysLogs)
 
 	// Populate KnoxSystemLog from Protobuf's SystemLog
 	for _, pbSysLog := range pbSysLogs {
@@ -58,13 +50,11 @@ func populateSystemLogs(pbSysLogs []*apb.KnoxSystemLog) []types.KnoxSystemLog {
 		sysLogs = append(sysLogs, sysLog)
 	}
 
-	fmt.Printf("\n ESWAR : sysLogs : %v\n", sysLogs)
 	return sysLogs
 }
 
 func GetSystemPolicies(pbSystemLogs []*apb.KnoxSystemLog) []*apb.KnoxSystemPolicy {
 
-	fmt.Printf("\n GetSystemPolicies ENTRY -- : %v\n", pbSystemLogs)
 	systemLogs := populateSystemLogs(pbSystemLogs)
 	systemPolicies := extractSystemPoliciesFromSystemLogs(systemLogs)
 

@@ -564,33 +564,26 @@ func PopulateSystemPoliciesFromSystemLogs(sysLogs []types.KnoxSystemLog) []types
 
 	// delete duplicate logs
 	sysLogs = systemLogDeduplication(sysLogs)
-	log.Info().Msgf("PopulateSystemPoliciesFromSystemLogs sysLogs [%v]", sysLogs)
 
 	// get cluster names, iterate each cluster
 	clusteredLogs := clusteringSystemLogsByCluster(sysLogs)
-	log.Info().Msgf("PopulateSystemPoliciesFromSystemLogs clusteredLogs [%v]", clusteredLogs)
 
 	for clusterName, sysLogs := range clusteredLogs {
 		log.Info().Msgf("System policy discovery started for cluster [%s]", clusterName)
 
 		// get existing system policies in db
 		existingPolicies := libs.GetSystemPolicies(CfgDB, "", "")
-		log.Info().Msgf("PopulateSystemPoliciesFromSystemLogs - existingPolicies [%v]", existingPolicies)
 
 		// get k8s pods
 		pods := cluster.GetPods(clusterName)
-		log.Info().Msgf("PopulateSystemPoliciesFromSystemLogs - pods [%v]", pods)
 
 		// filter system logs from configuration
 		cfgFilteredLogs := FilterSystemLogsByConfig(sysLogs, pods)
-		log.Info().Msgf("\nPopulateSystemPoliciesFromSystemLogs - cfgFilteredLogs [%v]\n", cfgFilteredLogs)
 
 		// iterate sys log key := [namespace + pod_name]
 		nsPodLogs := clusteringSystemLogsByNamespacePod(cfgFilteredLogs)
-		log.Info().Msgf("\nPopulateSystemPoliciesFromSystemLogs - nsPodLogs [%v]\n", nsPodLogs)
 
 		for sysKey, perPodlogs := range nsPodLogs {
-			log.Info().Msgf("PopulateSystemPoliciesFromSystemLogs -- INSIDE FOR LOOP")
 			discoveredSysPolicies := []types.KnoxSystemPolicy{}
 
 			pod, err := getPodInstance(sysKey, pods)
@@ -601,14 +594,12 @@ func PopulateSystemPoliciesFromSystemLogs(sysLogs []types.KnoxSystemLog) []types
 
 			// 1. discover file operation system policy
 			if SystemPolicyTypes&SYS_OP_FILE_INT > 0 {
-				log.Info().Msgf("PopulateSystemPoliciesFromSystemLogs -- INSIDE IF 1")
 				fileOpLogs := getOperationLogs(SYS_OP_FILE, perPodlogs)
 				discoveredSysPolicies = discoverFileOperationPolicy(discoveredSysPolicies, pod, fileOpLogs)
 			}
 
 			// 2. discover process operation system policy
 			if SystemPolicyTypes&SYS_OP_PROCESS_INT > 0 {
-				log.Info().Msgf("PopulateSystemPoliciesFromSystemLogs -- INSIDE IF 2")
 				procOpLogs := getOperationLogs(SYS_OP_PROCESS, perPodlogs)
 				discoveredSysPolicies = discoverProcessOperationPolicy(discoveredSysPolicies, pod, procOpLogs)
 			}
@@ -621,7 +612,6 @@ func PopulateSystemPoliciesFromSystemLogs(sysLogs []types.KnoxSystemLog) []types
 			newPolicies := UpdateDuplicatedPolicy(existingPolicies, discoveredSysPolicies, clusterName)
 
 			if len(newPolicies) > 0 {
-				log.Info().Msgf("PopulateSystemPoliciesFromSystemLogs -- INSIDE IF 3")
 				// insert discovered policies to db
 				if strings.Contains(SystemPolicyTo, "db") {
 					libs.InsertSystemPolicies(CfgDB, newPolicies)

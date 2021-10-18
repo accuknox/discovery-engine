@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/rs/zerolog"
 
@@ -151,14 +150,12 @@ type analyzerServer struct {
 }
 
 func (s *analyzerServer) GetNetworkPolicies(ctx context.Context, in *apb.NetworkLogs) (*apb.NetworkPolicies, error) {
-	fmt.Printf("\n RPC ENTRY -- : %v\n", in.GetNwLog())
 	pbNetworkPolicies := apb.NetworkPolicies{}
 	pbNetworkPolicies.NwPolicies = analyzer.GetNetworkPolicies(in.GetNwLog())
 	return &pbNetworkPolicies, nil
 }
 
 func (s *analyzerServer) GetSystemPolicies(ctx context.Context, in *apb.SystemLogs) (*apb.SystemPolicies, error) {
-	fmt.Printf("\n RPC ENTRY -- : %v\n", in.GetSysLog())
 	pbSystemPolicies := apb.SystemPolicies{}
 	pbSystemPolicies.SysPolicies = analyzer.GetSystemPolicies(in.GetSysLog())
 	return &pbSystemPolicies, nil

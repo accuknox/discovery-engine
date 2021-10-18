@@ -2,8 +2,6 @@ package analyzer
 
 import (
 	"encoding/json"
-	"fmt"
-	"log"
 
 	netpolicy "github.com/accuknox/knoxAutoPolicy/src/networkpolicy"
 	apb "github.com/accuknox/knoxAutoPolicy/src/protobuf/v1/analyzer"
@@ -15,20 +13,17 @@ func extractNetworkPoliciesFromNetworkLogs(networkLogs []types.KnoxNetworkLog) [
 	pbNetPolicies := []*apb.KnoxNetworkPolicy{}
 	netPolicies := netpolicy.PopulateNetworkPoliciesFromNetworkLogs(networkLogs)
 
-	fmt.Printf("\n netPolicies -- : %v\n", netPolicies)
-
 	for _, netPolicy := range netPolicies {
 		pbNetPolicy := apb.KnoxNetworkPolicy{}
 		pbNetPolicyBytes, err := json.Marshal(netPolicy)
 		if err != nil {
-			log.Printf("Failed to marshall : %v\n", err)
+			return nil
 		} else {
 			pbNetPolicy.NetworkPolicy = pbNetPolicyBytes
 			pbNetPolicies = append(pbNetPolicies, &pbNetPolicy)
 		}
 	}
 
-	fmt.Printf("\n pbNetPolicies -- : %v\n", pbNetPolicies)
 	return pbNetPolicies
 }
 
@@ -63,7 +58,6 @@ func populateNetworkLogs(pbNetworkLog []*apb.KnoxNetworkLog) []types.KnoxNetwork
 		networkLogs = append(networkLogs, netLog)
 	}
 
-	fmt.Printf("\n populateNetworkLogs -- : %v\n", networkLogs)
 	return networkLogs
 }
 
