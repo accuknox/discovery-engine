@@ -159,10 +159,6 @@ type SysPath struct {
 	isDir bool
 }
 
-func GetSystemLogs() []types.KnoxSystemLog {
-	return getSystemLogs()
-}
-
 // ================ //st
 // == System Log == //
 // ================ //
