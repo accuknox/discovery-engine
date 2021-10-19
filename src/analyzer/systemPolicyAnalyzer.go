@@ -6,20 +6,115 @@ import (
 	types "github.com/accuknox/knoxAutoPolicy/src/types"
 )
 
-func populatePbSysPolicyFromSysPolicy(KnoxNwPolicy types.KnoxSystemPolicy) apb.KnoxSystemPolicy {
+func populatePbSysPolicyFromSysPolicy(KnoxSysPolicy types.KnoxSystemPolicy) apb.KnoxSystemPolicy {
 	pbSysPolicy := apb.KnoxSystemPolicy{}
+	pbProcKnoxMatchPaths := []*apb.KnoxMatchPaths{}
+	pbProcKnoxMatchDirectories := []*apb.KnoxMatchDirectories{}
+	pbFileKnoxMatchPaths := []*apb.KnoxMatchPaths{}
+	pbFileKnoxMatchDirectories := []*apb.KnoxMatchDirectories{}
 
-	pbSysPolicy.APIVersion = KnoxNwPolicy.APIVersion
-	pbSysPolicy.Kind = KnoxNwPolicy.Kind
-	pbSysPolicy.Metadata = KnoxNwPolicy.Metadata
-	pbSysPolicy.Outdated = KnoxNwPolicy.Outdated
-	pbSysPolicy.GeneratedTime = KnoxNwPolicy.GeneratedTime
+	pbKnoxMatchProtocols := []*apb.KnoxMatchProtocols{}
 
-	pbSysPolicy.SysSpec.Severity = int32(KnoxNwPolicy.Spec.Severity)
-	pbSysPolicy.SysSpec.Tags = append(pbSysPolicy.SysSpec.Tags, KnoxNwPolicy.Spec.Tags...)
-	pbSysPolicy.SysSpec.Message = KnoxNwPolicy.Spec.Message
-	pbSysPolicy.SysSpec.Action = KnoxNwPolicy.Spec.Action
+	pbSysPolicy.APIVersion = KnoxSysPolicy.APIVersion
+	pbSysPolicy.Kind = KnoxSysPolicy.Kind
+	pbSysPolicy.Metadata = KnoxSysPolicy.Metadata
+	pbSysPolicy.Outdated = KnoxSysPolicy.Outdated
 
+	// Spec
+	pbSysPolicy.SysSpec.Severity = int32(KnoxSysPolicy.Spec.Severity)
+	pbSysPolicy.SysSpec.Tags = append(pbSysPolicy.SysSpec.Tags, KnoxSysPolicy.Spec.Tags...)
+	pbSysPolicy.SysSpec.Message = KnoxSysPolicy.Spec.Message
+
+	// Spec Selector
+	pbSysPolicy.SysSpec.SystemSelector.MatchLabels = KnoxSysPolicy.Spec.Selector.MatchLabels
+
+	// KnoxSys Process -- MatchPaths
+	for _, procMatchPath := range KnoxSysPolicy.Spec.Process.MatchPaths {
+		pbKnoxMatchPath := apb.KnoxMatchPaths{}
+		pbKnoxMatchPath.Path = procMatchPath.Path
+		pbKnoxMatchPath.ReadOnly = procMatchPath.ReadOnly
+		pbKnoxMatchPath.OwnerOnly = procMatchPath.OwnerOnly
+		for _, knoxFromSource := range procMatchPath.FromSource {
+			pbKnoxFromSrc := apb.KnoxFromSource{}
+			pbKnoxFromSrc.Path = knoxFromSource.Path
+			pbKnoxFromSrc.Dir = knoxFromSource.Dir
+			pbKnoxFromSrc.Recursive = knoxFromSource.Recursive
+			pbKnoxMatchPath.FromSource = append(pbKnoxMatchPath.FromSource, &pbKnoxFromSrc)
+		}
+		pbProcKnoxMatchPaths = append(pbProcKnoxMatchPaths, &pbKnoxMatchPath)
+	}
+
+	// KnoxSys Process -- MatchDir
+	for _, procMatchDir := range KnoxSysPolicy.Spec.Process.MatchDirectories {
+		pbKnoxMatchDir := apb.KnoxMatchDirectories{}
+		pbKnoxMatchDir.Dir = procMatchDir.Dir
+		pbKnoxMatchDir.ReadOnly = procMatchDir.ReadOnly
+		pbKnoxMatchDir.OwnerOnly = procMatchDir.OwnerOnly
+		for _, knoxFromSource := range procMatchDir.FromSource {
+			pbKnoxFromSrc := apb.KnoxFromSource{}
+			pbKnoxFromSrc.Path = knoxFromSource.Path
+			pbKnoxFromSrc.Dir = knoxFromSource.Dir
+			pbKnoxFromSrc.Recursive = knoxFromSource.Recursive
+			pbKnoxMatchDir.FromSource = append(pbKnoxMatchDir.FromSource, &pbKnoxFromSrc)
+		}
+		pbProcKnoxMatchDirectories = append(pbProcKnoxMatchDirectories, &pbKnoxMatchDir)
+	}
+
+	// KnoxSys File -- MatchPaths
+	for _, fileMatchPath := range KnoxSysPolicy.Spec.File.MatchPaths {
+		pbKnoxMatchPath := apb.KnoxMatchPaths{}
+		pbKnoxMatchPath.Path = fileMatchPath.Path
+		pbKnoxMatchPath.ReadOnly = fileMatchPath.ReadOnly
+		pbKnoxMatchPath.OwnerOnly = fileMatchPath.OwnerOnly
+		for _, knoxFromSource := range fileMatchPath.FromSource {
+			pbKnoxFromSrc := apb.KnoxFromSource{}
+			pbKnoxFromSrc.Path = knoxFromSource.Path
+			pbKnoxFromSrc.Dir = knoxFromSource.Dir
+			pbKnoxFromSrc.Recursive = knoxFromSource.Recursive
+			pbKnoxMatchPath.FromSource = append(pbKnoxMatchPath.FromSource, &pbKnoxFromSrc)
+		}
+		pbFileKnoxMatchPaths = append(pbFileKnoxMatchPaths, &pbKnoxMatchPath)
+	}
+
+	// KnoxSys File -- MatchDir
+	for _, fileMatchDir := range KnoxSysPolicy.Spec.File.MatchDirectories {
+		pbKnoxMatchDir := apb.KnoxMatchDirectories{}
+		pbKnoxMatchDir.Dir = fileMatchDir.Dir
+		pbKnoxMatchDir.ReadOnly = fileMatchDir.ReadOnly
+		pbKnoxMatchDir.OwnerOnly = fileMatchDir.OwnerOnly
+		for _, knoxFromSource := range fileMatchDir.FromSource {
+			pbKnoxFromSrc := apb.KnoxFromSource{}
+			pbKnoxFromSrc.Path = knoxFromSource.Path
+			pbKnoxFromSrc.Dir = knoxFromSource.Dir
+			pbKnoxFromSrc.Recursive = knoxFromSource.Recursive
+			pbKnoxMatchDir.FromSource = append(pbKnoxMatchDir.FromSource, &pbKnoxFromSrc)
+		}
+		pbFileKnoxMatchDirectories = append(pbFileKnoxMatchDirectories, &pbKnoxMatchDir)
+	}
+
+	for _, matchProtocol := range KnoxSysPolicy.Spec.Network {
+		pbMatchProtocol := apb.KnoxMatchProtocols{}
+		pbMatchProtocol.Protocol = matchProtocol.Protocol
+		for _, fromSrc := range matchProtocol.FromSource {
+			pbFromSrc := apb.KnoxFromSource{}
+			pbFromSrc.Path = fromSrc.Path
+			pbFromSrc.Dir = fromSrc.Dir
+			pbFromSrc.Recursive = fromSrc.Recursive
+			pbMatchProtocol.FromSource = append(pbMatchProtocol.FromSource, &pbFromSrc)
+		}
+		pbKnoxMatchProtocols = append(pbKnoxMatchProtocols, &pbMatchProtocol)
+	}
+
+	pbSysPolicy.SysSpec.Process.MatchPaths = pbProcKnoxMatchPaths
+	pbSysPolicy.SysSpec.Process.MatchDirectories = pbProcKnoxMatchDirectories
+	pbSysPolicy.SysSpec.File.MatchPaths = pbFileKnoxMatchPaths
+	pbSysPolicy.SysSpec.File.MatchDirectories = pbFileKnoxMatchDirectories
+	pbSysPolicy.SysSpec.Network = pbKnoxMatchProtocols
+
+	// Spec Action
+	pbSysPolicy.SysSpec.Action = KnoxSysPolicy.Spec.Action
+
+	pbSysPolicy.GeneratedTime = KnoxSysPolicy.GeneratedTime
 	return pbSysPolicy
 }
 
