@@ -11,6 +11,7 @@ func populatePbNetPolicyFromNetPolicy(KnoxNwPolicy types.KnoxNetworkPolicy) apb.
 	pbEgresses := []*apb.Egress{}
 	pbIngressess := []*apb.Ingress{}
 	pbNetSpec := &apb.KnoxNetworkSpec{}
+	pbNetSelector := &apb.Selector{}
 
 	pbNwPolicy.APIVersion = KnoxNwPolicy.APIVersion
 	pbNwPolicy.Kind = KnoxNwPolicy.Kind
@@ -24,7 +25,8 @@ func populatePbNetPolicyFromNetPolicy(KnoxNwPolicy types.KnoxNetworkPolicy) apb.
 	pbNwPolicy.Outdated = KnoxNwPolicy.Outdated
 
 	// Spec
-	pbNetSpec.NetworkSelector.MatchLabels = KnoxNwPolicy.Spec.Selector.MatchLabels
+	pbNetSelector.MatchLabels = KnoxNwPolicy.Spec.Selector.MatchLabels
+	pbNetSpec.NetworkSelector = pbNetSelector
 
 	// Spec Egress
 	for _, egress := range KnoxNwPolicy.Spec.Egress {
@@ -126,6 +128,7 @@ func populatePbNetPolicyFromNetPolicy(KnoxNwPolicy types.KnoxNetworkPolicy) apb.
 
 	pbNwPolicy.NetSpec = pbNetSpec
 	pbNwPolicy.GeneratedTime = KnoxNwPolicy.GeneratedTime
+
 	return pbNwPolicy
 }
 

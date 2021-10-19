@@ -12,21 +12,27 @@ func populatePbSysPolicyFromSysPolicy(KnoxSysPolicy types.KnoxSystemPolicy) apb.
 	pbProcKnoxMatchDirectories := []*apb.KnoxMatchDirectories{}
 	pbFileKnoxMatchPaths := []*apb.KnoxMatchPaths{}
 	pbFileKnoxMatchDirectories := []*apb.KnoxMatchDirectories{}
-
 	pbKnoxMatchProtocols := []*apb.KnoxMatchProtocols{}
 
+	pbSysSpec := &apb.KnoxSystemSpec{}
+	pbSelector := &apb.Selector{}
+	pbProcessKnoxSys := &apb.KnoxSys{}
+	pbFileKnoxSys := &apb.KnoxSys{}
+
+	// Basic values
 	pbSysPolicy.APIVersion = KnoxSysPolicy.APIVersion
 	pbSysPolicy.Kind = KnoxSysPolicy.Kind
 	pbSysPolicy.Metadata = KnoxSysPolicy.Metadata
 	pbSysPolicy.Outdated = KnoxSysPolicy.Outdated
 
 	// Spec
-	pbSysPolicy.SysSpec.Severity = int32(KnoxSysPolicy.Spec.Severity)
-	pbSysPolicy.SysSpec.Tags = append(pbSysPolicy.SysSpec.Tags, KnoxSysPolicy.Spec.Tags...)
-	pbSysPolicy.SysSpec.Message = KnoxSysPolicy.Spec.Message
+	pbSysSpec.Severity = int32(KnoxSysPolicy.Spec.Severity)
+	pbSysSpec.Tags = append(pbSysPolicy.SysSpec.Tags, KnoxSysPolicy.Spec.Tags...)
+	pbSysSpec.Message = KnoxSysPolicy.Spec.Message
 
 	// Spec Selector
-	pbSysPolicy.SysSpec.SystemSelector.MatchLabels = KnoxSysPolicy.Spec.Selector.MatchLabels
+	pbSelector.MatchLabels = KnoxSysPolicy.Spec.Selector.MatchLabels
+	pbSysPolicy.SysSpec.SystemSelector = pbSelector
 
 	// KnoxSys Process -- MatchPaths
 	for _, procMatchPath := range KnoxSysPolicy.Spec.Process.MatchPaths {
@@ -92,6 +98,7 @@ func populatePbSysPolicyFromSysPolicy(KnoxSysPolicy types.KnoxSystemPolicy) apb.
 		pbFileKnoxMatchDirectories = append(pbFileKnoxMatchDirectories, &pbKnoxMatchDir)
 	}
 
+	// Spec -- Match Protocol
 	for _, matchProtocol := range KnoxSysPolicy.Spec.Network {
 		pbMatchProtocol := apb.KnoxMatchProtocols{}
 		pbMatchProtocol.Protocol = matchProtocol.Protocol
@@ -105,16 +112,22 @@ func populatePbSysPolicyFromSysPolicy(KnoxSysPolicy types.KnoxSystemPolicy) apb.
 		pbKnoxMatchProtocols = append(pbKnoxMatchProtocols, &pbMatchProtocol)
 	}
 
-	pbSysPolicy.SysSpec.Process.MatchPaths = pbProcKnoxMatchPaths
-	pbSysPolicy.SysSpec.Process.MatchDirectories = pbProcKnoxMatchDirectories
-	pbSysPolicy.SysSpec.File.MatchPaths = pbFileKnoxMatchPaths
-	pbSysPolicy.SysSpec.File.MatchDirectories = pbFileKnoxMatchDirectories
+	pbProcessKnoxSys.MatchPaths = pbProcKnoxMatchPaths
+	pbProcessKnoxSys.MatchDirectories = pbProcKnoxMatchDirectories
+	pbFileKnoxSys.MatchPaths = pbFileKnoxMatchPaths
+	pbFileKnoxSys.MatchDirectories = pbFileKnoxMatchDirectories
+
+	pbSysPolicy.SysSpec = pbSysSpec
+	pbSysPolicy.SysSpec.Process = pbProcessKnoxSys
+	pbSysPolicy.SysSpec.File = pbFileKnoxSys
+
 	pbSysPolicy.SysSpec.Network = pbKnoxMatchProtocols
 
 	// Spec Action
 	pbSysPolicy.SysSpec.Action = KnoxSysPolicy.Spec.Action
 
 	pbSysPolicy.GeneratedTime = KnoxSysPolicy.GeneratedTime
+
 	return pbSysPolicy
 }
 
