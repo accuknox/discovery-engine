@@ -1,12 +1,44 @@
 package analyzer
 
 import (
-	"encoding/json"
-
 	netpolicy "github.com/accuknox/knoxAutoPolicy/src/networkpolicy"
 	apb "github.com/accuknox/knoxAutoPolicy/src/protobuf/v1/analyzer"
 	types "github.com/accuknox/knoxAutoPolicy/src/types"
 )
+
+func populatePbNetPolicyFromNetPolicy(KnoxNwPolicy types.KnoxNetworkPolicy) apb.KnoxNetworkPolicy {
+	pbNwPolicy := apb.KnoxNetworkPolicy{}
+
+	pbNwPolicy.APIVersion = KnoxNwPolicy.APIVersion
+	pbNwPolicy.Kind = KnoxNwPolicy.Kind
+
+	// FlowIDs
+	for _, flowId := range KnoxNwPolicy.FlowIDs {
+		pbNwPolicy.FlowIDs = append(pbNwPolicy.FlowIDs, int32(flowId))
+	}
+
+	pbNwPolicy.Metadata = KnoxNwPolicy.Metadata
+	pbNwPolicy.Outdated = KnoxNwPolicy.Outdated
+
+	// Spec
+	pbNwPolicy.NetSpec.NetworkSelector.MatchLabels = KnoxNwPolicy.Spec.Selector.MatchLabels
+
+	// Spec Egress
+	for _, egress := range KnoxNwPolicy.Spec.Egress {
+		pbEgress := apb.Egress{}
+		pbEgress.MatchLabels = egress.MatchLabels
+	}
+
+	// Spec Ingress
+	for _, ingress := range KnoxNwPolicy.Spec.Ingress {
+		pbIngress := apb.Ingress{}
+		pbIngress.MatchLabels = ingress.MatchLabels
+		pbIngress.FromEntities = append(pbIngress.FromEntities, ingress.FromEntities...)
+	}
+
+	pbNwPolicy.GeneratedTime = KnoxNwPolicy.GeneratedTime
+	return pbNwPolicy
+}
 
 func extractNetworkPoliciesFromNetworkLogs(networkLogs []types.KnoxNetworkLog) []*apb.KnoxNetworkPolicy {
 
@@ -14,14 +46,8 @@ func extractNetworkPoliciesFromNetworkLogs(networkLogs []types.KnoxNetworkLog) [
 	netPolicies := netpolicy.PopulateNetworkPoliciesFromNetworkLogs(networkLogs)
 
 	for _, netPolicy := range netPolicies {
-		pbNetPolicy := apb.KnoxNetworkPolicy{}
-		pbNetPolicyBytes, err := json.Marshal(netPolicy)
-		if err != nil {
-			return nil
-		} else {
-			pbNetPolicy.NetworkPolicy = pbNetPolicyBytes
-			pbNetPolicies = append(pbNetPolicies, &pbNetPolicy)
-		}
+		pbNetPolicy := populatePbNetPolicyFromNetPolicy(netPolicy)
+		pbNetPolicies = append(pbNetPolicies, &pbNetPolicy)
 	}
 
 	return pbNetPolicies

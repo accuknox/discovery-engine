@@ -1,12 +1,27 @@
 package analyzer
 
 import (
-	"encoding/json"
-
 	apb "github.com/accuknox/knoxAutoPolicy/src/protobuf/v1/analyzer"
 	syspolicy "github.com/accuknox/knoxAutoPolicy/src/systempolicy"
 	types "github.com/accuknox/knoxAutoPolicy/src/types"
 )
+
+func populatePbSysPolicyFromSysPolicy(KnoxNwPolicy types.KnoxSystemPolicy) apb.KnoxSystemPolicy {
+	pbSysPolicy := apb.KnoxSystemPolicy{}
+
+	pbSysPolicy.APIVersion = KnoxNwPolicy.APIVersion
+	pbSysPolicy.Kind = KnoxNwPolicy.Kind
+	pbSysPolicy.Metadata = KnoxNwPolicy.Metadata
+	pbSysPolicy.Outdated = KnoxNwPolicy.Outdated
+	pbSysPolicy.GeneratedTime = KnoxNwPolicy.GeneratedTime
+
+	pbSysPolicy.SysSpec.Severity = int32(KnoxNwPolicy.Spec.Severity)
+	pbSysPolicy.SysSpec.Tags = append(pbSysPolicy.SysSpec.Tags, KnoxNwPolicy.Spec.Tags...)
+	pbSysPolicy.SysSpec.Message = KnoxNwPolicy.Spec.Message
+	pbSysPolicy.SysSpec.Action = KnoxNwPolicy.Spec.Action
+
+	return pbSysPolicy
+}
 
 func extractSystemPoliciesFromSystemLogs(systemLogs []types.KnoxSystemLog) []*apb.KnoxSystemPolicy {
 
@@ -14,14 +29,8 @@ func extractSystemPoliciesFromSystemLogs(systemLogs []types.KnoxSystemLog) []*ap
 	systemPolicies := syspolicy.PopulateSystemPoliciesFromSystemLogs(systemLogs)
 
 	for _, sysPolicy := range systemPolicies {
-		pbSysPolicy := apb.KnoxSystemPolicy{}
-		pbSysPolicyBytes, err := json.Marshal(sysPolicy)
-		if err != nil {
-			return nil
-		} else {
-			pbSysPolicy.SystemPolicy = pbSysPolicyBytes
-			pbSystemPolicies = append(pbSystemPolicies, &pbSysPolicy)
-		}
+		pbSysPolicy := populatePbSysPolicyFromSysPolicy(sysPolicy)
+		pbSystemPolicies = append(pbSystemPolicies, &pbSysPolicy)
 	}
 
 	return pbSystemPolicies
