@@ -10,7 +10,7 @@ func populatePbNetPolicyFromNetPolicy(KnoxNwPolicy types.KnoxNetworkPolicy) apb.
 	pbNwPolicy := apb.KnoxNetworkPolicy{}
 	pbEgresses := []*apb.Egress{}
 	pbIngressess := []*apb.Ingress{}
-	pbNetSpec := apb.KnoxNetworkSpec{}
+	pbNetSpec := &apb.KnoxNetworkSpec{}
 
 	pbNwPolicy.APIVersion = KnoxNwPolicy.APIVersion
 	pbNwPolicy.Kind = KnoxNwPolicy.Kind
@@ -124,7 +124,7 @@ func populatePbNetPolicyFromNetPolicy(KnoxNwPolicy types.KnoxNetworkPolicy) apb.
 	pbNetSpec.Egressess = pbEgresses
 	pbNetSpec.Ingressess = pbIngressess
 
-	pbNwPolicy.NetSpec = &pbNetSpec
+	pbNwPolicy.NetSpec = pbNetSpec
 	pbNwPolicy.GeneratedTime = KnoxNwPolicy.GeneratedTime
 	return pbNwPolicy
 }
