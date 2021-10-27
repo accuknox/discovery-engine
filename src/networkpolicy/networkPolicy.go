@@ -1515,28 +1515,13 @@ func DiscoverNetworkPolicy(namespace string,
 	return networkPolicies
 }
 
-func DiscoverNetworkPolicyMain() {
-	if NetworkWorkerStatus == STATUS_RUNNING {
-		return
-	} else {
-		NetworkWorkerStatus = STATUS_RUNNING
-	}
+func PopulateNetworkPoliciesFromNetworkLogs(sysLogs []types.KnoxNetworkLog) []types.KnoxNetworkPolicy {
 
-	defer func() {
-		NetworkWorkerStatus = STATUS_IDLE
-	}()
-
-	// init the configuration related to the network policy
-	InitNetPolicyDiscoveryConfiguration()
-
-	// get network logs
-	allNetworkLogs := getNetworkLogs()
-	if allNetworkLogs == nil || len(allNetworkLogs) < OperationTrigger {
-		return
-	}
+	discoveredNetworkPolicies := []types.KnoxNetworkPolicy{}
 
 	// get cluster names, iterate each cluster
-	clusteredLogs := clusteringNetworkLogs(allNetworkLogs)
+	clusteredLogs := clusteringNetworkLogs(sysLogs)
+
 	for clusterName, networkLogs := range clusteredLogs {
 		log.Info().Msgf("Network policy discovery started for cluster [%s]", clusterName)
 
@@ -1572,6 +1557,7 @@ func DiscoverNetworkPolicyMain() {
 
 			// discover network policies based on the network logs
 			discoveredNetPolicies := DiscoverNetworkPolicy(namespace, logsPerNamespace, services, endpoints, pods)
+			discoveredNetworkPolicies = append(discoveredNetworkPolicies, discoveredNetPolicies...)
 
 			// get existing network policies in db
 			existingNetPolicies := libs.GetNetworkPolicies(CfgDB, clusterName, namespace, "latest")
@@ -1597,6 +1583,32 @@ func DiscoverNetworkPolicyMain() {
 		// update cluster global variables
 		updateMultiClusterVariables(clusterName)
 	}
+
+	return discoveredNetworkPolicies
+}
+
+func DiscoverNetworkPolicyMain() {
+	if NetworkWorkerStatus == STATUS_RUNNING {
+		return
+	} else {
+		NetworkWorkerStatus = STATUS_RUNNING
+	}
+
+	defer func() {
+		NetworkWorkerStatus = STATUS_IDLE
+	}()
+
+	// init the configuration related to the network policy
+	InitNetPolicyDiscoveryConfiguration()
+
+	// get network logs
+	allNetworkLogs := getNetworkLogs()
+	if allNetworkLogs == nil || len(allNetworkLogs) < OperationTrigger {
+		return
+	}
+
+	PopulateNetworkPoliciesFromNetworkLogs(allNetworkLogs)
+
 }
 
 // ===================================== //

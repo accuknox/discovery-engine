@@ -1,0 +1,207 @@
+syntax = "proto3";
+
+package v1.analyzer;
+
+option go_package = "github.com/accuknox/knoxAutoPolicy/protos/v1/analyzer";
+
+service Analyzer {
+    rpc GetNetworkPolicies (NetworkLogs) returns (NetworkPolicies);
+    rpc GetSystemPolicies (SystemLogs) returns (SystemPolicies);
+}
+
+message NetworkLogs {
+    repeated KnoxNetworkLog NwLog = 1;
+}
+
+message NetworkPolicies {
+    repeated KnoxNetworkPolicy NwPolicies = 1;
+}
+
+message SystemLogs {
+    repeated KnoxSystemLog SysLog = 1;
+}
+
+message SystemPolicies {
+    repeated KnoxSystemPolicy SysPolicies = 1;
+}
+
+// ===== Common Messages ======= //
+
+message Selector {
+    map<string, string> MatchLabels = 1;
+}
+
+// ===== SYSTEM POLICY ======= //
+
+message KnoxSystemPolicy {
+    string APIVersion = 1;
+    string Kind = 2;
+    map<string, string> Metadata = 3;
+    string Outdated = 4;
+    KnoxSystemSpec SysSpec = 5;
+    int64 GeneratedTime = 6;    
+}
+
+message KnoxSystemSpec {
+    int32 Severity = 1;
+    repeated string Tags = 2;
+    string Message = 3;
+    Selector SystemSelector = 4;
+    KnoxSys Process = 5;
+    KnoxSys File = 6;
+    repeated KnoxMatchProtocols Network = 7;
+    string Action = 8;
+}
+
+message KnoxSys {
+    repeated KnoxMatchPaths MatchPaths = 1;
+    repeated KnoxMatchDirectories MatchDirectories = 2;
+}
+
+message KnoxMatchProtocols {
+    string Protocol = 1;
+    repeated KnoxFromSource FromSource = 2;
+}
+
+message KnoxMatchPaths {
+    string Path = 1;
+    bool ReadOnly = 2;
+    bool OwnerOnly = 3;
+    repeated KnoxFromSource FromSource = 4;
+}
+
+message KnoxMatchDirectories {
+    string Dir = 1;
+    bool ReadOnly = 2;
+    bool OwnerOnly = 3;
+    repeated KnoxFromSource FromSource = 4;
+}
+
+message KnoxFromSource {
+    string Path = 1;
+    string Dir = 2;
+    bool Recursive = 3;
+}
+
+// ===== SYSTEM POLICY ======= //
+
+// ===== NETWORK POLICY ======= //
+
+message KnoxNetworkPolicy {
+    string APIVersion = 1;
+    string Kind = 2;
+    repeated int32 FlowIDs = 3;
+    map<string, string> Metadata = 4;
+    string Outdated = 5;
+    KnoxNetworkSpec NetSpec = 6;
+    int64 GeneratedTime = 7;
+}
+
+message KnoxNetworkSpec {
+    Selector NetworkSelector = 1;
+    repeated Egress Egressess = 2;
+    repeated Ingress Ingressess = 3;
+    string Action = 4;
+}
+
+message Egress {
+    map<string, string> MatchLabels = 1;
+    repeated SpecPort ToPorts = 2;
+    repeated SpecCIDR ToCIDRs = 3;
+    repeated string ToEndtities = 4;
+    repeated SpecService ToServices = 5;
+    repeated SpecFQDN ToFQDNs = 6;
+    repeated SpecHTTP ToHTTPs = 7;
+}
+
+message SpecPort {
+    string Port = 1;
+    string Protocol = 2;
+}
+
+message SpecCIDR {
+    repeated string CIDRs = 1;
+    repeated string Except =2;
+}
+
+message SpecService {
+    string ServiceName = 1;
+    string Namespace = 2;
+}
+
+message SpecFQDN {
+    repeated string MatchNames = 1;
+}
+
+message SpecHTTP {
+    string Method = 1;
+    string Path = 2;
+    bool Aggregated = 3;
+}
+
+message Ingress {
+    map<string, string> MatchLabels = 1;
+    repeated SpecPort ToPorts = 2;
+    repeated SpecHTTP ToHTTPs = 3;
+    repeated SpecCIDR FromCIDRs = 4;
+    repeated string FromEntities = 5;
+}
+
+// ===== NETWORK POLICY ======= //
+
+
+// ===== SYSTEM POLICY ======= //
+/*
+message KnoxSystemPolicy {
+    bytes SystemPolicy = 1;
+}
+
+// ===== NETWORK POLICY ======= //
+message KnoxNetworkPolicy {
+    bytes NetworkPolicy = 1;
+}
+*/
+
+// ===== SYSTEM LOG ======= //
+
+message KnoxNetworkLog {
+	int32 FlowID = 1;
+	string ClusterName = 2;
+	string SrcNamespace = 3; 
+	string SrcPodName = 4;
+	string DstNamespace= 5 ;
+	string DstPodName = 6;
+	int32 EtherType = 7;
+	int32 Protocol = 8;
+	string SrcIP = 9;
+	string DstIP = 10;
+	int32 SrcPort = 11;
+	int32 DstPort = 12;
+	bool SynFlag = 13;
+	bool IsReply = 14;
+	string DNSQuery = 15;
+	string DNSRes = 16;
+	repeated string DNSResIPs = 17;
+	string HTTPMethod = 18;
+	string HTTPPath = 19;
+	string Direction = 20;
+	string Action = 21;
+}
+
+// ===== NETWORK LOG ======= //
+
+message KnoxSystemLog{
+    int32 LogID = 1;
+    string ClusterName = 2; 	
+    string HostName = 3;
+    string Namespace = 4;
+    string PodName = 5;	
+    string SourceOrigin = 6; 		
+    string Source = 7;
+    string Operation = 8;	
+    string ResourceOrigin = 9; 		
+    string Resource = 10;	
+    string Data = 11; 		
+    bool ReadOnly = 12;	 	
+    string Result = 13;			
+}
