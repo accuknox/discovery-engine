@@ -15,6 +15,7 @@ COPY ./src/types ./types
 COPY ./src/plugin ./plugin
 COPY ./src/protobuf ./protobuf
 COPY ./src/server ./server
+COPY ./src/analyzer ./analyzer
 
 COPY ./src/main.go ./main.go
 COPY ./src/go.mod ./go.mod
