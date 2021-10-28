@@ -1,4 +1,4 @@
-@Library('accuknox-shared-library@dev-build-security-gcr') _
+@Library('accuknox-shared-library@master') _
 pipelineExecute app_config: 'resources/build-info.yaml',
 dev_branch: "dev",
 verify_branch: "verify",
