@@ -149,28 +149,29 @@ helm_build:
 #Pass the repostiry url for docker helm and artifacts where images need to push
 #***********************************************************************************************************************************#
 publish_config:
-    publish_nexus_credentials: "agentswithnexus"
+    publish_nexus_credentials: "accunoxwithnexus"
     docker:
-      snapshot: agents.accuknox.com/repository/docker-snapshot
-      dev: agents.accuknox.com/repository/docker-dev
-      verify: agents.accuknox.com/repository/docker-verify
-      prod: agents.accuknox.com/repository
+      snapshot: artifactory.accuknox.com/repository/docker-snapshot
+      dev:  artifactory.accuknox.com/repository/docker-dev
+      verify:  artifactory.accuknox.com/repository/docker-verify
+      prod:  artifactory.accuknox.com/repository/docker-prod
     helm:
-      snapshot: https://agents.accuknox.com/repository/helm-snapshot/
-      dev: https://agents.accuknox.com/repository/helm-dev/
-      verify: https://agents.accuknox.com/repository/helm-verify/
-      prod: https://agents.accuknox.com/repository/helm-prod/
-      
+      snapshot: https://artifactory.accuknox.com/repository/helm-snapshot/
+      dev: https://artifactory.accuknox.com/repository/helm-dev/
+      verify: https://artifactory.accuknox.com/repository/helm-verify/
+      prod: https://artifactory.accuknox.com/repository/helm-prod/
+
+
 gcr_config:
   dev:
     project: 'mimetic-kit-294408'
-    gcr_credentials: 'gcr-creds'
+    gcr_credentials: 'gcr-prod'
   verify:
     project: 'mimetic-kit-294408'
-    gcr_credentials: 'gcr-creds'
+    gcr_credentials: 'gcr-prod'
   prod:
     project: 'mimetic-kit-294408'
-    gcr_credentials: 'gcr-creds'
+    gcr_credentials: 'gcr-prod'
     
 deploy_config:
   cd_credentials: "github-token"
