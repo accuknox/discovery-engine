@@ -5,7 +5,7 @@
 replicaCount: 1
 
 image:
-  repository: agents.accuknox.com/repository/snapshot/knoxautopolicy
+  repository: gcr.io/mimetic-kit-294408/snapshot/knoxautopolicy
   pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""
