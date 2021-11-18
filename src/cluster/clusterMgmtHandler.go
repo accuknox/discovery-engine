@@ -177,8 +177,8 @@ func GetServicesFromCluster(cluster types.Cluster) []types.Service {
 
 	url := "/cm/api/v1/cluster-management/get-service-details"
 	data := map[string]interface{}{
-		"WorkspaceID": cluster.WorkspaceID,
-		"ClusterID":   []int{cluster.ClusterID},
+		"workspace_id": cluster.WorkspaceID,
+		"cluster_id":   []int{cluster.ClusterID},
 	}
 
 	res := getResponseBytes("POST", url, data)
@@ -250,8 +250,8 @@ func GetEndpointsFromCluster(cluster types.Cluster) []types.Endpoint {
 
 	url := "/cm/api/v1/cluster-management/get-endpoints-details"
 	data := map[string]interface{}{
-		"WorkspaceID": cluster.WorkspaceID,
-		"ClusterID":   []int{cluster.ClusterID},
+		"workspace_id": cluster.WorkspaceID,
+		"cluster_id":   []int{cluster.ClusterID},
 	}
 
 	res := getResponseBytes("POST", url, data)
@@ -320,9 +320,9 @@ func GetPodsFromCluster(cluster types.Cluster) []types.Pod {
 
 	url := "/cm/api/v1/cluster-management/pods-in-node"
 	data := map[string]interface{}{
-		"WorkspaceID": cluster.WorkspaceID,
-		"ClusterID":   []int{cluster.ClusterID},
-		"Time":        0,
+		"workspace_id": cluster.WorkspaceID,
+		"cluster_id":   []int{cluster.ClusterID},
+		"Time":         0,
 	}
 
 	res := getResponseBytes("POST", url, data)
