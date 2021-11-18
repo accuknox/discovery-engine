@@ -2,9 +2,9 @@ name: ci-go
 
 on:
   push:
-    branches: [master,dev]
+    branches: [master,dev,AK-Dev]
   pull_request:
-    branches: [master,dev]
+    branches: [master,dev,AK-Dev]
 
 jobs:
   go-fmt:
