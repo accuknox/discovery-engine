@@ -3,8 +3,8 @@ package types
 // Cluster Structure
 type Cluster struct {
 	ClusterName string `json:"ClusterName" bson:"ClusterName"`
-	ClusterID   int    `json:"ClusterID" bson:"ClusterID"`
-	WorkspaceID int    `json:"WorkspaceID" bson:"WorkspaceID"`
+	ClusterID   int    `json:"cluster_id" bson:"ClusterID"`
+	WorkspaceID int    `json:"workspace_id" bson:"WorkspaceID"`
 	Location    string `json:"Location" bson:"Location"`
 }
 
