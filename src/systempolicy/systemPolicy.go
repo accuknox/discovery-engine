@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
-	"sync"
+	"time"
 
 	"github.com/accuknox/knoxAutoPolicy/src/cluster"
 	cfg "github.com/accuknox/knoxAutoPolicy/src/config"
@@ -58,7 +58,7 @@ var SystemWorkerStatus string
 
 // for cron job
 var SystemCronJob *cron.Cron
-var SystemWaitG sync.WaitGroup
+
 var SystemStopChan chan struct{} // for hubble
 var OperationTrigger int
 
@@ -80,7 +80,6 @@ var FileFromSource bool
 func init() {
 	SystemWorkerStatus = STATUS_IDLE
 	SystemStopChan = make(chan struct{})
-	SystemWaitG = sync.WaitGroup{}
 }
 
 // ====================== //
@@ -652,14 +651,19 @@ func DiscoverSystemPolicyMain() {
 // == System Policy Discovery Worker == //
 // ==================================== //
 
-func StartSystemCronJob() {
-	//if system log directly from kubearmor relay
-	if cfg.GetCfgSystemLogFrom() == "kubearmor" {
-		go plugin.StartKubeArmorRelay(SystemStopChan, &SystemWaitG, cfg.GetCfgKubeArmor())
-		SystemWaitG.Add(1)
-	} else if cfg.GetCfgSystemLogFrom() == "kafka" {
-		go feedconsumer.StartConsumer()
+func StartSystemLogRcvr() {
+	for {
+		if cfg.GetCfgSystemLogFrom() == "kubearmor" {
+			plugin.StartKubeArmorRelay(SystemStopChan, cfg.GetCfgKubeArmor())
+		} else if cfg.GetCfgSystemLogFrom() == "kafka" {
+			feedconsumer.StartConsumer()
+		}
+		time.Sleep(time.Second * 2)
 	}
+}
+
+func StartSystemCronJob() {
+	go StartSystemLogRcvr()
 
 	// init cron job
 	SystemCronJob = cron.New()
@@ -678,7 +682,6 @@ func StopSystemCronJob() {
 		log.Info().Msg("Got a signal to terminate the auto system policy discovery")
 
 		close(SystemStopChan)
-		SystemWaitG.Wait()
 
 		SystemCronJob.Stop() // Stop the scheduler (does not stop any jobs already running).
 

@@ -1,0 +1,49 @@
+application:
+  name: knoxautopolicy
+  network:
+    operation-mode: 2                         # 1: cronjob | 2: one-time-job
+    operation-trigger: 100
+    cron-job-time-interval: "0h0m10s"         # format: XhYmZs 
+    network-log-limit: 10000
+    network-log-from: "hubble"                # db|hubble|kafka
+      #network-log-file: "/home/rahul/feeds.json"           # file path
+    network-policy-to: "db|file"              # db, file
+    network-policy-dir: "./"
+  system:
+    operation-mode: 1                         # 1: cronjob | 2: one-time-job
+    operation-trigger: 5
+    cron-job-time-interval: "0h0m10s"         # format: XhYmZs
+    system-log-from: "kubearmor"                     # db|kubearmor|kafka
+    system-log-limit: 10000
+      #system-log-file: "./log.json"             # file path
+    system-policy-to: "db|file"               # db, file
+    system-policy-dir: "./"
+  cluster:
+    cluster-info-from: "k8sclient"            # k8sclient|accuknox
+    #cluster-mgmt-url: "http://cluster-management-service.accuknox-dev-cluster-mgmt.svc.cluster.local/cm"
+    cluster-mgmt-url: "http://localhost:8080"
+
+database:
+  driver: mysql
+  host: 127.0.0.1
+  port: 3306
+  user: root
+  password: password
+  dbname: accuknox
+  table-network-log: network_log
+  table-network-policy: network_policy
+  table-system-log: system_log
+  table-system-alert: system_alert
+  table-system-policy: system_policy
+
+logging:
+  level: "INFO"
+
+# kubectl -n kube-system port-forward service/hubble-relay --address 0.0.0.0 --address :: 4245:80
+cilium-hubble:
+  url: localhost
+  port: 4245
+
+kubearmor:
+  url: localhost
+  port: 32767
