@@ -305,12 +305,11 @@ func (cfc *KnoxFeedConsumer) processSystemLogMessage(message []byte) error {
 // =================== //
 
 func StartConsumer() {
-	numOfConsumers = viper.GetInt("feed-consumer.kafka.number-of-consumers")
-
 	if Status == STATUS_RUNNING {
-		log.Info().Msg("There is already running consumer(s)")
 		return
 	}
+
+	numOfConsumers = viper.GetInt("feed-consumer.kafka.number-of-consumers")
 
 	n := 0
 	log.Info().Msgf("%d Knox feed consumer(s) started", numOfConsumers)
