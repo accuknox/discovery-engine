@@ -1,5 +1,5 @@
 # KnoxAutoPolicy
-KnoxAutoPolicy is a policy recommendation system that suggests network and system policies based on the collected network and system logs respectively from the various container network interfaces (CNI) such as Cilium, Bastion, and Calico and container-aware runtime security enforcement system (CRSE) such as KubeArmor.
+KnoxAutoPolicy is a policy recommendation system that suggests network and system policies based on the collected network and system logs respectively from the various container network interfaces (CNI) such as Cilium adn KubeArmor.
 
 Basically, KnoxAutoPolicy operates as plug-ins because each CNI and CRSE employ their own scheme for the network log/policy and system log/policy. Thus, KnoxAutoPolicy can convert each scheme to Knox General Scheme (network log/policy and system log/policy) and vice versa. From these functionalities, we can minimize its dependency on each CNI and CRSE.
 
