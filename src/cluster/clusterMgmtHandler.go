@@ -60,6 +60,7 @@ func getResponseBytes(method string, url string, data map[string]interface{}) []
 		return nil
 	}
 
+	log.Info().Msgf("http request url: %s", url)
 	// create a new request using http [method; POST, GET]
 	req, err := http.NewRequest(method, url, bytes.NewBuffer(jsonData))
 	if err != nil {
@@ -77,6 +78,7 @@ func getResponseBytes(method string, url string, data map[string]interface{}) []
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: skipCertVerification},
 	}
 
+	dumpHttpClient(req, nil)
 	// send req using http Client
 	client := &http.Client{Transport: tr}
 	resp, err := client.Do(req)
@@ -84,7 +86,7 @@ func getResponseBytes(method string, url string, data map[string]interface{}) []
 		log.Error().Msgf("Error on response.\n[ERROR] - %s", err)
 		return nil
 	}
-	dumpHttpClient(req, resp)
+	dumpHttpClient(nil, resp)
 	defer resp.Body.Close()
 
 	// read response to []byte
