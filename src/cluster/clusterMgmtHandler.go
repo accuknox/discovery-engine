@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
+	"net/http/httputil"
 	"strconv"
 	"strings"
 
@@ -25,7 +26,26 @@ func init() {
 	log = logger.GetInstance()
 }
 
-func getResponseBytes(mothod string, url string, data map[string]interface{}) []byte {
+func dumpHttpClient(req *http.Request, rsp *http.Response) {
+	if req != nil {
+		dump, err := httputil.DumpRequestOut(req, true)
+		if err != nil {
+			log.Error().Msgf("Failed to dump request: %s", err.Error())
+		} else {
+			log.Info().Msgf("REQUEST:\n%q", dump)
+		}
+	}
+	if rsp != nil {
+		dump, err := httputil.DumpResponse(rsp, true)
+		if err != nil {
+			log.Error().Msgf("Failed to dump response: %s", err.Error())
+		} else {
+			log.Info().Msgf("RESPONSE:\n%q", dump)
+		}
+	}
+}
+
+func getResponseBytes(method string, url string, data map[string]interface{}) []byte {
 	if BaseURL == "" {
 		BaseURL = config.GetCfgClusterMgmtURL()
 	}
@@ -41,7 +61,7 @@ func getResponseBytes(mothod string, url string, data map[string]interface{}) []
 	}
 
 	// create a new request using http [method; POST, GET]
-	req, err := http.NewRequest(mothod, url, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequest(method, url, bytes.NewBuffer(jsonData))
 	if err != nil {
 		log.Error().Msgf("http reqeust error: %s", err.Error())
 		return nil
@@ -64,6 +84,7 @@ func getResponseBytes(mothod string, url string, data map[string]interface{}) []
 		log.Error().Msgf("Error on response.\n[ERROR] - %s", err)
 		return nil
 	}
+	dumpHttpClient(req, resp)
 	defer resp.Body.Close()
 
 	// read response to []byte
