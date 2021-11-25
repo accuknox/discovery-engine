@@ -1529,6 +1529,7 @@ func PopulateNetworkPoliciesFromNetworkLogs(sysLogs []types.KnoxNetworkLog) []ty
 		initMultiClusterVariables(clusterName)
 
 		// get k8s resources
+		log.Info().Msgf("GetAllClusterResources for cluster [%s]", clusterName)
 		namespaces, services, endpoints, pods, err := cluster.GetAllClusterResources(clusterName)
 		if err != nil {
 			log.Error().Msg(err.Error())
