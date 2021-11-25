@@ -1535,18 +1535,22 @@ func PopulateNetworkPoliciesFromNetworkLogs(sysLogs []types.KnoxNetworkLog) []ty
 			continue
 		}
 
+		log.Info().Msgf("updateDNSFlows for cluster [%s]", clusterName)
 		// update DNS req. flows, DNSToIPs map
 		updateDNSFlows(networkLogs)
 
+		log.Info().Msgf("updateServiceEndpoint for cluster [%s]", clusterName)
 		// update service ports (k8s service, endpoint, kube-dns)
 		updateServiceEndpoint(services, endpoints, pods)
 
+		log.Info().Msgf("FilterNetworkLogsByConfig for cluster [%s]", clusterName)
 		// filter ignoring network logs from configuration
 		filteredLogs := FilterNetworkLogsByConfig(networkLogs, pods)
 
 		// iterate each namespace
 		for _, namespace := range namespaces {
 			// get network logs by target namespace
+			log.Info().Msgf("FilterNetworkLogsByNamespace for cluster [%s] namespace [%s]", clusterName, namespace)
 			logsPerNamespace := FilterNetworkLogsByNamespace(namespace, filteredLogs)
 			if len(logsPerNamespace) == 0 {
 				continue
@@ -1555,13 +1559,16 @@ func PopulateNetworkPoliciesFromNetworkLogs(sysLogs []types.KnoxNetworkLog) []ty
 			// reset flow id track at each target namespace
 			clearTrackFlowIDMaps()
 
+			log.Info().Msgf("DiscoverNetworkPolicy for cluster [%s] namespace [%s]", clusterName, namespace)
 			// discover network policies based on the network logs
 			discoveredNetPolicies := DiscoverNetworkPolicy(namespace, logsPerNamespace, services, endpoints, pods)
 			discoveredNetworkPolicies = append(discoveredNetworkPolicies, discoveredNetPolicies...)
 
+			log.Info().Msgf("libs.GetNetworkPolicies for cluster [%s] namespace [%s]", clusterName, namespace)
 			// get existing network policies in db
 			existingNetPolicies := libs.GetNetworkPolicies(CfgDB, clusterName, namespace, "latest")
 
+			log.Info().Msgf("UpdateDuplicatedPolicy for cluster [%s] namespace [%s]", clusterName, namespace)
 			// update duplicated policy
 			newNetPolicies := UpdateDuplicatedPolicy(existingNetPolicies, discoveredNetPolicies, DomainToIPs, clusterName)
 
