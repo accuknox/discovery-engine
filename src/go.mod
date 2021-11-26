@@ -14,10 +14,9 @@ require (
 	github.com/cilium/cilium v1.9.0
 	github.com/confluentinc/confluent-kafka-go v1.6.1
 	github.com/go-sql-driver/mysql v1.5.0
-	github.com/golang/protobuf v1.4.3 // indirect
+	github.com/golang/protobuf v1.4.3
 	github.com/google/go-cmp v0.5.3
 	github.com/kubearmor/KubeArmor/protobuf v0.0.0-20210812055730-4a539401e3d9
-	github.com/nyrahul/turnip v0.0.0-20210920174037-12f7fbdd392e
 	github.com/robfig/cron v1.2.0
 	github.com/rs/zerolog v1.25.0
 	github.com/spf13/viper v1.6.1

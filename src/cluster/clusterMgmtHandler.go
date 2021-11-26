@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
+	"net/http/httputil"
 	"strconv"
 	"strings"
 
@@ -25,7 +26,26 @@ func init() {
 	log = logger.GetInstance()
 }
 
-func getResponseBytes(mothod string, url string, data map[string]interface{}) []byte {
+func dumpHttpClient(req *http.Request, rsp *http.Response) {
+	if req != nil {
+		dump, err := httputil.DumpRequestOut(req, true)
+		if err != nil {
+			log.Error().Msgf("Failed to dump request: %s", err.Error())
+		} else {
+			log.Info().Msgf("REQUEST:\n%q", dump)
+		}
+	}
+	if rsp != nil {
+		dump, err := httputil.DumpResponse(rsp, true)
+		if err != nil {
+			log.Error().Msgf("Failed to dump response: %s", err.Error())
+		} else {
+			log.Info().Msgf("RESPONSE:\n%q", dump)
+		}
+	}
+}
+
+func getResponseBytes(method string, url string, data map[string]interface{}) []byte {
 	if BaseURL == "" {
 		BaseURL = config.GetCfgClusterMgmtURL()
 	}
@@ -40,8 +60,9 @@ func getResponseBytes(mothod string, url string, data map[string]interface{}) []
 		return nil
 	}
 
+	log.Info().Msgf("http request url: %s", url)
 	// create a new request using http [method; POST, GET]
-	req, err := http.NewRequest(mothod, url, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequest(method, url, bytes.NewBuffer(jsonData))
 	if err != nil {
 		log.Error().Msgf("http reqeust error: %s", err.Error())
 		return nil
@@ -57,6 +78,7 @@ func getResponseBytes(mothod string, url string, data map[string]interface{}) []
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: skipCertVerification},
 	}
 
+	dumpHttpClient(req, nil)
 	// send req using http Client
 	client := &http.Client{Transport: tr}
 	resp, err := client.Do(req)
@@ -64,6 +86,7 @@ func getResponseBytes(mothod string, url string, data map[string]interface{}) []
 		log.Error().Msgf("Error on response.\n[ERROR] - %s", err)
 		return nil
 	}
+	dumpHttpClient(nil, resp)
 	defer resp.Body.Close()
 
 	// read response to []byte
@@ -177,8 +200,8 @@ func GetServicesFromCluster(cluster types.Cluster) []types.Service {
 
 	url := "/cm/api/v1/cluster-management/get-service-details"
 	data := map[string]interface{}{
-		"workspace_id": cluster.WorkspaceID,
-		"cluster_id":   []int{cluster.ClusterID},
+		"WorkspaceID": cluster.WorkspaceID,
+		"ClusterID":   []int{cluster.ClusterID},
 	}
 
 	res := getResponseBytes("POST", url, data)
@@ -250,8 +273,8 @@ func GetEndpointsFromCluster(cluster types.Cluster) []types.Endpoint {
 
 	url := "/cm/api/v1/cluster-management/get-endpoints-details"
 	data := map[string]interface{}{
-		"workspace_id": cluster.WorkspaceID,
-		"cluster_id":   []int{cluster.ClusterID},
+		"WorkspaceID": cluster.WorkspaceID,
+		"ClusterID":   []int{cluster.ClusterID},
 	}
 
 	res := getResponseBytes("POST", url, data)

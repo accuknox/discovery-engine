@@ -150,11 +150,11 @@ func ConnectKubeArmorRelay(cfg types.ConfigKubeArmorRelay) *grpc.ClientConn {
 
 	conn, err := grpc.Dial(addr, grpc.WithInsecure())
 	if err != nil {
-		log.Error().Err(err)
+		log.Error().Msg("err connecting kubearmor relay. " + err.Error())
 		return nil
 	}
 
-	log.Info().Msg("connected to KubeArmor Relay")
+	log.Info().Msg("connected to kubearmor relay " + addr)
 	return conn
 }
 
@@ -184,9 +184,15 @@ func GetSystemAlertsFromKubeArmorRelay(trigger int) []*pb.Log {
 	return results
 }
 
-func StartKubeArmorRelay(StopChan chan struct{}, wg *sync.WaitGroup, cfg types.ConfigKubeArmorRelay) {
+var KubeArmorRelayStarted = false
+
+func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay) {
+	if KubeArmorRelayStarted {
+		// log.Info().Msg("kubearmor relay already started")
+		return
+	}
+	KubeArmorRelayStarted = true
 	conn := ConnectKubeArmorRelay(cfg)
-	defer wg.Done()
 
 	client := pb.NewLogServiceClient(conn)
 
@@ -194,63 +200,75 @@ func StartKubeArmorRelay(StopChan chan struct{}, wg *sync.WaitGroup, cfg types.C
 
 	//Stream Logs
 	go func(client pb.LogServiceClient) {
-		defer conn.Close()
-		if stream, err := client.WatchLogs(context.Background(), &req); err == nil {
-			for {
-				select {
-				case <-StopChan:
-					return
-
-				default:
-					res, err := stream.Recv()
-					if err != nil {
-						log.Error().Msg("system log stream stopped: " + err.Error())
-					}
-
-					KubeArmorRelayLogsMutex.Lock()
-					KubeArmorRelayLogs = append(KubeArmorRelayLogs, res)
-					KubeArmorRelayLogsMutex.Unlock()
-				}
-			}
-		} else {
+		defer func() {
+			log.Info().Msg("watchlogs returning")
+			KubeArmorRelayStarted = false
+			_ = conn.Close()
+		}()
+		stream, err := client.WatchLogs(context.Background(), &req)
+		if err != nil {
 			log.Error().Msg("unable to stream systems logs: " + err.Error())
+			return
+		}
+		for {
+			select {
+			case <-StopChan:
+				return
+
+			default:
+				res, err := stream.Recv()
+				if err != nil {
+					log.Error().Msg("watch logs stream stopped: " + err.Error())
+					return
+				}
+
+				KubeArmorRelayLogsMutex.Lock()
+				KubeArmorRelayLogs = append(KubeArmorRelayLogs, res)
+				KubeArmorRelayLogsMutex.Unlock()
+			}
 		}
 	}(client)
 
 	//Stream Alerts
 	go func() {
-		defer conn.Close()
-		if stream, err := client.WatchAlerts(context.Background(), &req); err == nil {
-			for {
-				select {
-				case <-StopChan:
-					return
-
-				default:
-					res, err := stream.Recv()
-					if err != nil {
-						log.Error().Msg("system alerts stream stopped: " + err.Error())
-					}
-
-					log := pb.Log{
-						ClusterName:   res.ClusterName,
-						HostName:      res.HostName,
-						NamespaceName: res.NamespaceName,
-						PodName:       res.PodName,
-						Source:        res.Source,
-						Operation:     res.Operation,
-						Resource:      res.Resource,
-						Data:          res.Data,
-						Result:        res.Result,
-					}
-
-					KubeArmorRelayLogsMutex.Lock()
-					KubeArmorRelayLogs = append(KubeArmorRelayLogs, &log)
-					KubeArmorRelayLogsMutex.Unlock()
-				}
-			}
-		} else {
+		defer func() {
+			log.Info().Msg("watchalerts returning")
+			KubeArmorRelayStarted = false
+			_ = conn.Close()
+		}()
+		stream, err := client.WatchAlerts(context.Background(), &req)
+		if err != nil {
 			log.Error().Msg("unable to stream systems alerts: " + err.Error())
+			return
+		}
+		for {
+			select {
+			case <-StopChan:
+				return
+
+			default:
+				res, err := stream.Recv()
+				if err != nil {
+					log.Error().Msg("system alerts stream stopped: " + err.Error())
+					return
+				}
+
+				log := pb.Log{
+					ClusterName:   res.ClusterName,
+					HostName:      res.HostName,
+					NamespaceName: res.NamespaceName,
+					PodName:       res.PodName,
+					Source:        res.Source,
+					Operation:     res.Operation,
+					Resource:      res.Resource,
+					Data:          res.Data,
+					Result:        res.Result,
+				}
+
+				KubeArmorRelayLogsMutex.Lock()
+				KubeArmorRelayLogs = append(KubeArmorRelayLogs, &log)
+				KubeArmorRelayLogsMutex.Unlock()
+			}
 		}
 	}()
 }

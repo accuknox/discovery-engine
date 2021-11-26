@@ -1,33 +1,16 @@
 ### Builder
 
-FROM golang:1.15.2-buster as builder
+FROM golang:1.15.3-buster as builder
 
 WORKDIR /usr/src/knox
 
-COPY ./libs ./libs
-COPY ./logging ./logging
-COPY ./feedconsumer ./feedconsumer
-COPY ./config ./config
-COPY ./cluster ./cluster
-COPY ./networkpolicy ./networkpolicy
-COPY ./systempolicy ./systempolicy
-COPY ./types ./types
-COPY ./plugin ./plugin
-COPY ./protobuf ./protobuf
-COPY ./server ./server
+COPY . .
 
-COPY ./main.go ./main.go
-COPY ./go.mod ./go.mod
+RUN cd src && make
 
-#RUN go mod download
-RUN go build -o knoxAutoPolicy main.go
+FROM ubuntu:22.04
 
-### Make executable image
-
-FROM debian:buster
-#FROM artifactory.accuknox.com/accuknox/ubuntu:bionic-20210512 
-
-COPY conf/local.yaml conf/local.yaml
-COPY --from=builder /usr/src/knox/knoxAutoPolicy /knoxAutoPolicy
+COPY --from=builder /usr/src/knox/src/knoxAutoPolicy /knoxAutoPolicy
+COPY --from=builder /usr/src/knox/src/conf/local.yaml /conf/conf.yaml
 
 ENTRYPOINT ["/knoxAutoPolicy"]
