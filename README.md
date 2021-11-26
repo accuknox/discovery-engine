@@ -1,5 +1,5 @@
 # KnoxAutoPolicy
-KnoxAutoPolicy is a policy recommendation system that suggests network and system policies based on the collected network and system logs respectively from the various container network interfaces (CNI) such as Cilium, Bastion, and Calico and container-aware runtime security enforcement system (CRSE) such as KubeArmor.
+KnoxAutoPolicy is a policy recommendation system that suggests network and system policies based on the collected network and system logs respectively from the various container network interfaces (CNI) such as Cilium adn KubeArmor.
 
 Basically, KnoxAutoPolicy operates as plug-ins because each CNI and CRSE employ their own scheme for the network log/policy and system log/policy. Thus, KnoxAutoPolicy can convert each scheme to Knox General Scheme (network log/policy and system log/policy) and vice versa. From these functionalities, we can minimize its dependency on each CNI and CRSE.
 
@@ -7,7 +7,7 @@ KnoxAutoPolicy is designed for Kubernetes environments; it focuses on pods/servi
 
 Currently, KnoxAutoPolicy can discover (i) egress/ingress network policy for Pod-to- Pod, (External)Service, Entity, CIDR, FQDN, HTTP. Further detail is available [here](./getting-started/knox_network_policy_specification.md). And, KnoxAutoPolicy can discover (ii) process, file, and network-relevant system policy.
 
-<center><img src=./getting-started/resources/autopolicy_overview.png></center>
+
 
 # Functionality Overview
 
@@ -16,9 +16,7 @@ Currently, KnoxAutoPolicy can discover (i) egress/ingress network policy for Pod
 When discovering the network policies, if we generate the policies applied to a single pod statically, there would be lots of network policies. In contrast, KnoxAutoPolicy produces the minimum network policy set that can cover the maximum network flows so that we can manage the network policies more efficiently and effectively.
 For example, KnoxAutoPolicy collects the label information of the pods, and then computes the intersection of labels, which is the most included in the source (or destination) pods.
 
-* Integrate with container network interfaces (CNIs)
-
-Basically, Kubernetes can employ 3-party container network interfaces for managing their network systems such as Cilium, Calico, and Bastion. Thus, each CNI maintains its own network log and network policy schemes. To generalize each one, KnoxAutoPolicy defines the general Knox schemes for the network logs and network policies and provides the converters to translate the CNI's ones to the Knox scheme and vice versa. 
+* Integrate with Cilium
 
 * Identify overlapped network policy
 
