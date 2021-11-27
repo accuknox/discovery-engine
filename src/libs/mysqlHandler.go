@@ -35,8 +35,8 @@ func waitForDB(db *sql.DB) {
 	for {
 		err := db.Ping()
 		if err != nil {
-			log.Error().Msg("Cannot reach the database, Retrying.")
 			time.Sleep(time.Second * 1)
+			log.Error().Msgf("db.Ping() failed. Will retry. err=%s", err.Error())
 		} else {
 			break
 		}
@@ -48,11 +48,13 @@ func connectMySQL(cfg types.ConfigDB) (db *sql.DB) {
 		return MockDB
 	}
 
-	db, err := sql.Open(cfg.DBDriver, cfg.DBUser+":"+cfg.DBPass+"@tcp("+cfg.DBHost+":"+cfg.DBPort+")/"+cfg.DBName)
+	dbconn := cfg.DBUser + ":" + cfg.DBPass + "@tcp(" + cfg.DBHost + ":" + cfg.DBPort + ")/" + cfg.DBName
+	db, err := sql.Open(cfg.DBDriver, dbconn)
 	for err != nil {
-		log.Error().Msg("connection error :" + err.Error())
+		log.Error().Msgf("mysql driver:%s, user:%s, host:%s, port:%s, dbname:%s conn-error:%s",
+			cfg.DBDriver, cfg.DBUser, cfg.DBHost, cfg.DBPort, cfg.DBName, err.Error())
 		time.Sleep(time.Second * 1)
-		db, err = sql.Open(cfg.DBDriver, cfg.DBUser+":"+cfg.DBPass+"@tcp("+cfg.DBHost+":"+cfg.DBPort+")/"+cfg.DBName)
+		db, err = sql.Open(cfg.DBDriver, dbconn)
 	}
 
 	db.SetMaxIdleConns(0)

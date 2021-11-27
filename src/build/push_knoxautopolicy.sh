@@ -1,7 +1,7 @@
 #!/bin/bash
 
 AUTOPOL_HOME=`dirname $(realpath "$0")`/../..
-[[ "$REPO" == "" ]] && REPO="accuknox/knoxautopolicy",
+[[ "$REPO" == "" ]] && REPO="accuknox/knoxautopolicy"
 
 # check version
 VERSION=dev
