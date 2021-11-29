@@ -708,10 +708,24 @@ func GetCiliumFlowsFromHubble(trigger int) []*cilium.Flow {
 	return results
 }
 
-func StartHubbleRelay(StopChan chan struct{}, wg *sync.WaitGroup, cfg types.ConfigCiliumHubble) {
+var HubbleRelayStarted = false
+
+func StartHubbleRelay(StopChan chan struct{}, cfg types.ConfigCiliumHubble) {
+	if HubbleRelayStarted {
+		return
+	}
 	conn := ConnectHubbleRelay(cfg)
-	defer conn.Close()
-	defer wg.Done()
+	if conn == nil {
+		log.Error().Msg("ConnectHubbleRelay() failed")
+		return
+	}
+	HubbleRelayStarted = true
+
+	defer func() {
+		log.Info().Msg("hubble relay stream rcvr returning")
+		HubbleRelayStarted = false
+		_ = conn.Close()
+	}()
 
 	client := observer.NewObserverClient(conn)
 
@@ -723,31 +737,32 @@ func StartHubbleRelay(StopChan chan struct{}, wg *sync.WaitGroup, cfg types.Conf
 		Until:     nil,
 	}
 
-	if stream, err := client.GetFlows(context.Background(), req); err == nil {
-		for {
-			select {
-			case <-StopChan:
+	stream, err := client.GetFlows(context.Background(), req)
+	if err != nil {
+		log.Error().Msg("Unable to stream network flow: " + err.Error())
+		return
+	}
+	for {
+		select {
+		case <-StopChan:
+			return
+
+		default:
+			res, err := stream.Recv()
+			if err != nil {
+				log.Error().Msg("Cilium network flow stream stopped: " + err.Error())
 				return
+			}
 
-			default:
-				res, err := stream.Recv()
-				if err != nil {
-					log.Error().Msg("Cilium network flow stream stopped: " + err.Error())
-					return
-				}
+			switch r := res.ResponseTypes.(type) {
+			case *observer.GetFlowsResponse_Flow:
+				flow := r.Flow
 
-				switch r := res.ResponseTypes.(type) {
-				case *observer.GetFlowsResponse_Flow:
-					flow := r.Flow
-
-					CiliumFlowsMutex.Lock()
-					CiliumFlows = append(CiliumFlows, flow)
-					CiliumFlowsMutex.Unlock()
-				}
+				CiliumFlowsMutex.Lock()
+				CiliumFlows = append(CiliumFlows, flow)
+				CiliumFlowsMutex.Unlock()
 			}
 		}
-	} else {
-		log.Error().Msg("Unable to stream network flow: " + err.Error())
 	}
 }
 
