@@ -75,6 +75,7 @@ func getResponseBytes(method string, url string, data map[string]interface{}) []
 	// skip certificate verification
 	skipCertVerification := config.GetCfgNetworkSkipCertVerification()
 	tr := &http.Transport{
+		// #nosec G402
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: skipCertVerification},
 	}
 
