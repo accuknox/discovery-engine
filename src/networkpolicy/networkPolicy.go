@@ -5,7 +5,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/accuknox/knoxAutoPolicy/src/cluster"
@@ -73,7 +72,8 @@ var NetworkWorkerStatus string
 
 // for cron job
 var NetworkCronJob *cron.Cron
-var NetworkWaitG sync.WaitGroup
+
+// var NetworkWaitG sync.WaitGroup
 var NetworkStopChan chan struct{} // for hubble
 var OperationTrigger int
 var CfgDB types.ConfigDB
@@ -99,7 +99,7 @@ var NamespaceFilters []string
 func init() {
 	NetworkWorkerStatus = STATUS_IDLE
 	NetworkStopChan = make(chan struct{})
-	NetworkWaitG = sync.WaitGroup{}
+	// NetworkWaitG = sync.WaitGroup{}
 }
 
 func InitNetPolicyDiscoveryConfiguration() {
@@ -1623,15 +1623,19 @@ func DiscoverNetworkPolicyMain() {
 // == Network Policy Discovery Worker == //
 // ===================================== //
 
-func StartNetworkCronJob() {
-	// if network from hubble
-	if cfg.GetCfgNetworkLogFrom() == "hubble" {
-		go plugin.StartHubbleRelay(NetworkStopChan, &NetworkWaitG, cfg.GetCfgCiliumHubble())
-		NetworkWaitG.Add(1)
-	} else if cfg.GetCfgNetworkLogFrom() == "kafka" {
-		go feedconsumer.StartConsumer()
-		NetworkWaitG.Add(1)
+func StartNetworkLogRcvr() {
+	for {
+		if cfg.GetCfgNetworkLogFrom() == "hubble" {
+			plugin.StartHubbleRelay(NetworkStopChan /* &NetworkWaitG, */, cfg.GetCfgCiliumHubble())
+		} else if cfg.GetCfgNetworkLogFrom() == "kafka" {
+			feedconsumer.StartConsumer()
+		}
+		time.Sleep(time.Second * 2)
 	}
+}
+
+func StartNetworkCronJob() {
+	go StartNetworkLogRcvr()
 
 	// init cron job
 	NetworkCronJob = cron.New()
@@ -1650,7 +1654,7 @@ func StopNetworkCronJob() {
 		log.Info().Msg("Got a signal to terminate the auto network policy discovery")
 
 		close(NetworkStopChan)
-		NetworkWaitG.Wait()
+		// NetworkWaitG.Wait()
 
 		NetworkCronJob.Stop() // Stop the scheduler (does not stop any jobs already running).
 

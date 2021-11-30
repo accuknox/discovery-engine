@@ -3,7 +3,7 @@
 AUTOPOL_HOME=`dirname $(realpath "$0")`/../..
 cd $AUTOPOL_HOME
 AUTOPOL_SRC_HOME=$AUTOPOL_HOME/src
-[[ "$REPO" == "" ]] && REPO="accuknox/knoxautopolicy",
+[[ "$REPO" == "" ]] && REPO="accuknox/knoxautopolicy"
 
 # check version
 

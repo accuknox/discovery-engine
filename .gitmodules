@@ -1,3 +1,0 @@
-[submodule "deployments"]
-	path = deployments
-	url = https://github.com/accuknox/knoxAutoPolicy-deployment
