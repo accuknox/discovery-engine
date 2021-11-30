@@ -7,7 +7,7 @@ Auto Policy Discovery is designed for Kubernetes environments; it focuses on pod
 
 Currently, it can discover (i) egress/ingress network policy for Pod-to- Pod, (External)Service, Entity, CIDR, FQDN, HTTP. Further detail is available [here](./getting-started/knox_network_policy_specification.md). And, it can also discover (ii) process, file, and network-relevant system policy.
 
-
+![Alt test](./getting-started/resources/policy-discovery.png "High Level Design")
 
 # Functionality Overview
 
