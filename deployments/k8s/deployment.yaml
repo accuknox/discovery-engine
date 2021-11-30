@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: knoxautopolicy
+  labels:
+    deployment: knoxautopolicy
+spec:
+  selector:
+    matchLabels:
+      container: knoxautopolicy
+  template:
+    metadata:
+      labels:
+        container: knoxautopolicy
+    spec:
+      serviceAccountName: knoxautopolicy
+      containers:
+      - image: accuknox/knoxautopolicy:dev
+        #image: accuknox/knoxautopolicy:latest
+        name: knoxautopolicy
+        ports:
+        - containerPort: 9089
+          protocol: TCP
+        volumeMounts:
+          - mountPath: /conf
+            name: config-volume
+            readOnly: true
+      volumes:
+        - name: config-volume
+          configMap:
+            name: knoxautopolicy-config
+
