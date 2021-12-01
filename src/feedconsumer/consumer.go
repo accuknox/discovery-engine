@@ -11,9 +11,9 @@ import (
 
 	"github.com/spf13/viper"
 
-	logger "github.com/accuknox/knoxAutoPolicy/src/logging"
-	"github.com/accuknox/knoxAutoPolicy/src/plugin"
-	types "github.com/accuknox/knoxAutoPolicy/src/types"
+	logger "github.com/accuknox/auto-policy-discovery/src/logging"
+	"github.com/accuknox/auto-policy-discovery/src/plugin"
+	types "github.com/accuknox/auto-policy-discovery/src/types"
 	cilium "github.com/cilium/cilium/api/v1/flow"
 	pb "github.com/kubearmor/KubeArmor/protobuf"
 	"google.golang.org/protobuf/types/known/timestamppb"

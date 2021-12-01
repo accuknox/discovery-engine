@@ -1,9 +1,9 @@
 package analyzer
 
 import (
-	apb "github.com/accuknox/knoxAutoPolicy/src/protobuf/v1/analyzer"
-	syspolicy "github.com/accuknox/knoxAutoPolicy/src/systempolicy"
-	types "github.com/accuknox/knoxAutoPolicy/src/types"
+	apb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/analyzer"
+	syspolicy "github.com/accuknox/auto-policy-discovery/src/systempolicy"
+	types "github.com/accuknox/auto-policy-discovery/src/types"
 )
 
 func populatePbSysPolicyFromSysPolicy(KnoxSysPolicy types.KnoxSystemPolicy) apb.KnoxSystemPolicy {

@@ -1,4 +1,4 @@
-module github.com/accuknox/knoxAutoPolicy/src
+module github.com/accuknox/auto-policy-discovery/src
 
 go 1.15
 

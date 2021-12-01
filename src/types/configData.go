@@ -2,7 +2,7 @@ package types
 
 var MockConfigYaml = []byte(`
 application:
-  name: knoxautopolicy
+  name: auto-policy-discovery
   network:
     operation-mode: 2
     cron-job-time-interval: "@every 0h0m10s"

@@ -7,13 +7,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/accuknox/knoxAutoPolicy/src/cluster"
-	cfg "github.com/accuknox/knoxAutoPolicy/src/config"
-	"github.com/accuknox/knoxAutoPolicy/src/feedconsumer"
-	"github.com/accuknox/knoxAutoPolicy/src/libs"
-	logger "github.com/accuknox/knoxAutoPolicy/src/logging"
-	"github.com/accuknox/knoxAutoPolicy/src/plugin"
-	"github.com/accuknox/knoxAutoPolicy/src/types"
+	"github.com/accuknox/auto-policy-discovery/src/cluster"
+	cfg "github.com/accuknox/auto-policy-discovery/src/config"
+	"github.com/accuknox/auto-policy-discovery/src/feedconsumer"
+	"github.com/accuknox/auto-policy-discovery/src/libs"
+	logger "github.com/accuknox/auto-policy-discovery/src/logging"
+	"github.com/accuknox/auto-policy-discovery/src/plugin"
+	"github.com/accuknox/auto-policy-discovery/src/types"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/robfig/cron"
@@ -78,9 +78,6 @@ var NetworkStopChan chan struct{} // for hubble
 var OperationTrigger int
 var CfgDB types.ConfigDB
 
-var OneTimeJobTime string
-
-var NetworkLogLimit int
 var NetworkLogFrom string
 var NetworkLogFile string
 var NetworkPolicyTo string
@@ -105,11 +102,8 @@ func init() {
 func InitNetPolicyDiscoveryConfiguration() {
 	CfgDB = cfg.GetCfgDB()
 
-	OneTimeJobTime = cfg.GetCfgNetOneTime()
-
 	OperationTrigger = cfg.GetCfgNetOperationTrigger()
 
-	NetworkLogLimit = cfg.GetCfgNetLimit()
 	NetworkLogFrom = cfg.GetCfgNetworkLogFrom()
 	NetworkLogFile = cfg.GetCfgNetworkLogFile()
 	NetworkPolicyTo = cfg.GetCfgNetworkPolicyTo()

@@ -3,8 +3,8 @@ package config
 import (
 	"net"
 
-	"github.com/accuknox/knoxAutoPolicy/src/libs"
-	types "github.com/accuknox/knoxAutoPolicy/src/types"
+	"github.com/accuknox/auto-policy-discovery/src/libs"
+	types "github.com/accuknox/auto-policy-discovery/src/types"
 	"github.com/spf13/viper"
 )
 

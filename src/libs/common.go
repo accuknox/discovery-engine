@@ -15,8 +15,8 @@ import (
 	"syscall"
 	"time"
 
-	logger "github.com/accuknox/knoxAutoPolicy/src/logging"
-	"github.com/accuknox/knoxAutoPolicy/src/types"
+	logger "github.com/accuknox/auto-policy-discovery/src/logging"
+	"github.com/accuknox/auto-policy-discovery/src/types"
 	"github.com/rs/zerolog"
 	"github.com/spf13/viper"
 	"go.mongodb.org/mongo-driver/bson/primitive"

@@ -10,9 +10,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/accuknox/knoxAutoPolicy/src/libs"
-	logger "github.com/accuknox/knoxAutoPolicy/src/logging"
-	"github.com/accuknox/knoxAutoPolicy/src/types"
+	"github.com/accuknox/auto-policy-discovery/src/libs"
+	logger "github.com/accuknox/auto-policy-discovery/src/logging"
+	"github.com/accuknox/auto-policy-discovery/src/types"
 	"github.com/rs/zerolog"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/timestamppb"

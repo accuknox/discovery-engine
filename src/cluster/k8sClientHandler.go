@@ -10,8 +10,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/accuknox/knoxAutoPolicy/src/libs"
-	"github.com/accuknox/knoxAutoPolicy/src/types"
+	"github.com/accuknox/auto-policy-discovery/src/libs"
+	"github.com/accuknox/auto-policy-discovery/src/types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	rest "k8s.io/client-go/rest"

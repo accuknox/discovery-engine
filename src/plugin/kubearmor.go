@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/accuknox/knoxAutoPolicy/src/libs"
-	"github.com/accuknox/knoxAutoPolicy/src/types"
+	"github.com/accuknox/auto-policy-discovery/src/libs"
+	"github.com/accuknox/auto-policy-discovery/src/types"
 	pb "github.com/kubearmor/KubeArmor/protobuf"
 	"google.golang.org/grpc"
 )
