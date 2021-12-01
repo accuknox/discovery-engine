@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	types "github.com/accuknox/knoxAutoPolicy/src/types"
+	types "github.com/accuknox/auto-policy-discovery/src/types"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 )

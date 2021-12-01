@@ -3,7 +3,7 @@ package networkpolicy
 import (
 	"testing"
 
-	"github.com/accuknox/knoxAutoPolicy/src/types"
+	"github.com/accuknox/auto-policy-discovery/src/types"
 	"github.com/stretchr/testify/assert"
 )
 

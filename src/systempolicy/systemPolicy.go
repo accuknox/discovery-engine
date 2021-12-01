@@ -8,13 +8,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/accuknox/knoxAutoPolicy/src/cluster"
-	cfg "github.com/accuknox/knoxAutoPolicy/src/config"
-	"github.com/accuknox/knoxAutoPolicy/src/feedconsumer"
-	"github.com/accuknox/knoxAutoPolicy/src/libs"
-	logger "github.com/accuknox/knoxAutoPolicy/src/logging"
-	"github.com/accuknox/knoxAutoPolicy/src/plugin"
-	types "github.com/accuknox/knoxAutoPolicy/src/types"
+	"github.com/accuknox/auto-policy-discovery/src/cluster"
+	cfg "github.com/accuknox/auto-policy-discovery/src/config"
+	"github.com/accuknox/auto-policy-discovery/src/feedconsumer"
+	"github.com/accuknox/auto-policy-discovery/src/libs"
+	logger "github.com/accuknox/auto-policy-discovery/src/logging"
+	"github.com/accuknox/auto-policy-discovery/src/plugin"
+	types "github.com/accuknox/auto-policy-discovery/src/types"
 	"github.com/rs/zerolog"
 
 	"github.com/robfig/cron"
@@ -61,8 +61,6 @@ var SystemCronJob *cron.Cron
 
 var SystemStopChan chan struct{} // for hubble
 var OperationTrigger int
-
-var OneTimeJobTime string
 
 var SystemLogLimit int
 var SystemLogFrom string
@@ -535,8 +533,6 @@ func updateSysPolicySelector(clusterName string, pod types.Pod, policies []types
 
 func InitSysPolicyDiscoveryConfiguration() {
 	CfgDB = cfg.GetCfgDB()
-
-	OneTimeJobTime = cfg.GetCfgSysOneTime()
 
 	OperationTrigger = cfg.GetCfgSysOperationTrigger()
 

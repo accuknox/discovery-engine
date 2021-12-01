@@ -1,9 +1,9 @@
 package analyzer
 
 import (
-	netpolicy "github.com/accuknox/knoxAutoPolicy/src/networkpolicy"
-	apb "github.com/accuknox/knoxAutoPolicy/src/protobuf/v1/analyzer"
-	types "github.com/accuknox/knoxAutoPolicy/src/types"
+	netpolicy "github.com/accuknox/auto-policy-discovery/src/networkpolicy"
+	apb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/analyzer"
+	types "github.com/accuknox/auto-policy-discovery/src/types"
 )
 
 func populatePbNetPolicyFromNetPolicy(KnoxNwPolicy types.KnoxNetworkPolicy) apb.KnoxNetworkPolicy {

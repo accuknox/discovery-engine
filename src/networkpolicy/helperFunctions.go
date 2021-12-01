@@ -10,10 +10,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/accuknox/knoxAutoPolicy/src/cluster"
-	"github.com/accuknox/knoxAutoPolicy/src/libs"
-	"github.com/accuknox/knoxAutoPolicy/src/plugin"
-	types "github.com/accuknox/knoxAutoPolicy/src/types"
+	"github.com/accuknox/auto-policy-discovery/src/cluster"
+	"github.com/accuknox/auto-policy-discovery/src/libs"
+	"github.com/accuknox/auto-policy-discovery/src/plugin"
+	types "github.com/accuknox/auto-policy-discovery/src/types"
 	"github.com/cilium/cilium/api/v1/flow"
 )
 

@@ -4,10 +4,10 @@ import (
 	"net"
 	"os"
 
-	"github.com/accuknox/knoxAutoPolicy/src/config"
-	libs "github.com/accuknox/knoxAutoPolicy/src/libs"
-	logger "github.com/accuknox/knoxAutoPolicy/src/logging"
-	grpcserver "github.com/accuknox/knoxAutoPolicy/src/server"
+	"github.com/accuknox/auto-policy-discovery/src/config"
+	libs "github.com/accuknox/auto-policy-discovery/src/libs"
+	logger "github.com/accuknox/auto-policy-discovery/src/logging"
+	grpcserver "github.com/accuknox/auto-policy-discovery/src/server"
 
 	"github.com/rs/zerolog"
 	"github.com/spf13/viper"
@@ -41,13 +41,13 @@ func main() {
 	// create server
 	lis, err := net.Listen("tcp", ":"+grpcserver.PortNumber)
 	if err != nil {
-		log.Error().Msgf("KnoxAutoPolicy gRPC server failed to listen: %v", err)
+		log.Error().Msgf("gRPC server failed to listen: %v", err)
 		os.Exit(1)
 	}
 	server := grpcserver.GetNewServer()
 
 	// start autopolicy service
-	log.Info().Msgf("KnoxAutoPolicy gRPC server on %s port started", grpcserver.PortNumber)
+	log.Info().Msgf("gRPC server on %s port started", grpcserver.PortNumber)
 	if err := server.Serve(lis); err != nil {
 		log.Error().Msgf("Failed to serve: %v", err)
 	}

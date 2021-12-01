@@ -4,8 +4,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/accuknox/knoxAutoPolicy/src/libs"
-	types "github.com/accuknox/knoxAutoPolicy/src/types"
+	"github.com/accuknox/auto-policy-discovery/src/libs"
+	types "github.com/accuknox/auto-policy-discovery/src/types"
 
 	"github.com/google/go-cmp/cmp"
 )
