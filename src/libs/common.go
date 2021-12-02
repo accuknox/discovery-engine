@@ -46,9 +46,69 @@ func init() {
 // == Configuration == //
 // =================== //
 
-func LoadConfigurationFile() {
+func SetDefaultConfig() {
+	// Application->Network config
+	viper.SetDefault("application.network.operation-mode", 1)
+	viper.SetDefault("application.network.operation-trigger", 100)
+	viper.SetDefault("application.network.cron-job-time-interval", "0h0m10s")
+	viper.SetDefault("application.network.network-log-limit", 10000)
+	viper.SetDefault("application.network.network-log-from", "hubble")
+	viper.SetDefault("application.network.network-policy-to", "db|file")
+	viper.SetDefault("application.network.network-policy-dir", "./")
+	viper.SetDefault("application.network.skip-cert-verification", true)
+
+	// Application->System config
+	viper.SetDefault("application.system.operation-mode", 1)
+	viper.SetDefault("application.system.operation-trigger", 10)
+	viper.SetDefault("application.system.cron-job-time-interval", "0h0m10s")
+	viper.SetDefault("application.system.system-log-limit", 10000)
+	viper.SetDefault("application.system.system-log-from", "kubearmor")
+	viper.SetDefault("application.system.system-policy-to", "db|file")
+	viper.SetDefault("application.system.system-policy-dir", "./")
+
+	// Application->cluster config
+	viper.SetDefault("application.cluster.cluster-info-from", "k8sclient")
+
+	// Database config
+	viper.SetDefault("database.driver", "mysql")
+	viper.SetDefault("database.user", "root")
+	viper.SetDefault("database.dbname", "accuknox")
+	viper.SetDefault("database.host", "127.0.0.1")
+	viper.SetDefault("database.port", "3306")
+	viper.SetDefault("database.table-network-policy", "network_policy")
+	viper.SetDefault("database.table-system-policy", "system_policy")
+
+	// logging config
+	viper.SetDefault("logging.level", "INFO")
+
+	// cilium config
+	viper.SetDefault("cilium-hubble.url", "localhost")
+	viper.SetDefault("cilium-hubble.port", "4245")
+
+	// kubearmor config
+	viper.SetDefault("kubearmor.url", "localhost")
+	viper.SetDefault("kubearmor.port", "32767")
+}
+
+type cfgArray []string
+
+func (i *cfgArray) String() string {
+	return "config-key=config-value"
+}
+
+func (i *cfgArray) Set(str string) error {
+	kv := strings.Split(str, "=")
+	viper.SetDefault(kv[0], kv[1])
+	return nil
+}
+
+/* configuration file values are final values */
+func CheckCommandLineConfig() {
+	var cmdlineCfg cfgArray
+
 	version1 := flag.Bool("v", false, "print version and exit")
 	version2 := flag.Bool("version", false, "print version and exit")
+	flag.Var(&cmdlineCfg, "cfg", "Configuration key=val")
 
 	configFilePath := flag.String("config-path", "conf/", "conf/")
 	flag.Parse()
@@ -61,14 +121,15 @@ func LoadConfigurationFile() {
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath(*configFilePath)
 	if err := viper.ReadInConfig(); err != nil {
-		if readErr, ok := err.(viper.ConfigFileNotFoundError); ok {
-			var log *zerolog.Logger = logger.GetInstance()
-			log.Panic().Msgf("No config file found at %s\n", *configFilePath)
-		} else {
-			var log *zerolog.Logger = logger.GetInstance()
+		if readErr, ok := err.(viper.ConfigFileNotFoundError); !ok {
 			log.Panic().Msgf("Error reading config file: %s\n", readErr)
 		}
 	}
+}
+
+func LoadConfigurationFile() {
+	SetDefaultConfig()       // set default values for all config items
+	CheckCommandLineConfig() // update config values from command line, if any
 }
 
 // ================== //

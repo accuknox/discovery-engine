@@ -22,12 +22,16 @@ var log *zerolog.Logger
 func init() {
 	// 1. load configurations
 	libs.LoadConfigurationFile()
-	config.LoadDefaultConfig()
+	config.LoadConfigFromFile()
 
 	// 2. setup logger
-	logLevel := viper.GetString("logging.level")
-	logger.SetLogLevel(logLevel)
+	logger.SetLogLevel(viper.GetString("logging.level"))
 	log = logger.GetInstance()
+
+	log.Info().Msgf("NETWORK-POLICY: %+v", config.GetCfgNet())
+	log.Info().Msgf("CILIUM: %+v", config.GetCfgCiliumHubble())
+	log.Info().Msgf("SYSTEM-POLICY: %+v", config.GetCfgSys())
+	log.Info().Msgf("KUBEARMOR: %+v", config.GetCfgKubeArmor())
 
 	// 3. setup the tables in db
 	libs.CreateTablesIfNotExist(config.GetCfgDB())

@@ -109,7 +109,7 @@ func LoadConfigKubeArmor() types.ConfigKubeArmorRelay {
 	return cfgKubeArmor
 }
 
-func LoadDefaultConfig() {
+func LoadConfigFromFile() {
 	CurrentCfg = types.Configuration{}
 
 	// default
@@ -204,6 +204,10 @@ func GetCfgDB() types.ConfigDB {
 // == Get Network Config Info == //
 // ============================= //
 
+func GetCfgNet() types.ConfigNetworkPolicy {
+	return CurrentCfg.ConfigNetPolicy
+}
+
 func GetCfgNetOperationMode() int {
 	return CurrentCfg.ConfigNetPolicy.OperationMode
 }
@@ -289,6 +293,10 @@ func GetCfgNetworkSkipCertVerification() bool {
 // ============================ //
 // == Get System Config Info == //
 // ============================ //
+
+func GetCfgSys() types.ConfigSystemPolicy {
+	return CurrentCfg.ConfigSysPolicy
+}
 
 func GetCfgSysOperationMode() int {
 	return CurrentCfg.ConfigSysPolicy.OperationMode
