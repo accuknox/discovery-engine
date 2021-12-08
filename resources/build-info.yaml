@@ -9,10 +9,10 @@ build_steps:
        name: artifactory.accuknox.com/accuknox/golang:1.16-alpine
        docker_run_params: '-u 0:0 -v /root/.m2:/root/.m2'
    commands:
-      - "cd src"
+      # - "cd src"
       - "ls -l"
       #- "go mod tidy"
-      - "CGO_ENABLED=0 GOOS=linux go test -v ./... -coverprofile=coverage.out -json > report.json"
+      - "cd src && CGO_ENABLED=0 GOOS=linux go test -v ./... -coverprofile=coverage.out -json > report.json"
       - "pwd"
       - "CGO_ENABLED=0 GOOS=linux go test -cover ./..."
       - "rm -rf log"
