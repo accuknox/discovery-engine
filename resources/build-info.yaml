@@ -2,7 +2,7 @@
 # Build_steps stage used to build the source code of the application
 #***********************************************************************************************************************************#
 
-#build_steps:
+build_steps:
  - name: Unit Test
    source: "."
    image:
