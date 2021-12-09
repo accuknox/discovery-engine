@@ -124,8 +124,8 @@ sonar_properties:
       sonar.tests: .
       sonar.test.inclusions: "**/*_test.go,"
       sonar.test.exclusions: "**/test/**"
-      sonar.go.tests.reportPaths: "src/report.json"
-      sonar.go.coverage.reportPaths: "src/coverage.out"
+      sonar.go.tests.reportPaths: "src/report1.json,src/report2.json,src/report3.json,src/report4.json,src/report5.json,src/report6.json"
+      sonar.go.coverage.reportPaths: "src/coverage1.out,src/coverage2.out,src/coverage3.out,src/coverage4.out,src/coverage5.out,src/coverage6.out,"
       sonar.sourceEncoding : UTF-8
       sonar.web.host: https://sq01.accuknox.com
       sonar.login: sonar-ci-cred
