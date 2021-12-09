@@ -120,6 +120,12 @@ sonar_properties:
       sonar.language: java
       sonar.java.binaries: ./
       sonar.sourcepath: src
+      sonar.exclusions: "**/*_test.go"
+      sonar.tests: .
+      sonar.test.inclusions: "**/*_test.go,"
+      sonar.test.exclusions: "**/test/**"
+      sonar.go.tests.reportPaths: "src/report.json"
+      sonar.go.coverage.reportPaths: "src/coverage.out"
       sonar.sourceEncoding : UTF-8
       sonar.web.host: https://sq01.accuknox.com
       sonar.login: sonar-ci-cred
