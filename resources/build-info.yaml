@@ -11,7 +11,7 @@ build_steps:
    commands:
       - echo "Unit Testing..."
       - "ls -l"
-      - "cd src && ls && make file"
+      - "cd src && ls && make test"
 
 #***********************************************************************************************************************************#
 # Docker_build stage builds the docker image from the Dockerfile
