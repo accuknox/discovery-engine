@@ -13,7 +13,7 @@ build_steps:
       # - "apk update && apk add --no-cache make"
       - "ls -l"
       - "cd src && ls && make test"
-      - "ls -l"
+      - "ls -l src"
 
 #***********************************************************************************************************************************#
 # Docker_build stage builds the docker image from the Dockerfile
