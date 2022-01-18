@@ -1,4 +1,4 @@
-@Library('accuknox-shared-library@master-test') _
+@Library('accuknox-shared-library@master') _
 pipelineExecute app_config: 'resources/build-info.yaml',
 snapshot_branch: "AK",
 dev_branch: "development",
