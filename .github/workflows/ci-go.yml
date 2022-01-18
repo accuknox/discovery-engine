@@ -51,6 +51,7 @@ jobs:
 
   push-docker-img:
     name: Create auto-policy-discovery img
+    if: github.repository == 'accuknox/auto-policy-discovery'
     runs-on: ubuntu-18.04
     timeout-minutes: 20
     steps:
