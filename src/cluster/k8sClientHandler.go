@@ -48,12 +48,17 @@ func ConnectLocalAPIClient() *kubernetes.Clientset {
 			homeDir = os.Getenv("USERPROFILE") // windows
 		}
 
-		if home := homeDir; home != "" {
-			kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
+		envKubeConfig := os.Getenv("KUBECONFIG")
+		if envKubeConfig != "" {
+			kubeconfig = &envKubeConfig
 		} else {
-			kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
+			if home := homeDir; home != "" {
+				kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
+			} else {
+				kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
+			}
+			flag.Parse()
 		}
-		flag.Parse()
 
 		parsed = true
 	}

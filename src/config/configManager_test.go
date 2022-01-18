@@ -53,7 +53,7 @@ func TestLoadConfigKubeArmor(t *testing.T) {
 func TestLoadDefaultConfig(t *testing.T) {
 	initMockYaml()
 
-	LoadDefaultConfig()
+	LoadConfigFromFile()
 
 	assert.NotEmpty(t, CurrentCfg.ConfigName, "Configuration name should not be empty")
 	assert.NotEmpty(t, CurrentCfg.Status, "Configuration status should not be empty")

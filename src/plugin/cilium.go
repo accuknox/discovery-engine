@@ -670,7 +670,7 @@ func ConnectHubbleRelay(cfg types.ConfigCiliumHubble) *grpc.ClientConn {
 		return nil
 	}
 
-	log.Info().Msg("connected to Hubble Relay:" + addr)
+	log.Info().Msg("dialed for hubble relay:" + addr)
 	return conn
 }
 
