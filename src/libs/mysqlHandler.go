@@ -690,23 +690,27 @@ func GetSystemPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) ([
 
 	if namespace != "" && status != "" {
 		query = query + " WHERE namespace = ? and status = ? "
+		log.Info().Msgf("using query=[%s] ns=[%s] status=[%s]", query, namespace, status)
 		results, err = db.Query(query, namespace, status)
 	} else if namespace != "" {
 		query = query + " WHERE namespace = ? "
+		log.Info().Msgf("using query=[%s] ns=[%s]", query, namespace)
 		results, err = db.Query(query, namespace)
 	} else if status != "" {
 		query = query + " WHERE status = ? "
+		log.Info().Msgf("using query=[%s] status=[%s]", query, status)
 		results, err = db.Query(query, status)
 	} else {
+		log.Info().Msgf("using query=[%s]", query)
 		results, err = db.Query(query)
 	}
-
-	defer results.Close()
 
 	if err != nil {
 		log.Error().Msg(err.Error())
 		return nil, err
 	}
+
+	defer results.Close()
 
 	for results.Next() {
 		policy := types.KnoxSystemPolicy{}
@@ -746,6 +750,7 @@ func GetSystemPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) ([
 
 		policies = append(policies, policy)
 	}
+	log.Info().Msgf("total policies found:%d", len(policies))
 
 	return policies, nil
 }
