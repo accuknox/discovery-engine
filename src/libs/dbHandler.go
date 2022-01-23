@@ -1,6 +1,8 @@
 package libs
 
 import (
+	"errors"
+
 	"github.com/accuknox/auto-policy-discovery/src/types"
 )
 
@@ -125,6 +127,24 @@ func InsertSystemPolicies(cfg types.ConfigDB, policies []types.KnoxSystemPolicy)
 	}
 }
 
+func GetWorkloadProcessFileSet(cfg types.ConfigDB, wpfs types.WorkloadProcessFileSet) (map[types.WorkloadProcessFileSet][]string, []string, error) {
+	if cfg.DBDriver == "mysql" {
+		res, policyNames, err := GetWorkloadProcessFileSetMySQL(cfg, wpfs)
+		if err != nil {
+			log.Error().Msg(err.Error())
+		}
+		return res, policyNames, err
+	}
+	return nil, nil, errors.New("no db driver")
+}
+
+func InsertWorkloadProcessFileSet(cfg types.ConfigDB, wpfs types.WorkloadProcessFileSet, fs []string) error {
+	if cfg.DBDriver == "mysql" {
+		return InsertWorkloadProcessFileSetMySQL(cfg, wpfs, fs)
+	}
+	return errors.New("no db driver")
+}
+
 // =========== //
 // == Table == //
 // =========== //
@@ -143,6 +163,9 @@ func CreateTablesIfNotExist(cfg types.ConfigDB) {
 			log.Error().Msg(err.Error())
 		}
 		if err := CreateTableSystemPolicyMySQL(cfg); err != nil {
+			log.Error().Msg(err.Error())
+		}
+		if err := CreateTableWorkLoadProcessFileSetMySQL(cfg); err != nil {
 			log.Error().Msg(err.Error())
 		}
 	}

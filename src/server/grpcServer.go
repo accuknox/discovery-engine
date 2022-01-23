@@ -102,11 +102,11 @@ func (s *workerServer) GetWorkerStatus(ctx context.Context, in *wpb.WorkerReques
 
 func (s *workerServer) Convert(ctx context.Context, in *wpb.WorkerRequest) (*wpb.WorkerResponse, error) {
 	if in.GetPolicytype() == "network" {
-		log.Info().Msg("Convert network poolicy called")
+		log.Info().Msg("Convert network policy called")
 		networker.InitNetPolicyDiscoveryConfiguration()
 		networker.WriteNetworkPoliciesToFile("", "", []types.Service{})
 	} else if in.GetPolicytype() == "system" {
-		log.Info().Msg("Convert system poolicy called")
+		log.Info().Msg("Convert system policy called")
 		sysworker.InitSysPolicyDiscoveryConfiguration()
 		sysworker.WriteSystemPoliciesToFile("")
 	} else {

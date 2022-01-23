@@ -65,6 +65,7 @@ func SetDefaultConfig() {
 	viper.SetDefault("application.system.system-log-from", "kubearmor")
 	viper.SetDefault("application.system.system-policy-to", "db|file")
 	viper.SetDefault("application.system.system-policy-dir", "./")
+	viper.SetDefault("application.system.system-policy-types", 7)
 
 	// Application->cluster config
 	viper.SetDefault("application.cluster.cluster-info-from", "k8sclient")
@@ -98,6 +99,9 @@ func (i *cfgArray) String() string {
 
 func (i *cfgArray) Set(str string) error {
 	kv := strings.Split(str, "=")
+	if len(kv) != 2 {
+		log.Panic().Msgf("invalid cfg keyval: %s\n", str)
+	}
 	viper.SetDefault(kv[0], kv[1])
 	return nil
 }
@@ -414,12 +418,12 @@ func WriteCiliumPolicyToYamlFile(namespace string, policies []types.CiliumNetwor
 	}
 }
 
-func WriteKubeArmorPolicyToYamlFile(namespace string, policies []types.KubeArmorPolicy) {
+func WriteKubeArmorPolicyToYamlFile(fname string, namespace string, policies []types.KubeArmorPolicy) {
 	fileName := GetEnv("POLICY_DIR", "./")
 	if namespace != "" {
-		fileName = fileName + "kubearmor_policies_" + namespace + ".yaml"
+		fileName = fileName + fname + "_" + namespace + ".yaml"
 	} else {
-		fileName = fileName + "kubearmor_policies.yaml"
+		fileName = fileName + fname + ".yaml"
 	}
 
 	if err := os.Remove(fileName); err != nil {

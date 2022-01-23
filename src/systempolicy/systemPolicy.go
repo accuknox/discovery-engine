@@ -5,6 +5,8 @@ import (
 	"errors"
 	"io/ioutil"
 	"os"
+	"reflect"
+	"sort"
 	"strings"
 	"time"
 
@@ -29,6 +31,7 @@ func init() {
 // const values
 const (
 	// operation mode
+	OP_MODE_NOOP    = 0
 	OP_MODE_CRONJOB = 1
 	OP_MODE_ONETIME = 2
 
@@ -238,12 +241,28 @@ func getSystemLogs() []types.KnoxSystemLog {
 	return systemLogs
 }
 
+func WriteSystemPoliciesToFile_Ext(namespace string) {
+	var wpfs types.WorkloadProcessFileSet
+	res, policyNames, err := libs.GetWorkloadProcessFileSet(CfgDB, wpfs)
+	if err != nil {
+		log.Error().Msgf("cudnot fetch WPFS err=%s", err.Error())
+		return
+	}
+	log.Info().Msgf("found %d WPFS records", len(res))
+	sysPols := ConvertWPFSToKnoxSysPolicy(res, policyNames)
+
+	kubeArmorPolicies := plugin.ConvertKnoxSystemPolicyToKubeArmorPolicy(sysPols)
+	//	kubeArmorPolicies := plugin.ConvertWPFSToKubeArmorPolicy(res, policyNames)
+	libs.WriteKubeArmorPolicyToYamlFile("kubearmor_policies_ext", "", kubeArmorPolicies)
+}
+
 func WriteSystemPoliciesToFile(namespace string) {
 	latestPolicies := libs.GetSystemPolicies(CfgDB, namespace, "latest")
 
 	kubeArmorPolicies := plugin.ConvertKnoxSystemPolicyToKubeArmorPolicy(latestPolicies)
 
-	libs.WriteKubeArmorPolicyToYamlFile("", kubeArmorPolicies)
+	libs.WriteKubeArmorPolicyToYamlFile("kubearmor_policies", "", kubeArmorPolicies)
+	WriteSystemPoliciesToFile_Ext(namespace)
 }
 
 // ============================= //
@@ -395,6 +414,45 @@ func discoverProcessOperationPolicy(results []types.KnoxSystemPolicy, pod types.
 
 	if appended {
 		results = append(results, policy)
+	}
+
+	return results
+}
+
+func ConvertWPFSToKnoxSysPolicy(wpfsSet map[types.WorkloadProcessFileSet][]string, policyNames []string) []types.KnoxSystemPolicy {
+	if len(wpfsSet) != len(policyNames) {
+		log.Error().Msgf("len(wpfsSet):%d != len(policyNames):%d", len(wpfsSet), len(policyNames))
+		return nil
+	}
+	var results []types.KnoxSystemPolicy
+	idx := 0
+	for wpfs, fsset := range wpfsSet {
+
+		policy := buildSystemPolicy()
+		policy.Metadata["type"] = wpfs.SetType
+		policy.Spec.File = types.KnoxSys{}
+
+		for _, fpath := range fsset {
+			path := SysPath{
+				Path:  fpath,
+				isDir: false,
+			}
+			policy = updateSysPolicySpec(wpfs.SetType, policy, wpfs.FromSource, path)
+		}
+
+		policy.Metadata["clusterName"] = wpfs.ClusterName
+		policy.Metadata["namespace"] = wpfs.Namespace
+		policy.Metadata["name"] = policyNames[idx]
+
+		labels := strings.Split(wpfs.Labels, ",")
+		for _, label := range labels {
+			k := strings.Split(label, "=")[0]
+			v := strings.Split(label, "=")[1]
+			policy.Spec.Selector.MatchLabels[k] = v
+		}
+
+		results = append(results, policy)
+		idx++
 	}
 
 	return results
@@ -560,10 +618,10 @@ func PopulateSystemPoliciesFromSystemLogs(sysLogs []types.KnoxSystemLog) []types
 	clusteredLogs := clusteringSystemLogsByCluster(sysLogs)
 
 	for clusterName, sysLogs := range clusteredLogs {
-		log.Info().Msgf("System policy discovery started for cluster [%s]", clusterName)
-
 		// get existing system policies in db
 		existingPolicies := libs.GetSystemPolicies(CfgDB, "", "")
+		log.Info().Msgf("System policy discovery started for cluster [%s] len(existingPolicies):%d len(sysLogs):%d",
+			clusterName, len(existingPolicies), len(sysLogs))
 
 		// get k8s pods
 		pods := cluster.GetPods(clusterName)
@@ -583,16 +641,24 @@ func PopulateSystemPoliciesFromSystemLogs(sysLogs []types.KnoxSystemLog) []types
 				continue
 			}
 
+			filePolCnt := 0
 			// 1. discover file operation system policy
 			if SystemPolicyTypes&SYS_OP_FILE_INT > 0 {
 				fileOpLogs := getOperationLogs(SYS_OP_FILE, perPodlogs)
+				GenFileSetForAllPodsInCluster(clusterName, pods, SYS_OP_FILE, fileOpLogs)
 				discoveredSysPolicies = discoverFileOperationPolicy(discoveredSysPolicies, pod, fileOpLogs)
+				filePolCnt = len(discoveredSysPolicies)
+				log.Info().Msgf("discovered %d file policies from %d file logs in the current batch",
+					len(discoveredSysPolicies), len(fileOpLogs))
 			}
 
 			// 2. discover process operation system policy
 			if SystemPolicyTypes&SYS_OP_PROCESS_INT > 0 {
 				procOpLogs := getOperationLogs(SYS_OP_PROCESS, perPodlogs)
+				GenFileSetForAllPodsInCluster(clusterName, pods, SYS_OP_PROCESS, procOpLogs)
 				discoveredSysPolicies = discoverProcessOperationPolicy(discoveredSysPolicies, pod, procOpLogs)
+				log.Info().Msgf("discovered %d process policies from %d process logs in the current batch",
+					len(discoveredSysPolicies)-filePolCnt, len(procOpLogs))
 			}
 
 			// 3. update selector
@@ -608,7 +674,8 @@ func PopulateSystemPoliciesFromSystemLogs(sysLogs []types.KnoxSystemLog) []types
 					libs.InsertSystemPolicies(CfgDB, newPolicies)
 				}
 
-				log.Info().Msgf("-> System policy discovery done for cluster/namespace/pod: [%s/%s/%s], [%d] policies discovered", clusterName, pod.Namespace, pod.PodName, len(newPolicies))
+				log.Info().Msgf("system policy discovery done for [%s/%s/%s], [%d] policies discovered",
+					clusterName, pod.Namespace, pod.PodName, len(newPolicies))
 			}
 
 			if strings.Contains(SystemPolicyTo, "file") {
@@ -618,6 +685,103 @@ func PopulateSystemPoliciesFromSystemLogs(sysLogs []types.KnoxSystemLog) []types
 	}
 
 	return discoveredSystemPolicies
+}
+
+func stringInSlice(needle string, hay []string) bool {
+	for _, b := range hay {
+		if b == needle {
+			return true
+		}
+	}
+	return false
+}
+
+func GetPodLabels(cn string, pn string, ns string, pods []types.Pod) ([]string, error) {
+	for _, pod := range pods {
+		if pod.Namespace == ns && pod.PodName == pn {
+			return pod.Labels, nil
+		}
+	}
+	return nil, errors.New("pod not found")
+}
+
+// Merge, remove duplicates and sort
+func mergeStringSlices(a []string, b []string) []string {
+	check := make(map[string]int)
+	d := append(a, b...)
+	res := make([]string, 0)
+	for _, val := range d {
+		check[val] = 1
+	}
+	for letter, _ := range check {
+		res = append(res, letter)
+	}
+	sort.Strings(res)
+	return res
+}
+
+// cleanResource : Certain linux files keep changing always and needs to refed
+// just once. Examples are /proc, /sys.
+func cleanResource(str string) string {
+	if strings.HasPrefix(str, "/proc") {
+		return "/proc"
+	}
+	if strings.HasPrefix(str, "/sys") {
+		return "/sys"
+	}
+	return str
+}
+
+// GenFileSetForAllPodsInCluster Generate process specific fileset across all pods in a cluster
+func GenFileSetForAllPodsInCluster(clusterName string, pods []types.Pod, settype string, slogs []types.KnoxSystemLog) map[types.WorkloadProcessFileSet][]string {
+	res := map[types.WorkloadProcessFileSet][]string{} // key: WorkloadProcess - val: Accesss File Set
+	wpfs := types.WorkloadProcessFileSet{}
+	for _, slog := range slogs {
+		wpfs.ClusterName = slog.ClusterName
+		wpfs.PodName = slog.PodName
+		wpfs.Namespace = slog.Namespace
+		wpfs.FromSource = slog.Source
+		wpfs.SetType = settype
+		labels, err := GetPodLabels(slog.ClusterName, slog.PodName, slog.Namespace, pods)
+		if err != nil {
+			log.Error().Msgf("cudnot get pod labels for podname=%s ns=%s", slog.PodName, slog.Namespace)
+			continue
+		}
+		wpfs.Labels = strings.Join(labels[:], ",")
+
+		resource := cleanResource(slog.Resource)
+
+		if !stringInSlice(resource, res[wpfs]) {
+			res[wpfs] = append(res[wpfs], resource)
+		}
+	}
+
+	for wpfs, fs := range res {
+		out, _, err := libs.GetWorkloadProcessFileSet(CfgDB, wpfs)
+		if err != nil {
+			log.Error().Msgf("failed processing wpfs=%+v err=%s", wpfs, err.Error())
+			continue
+		}
+		dbfs := out[wpfs]
+		if len(dbfs) == 0 {
+			sort.Strings(fs)
+			log.Info().Msgf("adding wpfs db entry for wpfs=%+v", wpfs)
+			err = libs.InsertWorkloadProcessFileSet(CfgDB, wpfs, fs)
+		} else {
+			// Update file set
+			mergedfs := mergeStringSlices(fs, dbfs)
+			sort.Strings(mergedfs)
+			if !reflect.DeepEqual(mergedfs, dbfs) {
+				log.Info().Msgf("updating wpfs db entry for wpfs=%+v", wpfs)
+				// log.Info().Msgf("\nmergedfs=%+v\ndbfs=%+v", mergedfs, dbfs)
+				err = libs.UpdateWorkloadProcessFileSetMySQL(CfgDB, wpfs, mergedfs)
+			}
+		}
+		if err != nil {
+			log.Error().Msgf("failure add/updt db entry for wpfs=%+v err=%s", wpfs, err.Error())
+		}
+	}
+	return res
 }
 
 func DiscoverSystemPolicyMain() {
@@ -692,7 +856,9 @@ func StartSystemWorker() {
 		return
 	}
 
-	if cfg.GetCfgSysOperationMode() == OP_MODE_CRONJOB { // every time intervals
+	if cfg.GetCfgSysOperationMode() == OP_MODE_NOOP { // Do not run the operation
+		log.Info().Msg("system operation mode is NOOP ... NO SYSTEM POLICY DISCOVERY")
+	} else if cfg.GetCfgSysOperationMode() == OP_MODE_CRONJOB { // every time intervals
 		StartSystemCronJob()
 	} else { // one-time generation
 		DiscoverSystemPolicyMain()

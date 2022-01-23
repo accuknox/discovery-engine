@@ -96,7 +96,11 @@ func FilterSystemLogsByConfig(logs []types.KnoxSystemLog, pods []types.Pod) []ty
 		}
 
 		// basic check 3: if the source is not the absolute path, skip it
-		if !strings.HasPrefix(log.Source, "/") {
+		if !strings.HasPrefix(log.Resource, "/") {
+			continue
+		}
+
+		if log.Operation == "File" && !strings.HasPrefix(log.Source, "/") {
 			continue
 		}
 
