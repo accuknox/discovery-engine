@@ -87,3 +87,13 @@ type SystemAlertEvent struct {
 
 	Result string `json:"result,omitempty"`
 }
+
+// WorkloadProcessFileSet = clusterName + podname, namespace, {sorted set of labels}, fromSource.
+type WorkloadProcessFileSet struct {
+	ClusterName string
+	PodName     string
+	Namespace   string
+	Labels      string // comma separated list of pod labels
+	FromSource  string
+	SetType     string // SetType: "file" or "process"
+}

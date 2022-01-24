@@ -37,9 +37,9 @@ message ConfigDB {
 
     string table_auto_policy_config = 7;
     string table_network_log = 8;
-    string table_network_policy = 9;
-    string table_system_log = 10;
-    string table_system_policy = 11;
+//    string table_network_policy = 9;
+    string table_system_log = 9;
+//    string table_system_policy = 11;
 }
 
 message ConfigCiliumHubble {

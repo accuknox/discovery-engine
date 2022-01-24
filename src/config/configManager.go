@@ -69,10 +69,10 @@ func LoadConfigDB() types.ConfigDB {
 	cfgDB.DBPort = viper.GetString("database.port")
 
 	cfgDB.TableNetworkLog = viper.GetString("database.table-network-log")
-	cfgDB.TableNetworkPolicy = viper.GetString("database.table-network-policy")
+	// cfgDB.TableNetworkPolicy = viper.GetString("database.table-network-policy")
 	cfgDB.TableSystemLog = viper.GetString("database.table-system-log")
 	cfgDB.TableSystemAlert = viper.GetString("database.table-system-alert")
-	cfgDB.TableSystemPolicy = viper.GetString("database.table-system-policy")
+	// cfgDB.TableSystemPolicy = viper.GetString("database.table-system-policy")
 
 	return cfgDB
 }
@@ -150,13 +150,12 @@ func LoadConfigFromFile() {
 		CronJobTimeInterval:     "@every " + viper.GetString("application.system.cron-job-time-interval"),
 		OneTimeJobTimeSelection: "", // e.g., 2021-01-20 07:00:23|2021-01-20 07:00:25
 
-		SysPolicyTypes: 7,
-
 		SystemLogLimit:  viper.GetInt("application.system.system-log-limit"),
 		SystemLogFrom:   viper.GetString("application.system.system-log-from"),
 		SystemLogFile:   viper.GetString("application.system.system-log-file"),
 		SystemPolicyTo:  viper.GetString("application.system.system-policy-to"),
 		SystemPolicyDir: viper.GetString("application.system.system-policy-dir"),
+		SysPolicyTypes:  viper.GetInt("application.system.system-policy-types"),
 
 		SystemLogFilters: []types.SystemLogFilter{},
 
