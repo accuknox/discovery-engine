@@ -70,11 +70,11 @@ type ConfigDB struct {
 	DBPass   string `json:"db_pass,omitempty" bson:"db_pass,omitempty"`
 	DBName   string `json:"db_name,omitempty" bson:"db_name,omitempty"`
 
-	TableNetworkLog    string `json:"table_network_log,omitempty" bson:"table_network_log,omitempty"`
-	TableNetworkPolicy string `json:"table_network_policy,omitempty" bson:"table_network_policy,omitempty"`
-	TableSystemLog     string `json:"table_system_log,omitempty" bson:"table_system_log,omitempty"`
-	TableSystemAlert   string `json:"table_system_alert,omitempty" bson:"table_system_alert,omitempty"`
-	TableSystemPolicy  string `json:"table_system_policy,omitempty" bson:"table_system_policy,omitempty"`
+	TableNetworkLog string `json:"table_network_log,omitempty" bson:"table_network_log,omitempty"`
+	// TableNetworkPolicy string `json:"table_network_policy,omitempty" bson:"table_network_policy,omitempty"`
+	TableSystemLog   string `json:"table_system_log,omitempty" bson:"table_system_log,omitempty"`
+	TableSystemAlert string `json:"table_system_alert,omitempty" bson:"table_system_alert,omitempty"`
+	// TableSystemPolicy  string `json:"table_system_policy,omitempty" bson:"table_system_policy,omitempty"`
 }
 
 type ConfigCiliumHubble struct {

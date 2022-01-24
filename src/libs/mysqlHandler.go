@@ -13,6 +13,8 @@ import (
 )
 
 const WorkloadProcessFileSet_TableName = "workload_process_fileset"
+const TableNetworkPolicy_TableName = "network_policy"
+const TableSystemPolicy_TableName = "system_policy"
 
 // ================ //
 // == Connection == //
@@ -482,7 +484,7 @@ func GetNetworkPoliciesFromMySQL(cfg types.ConfigDB, cluster, namespace, status 
 	var results *sql.Rows
 	var err error
 
-	query := "SELECT apiVersion,kind,flow_ids,name,cluster_name,namespace,type,rule,status,outdated,spec,generatedTime FROM " + cfg.TableNetworkPolicy
+	query := "SELECT apiVersion,kind,flow_ids,name,cluster_name,namespace,type,rule,status,outdated,spec,generatedTime FROM " + TableNetworkPolicy_TableName
 	if cluster != "" && namespace != "" && status != "" {
 		query = query + " WHERE cluster_name = ? and namespace = ? and status = ? "
 		results, err = db.Query(query, cluster, namespace, status)
@@ -566,7 +568,7 @@ func UpdateOutdatedNetworkPolicyFromMySQL(cfg types.ConfigDB, outdatedPolicy str
 	var err error
 
 	// set status -> outdated
-	stmt1, err := db.Prepare("UPDATE " + cfg.TableNetworkPolicy + " SET status=? WHERE name=?")
+	stmt1, err := db.Prepare("UPDATE " + TableNetworkPolicy_TableName + " SET status=? WHERE name=?")
 	if err != nil {
 		return err
 	}
@@ -578,7 +580,7 @@ func UpdateOutdatedNetworkPolicyFromMySQL(cfg types.ConfigDB, outdatedPolicy str
 	}
 
 	// set outdated -> latest' name
-	stmt2, err := db.Prepare("UPDATE " + cfg.TableNetworkPolicy + " SET outdated=? WHERE name=?")
+	stmt2, err := db.Prepare("UPDATE " + TableNetworkPolicy_TableName + " SET outdated=? WHERE name=?")
 	if err != nil {
 		return err
 	}
@@ -593,7 +595,7 @@ func UpdateOutdatedNetworkPolicyFromMySQL(cfg types.ConfigDB, outdatedPolicy str
 }
 
 func insertNetworkPolicy(cfg types.ConfigDB, db *sql.DB, policy types.KnoxNetworkPolicy) error {
-	stmt, err := db.Prepare("INSERT INTO " + cfg.TableNetworkPolicy + "(apiVersion,kind,flow_ids,name,cluster_name,namespace,type,rule,status,outdated,spec,generatedTime) values(?,?,?,?,?,?,?,?,?,?,?,?)")
+	stmt, err := db.Prepare("INSERT INTO " + TableNetworkPolicy_TableName + "(apiVersion,kind,flow_ids,name,cluster_name,namespace,type,rule,status,outdated,spec,generatedTime) values(?,?,?,?,?,?,?,?,?,?,?,?)")
 	if err != nil {
 		return err
 	}
@@ -654,7 +656,7 @@ func UpdateOutdatedSystemPolicyFromMySQL(cfg types.ConfigDB, outdatedPolicy stri
 	var err error
 
 	// set status -> outdated
-	stmt1, err := db.Prepare("UPDATE " + cfg.TableSystemPolicy + " SET status=? WHERE name=?")
+	stmt1, err := db.Prepare("UPDATE " + TableSystemPolicy_TableName + " SET status=? WHERE name=?")
 	if err != nil {
 		return err
 	}
@@ -666,7 +668,7 @@ func UpdateOutdatedSystemPolicyFromMySQL(cfg types.ConfigDB, outdatedPolicy stri
 	}
 
 	// set outdated -> latest' name
-	stmt2, err := db.Prepare("UPDATE " + cfg.TableNetworkPolicy + " SET outdated=? WHERE name=?")
+	stmt2, err := db.Prepare("UPDATE " + TableNetworkPolicy_TableName + " SET outdated=? WHERE name=?")
 	if err != nil {
 		return err
 	}
@@ -688,7 +690,7 @@ func GetSystemPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) ([
 	var results *sql.Rows
 	var err error
 
-	query := "SELECT apiVersion,kind,name,clusterName,namespace,type,status,outdated,spec,generatedTime FROM " + cfg.TableSystemPolicy
+	query := "SELECT apiVersion,kind,name,clusterName,namespace,type,status,outdated,spec,generatedTime FROM " + TableSystemPolicy_TableName
 
 	if namespace != "" && status != "" {
 		query = query + " WHERE namespace = ? and status = ? "
@@ -753,7 +755,7 @@ func GetSystemPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) ([
 }
 
 func insertSystemPolicy(cfg types.ConfigDB, db *sql.DB, policy types.KnoxSystemPolicy) error {
-	stmt, err := db.Prepare("INSERT INTO " + cfg.TableSystemPolicy + "(apiVersion,kind,name,clusterName,namespace,type,status,outdated,spec,generatedTime) values(?,?,?,?,?,?,?,?,?,?)")
+	stmt, err := db.Prepare("INSERT INTO " + TableSystemPolicy_TableName + "(apiVersion,kind,name,clusterName,namespace,type,status,outdated,spec,generatedTime) values(?,?,?,?,?,?,?,?,?,?)")
 	if err != nil {
 		return err
 	}
@@ -809,7 +811,7 @@ func ClearDBTablesMySQL(cfg types.ConfigDB) error {
 		return err
 	}
 
-	query = "DELETE FROM " + cfg.TableNetworkPolicy
+	query = "DELETE FROM " + TableNetworkPolicy_TableName
 	if _, err := db.Query(query); err != nil {
 		return err
 	}
@@ -819,7 +821,7 @@ func ClearDBTablesMySQL(cfg types.ConfigDB) error {
 		return err
 	}
 
-	query = "DELETE FROM " + cfg.TableSystemPolicy
+	query = "DELETE FROM " + TableSystemPolicy_TableName
 	if _, err := db.Query(query); err != nil {
 		return err
 	}
@@ -870,7 +872,7 @@ func CreateTableNetworkPolicyMySQL(cfg types.ConfigDB) error {
 	db := connectMySQL(cfg)
 	defer db.Close()
 
-	tableName := cfg.TableNetworkPolicy
+	tableName := TableNetworkPolicy_TableName
 
 	query :=
 		"CREATE TABLE IF NOT EXISTS `" + tableName + "` (" +
@@ -980,7 +982,7 @@ func CreateTableSystemPolicyMySQL(cfg types.ConfigDB) error {
 	db := connectMySQL(cfg)
 	defer db.Close()
 
-	tableName := cfg.TableSystemPolicy
+	tableName := TableSystemPolicy_TableName
 
 	query :=
 		"CREATE TABLE IF NOT EXISTS `" + tableName + "` (" +
