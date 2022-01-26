@@ -1019,7 +1019,7 @@ func CreateTableWorkLoadProcessFileSetMySQL(cfg types.ConfigDB) error {
 			"	`policyName` varchar(128) DEFAULT NULL," +
 			"	`clusterName` varchar(50) DEFAULT NULL," +
 			"	`namespace` varchar(50) DEFAULT NULL," +
-			"   `podname` varchar(100) NOT NULL," +
+			"   `containerName` varchar(100) NOT NULL," +
 			"	`labels` varchar(1000) DEFAULT NULL," +
 			"	`fromSource` varchar(256) DEFAULT NULL," +
 			"	`settype` varchar(16) DEFAULT NULL," + // settype: "file" or "process"
@@ -1048,7 +1048,7 @@ func GetWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadProce
 	var results *sql.Rows
 	var err error
 
-	query := "SELECT policyName,clusterName,namespace,podname,labels,fromSource,settype,fileset FROM " + WorkloadProcessFileSet_TableName
+	query := "SELECT policyName,clusterName,namespace,containerName,labels,fromSource,settype,fileset FROM " + WorkloadProcessFileSet_TableName
 
 	var whereClause string
 	var args []interface{}
@@ -1061,9 +1061,9 @@ func GetWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadProce
 		concatWhereClause(&whereClause, "namespace")
 		args = append(args, wpfs.Namespace)
 	}
-	if wpfs.PodName != "" {
-		concatWhereClause(&whereClause, "podname")
-		args = append(args, wpfs.PodName)
+	if wpfs.ContainerName != "" {
+		concatWhereClause(&whereClause, "containerName")
+		args = append(args, wpfs.ContainerName)
 	}
 	if wpfs.Labels != "" {
 		concatWhereClause(&whereClause, "labels")
@@ -1079,7 +1079,6 @@ func GetWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadProce
 	}
 
 	results, err = db.Query(query+whereClause, args...)
-	// log.Info().Msgf("WPFS query: [%s]", query+whereClause)
 
 	if err != nil {
 		log.Error().Msg(err.Error())
@@ -1100,7 +1099,7 @@ func GetWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadProce
 			&policyName,
 			&loc_wpfs.ClusterName,
 			&loc_wpfs.Namespace,
-			&loc_wpfs.PodName,
+			&loc_wpfs.ContainerName,
 			&loc_wpfs.Labels,
 			&loc_wpfs.FromSource,
 			&loc_wpfs.SetType,
@@ -1119,10 +1118,10 @@ func GetWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadProce
 func InsertWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadProcessFileSet, fs []string) error {
 	db := connectMySQL(cfg)
 	defer db.Close()
-	policyName := "autopol-" + wpfs.SetType + "-" + RandSeq(15)
+	policyName := "autopol-" + strings.ToLower(wpfs.SetType) + "-" + RandSeq(15)
 
 	stmt, err := db.Prepare("INSERT INTO " + WorkloadProcessFileSet_TableName +
-		"(policyName,clusterName,namespace,podname,labels,fromSource,settype,fileset) values(?,?,?,?,?,?,?,?)")
+		"(policyName,clusterName,namespace,containerName,labels,fromSource,settype,fileset) values(?,?,?,?,?,?,?,?)")
 	if err != nil {
 		return err
 	}
@@ -1133,7 +1132,7 @@ func InsertWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadPr
 		policyName,
 		wpfs.ClusterName,
 		wpfs.Namespace,
-		wpfs.PodName,
+		wpfs.ContainerName,
 		wpfs.Labels,
 		wpfs.FromSource,
 		wpfs.SetType,
@@ -1149,7 +1148,7 @@ func UpdateWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadPr
 
 	// set status -> outdated
 	stmt, err := db.Prepare("UPDATE " + WorkloadProcessFileSet_TableName +
-		" SET fileset=? WHERE clusterName = ? and podname = ? and namespace = ? and labels = ? and fromSource = ? and settype = ?")
+		" SET fileset=? WHERE clusterName = ? and containerName = ? and namespace = ? and labels = ? and fromSource = ? and settype = ?")
 	if err != nil {
 		return err
 	}
@@ -1158,7 +1157,7 @@ func UpdateWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadPr
 
 	_, err = stmt.Exec(fsset,
 		wpfs.ClusterName,
-		wpfs.PodName,
+		wpfs.ContainerName,
 		wpfs.Namespace,
 		wpfs.Labels,
 		wpfs.FromSource,

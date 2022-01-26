@@ -90,10 +90,10 @@ type SystemAlertEvent struct {
 
 // WorkloadProcessFileSet = clusterName + podname, namespace, {sorted set of labels}, fromSource.
 type WorkloadProcessFileSet struct {
-	ClusterName string
-	PodName     string
-	Namespace   string
-	Labels      string // comma separated list of pod labels
-	FromSource  string
-	SetType     string // SetType: "file" or "process"
+	ClusterName   string
+	ContainerName string
+	Namespace     string
+	Labels        string // comma separated list of pod labels
+	FromSource    string
+	SetType       string // SetType: "file" or "process"
 }
