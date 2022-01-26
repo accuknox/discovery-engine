@@ -826,6 +826,11 @@ func ClearDBTablesMySQL(cfg types.ConfigDB) error {
 		return err
 	}
 
+	query = "DELETE FROM " + WorkloadProcessFileSet_TableName
+	if _, err := db.Query(query); err != nil {
+		return err
+	}
+
 	return nil
 }
 
