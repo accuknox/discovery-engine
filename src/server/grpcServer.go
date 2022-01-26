@@ -48,7 +48,7 @@ func (s *workerServer) Start(ctx context.Context, in *wpb.WorkerRequest) (*wpb.W
 
 	if in.GetReq() == "dbclear" {
 		libs.ClearDBTables(core.CurrentCfg.ConfigDB)
-		response += "Cleared DB ,"
+		response += "Cleared DB."
 	}
 
 	if in.GetLogfile() != "" {
@@ -63,8 +63,6 @@ func (s *workerServer) Start(ctx context.Context, in *wpb.WorkerRequest) (*wpb.W
 			sysworker.StartSystemWorker()
 		}
 		response += "Starting " + in.GetPolicytype() + " policy discovery"
-	} else {
-		response += "No policy type provided, choose 'network' or 'system' to start policy discovery"
 	}
 
 	return &wpb.WorkerResponse{Res: response}, nil

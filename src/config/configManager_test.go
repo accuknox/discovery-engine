@@ -86,11 +86,6 @@ func TestLoadConfigDB(t *testing.T) {
 	assert.NotEmpty(t, cfg.DBName, "DB name should not be empty")
 	assert.NotEmpty(t, cfg.DBHost, "DB host should not be empty")
 	assert.NotEmpty(t, cfg.DBPort, "DB host should not be empty")
-
-	assert.NotEmpty(t, cfg.TableNetworkLog, "Table network_log should not be empty")
-	// assert.NotEmpty(t, cfg.TableNetworkPolicy, "Table network_policy should not be empty")
-	assert.NotEmpty(t, cfg.TableSystemLog, "Table system_log should not be empty")
-	// assert.NotEmpty(t, cfg.TableSystemPolicy, "Table system_policy should not be empty")
 }
 
 func TestLoadConfigCiliumHubble(t *testing.T) {
