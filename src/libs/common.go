@@ -66,6 +66,7 @@ func SetDefaultConfig() {
 	viper.SetDefault("application.system.system-policy-to", "db|file")
 	viper.SetDefault("application.system.system-policy-dir", "./")
 	viper.SetDefault("application.system.system-policy-types", 7)
+	viper.SetDefault("application.system.deprecate-old-mode", false)
 
 	// Application->cluster config
 	viper.SetDefault("application.cluster.cluster-info-from", "k8sclient")

@@ -23,6 +23,7 @@ data:
         system-log-file: "./log.json"             # file path
         system-policy-to: "db"               # db, file
         system-policy-dir: "./"
+        deprecate-old-mode: true
       cluster:
         cluster-info-from: "k8sclient"            # k8sclient|accuknox
 

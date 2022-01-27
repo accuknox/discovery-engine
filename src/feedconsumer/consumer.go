@@ -276,6 +276,7 @@ func (cfc *KnoxFeedConsumer) processSystemLogMessage(message []byte) error {
 					ClusterName:   syslog.ClusterName,
 					HostName:      syslog.HostName,
 					NamespaceName: syslog.NamespaceName,
+					ContainerName: syslog.ContainerName,
 					PodName:       syslog.PodName,
 					Source:        syslog.Source,
 					Operation:     syslog.Operation,
