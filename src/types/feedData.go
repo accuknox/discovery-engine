@@ -96,4 +96,6 @@ type WorkloadProcessFileSet struct {
 	Labels      string // comma separated list of pod labels
 	FromSource  string
 	SetType     string // SetType: "file" or "process"
+	CreatedTime uint
+	UpdatedTIme uint
 }

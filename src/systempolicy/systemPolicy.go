@@ -764,6 +764,8 @@ func GenFileSetForAllPodsInCluster(clusterName string, pods []types.Pod, settype
 		}
 		dbfs := out[wpfs]
 		if len(dbfs) == 0 {
+			wpfs.CreatedTime = uint(time.Now().Unix())
+			wpfs.UpdatedTIme = uint(time.Now().Unix())
 			sort.Strings(fs)
 			log.Info().Msgf("adding wpfs db entry for wpfs=%+v", wpfs)
 			err = libs.InsertWorkloadProcessFileSet(CfgDB, wpfs, fs)
@@ -772,6 +774,7 @@ func GenFileSetForAllPodsInCluster(clusterName string, pods []types.Pod, settype
 			mergedfs := mergeStringSlices(fs, dbfs)
 			sort.Strings(mergedfs)
 			if !reflect.DeepEqual(mergedfs, dbfs) {
+				wpfs.UpdatedTIme = uint(time.Now().Unix())
 				log.Info().Msgf("updating wpfs db entry for wpfs=%+v", wpfs)
 				// log.Info().Msgf("\nmergedfs=%+v\ndbfs=%+v", mergedfs, dbfs)
 				err = libs.UpdateWorkloadProcessFileSetMySQL(CfgDB, wpfs, mergedfs)
