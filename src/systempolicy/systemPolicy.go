@@ -241,7 +241,7 @@ func getSystemLogs() []types.KnoxSystemLog {
 	return systemLogs
 }
 
-func WriteSystemPoliciesToFile_Ext(namespace string) {
+func WriteSystemPoliciesToFile_Ext() {
 	var wpfs types.WorkloadProcessFileSet
 	res, policyNames, err := libs.GetWorkloadProcessFileSet(CfgDB, wpfs)
 	if err != nil {
@@ -258,11 +258,11 @@ func WriteSystemPoliciesToFile_Ext(namespace string) {
 
 func WriteSystemPoliciesToFile(namespace string) {
 	latestPolicies := libs.GetSystemPolicies(CfgDB, namespace, "latest")
-
-	kubeArmorPolicies := plugin.ConvertKnoxSystemPolicyToKubeArmorPolicy(latestPolicies)
-
-	libs.WriteKubeArmorPolicyToYamlFile("kubearmor_policies", "", kubeArmorPolicies)
-	WriteSystemPoliciesToFile_Ext(namespace)
+	if len(latestPolicies) > 0 {
+		kubeArmorPolicies := plugin.ConvertKnoxSystemPolicyToKubeArmorPolicy(latestPolicies)
+		libs.WriteKubeArmorPolicyToYamlFile("kubearmor_policies", "", kubeArmorPolicies)
+	}
+	WriteSystemPoliciesToFile_Ext()
 }
 
 // ============================= //
@@ -646,36 +646,41 @@ func PopulateSystemPoliciesFromSystemLogs(sysLogs []types.KnoxSystemLog) []types
 			if SystemPolicyTypes&SYS_OP_FILE_INT > 0 {
 				fileOpLogs := getOperationLogs(SYS_OP_FILE, perPodlogs)
 				GenFileSetForAllPodsInCluster(clusterName, pods, SYS_OP_FILE, fileOpLogs)
-				discoveredSysPolicies = discoverFileOperationPolicy(discoveredSysPolicies, pod, fileOpLogs)
-				filePolCnt = len(discoveredSysPolicies)
-				log.Info().Msgf("discovered %d file policies from %d file logs in the current batch",
-					len(discoveredSysPolicies), len(fileOpLogs))
+				if !cfg.CurrentCfg.ConfigSysPolicy.DeprecateOldMode {
+					discoveredSysPolicies = discoverFileOperationPolicy(discoveredSysPolicies, pod, fileOpLogs)
+					filePolCnt = len(discoveredSysPolicies)
+					log.Info().Msgf("discovered %d file policies from %d file logs in the current batch",
+						len(discoveredSysPolicies), len(fileOpLogs))
+				}
 			}
 
 			// 2. discover process operation system policy
 			if SystemPolicyTypes&SYS_OP_PROCESS_INT > 0 {
 				procOpLogs := getOperationLogs(SYS_OP_PROCESS, perPodlogs)
 				GenFileSetForAllPodsInCluster(clusterName, pods, SYS_OP_PROCESS, procOpLogs)
-				discoveredSysPolicies = discoverProcessOperationPolicy(discoveredSysPolicies, pod, procOpLogs)
-				log.Info().Msgf("discovered %d process policies from %d process logs in the current batch",
-					len(discoveredSysPolicies)-filePolCnt, len(procOpLogs))
-			}
-
-			// 3. update selector
-			discoveredSysPolicies = updateSysPolicySelector(clusterName, pod, discoveredSysPolicies)
-			discoveredSystemPolicies = append(discoveredSystemPolicies, discoveredSysPolicies...)
-
-			// 4. update duplicated policy
-			newPolicies := UpdateDuplicatedPolicy(existingPolicies, discoveredSysPolicies, clusterName)
-
-			if len(newPolicies) > 0 {
-				// insert discovered policies to db
-				if strings.Contains(SystemPolicyTo, "db") {
-					libs.InsertSystemPolicies(CfgDB, newPolicies)
+				if !cfg.CurrentCfg.ConfigSysPolicy.DeprecateOldMode {
+					discoveredSysPolicies = discoverProcessOperationPolicy(discoveredSysPolicies, pod, procOpLogs)
+					log.Info().Msgf("discovered %d process policies from %d process logs in the current batch",
+						len(discoveredSysPolicies)-filePolCnt, len(procOpLogs))
 				}
+			}
+			if !cfg.CurrentCfg.ConfigSysPolicy.DeprecateOldMode {
+				// 3. update selector
+				discoveredSysPolicies = updateSysPolicySelector(clusterName, pod, discoveredSysPolicies)
+				discoveredSystemPolicies = append(discoveredSystemPolicies, discoveredSysPolicies...)
 
-				log.Info().Msgf("system policy discovery done for [%s/%s/%s], [%d] policies discovered",
-					clusterName, pod.Namespace, pod.PodName, len(newPolicies))
+				// 4. update duplicated policy
+				newPolicies := UpdateDuplicatedPolicy(existingPolicies, discoveredSysPolicies, clusterName)
+
+				if len(newPolicies) > 0 {
+					// insert discovered policies to db
+					if strings.Contains(SystemPolicyTo, "db") {
+						libs.InsertSystemPolicies(CfgDB, newPolicies)
+					}
+
+					log.Info().Msgf("system policy discovery done for [%s/%s/%s], [%d] policies discovered",
+						clusterName, pod.Namespace, pod.PodName, len(newPolicies))
+				}
 			}
 
 			if strings.Contains(SystemPolicyTo, "file") {
@@ -738,7 +743,7 @@ func GenFileSetForAllPodsInCluster(clusterName string, pods []types.Pod, settype
 	wpfs := types.WorkloadProcessFileSet{}
 	for _, slog := range slogs {
 		wpfs.ClusterName = slog.ClusterName
-		wpfs.PodName = slog.PodName
+		wpfs.ContainerName = slog.ContainerName
 		wpfs.Namespace = slog.Namespace
 		wpfs.FromSource = slog.Source
 		wpfs.SetType = settype
@@ -770,6 +775,8 @@ func GenFileSetForAllPodsInCluster(clusterName string, pods []types.Pod, settype
 		} else {
 			// Update file set
 			mergedfs := mergeStringSlices(fs, dbfs)
+			// mergedfs = mergeFileIntoDirs(mergedfs)
+			// mergedfs = AggregatePaths(mergedfs)
 			sort.Strings(mergedfs)
 			if !reflect.DeepEqual(mergedfs, dbfs) {
 				log.Info().Msgf("updating wpfs db entry for wpfs=%+v", wpfs)

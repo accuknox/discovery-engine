@@ -3,6 +3,7 @@ package systempolicy
 import (
 	"regexp"
 	"sort"
+	"strings"
 
 	"github.com/accuknox/auto-policy-discovery/src/libs"
 	types "github.com/accuknox/auto-policy-discovery/src/types"
@@ -214,6 +215,9 @@ func AggregatePaths(paths []string) []SysPath {
 	// step 4: make result
 	results := []SysPath{}
 	for path, isDir := range aggregatedPaths {
+		if isDir && !strings.HasSuffix(path, "/") {
+			path = path + "/"
+		}
 		sysPath := SysPath{
 			Path:  path,
 			isDir: isDir,
