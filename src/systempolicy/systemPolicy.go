@@ -775,6 +775,8 @@ func GenFileSetForAllPodsInCluster(clusterName string, pods []types.Pod, settype
 		} else {
 			// Update file set
 			mergedfs := mergeStringSlices(fs, dbfs)
+			// mergedfs = mergeFileIntoDirs(mergedfs)
+			// mergedfs = AggregatePaths(mergedfs)
 			sort.Strings(mergedfs)
 			if !reflect.DeepEqual(mergedfs, dbfs) {
 				log.Info().Msgf("updating wpfs db entry for wpfs=%+v", wpfs)
