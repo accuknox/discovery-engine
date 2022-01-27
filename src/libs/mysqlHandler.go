@@ -497,6 +497,8 @@ func CreateTableWorkLoadProcessFileSetMySQL(cfg types.ConfigDB) error {
 			"	`fromSource` varchar(256) DEFAULT NULL," +
 			"	`settype` varchar(16) DEFAULT NULL," + // settype: "file" or "process"
 			"	`fileset` text DEFAULT NULL," +
+			"	`createdTime` int NOT NULL," +
+			"	`updatedTime` int NOT NULL," +
 			"	PRIMARY KEY (`id`)" +
 			"  );"
 
@@ -521,7 +523,7 @@ func GetWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadProce
 	var results *sql.Rows
 	var err error
 
-	query := "SELECT policyName,clusterName,namespace,containerName,labels,fromSource,settype,fileset FROM " + WorkloadProcessFileSet_TableName
+	query := "SELECT policyName,clusterName,namespace,containerName,labels,fromSource,settype,fileset,createdtime,updatedtime FROM " + WorkloadProcessFileSet_TableName
 
 	var whereClause string
 	var args []interface{}
@@ -566,6 +568,7 @@ func GetWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadProce
 	var fs []string
 	var policyNames []string
 	var policyName string
+	var createdTime, updatedTime int64
 
 	for results.Next() {
 		if err := results.Scan(
@@ -577,6 +580,8 @@ func GetWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadProce
 			&loc_wpfs.FromSource,
 			&loc_wpfs.SetType,
 			&fscsv,
+			&createdTime,
+			&updatedTime,
 		); err != nil {
 			return nil, nil, err
 		}
@@ -592,9 +597,10 @@ func InsertWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadPr
 	db := connectMySQL(cfg)
 	defer db.Close()
 	policyName := "autopol-" + strings.ToLower(wpfs.SetType) + "-" + RandSeq(15)
+	time := ConvertStrToUnixTime("now")
 
 	stmt, err := db.Prepare("INSERT INTO " + WorkloadProcessFileSet_TableName +
-		"(policyName,clusterName,namespace,containerName,labels,fromSource,settype,fileset) values(?,?,?,?,?,?,?,?)")
+		"(policyName,clusterName,namespace,containerName,labels,fromSource,settype,fileset,createdtime,updatedtime) values(?,?,?,?,?,?,?,?,?,?)")
 	if err != nil {
 		return err
 	}
@@ -609,7 +615,9 @@ func InsertWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadPr
 		wpfs.Labels,
 		wpfs.FromSource,
 		wpfs.SetType,
-		fsset)
+		fsset,
+		time,
+		time)
 	return err
 }
 
@@ -618,10 +626,11 @@ func UpdateWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadPr
 	defer db.Close()
 
 	var err error
+	time := ConvertStrToUnixTime("now")
 
 	// set status -> outdated
 	stmt, err := db.Prepare("UPDATE " + WorkloadProcessFileSet_TableName +
-		" SET fileset=? WHERE clusterName = ? and containerName = ? and namespace = ? and labels = ? and fromSource = ? and settype = ?")
+		" SET fileset=? WHERE clusterName = ? and containerName = ? and namespace = ? and labels = ? and fromSource = ? and settype = ? and updatedtime = ?")
 	if err != nil {
 		return err
 	}
@@ -634,7 +643,8 @@ func UpdateWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadPr
 		wpfs.Namespace,
 		wpfs.Labels,
 		wpfs.FromSource,
-		wpfs.SetType)
+		wpfs.SetType,
+		time)
 
 	/*
 		a, err := res.RowsAffected()
