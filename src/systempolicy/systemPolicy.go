@@ -435,7 +435,7 @@ func ConvertWPFSToKnoxSysPolicy(wpfsSet map[types.WorkloadProcessFileSet][]strin
 		for _, fpath := range fsset {
 			path := SysPath{
 				Path:  fpath,
-				isDir: false,
+				isDir: strings.HasSuffix(fpath, "/"),
 			}
 			policy = updateSysPolicySpec(wpfs.SetType, policy, wpfs.FromSource, path)
 		}
@@ -488,9 +488,14 @@ func buildSystemPolicy() types.KnoxSystemPolicy {
 
 func updateSysPolicySpec(opType string, policy types.KnoxSystemPolicy, src string, pathSpec SysPath) types.KnoxSystemPolicy {
 	// matchDirectories
+	var path string
 	if pathSpec.isDir {
+		path = pathSpec.Path
+		if !strings.HasSuffix(path, "/") {
+			path = path + "/"
+		}
 		matchDirs := types.KnoxMatchDirectories{
-			Dir: pathSpec.Path + "/",
+			Dir: path,
 		}
 
 		if opType == SYS_OP_FILE {
@@ -729,10 +734,10 @@ func mergeStringSlices(a []string, b []string) []string {
 // just once. Examples are /proc, /sys.
 func cleanResource(str string) string {
 	if strings.HasPrefix(str, "/proc") {
-		return "/proc"
+		return "/proc/"
 	}
 	if strings.HasPrefix(str, "/sys") {
-		return "/sys"
+		return "/sys/"
 	}
 	return str
 }
@@ -768,19 +773,14 @@ func GenFileSetForAllPodsInCluster(clusterName string, pods []types.Pod, settype
 			continue
 		}
 		dbfs := out[wpfs]
+		mergedfs := AggregatePathsExt(append(fs, dbfs...)) // merge and sort the filesets
 		if len(dbfs) == 0 {
-			sort.Strings(fs)
 			log.Info().Msgf("adding wpfs db entry for wpfs=%+v", wpfs)
-			err = libs.InsertWorkloadProcessFileSet(CfgDB, wpfs, fs)
+			err = libs.InsertWorkloadProcessFileSet(CfgDB, wpfs, mergedfs)
 		} else {
 			// Update file set
-			mergedfs := mergeStringSlices(fs, dbfs)
-			// mergedfs = mergeFileIntoDirs(mergedfs)
-			// mergedfs = AggregatePaths(mergedfs)
-			sort.Strings(mergedfs)
 			if !reflect.DeepEqual(mergedfs, dbfs) {
 				log.Info().Msgf("updating wpfs db entry for wpfs=%+v", wpfs)
-				// log.Info().Msgf("\nmergedfs=%+v\ndbfs=%+v", mergedfs, dbfs)
 				err = libs.UpdateWorkloadProcessFileSetMySQL(CfgDB, wpfs, mergedfs)
 			}
 		}
