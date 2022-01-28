@@ -497,8 +497,8 @@ func CreateTableWorkLoadProcessFileSetMySQL(cfg types.ConfigDB) error {
 			"	`fromSource` varchar(256) DEFAULT NULL," +
 			"	`settype` varchar(16) DEFAULT NULL," + // settype: "file" or "process"
 			"	`fileset` text DEFAULT NULL," +
-			"	`createdTime` int NOT NULL," +
-			"	`updatedTime` int NOT NULL," +
+			"	`createdTime` bigint NOT NULL," +
+			"	`updatedTime` bigint NOT NULL," +
 			"	PRIMARY KEY (`id`)" +
 			"  );"
 
@@ -630,7 +630,7 @@ func UpdateWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadPr
 
 	// set status -> outdated
 	stmt, err := db.Prepare("UPDATE " + WorkloadProcessFileSet_TableName +
-		" SET fileset=? WHERE clusterName = ? and containerName = ? and namespace = ? and labels = ? and fromSource = ? and settype = ? and updatedtime = ?")
+		" SET fileset=?,updatedtime=? WHERE clusterName = ? and containerName = ? and namespace = ? and labels = ? and fromSource = ? and settype = ?")
 	if err != nil {
 		return err
 	}
@@ -638,13 +638,13 @@ func UpdateWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadPr
 	fsset := strings.Join(fs[:], ",")
 
 	_, err = stmt.Exec(fsset,
+		time,
 		wpfs.ClusterName,
 		wpfs.ContainerName,
 		wpfs.Namespace,
 		wpfs.Labels,
 		wpfs.FromSource,
-		wpfs.SetType,
-		time)
+		wpfs.SetType)
 
 	/*
 		a, err := res.RowsAffected()
