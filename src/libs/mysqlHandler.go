@@ -523,7 +523,7 @@ func GetWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadProce
 	var results *sql.Rows
 	var err error
 
-	query := "SELECT policyName,clusterName,namespace,containerName,labels,fromSource,settype,fileset,createdtime,updatedtime FROM " + WorkloadProcessFileSet_TableName
+	query := "SELECT policyName,clusterName,namespace,containerName,labels,fromSource,settype,fileset FROM " + WorkloadProcessFileSet_TableName
 
 	var whereClause string
 	var args []interface{}
@@ -568,7 +568,6 @@ func GetWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadProce
 	var fs []string
 	var policyNames []string
 	var policyName string
-	var createdTime, updatedTime int64
 
 	for results.Next() {
 		if err := results.Scan(
@@ -580,8 +579,6 @@ func GetWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadProce
 			&loc_wpfs.FromSource,
 			&loc_wpfs.SetType,
 			&fscsv,
-			&createdTime,
-			&updatedTime,
 		); err != nil {
 			return nil, nil, err
 		}
