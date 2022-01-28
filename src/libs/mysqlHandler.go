@@ -497,6 +497,8 @@ func CreateTableWorkLoadProcessFileSetMySQL(cfg types.ConfigDB) error {
 			"	`fromSource` varchar(256) DEFAULT NULL," +
 			"	`settype` varchar(16) DEFAULT NULL," + // settype: "file" or "process"
 			"	`fileset` text DEFAULT NULL," +
+			"	`createdTime` bigint NOT NULL," +
+			"	`updatedTime` bigint NOT NULL," +
 			"	PRIMARY KEY (`id`)" +
 			"  );"
 
@@ -592,9 +594,10 @@ func InsertWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadPr
 	db := connectMySQL(cfg)
 	defer db.Close()
 	policyName := "autopol-" + strings.ToLower(wpfs.SetType) + "-" + RandSeq(15)
+	time := ConvertStrToUnixTime("now")
 
 	stmt, err := db.Prepare("INSERT INTO " + WorkloadProcessFileSet_TableName +
-		"(policyName,clusterName,namespace,containerName,labels,fromSource,settype,fileset) values(?,?,?,?,?,?,?,?)")
+		"(policyName,clusterName,namespace,containerName,labels,fromSource,settype,fileset,createdtime,updatedtime) values(?,?,?,?,?,?,?,?,?,?)")
 	if err != nil {
 		return err
 	}
@@ -609,7 +612,9 @@ func InsertWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadPr
 		wpfs.Labels,
 		wpfs.FromSource,
 		wpfs.SetType,
-		fsset)
+		fsset,
+		time,
+		time)
 	return err
 }
 
@@ -618,10 +623,11 @@ func UpdateWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadPr
 	defer db.Close()
 
 	var err error
+	time := ConvertStrToUnixTime("now")
 
 	// set status -> outdated
 	stmt, err := db.Prepare("UPDATE " + WorkloadProcessFileSet_TableName +
-		" SET fileset=? WHERE clusterName = ? and containerName = ? and namespace = ? and labels = ? and fromSource = ? and settype = ?")
+		" SET fileset=?,updatedtime=? WHERE clusterName = ? and containerName = ? and namespace = ? and labels = ? and fromSource = ? and settype = ?")
 	if err != nil {
 		return err
 	}
@@ -629,6 +635,7 @@ func UpdateWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadPr
 	fsset := strings.Join(fs[:], ",")
 
 	_, err = stmt.Exec(fsset,
+		time,
 		wpfs.ClusterName,
 		wpfs.ContainerName,
 		wpfs.Namespace,
