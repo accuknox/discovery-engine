@@ -33,6 +33,9 @@ var BuildDate string
 var Version string
 
 func printBuildDetails() {
+	if GitCommit == "" {
+		return
+	}
 	log.Info().Msgf("BUILD-INFO: commit:%v, branch: %v, date: %v, version: %v",
 		GitCommit, GitBranch, BuildDate, Version)
 }

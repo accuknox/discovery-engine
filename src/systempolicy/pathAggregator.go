@@ -1,6 +1,7 @@
 package systempolicy
 
 import (
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -177,6 +178,33 @@ func buildPathTree(treeMap map[string]*Node, paths []string) {
 	}
 }
 
+// if you have files in a dir and the dir itself as input then no need to consider files
+// for e.g., /usr/xyz and /usr/ is given as input ... in this case, we can
+// skip /usr/xyz because whole /usr/ dir is already input
+func mergeFileInDir(paths []string) (map[string]bool, []string) {
+	var filelist []string
+	dirlist := map[string]bool{}
+	for _, path := range paths {
+		if strings.HasSuffix(path, "/") {
+			dirlist[path] = true
+		} else {
+			filelist = append(filelist, path)
+		}
+	}
+	if len(dirlist) <= 0 {
+		return dirlist, filelist
+	}
+	var finalFileList []string
+	for _, path := range filelist {
+		dir := filepath.Dir(path)
+		if !dirlist[dir+"/"] {
+			finalFileList = append(finalFileList, path)
+		}
+	}
+
+	return dirlist, finalFileList
+}
+
 func AggregatePaths(paths []string) []SysPath {
 	treeMap := map[string]*Node{}
 
@@ -274,4 +302,30 @@ func MergeAndAggregatePaths(dirs []string, paths []string) []SysPath {
 	}
 
 	return results
+}
+
+func AggregatePathsExt(paths []string) []string {
+	dirlist, filelist := mergeFileInDir(paths)
+
+	results := AggregatePaths(filelist)
+
+	var flist []string
+	for _, sp := range results {
+		rec := sp.Path
+		if sp.isDir {
+			if !strings.HasSuffix(rec, "/") {
+				rec = rec + "/"
+			}
+			if dirlist[rec] { //already part of dirlist above
+				continue
+			}
+		}
+		flist = append(flist, rec)
+	}
+
+	for k, _ := range dirlist {
+		flist = append(flist, k)
+	}
+	sort.Strings(flist)
+	return flist
 }
