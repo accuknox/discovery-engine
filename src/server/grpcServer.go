@@ -169,8 +169,8 @@ type observabilityServer struct {
 }
 
 func (s *observabilityServer) GetSysObservabilityData(ctx context.Context, in *opb.SysObsData) (*opb.SysObsResponse, error) {
-	err := sysworker.GetSystemObsData(in.ClusterName, in.ContainerName, in.Namespace, in.Labels)
-	return &opb.SysObsResponse{Res: "ok"}, err
+	resp, err := sysworker.GetSystemObsData(in.ClusterName, in.ContainerName, in.Namespace, in.Labels)
+	return &resp, err
 }
 
 // ================= //

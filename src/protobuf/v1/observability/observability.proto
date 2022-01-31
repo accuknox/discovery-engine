@@ -16,5 +16,15 @@ message SysObsData {
 }
 
 message SysObsResponse {
-    string res = 1;
+    string clusterName = 1;
+    string containerName = 2;
+    string namespace = 3;
+    string labels = 4;
+    repeated SysProcessFileData processFileData = 5;
+}
+
+message SysProcessFileData {
+    string fromSource = 1;
+    repeated string processPaths = 2;
+    repeated string filePaths = 3;
 }

@@ -2,6 +2,7 @@ package systempolicy
 
 import (
 	"github.com/accuknox/auto-policy-discovery/src/libs"
+	opb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/observability"
 	types "github.com/accuknox/auto-policy-discovery/src/types"
 )
 
@@ -29,19 +30,37 @@ func convertWPFSToObservabilityData(wpfsSet map[types.WorkloadProcessFileSet][]s
 	return sysObsProcessFileData
 }
 
-func GetSystemObsData(clusterName string, containerName string, namespace string, labels string) error {
+func convertSysObsDataToResponse(obsData types.SysObservabilityData) opb.SysObsResponse {
+	obsResData := opb.SysObsResponse{}
+	processFileSet := opb.SysProcessFileData{}
+
+	obsResData.ClusterName = obsData.ClusterName
+	obsResData.ContainerName = obsData.ContainerName
+	obsResData.Namespace = obsData.Namespace
+	obsResData.Labels = obsData.Labels
+
+	for _, pfs := range obsData.SysProcessFileData {
+		processFileSet.FromSource = pfs.FromSource
+		processFileSet.ProcessPaths = append(processFileSet.ProcessPaths, pfs.ProcessPaths...)
+		processFileSet.FilePaths = append(processFileSet.FilePaths, pfs.FilePaths...)
+	}
+
+	obsResData.ProcessFileData = append(obsResData.ProcessFileData, &processFileSet)
+
+	return obsResData
+}
+
+func GetSystemObsData(clusterName string, containerName string, namespace string, labels string) (opb.SysObsResponse, error) {
+
+	sysObsData := types.SysObservabilityData{}
 
 	wpfs := types.WorkloadProcessFileSet{}
-	var sysObsData types.SysObservabilityData
 	wpfs.ClusterName = clusterName
 	wpfs.ContainerName = containerName
 	wpfs.Namespace = namespace
 	wpfs.Labels = labels
 
-	res, policyNames, err := libs.GetWorkloadProcessFileSet(CfgDB, wpfs)
-	if err != nil {
-		return err
-	}
+	res, policyNames, _ := libs.GetWorkloadProcessFileSet(CfgDB, wpfs)
 
 	sysObsProcessFileData := convertWPFSToObservabilityData(res, policyNames)
 
@@ -51,7 +70,11 @@ func GetSystemObsData(clusterName string, containerName string, namespace string
 	sysObsData.Namespace = namespace
 	sysObsData.SysProcessFileData = sysObsProcessFileData
 
+	// Write Observability data to json file
 	libs.WriteSysObsDataToJsonFile(sysObsData)
 
-	return nil
+	// Generate json response gRPC
+	opbSysObsResponse := convertSysObsDataToResponse(sysObsData)
+
+	return opbSysObsResponse, nil
 }
