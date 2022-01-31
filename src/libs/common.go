@@ -352,6 +352,16 @@ func writeYamlByte(f *os.File, b []byte) {
 	}
 }
 
+func writeJsonByte(f *os.File, b []byte) {
+	if _, err := f.Write(b); err != nil {
+		log.Error().Msg(err.Error())
+	}
+
+	if err := f.Sync(); err != nil {
+		log.Error().Msg(err.Error())
+	}
+}
+
 func WriteKnoxNetPolicyToYamlFile(namespace string, policies []types.KnoxNetworkPolicy) {
 	fileName := GetEnv("POLICY_DIR", "./")
 	if namespace != "" {
@@ -453,6 +463,34 @@ func WriteKubeArmorPolicyToYamlFile(fname string, namespace string, policies []t
 	if err := f.Close(); err != nil {
 		log.Error().Msg(err.Error())
 	}
+}
+
+func WriteSysObsDataToJsonFile(obsData types.SysObservabilityData) {
+	fileName := GetEnv("POLICY_DIR", "./")
+	fileName = fileName + "sys_observability_data" + ".json"
+
+	if err := os.Remove(fileName); err != nil {
+		if !strings.Contains(err.Error(), NoSuchFileOrDir) {
+			log.Error().Msg(err.Error())
+		}
+	}
+
+	f, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY, 0600)
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return
+	}
+
+	b, err := json.Marshal(&obsData)
+	if err != nil {
+		log.Error().Msg(err.Error())
+	}
+	writeJsonByte(f, b)
+
+	if err := f.Close(); err != nil {
+		log.Error().Msg(err.Error())
+	}
+
 }
 
 // ========== //

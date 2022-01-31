@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package v1.observability;
+
+option go_package = "github.com/accuknox/knoxAutoPolicy/protos/v1/observability";
+
+service Observability {
+    rpc GetSysObservabilityData (SysObsData) returns (SysObsResponse);
+}
+
+message SysObsData {
+    string clusterName = 1;
+    string namespace = 2;
+    string containerName =3;
+    string labels = 4;
+}
+
+message SysObsResponse {
+    string ClusterName = 1;
+    string ContainerName = 2;
+    string Namespace = 3;
+    string Labels = 4;
+    repeated SysProcessFileData ProcessFiles = 5;
+}
+
+message SysProcessFileData {
+    string fromSource = 1;
+    repeated string processPaths = 2;
+    repeated string filePaths = 3;
+}

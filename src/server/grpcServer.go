@@ -16,6 +16,7 @@ import (
 	"github.com/accuknox/auto-policy-discovery/src/libs"
 	apb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/analyzer"
 	fpb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/consumer"
+	opb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/observability"
 	wpb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/worker"
 	"github.com/accuknox/auto-policy-discovery/src/types"
 
@@ -159,6 +160,19 @@ func (s *analyzerServer) GetSystemPolicies(ctx context.Context, in *apb.SystemLo
 	return &pbSystemPolicies, nil
 }
 
+// =================== //
+// == Observability == //
+// =================== //
+
+type observabilityServer struct {
+	opb.ObservabilityServer
+}
+
+func (s *observabilityServer) GetSysObservabilityData(ctx context.Context, in *opb.SysObsData) (*opb.SysObsResponse, error) {
+	resp, err := sysworker.GetSystemObsData(in.ClusterName, in.ContainerName, in.Namespace, in.Labels)
+	return &resp, err
+}
+
 // ================= //
 // == gRPC server == //
 // ================= //
@@ -173,11 +187,13 @@ func GetNewServer() *grpc.Server {
 	workerServer := &workerServer{}
 	consumerServer := &consumerServer{}
 	analyzerServer := &analyzerServer{}
+	observabilityServer := &observabilityServer{}
 
 	// register gRPC servers
 	wpb.RegisterWorkerServer(s, workerServer)
 	fpb.RegisterConsumerServer(s, consumerServer)
 	apb.RegisterAnalyzerServer(s, analyzerServer)
+	opb.RegisterObservabilityServer(s, observabilityServer)
 
 	if cfg.GetCurrentCfg().ConfigClusterMgmt.ClusterInfoFrom != "k8sclient" {
 		// start consumer automatically
