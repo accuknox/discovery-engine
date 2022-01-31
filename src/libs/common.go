@@ -462,7 +462,7 @@ func WriteKubeArmorPolicyToYamlFile(fname string, namespace string, policies []t
 	}
 }
 
-func WriteSysObsDataToJsonFile(obsData []types.SysObservabilityData) {
+func WriteSysObsDataToJsonFile(obsData types.SysObservabilityData) {
 	fileName := GetEnv("POLICY_DIR", "./")
 	fileName = fileName + "sys_observability_data" + ".json"
 
@@ -478,13 +478,11 @@ func WriteSysObsDataToJsonFile(obsData []types.SysObservabilityData) {
 		return
 	}
 
-	for i := range obsData {
-		b, err := json.Marshal(&obsData[i])
-		if err != nil {
-			log.Error().Msg(err.Error())
-		}
-		writeJsonByte(f, b)
+	b, err := json.Marshal(&obsData)
+	if err != nil {
+		log.Error().Msg(err.Error())
 	}
+	writeJsonByte(f, b)
 
 	if err := f.Close(); err != nil {
 		log.Error().Msg(err.Error())

@@ -12,6 +12,7 @@ message SysObsData {
     string clusterName = 1;
     string namespace = 2;
     string containerName =3;
+    string labels = 4;
 }
 
 message SysObsResponse {
