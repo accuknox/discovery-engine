@@ -16,11 +16,11 @@ message SysObsData {
 }
 
 message SysObsResponse {
-    string clusterName = 1;
-    string containerName = 2;
-    string namespace = 3;
-    string labels = 4;
-    repeated SysProcessFileData processFileData = 5;
+    string ClusterName = 1;
+    string ContainerName = 2;
+    string Namespace = 3;
+    string Labels = 4;
+    repeated SysProcessFileData ProcessFiles = 5;
 }
 
 message SysProcessFileData {
