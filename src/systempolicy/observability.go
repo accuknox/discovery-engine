@@ -1,8 +1,6 @@
 package systempolicy
 
 import (
-	"errors"
-
 	"github.com/accuknox/auto-policy-discovery/src/libs"
 	types "github.com/accuknox/auto-policy-discovery/src/types"
 )
@@ -19,10 +17,10 @@ func convertWPFSToObservabilityData(wpfsSet map[types.WorkloadProcessFileSet][]s
 		var locSysObsProcessFileData types.SysObsProcessFileData
 
 		locSysObsProcessFileData.FromSource = wpfs.FromSource
-		if wpfs.SetType == "Process" {
+		if wpfs.SetType == SYS_OP_PROCESS {
 			locSysObsProcessFileData.ProcessPaths = append(locSysObsProcessFileData.ProcessPaths, fsset...)
 		}
-		if wpfs.SetType == "File" {
+		if wpfs.SetType == SYS_OP_FILE {
 			locSysObsProcessFileData.FilePaths = append(locSysObsProcessFileData.FilePaths, fsset...)
 		}
 		sysObsProcessFileData = append(sysObsProcessFileData, locSysObsProcessFileData)
@@ -46,9 +44,6 @@ func GetSystemObsData(clusterName string, containerName string, namespace string
 	}
 
 	sysObsProcessFileData := convertWPFSToObservabilityData(res, policyNames)
-	if len(sysObsProcessFileData) == 0 {
-		return errors.New("no data in db")
-	}
 
 	sysObsData.ClusterName = clusterName
 	sysObsData.ContainerName = containerName

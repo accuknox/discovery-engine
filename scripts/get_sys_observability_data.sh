@@ -1,19 +1,21 @@
 #!/bin/bash
 
-echo "Input requested parameters for fetching observability data."
-echo "If empty value, press ENTER"
+## Run script command in below format
+## ./scripts/get_sys_observability_data.sh clustername:default containername:wordpress namespace:wordpress-mysql labels:app=mysql
 
-echo "Input clustername"
-read clustername
+for ARGUMENT in "$@"
+do
+    KEY=$(echo $ARGUMENT | cut -f1 -d:)
+    VALUE=$(echo $ARGUMENT | cut -f2 -d:)   
 
-echo "Input containername"
-read containername
-
-echo "Input namespace"
-read namespace
-
-echo "Input labels"
-read labels
+    case "$KEY" in
+            clustername)        clustername=${VALUE} ;;
+            namespace)          namespace=${VALUE} ;;   
+            containername)      containername=${VALUE} ;;
+            labels)             labels=${VALUE} ;;     
+            *)   
+    esac    
+done
 
 DATA='{"clusterName": "'$clustername'", "namespace":"'$namespace'", "containerName":"'$containername'", "labels":"'$labels'"}'
 
