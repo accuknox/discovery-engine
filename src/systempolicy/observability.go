@@ -32,7 +32,6 @@ func convertWPFSToObservabilityData(wpfsSet map[types.WorkloadProcessFileSet][]s
 
 func convertSysObsDataToResponse(obsData types.SysObservabilityData) opb.SysObsResponse {
 	obsResData := opb.SysObsResponse{}
-	processFileSet := opb.SysProcessFileData{}
 
 	obsResData.ClusterName = obsData.ClusterName
 	obsResData.ContainerName = obsData.ContainerName
@@ -40,12 +39,14 @@ func convertSysObsDataToResponse(obsData types.SysObservabilityData) opb.SysObsR
 	obsResData.Labels = obsData.Labels
 
 	for _, pfs := range obsData.SysProcessFileData {
+		processFileSet := opb.SysProcessFileData{}
+
 		processFileSet.FromSource = pfs.FromSource
 		processFileSet.ProcessPaths = append(processFileSet.ProcessPaths, pfs.ProcessPaths...)
 		processFileSet.FilePaths = append(processFileSet.FilePaths, pfs.FilePaths...)
-	}
 
-	obsResData.ProcessFileData = append(obsResData.ProcessFileData, &processFileSet)
+		obsResData.ProcessFiles = append(obsResData.ProcessFiles, &processFileSet)
+	}
 
 	return obsResData
 }
