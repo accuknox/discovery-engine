@@ -437,7 +437,11 @@ func ConvertWPFSToKnoxSysPolicy(wpfsSet map[types.WorkloadProcessFileSet][]strin
 				Path:  fpath,
 				isDir: strings.HasSuffix(fpath, "/"),
 			}
-			policy = updateSysPolicySpec(wpfs.SetType, policy, wpfs.FromSource, path)
+			src := ""
+			if strings.HasPrefix(wpfs.FromSource, "/") {
+				src = wpfs.FromSource
+			}
+			policy = updateSysPolicySpec(wpfs.SetType, policy, src, path)
 		}
 
 		policy.Metadata["clusterName"] = wpfs.ClusterName
@@ -500,10 +504,12 @@ func updateSysPolicySpec(opType string, policy types.KnoxSystemPolicy, src strin
 
 		if opType == SYS_OP_FILE {
 			if FileFromSource {
-				matchDirs.FromSource = []types.KnoxFromSource{
-					types.KnoxFromSource{
-						Path: src,
-					},
+				if src != "" {
+					matchDirs.FromSource = []types.KnoxFromSource{
+						types.KnoxFromSource{
+							Path: src,
+						},
+					}
 				}
 				policy.Metadata["fromSource"] = src
 			}
@@ -515,10 +521,12 @@ func updateSysPolicySpec(opType string, policy types.KnoxSystemPolicy, src strin
 			}
 		} else if opType == SYS_OP_PROCESS {
 			if ProcessFromSource {
-				matchDirs.FromSource = []types.KnoxFromSource{
-					types.KnoxFromSource{
-						Path: src,
-					},
+				if src != "" {
+					matchDirs.FromSource = []types.KnoxFromSource{
+						types.KnoxFromSource{
+							Path: src,
+						},
+					}
 				}
 				policy.Metadata["fromSource"] = src
 			}
@@ -537,10 +545,12 @@ func updateSysPolicySpec(opType string, policy types.KnoxSystemPolicy, src strin
 
 		if opType == SYS_OP_FILE {
 			if FileFromSource {
-				matchPaths.FromSource = []types.KnoxFromSource{
-					types.KnoxFromSource{
-						Path: src,
-					},
+				if src != "" {
+					matchPaths.FromSource = []types.KnoxFromSource{
+						types.KnoxFromSource{
+							Path: src,
+						},
+					}
 				}
 				policy.Metadata["fromSource"] = src
 			}
@@ -552,10 +562,12 @@ func updateSysPolicySpec(opType string, policy types.KnoxSystemPolicy, src strin
 			}
 		} else if opType == SYS_OP_PROCESS {
 			if ProcessFromSource {
-				matchPaths.FromSource = []types.KnoxFromSource{
-					types.KnoxFromSource{
-						Path: src,
-					},
+				if src != "" {
+					matchPaths.FromSource = []types.KnoxFromSource{
+						types.KnoxFromSource{
+							Path: src,
+						},
+					}
 				}
 				policy.Metadata["fromSource"] = src
 			}
