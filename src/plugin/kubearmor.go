@@ -198,10 +198,11 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 
 	client := pb.NewLogServiceClient(conn)
 
-	req := pb.RequestMessage{}
-
 	//Stream Logs
 	go func(client pb.LogServiceClient) {
+		req := pb.RequestMessage{}
+		req.Filter = "system"
+
 		defer func() {
 			log.Info().Msg("watchlogs returning")
 			KubeArmorRelayStarted = false
@@ -233,6 +234,9 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 
 	//Stream Alerts
 	go func() {
+		req := pb.RequestMessage{}
+		req.Filter = "policy"
+
 		defer func() {
 			log.Info().Msg("watchalerts returning")
 			KubeArmorRelayStarted = false
