@@ -6,16 +6,33 @@ import (
 	types "github.com/accuknox/auto-policy-discovery/src/types"
 )
 
-func convertWPFSToObservabilityData(wpfsSet map[types.WorkloadProcessFileSet][]string, policyNames []string) []types.SysObsProcessFileData {
-	if len(wpfsSet) != len(policyNames) {
-		log.Error().Msgf("len(wpfsSet):%d != len(policyNames):%d", len(wpfsSet), len(policyNames))
-		return nil
+func addStrToArrIfNotDuplicate(strArr []string, value string) []string {
+
+	for _, str := range strArr {
+		if str == value {
+			return strArr
+		}
 	}
 
-	var sysObsProcessFileData []types.SysObsProcessFileData
+	strArr = append(strArr, value)
+	return strArr
+}
+
+func convertWPFSToObservabilityData(wpfsSet map[types.WorkloadProcessFileSet][]string, policyNames []string) types.SysObservabilityData {
+	if len(wpfsSet) != len(policyNames) {
+		log.Error().Msgf("len(wpfsSet):%d != len(policyNames):%d", len(wpfsSet), len(policyNames))
+		return types.SysObservabilityData{}
+	}
+
+	var sysObsObservabilityData types.SysObservabilityData
 
 	for wpfs, fsset := range wpfsSet {
 		var locSysObsProcessFileData types.SysObsProcessFileData
+
+		sysObsObservabilityData.ClusterName = addStrToArrIfNotDuplicate(sysObsObservabilityData.ClusterName, wpfs.ClusterName)
+		sysObsObservabilityData.ContainerName = addStrToArrIfNotDuplicate(sysObsObservabilityData.ContainerName, wpfs.ContainerName)
+		sysObsObservabilityData.Namespace = addStrToArrIfNotDuplicate(sysObsObservabilityData.Namespace, wpfs.Namespace)
+		sysObsObservabilityData.Labels = addStrToArrIfNotDuplicate(sysObsObservabilityData.Labels, wpfs.Labels)
 
 		locSysObsProcessFileData.FromSource = wpfs.FromSource
 		if wpfs.SetType == SYS_OP_PROCESS {
@@ -24,10 +41,11 @@ func convertWPFSToObservabilityData(wpfsSet map[types.WorkloadProcessFileSet][]s
 		if wpfs.SetType == SYS_OP_FILE {
 			locSysObsProcessFileData.FilePaths = append(locSysObsProcessFileData.FilePaths, fsset...)
 		}
-		sysObsProcessFileData = append(sysObsProcessFileData, locSysObsProcessFileData)
+
+		sysObsObservabilityData.SysProcessFileData = append(sysObsObservabilityData.SysProcessFileData, locSysObsProcessFileData)
 	}
 
-	return sysObsProcessFileData
+	return sysObsObservabilityData
 }
 
 func convertSysObsDataToResponse(obsData types.SysObservabilityData) opb.SysObsResponse {
@@ -54,8 +72,8 @@ func convertSysObsDataToResponse(obsData types.SysObservabilityData) opb.SysObsR
 func GetSystemObsData(clusterName string, containerName string, namespace string, labels string) (opb.SysObsResponse, error) {
 
 	sysObsData := types.SysObservabilityData{}
-
 	wpfs := types.WorkloadProcessFileSet{}
+
 	wpfs.ClusterName = clusterName
 	wpfs.ContainerName = containerName
 	wpfs.Namespace = namespace
@@ -63,13 +81,7 @@ func GetSystemObsData(clusterName string, containerName string, namespace string
 
 	res, policyNames, _ := libs.GetWorkloadProcessFileSet(CfgDB, wpfs)
 
-	sysObsProcessFileData := convertWPFSToObservabilityData(res, policyNames)
-
-	sysObsData.ClusterName = clusterName
-	sysObsData.ContainerName = containerName
-	sysObsData.Labels = labels
-	sysObsData.Namespace = namespace
-	sysObsData.SysProcessFileData = sysObsProcessFileData
+	sysObsData = convertWPFSToObservabilityData(res, policyNames)
 
 	// Write Observability data to json file
 	libs.WriteSysObsDataToJsonFile(sysObsData)
