@@ -197,8 +197,8 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 	conn := ConnectKubeArmorRelay(cfg)
 
 	client := pb.NewLogServiceClient(conn)
-
 	req := pb.RequestMessage{}
+	req.Filter = "all"
 
 	//Stream Logs
 	go func(client pb.LogServiceClient) {
