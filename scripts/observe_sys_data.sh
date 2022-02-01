@@ -1,12 +1,7 @@
 #!/bin/bash
 
 ## Run script command in below format
-## ./scripts/get_sys_observability_data.sh clustername:default containername:wordpress namespace:wordpress-mysql labels:app=mysql
-
-usage()
-{
-    echo "Usage: $0 --containername <name> --clustername <name> --namespace <namespace> --labels <labels> "
-}
+## ./scripts/get_sys_observability_data.sh --clustername default --containername wordpress --namespace wordpress-mysql --labels app=mysql
 
 OPTS=`getopt -o s: --long containername: --long clustername: --long namespace: --long labels: -n 'parse-options' -- "$@"`
 eval set -- "$OPTS"
@@ -20,8 +15,6 @@ while true; do
         * ) break ;;
     esac
 done
-
-[[ "$CLUSTER_NAME" == "" ]] && [[ "$CONTAINER_NAME" == "" ]] && [[ "$NAMESPACE" == "" ]] && [[ "$LABELS" == "" ]] && usage
 
 DATA='{"clusterName": "'$CLUSTER_NAME'", "namespace":"'$NAMESPACE'", "containerName":"'$CONTAINER_NAME'", "labels":"'$LABELS'"}'
 
