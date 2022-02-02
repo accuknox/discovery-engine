@@ -78,7 +78,7 @@ func convertSysObsDataToResponse(resData types.SysObsResponseData) opb.SysObsRes
 			locfsset.FilePaths = append(locfsset.FilePaths, fsset.FilePaths...)
 			locfsset.ProcessPaths = append(locfsset.ProcessPaths, fsset.ProcessPaths...)
 
-			locObsResData.ProcessFiles = append(locObsResData.ProcessFiles, &locfsset)
+			locObsResData.Resources = append(locObsResData.Resources, &locfsset)
 		}
 
 		obsResData.Data = append(obsResData.Data, &locObsResData)

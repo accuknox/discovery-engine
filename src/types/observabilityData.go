@@ -11,7 +11,7 @@ type SysObservabilityData struct {
 	Namespace          string                  `json:"namespace,omitempty"`
 	Labels             string                  `json:"labels,omitempty"`
 	ContainerName      string                  `json:"containername,omitempty"`
-	SysProcessFileData []SysObsProcessFileData `json:"process-files,omitempty"`
+	SysProcessFileData []SysObsProcessFileData `json:"resources,omitempty"`
 }
 
 type SysObsResponseData struct {
