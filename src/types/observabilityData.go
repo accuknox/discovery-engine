@@ -7,9 +7,13 @@ type SysObsProcessFileData struct {
 }
 
 type SysObservabilityData struct {
-	ClusterName        []string                `json:"clustername,omitempty"`
-	ContainerName      []string                `json:"containername,omitempty"`
-	Namespace          []string                `json:"namespace,omitempty"`
-	Labels             []string                `json:"labels,omitempty"`
-	SysProcessFileData []SysObsProcessFileData `json:"process-files,omitempty"`
+	ClusterName        string                  `json:"clustername,omitempty"`
+	Namespace          string                  `json:"namespace,omitempty"`
+	Labels             string                  `json:"labels,omitempty"`
+	ContainerName      string                  `json:"containername,omitempty"`
+	SysProcessFileData []SysObsProcessFileData `json:"resources,omitempty"`
+}
+
+type SysObsResponseData struct {
+	Data []SysObservabilityData
 }

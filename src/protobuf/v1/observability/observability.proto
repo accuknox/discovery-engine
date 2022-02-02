@@ -15,16 +15,20 @@ message SysObsData {
     string labels = 4;
 }
 
-message SysObsResponse {
-    repeated string ClusterName = 1;
-    repeated string ContainerName = 2;
-    repeated string Namespace = 3;
-    repeated string Labels = 4;
-    repeated SysProcessFileData ProcessFiles = 5;
+message SysObsResponseData {
+    string ClusterName = 1;
+    string NameSpace = 2;
+    string Labels = 3;
+    string ContainerName = 4;
+    repeated SysProcessFileData Resources = 5;
 }
 
 message SysProcessFileData {
     string fromSource = 1;
     repeated string processPaths = 2;
     repeated string filePaths = 3;
+}
+
+message SysObsResponse {
+    repeated SysObsResponseData Data = 1;
 }

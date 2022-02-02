@@ -6,64 +6,82 @@ import (
 	types "github.com/accuknox/auto-policy-discovery/src/types"
 )
 
-func addStrToArrIfNotDuplicate(strArr []string, value string) []string {
-
-	for _, str := range strArr {
-		if str == value {
-			return strArr
-		}
-	}
-
-	strArr = append(strArr, value)
-	return strArr
-}
-
-func convertWPFSToObservabilityData(wpfsSet map[types.WorkloadProcessFileSet][]string, policyNames []string) types.SysObservabilityData {
+func convertWPFSToObservabilityData(wpfsSet map[types.WorkloadProcessFileSet][]string, policyNames []string) types.SysObsResponseData {
 	if len(wpfsSet) != len(policyNames) {
 		log.Error().Msgf("len(wpfsSet):%d != len(policyNames):%d", len(wpfsSet), len(policyNames))
-		return types.SysObservabilityData{}
+		return types.SysObsResponseData{}
 	}
 
-	var sysObsObservabilityData types.SysObservabilityData
+	var resData types.SysObsResponseData
 
 	for wpfs, fsset := range wpfsSet {
-		var locSysObsProcessFileData types.SysObsProcessFileData
+		var locFsData types.SysObsProcessFileData
+		var locObsData types.SysObservabilityData
 
-		sysObsObservabilityData.ClusterName = addStrToArrIfNotDuplicate(sysObsObservabilityData.ClusterName, wpfs.ClusterName)
-		sysObsObservabilityData.ContainerName = addStrToArrIfNotDuplicate(sysObsObservabilityData.ContainerName, wpfs.ContainerName)
-		sysObsObservabilityData.Namespace = addStrToArrIfNotDuplicate(sysObsObservabilityData.Namespace, wpfs.Namespace)
-		sysObsObservabilityData.Labels = addStrToArrIfNotDuplicate(sysObsObservabilityData.Labels, wpfs.Labels)
-
-		locSysObsProcessFileData.FromSource = wpfs.FromSource
-		if wpfs.SetType == SYS_OP_PROCESS {
-			locSysObsProcessFileData.ProcessPaths = append(locSysObsProcessFileData.ProcessPaths, fsset...)
-		}
+		// Populate Fileset data(fromsource, process paths and file paths)
+		locFsData.FromSource = wpfs.FromSource
 		if wpfs.SetType == SYS_OP_FILE {
-			locSysObsProcessFileData.FilePaths = append(locSysObsProcessFileData.FilePaths, fsset...)
+			locFsData.FilePaths = append(locFsData.FilePaths, fsset...)
+		}
+		if wpfs.SetType == SYS_OP_PROCESS {
+			locFsData.ProcessPaths = append(locFsData.ProcessPaths, fsset...)
 		}
 
-		sysObsObservabilityData.SysProcessFileData = append(sysObsObservabilityData.SysProcessFileData, locSysObsProcessFileData)
+		if len(resData.Data) > 0 {
+			idx := 0
+			for _, locResData := range resData.Data {
+				if locResData.ClusterName == wpfs.ClusterName && locResData.Namespace == wpfs.Namespace &&
+					locResData.Labels == wpfs.Labels && locResData.ContainerName == wpfs.ContainerName {
+					resData.Data[idx].SysProcessFileData = append(resData.Data[idx].SysProcessFileData, locFsData)
+					break
+				}
+				idx++
+			}
+
+			if idx == len(resData.Data) {
+				locObsData.ClusterName = wpfs.ClusterName
+				locObsData.Namespace = wpfs.Namespace
+				locObsData.Labels = wpfs.Labels
+				locObsData.ContainerName = wpfs.ContainerName
+				locObsData.SysProcessFileData = append(locObsData.SysProcessFileData, locFsData)
+
+				resData.Data = append(resData.Data, locObsData)
+			}
+		} else {
+			locObsData.ClusterName = wpfs.ClusterName
+			locObsData.Namespace = wpfs.Namespace
+			locObsData.Labels = wpfs.Labels
+			locObsData.ContainerName = wpfs.ContainerName
+			locObsData.SysProcessFileData = append(locObsData.SysProcessFileData, locFsData)
+
+			resData.Data = append(resData.Data, locObsData)
+		}
 	}
 
-	return sysObsObservabilityData
+	return resData
 }
 
-func convertSysObsDataToResponse(obsData types.SysObservabilityData) opb.SysObsResponse {
+func convertSysObsDataToResponse(resData types.SysObsResponseData) opb.SysObsResponse {
 	obsResData := opb.SysObsResponse{}
 
-	obsResData.ClusterName = obsData.ClusterName
-	obsResData.ContainerName = obsData.ContainerName
-	obsResData.Namespace = obsData.Namespace
-	obsResData.Labels = obsData.Labels
+	for _, locResData := range resData.Data {
+		var locObsResData opb.SysObsResponseData
 
-	for _, pfs := range obsData.SysProcessFileData {
-		processFileSet := opb.SysProcessFileData{}
+		locObsResData.ClusterName = locResData.ClusterName
+		locObsResData.NameSpace = locResData.Namespace
+		locObsResData.Labels = locResData.Labels
+		locObsResData.ContainerName = locResData.ContainerName
 
-		processFileSet.FromSource = pfs.FromSource
-		processFileSet.ProcessPaths = append(processFileSet.ProcessPaths, pfs.ProcessPaths...)
-		processFileSet.FilePaths = append(processFileSet.FilePaths, pfs.FilePaths...)
+		for _, fsset := range locResData.SysProcessFileData {
+			locfsset := opb.SysProcessFileData{}
+			locfsset.FromSource = fsset.FromSource
+			locfsset.FilePaths = append(locfsset.FilePaths, fsset.FilePaths...)
+			locfsset.ProcessPaths = append(locfsset.ProcessPaths, fsset.ProcessPaths...)
 
-		obsResData.ProcessFiles = append(obsResData.ProcessFiles, &processFileSet)
+			locObsResData.Resources = append(locObsResData.Resources, &locfsset)
+		}
+
+		obsResData.Data = append(obsResData.Data, &locObsResData)
 	}
 
 	return obsResData
@@ -71,7 +89,7 @@ func convertSysObsDataToResponse(obsData types.SysObservabilityData) opb.SysObsR
 
 func GetSystemObsData(clusterName string, containerName string, namespace string, labels string) (opb.SysObsResponse, error) {
 
-	sysObsData := types.SysObservabilityData{}
+	sysObsResData := types.SysObsResponseData{}
 	wpfs := types.WorkloadProcessFileSet{}
 
 	wpfs.ClusterName = clusterName
@@ -81,13 +99,13 @@ func GetSystemObsData(clusterName string, containerName string, namespace string
 
 	res, policyNames, _ := libs.GetWorkloadProcessFileSet(CfgDB, wpfs)
 
-	sysObsData = convertWPFSToObservabilityData(res, policyNames)
+	sysObsResData = convertWPFSToObservabilityData(res, policyNames)
 
 	// Write Observability data to json file
-	libs.WriteSysObsDataToJsonFile(sysObsData)
+	libs.WriteSysObsDataToJsonFile(sysObsResData)
 
 	// Generate json response gRPC
-	opbSysObsResponse := convertSysObsDataToResponse(sysObsData)
+	opbSysObsResponse := convertSysObsDataToResponse(sysObsResData)
 
 	return opbSysObsResponse, nil
 }
