@@ -20,7 +20,7 @@ message SysObsResponseData {
     string NameSpace = 2;
     string Labels = 3;
     string ContainerName = 4;
-    repeated SysProcessFileData ProcessFiles = 5;
+    repeated SysProcessFileData Resources = 5;
 }
 
 message SysProcessFileData {
