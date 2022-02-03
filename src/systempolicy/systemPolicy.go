@@ -256,6 +256,8 @@ func WriteSystemPoliciesToFile_Ext() {
 	kubeArmorPolicies := plugin.ConvertKnoxSystemPolicyToKubeArmorPolicy(sysPols)
 	for _, pol := range kubeArmorPolicies {
 		fname := "kubearmor_policies_" + pol.Metadata["clusterName"] + "_" + pol.Metadata["namespace"] + "_" + pol.Metadata["containername"] + "_" + libs.RandSeq(8)
+		delete(pol.Metadata, "clusterName")
+		delete(pol.Metadata, "containername")
 		libs.WriteKubeArmorPolicyToYamlFile(fname, []types.KubeArmorPolicy{pol})
 	}
 }
@@ -624,7 +626,7 @@ func updateSysPolicySpec(opType string, policy types.KnoxSystemPolicy, src strin
 				policy.Metadata["fromSource"] = src
 			}
 
-			if len(policy.Spec.File.MatchPaths) == 0 {
+			if len(policy.Spec.Process.MatchPaths) == 0 {
 				policy.Spec.Process.MatchPaths = []types.KnoxMatchPaths{matchPaths}
 			} else {
 				policy.Spec.Process.MatchPaths = append(policy.Spec.Process.MatchPaths, matchPaths)
