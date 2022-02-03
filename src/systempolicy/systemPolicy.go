@@ -254,15 +254,17 @@ func WriteSystemPoliciesToFile_Ext() {
 	sysPols := ConvertWPFSToKnoxSysPolicy(res, pnMap)
 
 	kubeArmorPolicies := plugin.ConvertKnoxSystemPolicyToKubeArmorPolicy(sysPols)
-	//	kubeArmorPolicies := plugin.ConvertWPFSToKubeArmorPolicy(res, policyNames)
-	libs.WriteKubeArmorPolicyToYamlFile("kubearmor_policies_ext", "", kubeArmorPolicies)
+	for _, pol := range kubeArmorPolicies {
+		fname := "kubearmor_policies_" + pol.Metadata["clusterName"] + "_" + pol.Metadata["namespace"] + "_" + pol.Metadata["containername"] + "_" + libs.RandSeq(8)
+		libs.WriteKubeArmorPolicyToYamlFile(fname, []types.KubeArmorPolicy{pol})
+	}
 }
 
 func WriteSystemPoliciesToFile(namespace string) {
 	latestPolicies := libs.GetSystemPolicies(CfgDB, namespace, "latest")
 	if len(latestPolicies) > 0 {
 		kubeArmorPolicies := plugin.ConvertKnoxSystemPolicyToKubeArmorPolicy(latestPolicies)
-		libs.WriteKubeArmorPolicyToYamlFile("kubearmor_policies", "", kubeArmorPolicies)
+		libs.WriteKubeArmorPolicyToYamlFile("kubearmor_policies", kubeArmorPolicies)
 	}
 	WriteSystemPoliciesToFile_Ext()
 }
@@ -421,14 +423,51 @@ func discoverProcessOperationPolicy(results []types.KnoxSystemPolicy, pod types.
 	return results
 }
 
+func checkIfMetadataMatches(pin types.KnoxSystemPolicy, hay []types.KnoxSystemPolicy) int {
+	for idx, v := range hay {
+		if pin.Metadata["clusterName"] == v.Metadata["clusterName"] &&
+			pin.Metadata["namespace"] == v.Metadata["namespace"] &&
+			pin.Metadata["containername"] == v.Metadata["containername"] &&
+			pin.Metadata["labels"] == v.Metadata["labels"] {
+			return idx
+		}
+	}
+	return -1
+}
+
+func mergeSysPolicies(pols []types.KnoxSystemPolicy) []types.KnoxSystemPolicy {
+	var results []types.KnoxSystemPolicy
+	for _, pol := range pols {
+		i := checkIfMetadataMatches(pol, results)
+		if i < 0 {
+			results = append(results, pol)
+			continue
+		}
+		if len(pol.Spec.File.MatchPaths) > 0 {
+			results[i].Spec.File.MatchPaths = append(results[i].Spec.File.MatchPaths, pol.Spec.File.MatchPaths...)
+		}
+		if len(pol.Spec.File.MatchDirectories) > 0 {
+			results[i].Spec.File.MatchDirectories = append(results[i].Spec.File.MatchDirectories, pol.Spec.File.MatchDirectories...)
+		}
+		if len(pol.Spec.Process.MatchPaths) > 0 {
+			results[i].Spec.Process.MatchPaths = append(results[i].Spec.Process.MatchPaths, pol.Spec.Process.MatchPaths...)
+		}
+		if len(pol.Spec.Process.MatchDirectories) > 0 {
+			results[i].Spec.Process.MatchDirectories = append(results[i].Spec.Process.MatchDirectories, pol.Spec.Process.MatchDirectories...)
+		}
+		if len(pol.Spec.Network) > 0 {
+			results[i].Spec.Network = append(results[i].Spec.Network, pol.Spec.Network...)
+		}
+	}
+	log.Info().Msgf("Merged %d sys policies into %d policies", len(pols), len(results))
+	return results
+}
+
 func ConvertWPFSToKnoxSysPolicy(wpfsSet types.ResourceSetMap, pnMap types.PolicyNameMap) []types.KnoxSystemPolicy {
 	var results []types.KnoxSystemPolicy
 	for wpfs, fsset := range wpfsSet {
 		policy := buildSystemPolicy()
 		policy.Metadata["type"] = wpfs.SetType
-		if wpfs.SetType != SYS_OP_NETWORK {
-			policy.Spec.File = types.KnoxSys{}
-		}
 
 		for _, fpath := range fsset {
 			path := SysPath{
@@ -444,6 +483,8 @@ func ConvertWPFSToKnoxSysPolicy(wpfsSet types.ResourceSetMap, pnMap types.Policy
 
 		policy.Metadata["clusterName"] = wpfs.ClusterName
 		policy.Metadata["namespace"] = wpfs.Namespace
+		policy.Metadata["containername"] = wpfs.ContainerName
+		policy.Metadata["labels"] = wpfs.Labels
 		policy.Metadata["name"] = pnMap[wpfs]
 
 		labels := strings.Split(wpfs.Labels, ",")
@@ -455,6 +496,8 @@ func ConvertWPFSToKnoxSysPolicy(wpfsSet types.ResourceSetMap, pnMap types.Policy
 
 		results = append(results, policy)
 	}
+
+	results = mergeSysPolicies(results)
 
 	return results
 }
