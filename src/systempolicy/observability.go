@@ -6,12 +6,7 @@ import (
 	types "github.com/accuknox/auto-policy-discovery/src/types"
 )
 
-func convertWPFSToObservabilityData(wpfsSet map[types.WorkloadProcessFileSet][]string, policyNames []string) types.SysObsResponseData {
-	if len(wpfsSet) != len(policyNames) {
-		log.Error().Msgf("len(wpfsSet):%d != len(policyNames):%d", len(wpfsSet), len(policyNames))
-		return types.SysObsResponseData{}
-	}
-
+func convertWPFSToObservabilityData(wpfsSet types.ResourceSetMap) types.SysObsResponseData {
 	var resData types.SysObsResponseData
 
 	for wpfs, fsset := range wpfsSet {
@@ -97,9 +92,9 @@ func GetSystemObsData(clusterName string, containerName string, namespace string
 	wpfs.Namespace = namespace
 	wpfs.Labels = labels
 
-	res, policyNames, _ := libs.GetWorkloadProcessFileSet(CfgDB, wpfs)
+	res, _, _ := libs.GetWorkloadProcessFileSet(CfgDB, wpfs)
 
-	sysObsResData = convertWPFSToObservabilityData(res, policyNames)
+	sysObsResData = convertWPFSToObservabilityData(res)
 
 	// Write Observability data to json file
 	libs.WriteSysObsDataToJsonFile(sysObsResData)

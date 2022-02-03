@@ -97,3 +97,6 @@ type WorkloadProcessFileSet struct {
 	FromSource    string
 	SetType       string // SetType: "file" or "process"
 }
+
+type PolicyNameMap map[WorkloadProcessFileSet]string
+type ResourceSetMap map[WorkloadProcessFileSet][]string

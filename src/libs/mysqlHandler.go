@@ -516,7 +516,7 @@ func concatWhereClause(whereClause *string, field string) {
 }
 
 // GetWorkloadProcessFileSetMySQL Handle File Sets in context to a given fromSource
-func GetWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadProcessFileSet) (map[types.WorkloadProcessFileSet][]string, []string, error) {
+func GetWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadProcessFileSet) (map[types.WorkloadProcessFileSet][]string, types.PolicyNameMap, error) {
 	db := connectMySQL(cfg)
 	defer db.Close()
 
@@ -563,10 +563,10 @@ func GetWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadProce
 	defer results.Close()
 
 	var loc_wpfs types.WorkloadProcessFileSet
-	res := map[types.WorkloadProcessFileSet][]string{}
+	res := types.ResourceSetMap{}
+	pnMap := types.PolicyNameMap{}
 	var fscsv string
 	var fs []string
-	var policyNames []string
 	var policyName string
 
 	for results.Next() {
@@ -582,12 +582,12 @@ func GetWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadProce
 		); err != nil {
 			return nil, nil, err
 		}
-		policyNames = append(policyNames, policyName)
 		fs = strings.Split(fscsv, ",")
 		res[loc_wpfs] = fs
+		pnMap[loc_wpfs] = policyName
 	}
 
-	return res, policyNames, nil
+	return res, pnMap, nil
 }
 
 func InsertWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadProcessFileSet, fs []string) error {
