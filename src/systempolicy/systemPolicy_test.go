@@ -30,7 +30,7 @@ func TestRegexp(t *testing.T) {
 		},
 		{
 			res: "domain=AF_INET6 type=SOCK_RAW protocol=58", // icmp6
-			exp: "icmp,icmp6",
+			exp: "icmp",
 		},
 		{
 			res: "domain=AF_NETLINK type=SOCK_RAW protocol=0",
@@ -38,7 +38,7 @@ func TestRegexp(t *testing.T) {
 		},
 		{
 			res: "domain=AF_INET type=SOCK_DGRAM protocol=1",
-			exp: "icmp,icmp6",
+			exp: "icmp",
 		},
 		{
 			res: "domain=AF_INET type=SOCK_DGRAM protocol=17",
@@ -54,7 +54,7 @@ func TestRegexp(t *testing.T) {
 		},
 		{
 			res: "domain=AF_INET6 type=SOCK_DGRAM protocol=58",
-			exp: "icmp,icmp6",
+			exp: "icmp",
 		},
 	}
 
@@ -66,8 +66,8 @@ func TestRegexp(t *testing.T) {
 }
 
 func TestRemoveDuplicates(t *testing.T) {
-	out := removeDuplicates([]string{"tcp", "udp", "icmp", "icmp6", "tcp"})
-	assert.Equal(t, []string{"icmp", "icmp6", "tcp", "udp"}, out)
+	out := removeDuplicates([]string{"tcp", "udp", "icmp", "tcp"})
+	assert.Equal(t, []string{"icmp", "tcp", "udp"}, out)
 
 	out = removeDuplicates([]string{"raw", "tcp", "tcp", "udp", "udp", "udp", "udp", "raw"})
 	assert.Equal(t, []string{"raw", "tcp", "udp"}, out)
