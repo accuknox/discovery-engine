@@ -203,6 +203,11 @@ type KnoxSys struct {
 	MatchDirectories []KnoxMatchDirectories `json:"matchDirectories,omitempty" yaml:"matchDirectories,omitempty"`
 }
 
+// NetworkRule Structure
+type NetworkRule struct {
+	MatchProtocols []KnoxMatchProtocols `json:"matchProtocols,omitempty" yaml:"matchProtocols,omitempty"`
+}
+
 // KnoxSystemSpec Structure
 type KnoxSystemSpec struct {
 	Severity int      `json:"severity,omitempty" yaml:"severity,omitempty"`
@@ -211,9 +216,9 @@ type KnoxSystemSpec struct {
 
 	Selector Selector `json:"selector,omitempty" yaml:"selector,omitempty"`
 
-	Process KnoxSys              `json:"process,omitempty" yaml:"process,omitempty"`
-	File    KnoxSys              `json:"file,omitempty" yaml:"file,omitempty"`
-	Network []KnoxMatchProtocols `json:"network,omitempty" yaml:"network,omitempty"`
+	Process KnoxSys     `json:"process,omitempty" yaml:"process,omitempty"`
+	File    KnoxSys     `json:"file,omitempty" yaml:"file,omitempty"`
+	Network NetworkRule `json:"network,omitempty" yaml:"network,omitempty"`
 
 	Action string `json:"action,omitempty" yaml:"action,omitempty"`
 }

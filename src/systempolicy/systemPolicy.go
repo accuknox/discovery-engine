@@ -457,8 +457,8 @@ func mergeSysPolicies(pols []types.KnoxSystemPolicy) []types.KnoxSystemPolicy {
 		if len(pol.Spec.Process.MatchDirectories) > 0 {
 			results[i].Spec.Process.MatchDirectories = append(results[i].Spec.Process.MatchDirectories, pol.Spec.Process.MatchDirectories...)
 		}
-		if len(pol.Spec.Network) > 0 {
-			results[i].Spec.Network = append(results[i].Spec.Network, pol.Spec.Network...)
+		if len(pol.Spec.Network.MatchProtocols) > 0 {
+			results[i].Spec.Network.MatchProtocols = append(results[i].Spec.Network.MatchProtocols, pol.Spec.Network.MatchProtocols...)
 		}
 	}
 	log.Info().Msgf("Merged %d sys policies into %d policies", len(pols), len(results))
@@ -543,7 +543,7 @@ func updateSysPolicySpec(opType string, policy types.KnoxSystemPolicy, src strin
 			},
 		}
 		policy.Metadata["fromSource"] = src
-		policy.Spec.Network = append(policy.Spec.Network, matchProtocols)
+		policy.Spec.Network.MatchProtocols = append(policy.Spec.Network.MatchProtocols, matchProtocols)
 		return policy
 	}
 	// matchDirectories
@@ -568,11 +568,7 @@ func updateSysPolicySpec(opType string, policy types.KnoxSystemPolicy, src strin
 				policy.Metadata["fromSource"] = src
 			}
 
-			if len(policy.Spec.File.MatchDirectories) == 0 {
-				policy.Spec.File.MatchDirectories = []types.KnoxMatchDirectories{matchDirs}
-			} else {
-				policy.Spec.File.MatchDirectories = append(policy.Spec.File.MatchDirectories, matchDirs)
-			}
+			policy.Spec.File.MatchDirectories = append(policy.Spec.File.MatchDirectories, matchDirs)
 		} else if opType == SYS_OP_PROCESS {
 			if ProcessFromSource {
 				if src != "" {
@@ -585,11 +581,7 @@ func updateSysPolicySpec(opType string, policy types.KnoxSystemPolicy, src strin
 				policy.Metadata["fromSource"] = src
 			}
 
-			if len(policy.Spec.File.MatchDirectories) == 0 {
-				policy.Spec.Process.MatchDirectories = []types.KnoxMatchDirectories{matchDirs}
-			} else {
-				policy.Spec.Process.MatchDirectories = append(policy.Spec.Process.MatchDirectories, matchDirs)
-			}
+			policy.Spec.Process.MatchDirectories = append(policy.Spec.Process.MatchDirectories, matchDirs)
 		}
 	} else {
 		// matchPaths
@@ -609,11 +601,7 @@ func updateSysPolicySpec(opType string, policy types.KnoxSystemPolicy, src strin
 				policy.Metadata["fromSource"] = src
 			}
 
-			if len(policy.Spec.File.MatchPaths) == 0 {
-				policy.Spec.File.MatchPaths = []types.KnoxMatchPaths{matchPaths}
-			} else {
-				policy.Spec.File.MatchPaths = append(policy.Spec.File.MatchPaths, matchPaths)
-			}
+			policy.Spec.File.MatchPaths = append(policy.Spec.File.MatchPaths, matchPaths)
 		} else if opType == SYS_OP_PROCESS {
 			if ProcessFromSource {
 				if src != "" {
@@ -626,11 +614,7 @@ func updateSysPolicySpec(opType string, policy types.KnoxSystemPolicy, src strin
 				policy.Metadata["fromSource"] = src
 			}
 
-			if len(policy.Spec.Process.MatchPaths) == 0 {
-				policy.Spec.Process.MatchPaths = []types.KnoxMatchPaths{matchPaths}
-			} else {
-				policy.Spec.Process.MatchPaths = append(policy.Spec.Process.MatchPaths, matchPaths)
-			}
+			policy.Spec.Process.MatchPaths = append(policy.Spec.Process.MatchPaths, matchPaths)
 		}
 	}
 
@@ -833,7 +817,8 @@ func getProtocolType(str string) string {
 	}
 
 	if reicmp.MatchString(str) {
-		return "icmp,icmp6"
+		return "icmp"
+		// return "icmp,icmp6"
 	}
 	if retcp.MatchString(str) {
 		return "tcp"
