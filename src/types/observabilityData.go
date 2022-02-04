@@ -4,6 +4,7 @@ type SysObsProcessFileData struct {
 	FromSource   string   `json:"source,omitempty"`
 	ProcessPaths []string `json:"processes,omitempty"`
 	FilePaths    []string `json:"files,omitempty"`
+	NetworkPaths []string `json:"network,omitempty"`
 }
 
 type SysObservabilityData struct {

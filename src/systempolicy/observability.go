@@ -21,6 +21,9 @@ func convertWPFSToObservabilityData(wpfsSet types.ResourceSetMap) types.SysObsRe
 		if wpfs.SetType == SYS_OP_PROCESS {
 			locFsData.ProcessPaths = append(locFsData.ProcessPaths, fsset...)
 		}
+		if wpfs.SetType == SYS_OP_NETWORK {
+			locFsData.NetworkPaths = append(locFsData.NetworkPaths, fsset...)
+		}
 
 		if len(resData.Data) > 0 {
 			idx := 0
@@ -72,6 +75,7 @@ func convertSysObsDataToResponse(resData types.SysObsResponseData) opb.SysObsRes
 			locfsset.FromSource = fsset.FromSource
 			locfsset.FilePaths = append(locfsset.FilePaths, fsset.FilePaths...)
 			locfsset.ProcessPaths = append(locfsset.ProcessPaths, fsset.ProcessPaths...)
+			locfsset.NetworkPaths = append(locfsset.NetworkPaths, fsset.NetworkPaths...)
 
 			locObsResData.Resources = append(locObsResData.Resources, &locfsset)
 		}

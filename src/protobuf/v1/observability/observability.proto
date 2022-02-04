@@ -27,6 +27,7 @@ message SysProcessFileData {
     string fromSource = 1;
     repeated string processPaths = 2;
     repeated string filePaths = 3;
+    repeated string networkPaths = 4;
 }
 
 message SysObsResponse {
