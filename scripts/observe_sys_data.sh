@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ## Run script command in below format
-## ./scripts/get_sys_observability_data.sh --clustername default --containername wordpress --namespace wordpress-mysql --labels app=mysql
+## ./scripts/observe_sys_data.sh --clustername default --containername wordpress --namespace wordpress-mysql --labels app=mysql
 
 OPTS=`getopt -o s: --long containername: --long clustername: --long namespace: --long labels: -n 'parse-options' -- "$@"`
 eval set -- "$OPTS"
