@@ -173,6 +173,18 @@ func (s *observabilityServer) GetSysObservabilityData(ctx context.Context, in *o
 	return &resp, err
 }
 
+func (s *observabilityServer) ClearDb(ctx context.Context, in *opb.SysObsData) (*opb.DbClearStatus, error) {
+	var dbData types.WorkloadProcessFileSet
+
+	dbData.ClusterName = in.ClusterName
+	dbData.ContainerName = in.ContainerName
+	dbData.Namespace = in.Namespace
+	dbData.Labels = in.Labels
+
+	err := sysworker.ClearWPFSDb(dbData)
+	return &opb.DbClearStatus{Status: "ok"}, err
+}
+
 // ================= //
 // == gRPC server == //
 // ================= //

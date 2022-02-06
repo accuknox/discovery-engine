@@ -23,6 +23,7 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ObservabilityClient interface {
 	GetSysObservabilityData(ctx context.Context, in *SysObsData, opts ...grpc.CallOption) (*SysObsResponse, error)
+	ClearDb(ctx context.Context, in *SysObsData, opts ...grpc.CallOption) (*DbClearStatus, error)
 }
 
 type observabilityClient struct {
@@ -42,11 +43,21 @@ func (c *observabilityClient) GetSysObservabilityData(ctx context.Context, in *S
 	return out, nil
 }
 
+func (c *observabilityClient) ClearDb(ctx context.Context, in *SysObsData, opts ...grpc.CallOption) (*DbClearStatus, error) {
+	out := new(DbClearStatus)
+	err := c.cc.Invoke(ctx, "/v1.observability.Observability/ClearDb", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ObservabilityServer is the server API for Observability service.
 // All implementations must embed UnimplementedObservabilityServer
 // for forward compatibility
 type ObservabilityServer interface {
 	GetSysObservabilityData(context.Context, *SysObsData) (*SysObsResponse, error)
+	ClearDb(context.Context, *SysObsData) (*DbClearStatus, error)
 	mustEmbedUnimplementedObservabilityServer()
 }
 
@@ -56,6 +67,9 @@ type UnimplementedObservabilityServer struct {
 
 func (UnimplementedObservabilityServer) GetSysObservabilityData(context.Context, *SysObsData) (*SysObsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetSysObservabilityData not implemented")
+}
+func (UnimplementedObservabilityServer) ClearDb(context.Context, *SysObsData) (*DbClearStatus, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ClearDb not implemented")
 }
 func (UnimplementedObservabilityServer) mustEmbedUnimplementedObservabilityServer() {}
 
@@ -88,6 +102,24 @@ func _Observability_GetSysObservabilityData_Handler(srv interface{}, ctx context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Observability_ClearDb_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SysObsData)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ObservabilityServer).ClearDb(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/v1.observability.Observability/ClearDb",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ObservabilityServer).ClearDb(ctx, req.(*SysObsData))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Observability_ServiceDesc is the grpc.ServiceDesc for Observability service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -98,6 +130,10 @@ var Observability_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetSysObservabilityData",
 			Handler:    _Observability_GetSysObservabilityData_Handler,
+		},
+		{
+			MethodName: "ClearDb",
+			Handler:    _Observability_ClearDb_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

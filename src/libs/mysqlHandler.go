@@ -651,3 +651,36 @@ func UpdateWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadPr
 	*/
 	return err
 }
+
+func ClearWPFSDbMySql(cfg types.ConfigDB, wpfs types.WorkloadProcessFileSet) error {
+	db := connectMySQL(cfg)
+	defer db.Close()
+
+	var err error
+
+	query := "DELETE FROM " + WorkloadProcessFileSet_TableName
+
+	var whereClause string
+	var args []interface{}
+
+	if wpfs.ClusterName != "" {
+		concatWhereClause(&whereClause, "clusterName")
+		args = append(args, wpfs.ClusterName)
+	}
+	if wpfs.Namespace != "" {
+		concatWhereClause(&whereClause, "namespace")
+		args = append(args, wpfs.Namespace)
+	}
+	if wpfs.ContainerName != "" {
+		concatWhereClause(&whereClause, "containerName")
+		args = append(args, wpfs.ContainerName)
+	}
+	if wpfs.Labels != "" {
+		concatWhereClause(&whereClause, "labels")
+		args = append(args, wpfs.Labels)
+	}
+
+	_, err = db.Query(query+whereClause, args...)
+
+	return err
+}

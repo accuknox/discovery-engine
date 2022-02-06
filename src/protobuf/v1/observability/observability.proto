@@ -6,6 +6,7 @@ option go_package = "github.com/accuknox/knoxAutoPolicy/protos/v1/observability"
 
 service Observability {
     rpc GetSysObservabilityData (SysObsData) returns (SysObsResponse);
+    rpc ClearDb(SysObsData) returns (DbClearStatus);
 }
 
 message SysObsData {
@@ -32,4 +33,8 @@ message SysProcessFileData {
 
 message SysObsResponse {
     repeated SysObsResponseData Data = 1;
+}
+
+message DbClearStatus {
+    string Status = 1;
 }

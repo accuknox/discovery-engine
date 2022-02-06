@@ -108,3 +108,8 @@ func GetSystemObsData(clusterName string, containerName string, namespace string
 
 	return opbSysObsResponse, nil
 }
+
+func ClearWPFSDb(wpfs types.WorkloadProcessFileSet) error {
+	err := libs.ClearWPFSDb(CfgDB, wpfs)
+	return err
+}
