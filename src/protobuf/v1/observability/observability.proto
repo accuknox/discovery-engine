@@ -5,14 +5,17 @@ package v1.observability;
 option go_package = "github.com/accuknox/knoxAutoPolicy/protos/v1/observability";
 
 service Observability {
-    rpc GetSysObservabilityData (SysObsData) returns (SysObsResponse);
+    rpc SysObservabilityData (Data) returns (Response);
 }
 
-message SysObsData {
-    string clusterName = 1;
-    string namespace = 2;
-    string containerName =3;
-    string labels = 4;
+message Data {
+    string request = 1;
+    string clusterName = 2;
+    string namespace = 3;
+    string containerName =4;
+    string labels = 5;
+    string fromSource = 6;
+    string duration = 7;
 }
 
 message SysObsResponseData {
@@ -30,6 +33,6 @@ message SysProcessFileData {
     repeated string networkPaths = 4;
 }
 
-message SysObsResponse {
+message Response {
     repeated SysObsResponseData Data = 1;
 }

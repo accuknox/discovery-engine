@@ -59,8 +59,8 @@ func convertWPFSToObservabilityData(wpfsSet types.ResourceSetMap) types.SysObsRe
 	return resData
 }
 
-func convertSysObsDataToResponse(resData types.SysObsResponseData) opb.SysObsResponse {
-	obsResData := opb.SysObsResponse{}
+func convertSysObsDataToResponse(resData types.SysObsResponseData) opb.Response {
+	obsResData := opb.Response{}
 
 	for _, locResData := range resData.Data {
 		var locObsResData opb.SysObsResponseData
@@ -86,15 +86,9 @@ func convertSysObsDataToResponse(resData types.SysObsResponseData) opb.SysObsRes
 	return obsResData
 }
 
-func GetSystemObsData(clusterName string, containerName string, namespace string, labels string) (opb.SysObsResponse, error) {
+func GetSystemObsData(wpfs types.WorkloadProcessFileSet) (opb.Response, error) {
 
 	sysObsResData := types.SysObsResponseData{}
-	wpfs := types.WorkloadProcessFileSet{}
-
-	wpfs.ClusterName = clusterName
-	wpfs.ContainerName = containerName
-	wpfs.Namespace = namespace
-	wpfs.Labels = labels
 
 	res, _, _ := libs.GetWorkloadProcessFileSet(CfgDB, wpfs)
 
@@ -107,4 +101,9 @@ func GetSystemObsData(clusterName string, containerName string, namespace string
 	opbSysObsResponse := convertSysObsDataToResponse(sysObsResData)
 
 	return opbSysObsResponse, nil
+}
+
+func ClearSysDb(wpfs types.WorkloadProcessFileSet, duration int64) error {
+	err := libs.ClearWPFSDb(CfgDB, wpfs, duration)
+	return err
 }

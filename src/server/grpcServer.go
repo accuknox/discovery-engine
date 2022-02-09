@@ -2,6 +2,8 @@ package server
 
 import (
 	"context"
+	"errors"
+	"strconv"
 
 	"github.com/rs/zerolog"
 
@@ -168,9 +170,31 @@ type observabilityServer struct {
 	opb.ObservabilityServer
 }
 
-func (s *observabilityServer) GetSysObservabilityData(ctx context.Context, in *opb.SysObsData) (*opb.SysObsResponse, error) {
-	resp, err := sysworker.GetSystemObsData(in.ClusterName, in.ContainerName, in.Namespace, in.Labels)
-	return &resp, err
+func (s *observabilityServer) SysObservabilityData(ctx context.Context, in *opb.Data) (*opb.Response, error) {
+
+	var wpfs types.WorkloadProcessFileSet
+
+	wpfs.ContainerName = in.ContainerName
+	wpfs.ClusterName = in.ClusterName
+	wpfs.FromSource = in.FromSource
+	wpfs.Namespace = in.Namespace
+	wpfs.Labels = in.Labels
+
+	if in.Request == "observe" {
+		wpfs.FromSource = "" // Forcing wpfs.FromSource to "" as it is not a search string
+		resp, err := sysworker.GetSystemObsData(wpfs)
+		return &resp, err
+	}
+	if in.Request == "dbclear" {
+		duration, err := strconv.Atoi(in.Duration)
+		if err != nil {
+			return &opb.Response{}, err
+		}
+		err = sysworker.ClearSysDb(wpfs, int64(duration))
+		return &opb.Response{}, err
+	}
+
+	return nil, errors.New("not a valid request, use observe/dbclear")
 }
 
 // ================= //
