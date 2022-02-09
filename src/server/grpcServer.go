@@ -186,10 +186,18 @@ func (s *observabilityServer) SysObservabilityData(ctx context.Context, in *opb.
 		return &resp, err
 	}
 	if in.Request == "dbclear" {
-		duration, err := strconv.Atoi(in.Duration)
-		if err != nil {
-			return &opb.Response{}, err
+		var duration int
+		var err error
+
+		if in.Duration != "" {
+			duration, err = strconv.Atoi(in.Duration)
+			if err != nil {
+				return &opb.Response{}, err
+			}
+		} else {
+			duration = 0
 		}
+
 		err = sysworker.ClearSysDb(wpfs, int64(duration))
 		return &opb.Response{}, err
 	}
