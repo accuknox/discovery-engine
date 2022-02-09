@@ -1,13 +1,10 @@
 #!/bin/bash
 
-usage() 
-{
-    echo "Run script command in below format"
-    echo "For dbclear, use below format"
-    echo "./scripts/observe_clear_sys_data.sh --req dbclear --clustername default --containername wordpress --namespace wordpress-mysql --labels app=mysql --fromsource apache2 --duration 60(secs)" 
-    echo "For observability, use below format. Currently observability does not support fromsource and duration"
-    echo "./scripts/observe_clear_sys_data.sh --req observe --clustername default --containername wordpress --namespace wordpress-mysql --labels app=mysql"
-}
+## Run script command in below format"
+## For dbclear, use below format"
+## ./scripts/observe_clear_sys_data.sh --req dbclear --clustername default --containername wordpress --namespace wordpress-mysql --labels app=mysql --fromsource apache2 --duration 60(secs)
+## For observability, use below format. Currently observability does not support fromsource and duration
+## ./scripts/observe_clear_sys_data.sh --req observe --clustername default --containername wordpress --namespace wordpress-mysql --labels app=mysql
 
 OPTS=`getopt -o s: --long req: --long containername: --long clustername: --long namespace: --long labels: --long fromsource: --long duration: -n 'parse-options' -- "$@"`
 eval set -- "$OPTS"
@@ -20,8 +17,8 @@ while true; do
         --labels ) LABELS="$2"; shift 2;;
         --fromsource ) FROM_SOURCE="$2"; shift 2;;
         --duration ) DURATION="$2"; shift 2;;
-        -- ) usage; exit 0; shift; break ;;
-        * ) usage; exit 0; break ;;
+        -- ) shift; break ;;
+        * ) break ;;
     esac
 done
 
