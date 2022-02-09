@@ -145,6 +145,13 @@ func InsertWorkloadProcessFileSet(cfg types.ConfigDB, wpfs types.WorkloadProcess
 	return errors.New("no db driver")
 }
 
+func ClearWPFSDb(cfg types.ConfigDB, wpfs types.WorkloadProcessFileSet, duration int64) error {
+	if cfg.DBDriver == "mysql" {
+		return ClearWPFSDbMySQL(cfg, wpfs, duration)
+	}
+	return errors.New("no db driver")
+}
+
 // =========== //
 // == Table == //
 // =========== //

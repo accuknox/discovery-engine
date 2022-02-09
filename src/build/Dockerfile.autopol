@@ -17,7 +17,7 @@ COPY --from=builder /usr/src/knox/grpcurl /usr/local/bin/grpcurl
 COPY --from=builder /usr/src/knox/scripts/convert_net_policy.sh /convert_net_policy.sh
 COPY --from=builder /usr/src/knox/scripts/dbclear.sh /dbclear.sh
 COPY --from=builder /usr/src/knox/scripts/convert_sys_policy.sh /convert_sys_policy.sh
-COPY --from=builder /usr/src/knox/scripts/observe_sys_data.sh /observe_sys_data.sh
+COPY --from=builder /usr/src/knox/scripts/observe_clear_sys_data.sh /observe_clear_sys_data.sh
 COPY --from=builder /usr/src/knox/src/knoxAutoPolicy /knoxAutoPolicy
 COPY --from=builder /usr/src/knox/src/conf/local.yaml /conf/conf.yaml
 

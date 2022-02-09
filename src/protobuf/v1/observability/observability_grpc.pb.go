@@ -22,7 +22,7 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ObservabilityClient interface {
-	GetSysObservabilityData(ctx context.Context, in *SysObsData, opts ...grpc.CallOption) (*SysObsResponse, error)
+	SysObservabilityData(ctx context.Context, in *Data, opts ...grpc.CallOption) (*Response, error)
 }
 
 type observabilityClient struct {
@@ -33,9 +33,9 @@ func NewObservabilityClient(cc grpc.ClientConnInterface) ObservabilityClient {
 	return &observabilityClient{cc}
 }
 
-func (c *observabilityClient) GetSysObservabilityData(ctx context.Context, in *SysObsData, opts ...grpc.CallOption) (*SysObsResponse, error) {
-	out := new(SysObsResponse)
-	err := c.cc.Invoke(ctx, "/v1.observability.Observability/GetSysObservabilityData", in, out, opts...)
+func (c *observabilityClient) SysObservabilityData(ctx context.Context, in *Data, opts ...grpc.CallOption) (*Response, error) {
+	out := new(Response)
+	err := c.cc.Invoke(ctx, "/v1.observability.Observability/SysObservabilityData", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +46,7 @@ func (c *observabilityClient) GetSysObservabilityData(ctx context.Context, in *S
 // All implementations must embed UnimplementedObservabilityServer
 // for forward compatibility
 type ObservabilityServer interface {
-	GetSysObservabilityData(context.Context, *SysObsData) (*SysObsResponse, error)
+	SysObservabilityData(context.Context, *Data) (*Response, error)
 	mustEmbedUnimplementedObservabilityServer()
 }
 
@@ -54,8 +54,8 @@ type ObservabilityServer interface {
 type UnimplementedObservabilityServer struct {
 }
 
-func (UnimplementedObservabilityServer) GetSysObservabilityData(context.Context, *SysObsData) (*SysObsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetSysObservabilityData not implemented")
+func (UnimplementedObservabilityServer) SysObservabilityData(context.Context, *Data) (*Response, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SysObservabilityData not implemented")
 }
 func (UnimplementedObservabilityServer) mustEmbedUnimplementedObservabilityServer() {}
 
@@ -70,20 +70,20 @@ func RegisterObservabilityServer(s grpc.ServiceRegistrar, srv ObservabilityServe
 	s.RegisterService(&Observability_ServiceDesc, srv)
 }
 
-func _Observability_GetSysObservabilityData_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SysObsData)
+func _Observability_SysObservabilityData_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Data)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ObservabilityServer).GetSysObservabilityData(ctx, in)
+		return srv.(ObservabilityServer).SysObservabilityData(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/v1.observability.Observability/GetSysObservabilityData",
+		FullMethod: "/v1.observability.Observability/SysObservabilityData",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ObservabilityServer).GetSysObservabilityData(ctx, req.(*SysObsData))
+		return srv.(ObservabilityServer).SysObservabilityData(ctx, req.(*Data))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -96,8 +96,8 @@ var Observability_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*ObservabilityServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "GetSysObservabilityData",
-			Handler:    _Observability_GetSysObservabilityData_Handler,
+			MethodName: "SysObservabilityData",
+			Handler:    _Observability_SysObservabilityData_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
