@@ -437,6 +437,29 @@ func checkIfMetadataMatches(pin types.KnoxSystemPolicy, hay []types.KnoxSystemPo
 	return -1
 }
 
+func cmpGenPathDir(p1 string, p1fs []types.KnoxFromSource, p2 string, p2fs []types.KnoxFromSource) bool {
+	if len(p1fs) > 0 {
+		p1 = p1 + p1fs[0].Path
+	}
+
+	if len(p2fs) > 0 {
+		p2 = p2 + p2fs[0].Path
+	}
+	return p1 < p2
+}
+
+func cmpPaths(p1 types.KnoxMatchPaths, p2 types.KnoxMatchPaths) bool {
+	return cmpGenPathDir(p1.Path, p1.FromSource, p2.Path, p2.FromSource)
+}
+
+func cmpProts(p1 types.KnoxMatchProtocols, p2 types.KnoxMatchProtocols) bool {
+	return cmpGenPathDir(p1.Protocol, p1.FromSource, p2.Protocol, p2.FromSource)
+}
+
+func cmpDirs(p1 types.KnoxMatchDirectories, p2 types.KnoxMatchDirectories) bool {
+	return cmpGenPathDir(p1.Dir, p1.FromSource, p2.Dir, p2.FromSource)
+}
+
 func mergeSysPolicies(pols []types.KnoxSystemPolicy) []types.KnoxSystemPolicy {
 	var results []types.KnoxSystemPolicy
 	for _, pol := range pols {
@@ -445,21 +468,46 @@ func mergeSysPolicies(pols []types.KnoxSystemPolicy) []types.KnoxSystemPolicy {
 			results = append(results, pol)
 			continue
 		}
+
+		// merging and sorting all the rules
+		// sorting is needed so that the rules are placed consistently in the
+		// same order everytime the policy is generated
 		if len(pol.Spec.File.MatchPaths) > 0 {
-			results[i].Spec.File.MatchPaths = append(results[i].Spec.File.MatchPaths, pol.Spec.File.MatchPaths...)
+			mp := &results[i].Spec.File.MatchPaths
+			*mp = append(*mp, pol.Spec.File.MatchPaths...)
+			sort.Slice(*mp, func(x, y int) bool {
+				return cmpPaths((*mp)[x], (*mp)[y])
+			})
 		}
 		if len(pol.Spec.File.MatchDirectories) > 0 {
-			results[i].Spec.File.MatchDirectories = append(results[i].Spec.File.MatchDirectories, pol.Spec.File.MatchDirectories...)
+			mp := &results[i].Spec.File.MatchDirectories
+			*mp = append(*mp, pol.Spec.File.MatchDirectories...)
+			sort.Slice(*mp, func(x, y int) bool {
+				return cmpDirs((*mp)[x], (*mp)[y])
+			})
 		}
 		if len(pol.Spec.Process.MatchPaths) > 0 {
-			results[i].Spec.Process.MatchPaths = append(results[i].Spec.Process.MatchPaths, pol.Spec.Process.MatchPaths...)
+			mp := &results[i].Spec.Process.MatchPaths
+			*mp = append(*mp, pol.Spec.Process.MatchPaths...)
+			sort.Slice(*mp, func(x, y int) bool {
+				return cmpPaths((*mp)[x], (*mp)[y])
+			})
 		}
 		if len(pol.Spec.Process.MatchDirectories) > 0 {
-			results[i].Spec.Process.MatchDirectories = append(results[i].Spec.Process.MatchDirectories, pol.Spec.Process.MatchDirectories...)
+			mp := &results[i].Spec.Process.MatchDirectories
+			*mp = append(*mp, pol.Spec.Process.MatchDirectories...)
+			sort.Slice(*mp, func(x, y int) bool {
+				return cmpDirs((*mp)[x], (*mp)[y])
+			})
 		}
 		if len(pol.Spec.Network.MatchProtocols) > 0 {
-			results[i].Spec.Network.MatchProtocols = append(results[i].Spec.Network.MatchProtocols, pol.Spec.Network.MatchProtocols...)
+			mp := &results[i].Spec.Network.MatchProtocols
+			*mp = append(*mp, pol.Spec.Network.MatchProtocols...)
+			sort.Slice(*mp, func(x, y int) bool {
+				return cmpProts((*mp)[x], (*mp)[y])
+			})
 		}
+		results[i].Metadata["name"] = "autopol-" + pol.Metadata["namespace"] + "-" + pol.Metadata["containername"]
 	}
 	log.Info().Msgf("Merged %d sys policies into %d policies", len(pols), len(results))
 	return results
