@@ -439,11 +439,15 @@ func checkIfMetadataMatches(pin types.KnoxSystemPolicy, hay []types.KnoxSystemPo
 
 func cmpGenPathDir(p1 string, p1fs []types.KnoxFromSource, p2 string, p2fs []types.KnoxFromSource) bool {
 	if len(p1fs) > 0 {
-		p1 = p1 + p1fs[0].Path
+		for _, v := range p1fs {
+			p1 = p1 + v.Path
+		}
 	}
 
 	if len(p2fs) > 0 {
-		p2 = p2 + p2fs[0].Path
+		for _, v := range p2fs {
+			p2 = p2 + v.Path
+		}
 	}
 	return p1 < p2
 }
