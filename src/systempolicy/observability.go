@@ -1,8 +1,8 @@
 package systempolicy
 
 import (
-	"strconv"
-	"strings"
+	"errors"
+	"time"
 
 	"github.com/accuknox/auto-policy-discovery/src/libs"
 	opb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/observability"
@@ -106,44 +106,11 @@ func GetSystemObsData(wpfs types.WorkloadProcessFileSet) (opb.Response, error) {
 	return opbSysObsResponse, nil
 }
 
-func convertDurationStrToInt(durationStr string) int {
-
-	if durationStr == "0" || durationStr == " " {
-		return 0
-	}
-
-	duration := 0
-	durationStr = strings.ToLower(durationStr)
-
-	if strings.ContainsAny(durationStr, "s") {
-		durationLocal, err := strconv.Atoi(strings.TrimSuffix(durationStr, "s"))
-		if err != nil {
-			return 0
-		}
-		duration += durationLocal
-		return duration
-	}
-	if strings.ContainsAny(durationStr, "m") {
-		durationLocal, err := strconv.Atoi(strings.TrimSuffix(durationStr, "m"))
-		if err != nil {
-			return 0
-		}
-		duration += durationLocal * 60
-		return duration
-	}
-	if strings.ContainsAny(durationStr, "h") {
-		durationLocal, err := strconv.Atoi(strings.TrimSuffix(durationStr, "h"))
-		if err != nil {
-			return 0
-		}
-		duration += durationLocal * 60 * 60
-		return duration
-	}
-
-	return duration
-}
-
 func ClearSysDb(wpfs types.WorkloadProcessFileSet, durationStr string) error {
-	err := libs.ClearWPFSDb(CfgDB, wpfs, int64(convertDurationStrToInt(durationStr)))
+	if durationStr == "0" {
+		return errors.New("not a valid duration")
+	}
+	duration, _ := time.ParseDuration(durationStr)
+	err := libs.ClearWPFSDb(CfgDB, wpfs, int64(duration.Seconds()))
 	return err
 }
