@@ -110,7 +110,10 @@ func ClearSysDb(wpfs types.WorkloadProcessFileSet, durationStr string) error {
 	if durationStr == "0" {
 		return errors.New("not a valid duration")
 	}
-	duration, _ := time.ParseDuration(durationStr)
-	err := libs.ClearWPFSDb(CfgDB, wpfs, int64(duration.Seconds()))
+	duration, err := time.ParseDuration(durationStr)
+	if err != nil {
+		return err
+	}
+	err = libs.ClearWPFSDb(CfgDB, wpfs, int64(duration.Seconds()))
 	return err
 }
