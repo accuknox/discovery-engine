@@ -19,45 +19,45 @@ func TestTesting(t *testing.T) {
 	RunSpecs(t, "Testing Suite")
 }
 
-type Metadata struct {
-    Name string `yaml:"name"`
-    Namespace string `yaml:"namespace"`
-}
-
-type MatchLabels struct {
-    Container string `yaml:"container"`
-}
-
-type Selector struct {
-    MatchLabels MatchLabels `yaml:"matchLabels"`
-}
-
-type FromSource struct {
-    Path string `yaml:"path"`
-}
-
-type MatchProtocol struct {
-    Protocol string `yaml:"protocol"`
-    FromSource []FromSource `yaml:"fromSource"`
-}
-
-type Network struct {
-    MatchProtocols []MatchProtocol `yaml:"matchProtocols"`
-}
-
-type Spec struct {
-    Severity int `yaml:"severity"`
-    Selector Selector `yaml:"selector"`
-    Network Network `yaml:"network"`
-    Action string `yaml:"action"`
-}
-
-type Instance struct {
-    ApiVersion string `yaml:"apiVersion"`
-    Kind string `yaml:"kind"`
-    Metadata Metadata `yaml:"metadata"`
-    Spec Spec `yaml:"spec"`
-}
+// type Metadata struct {
+//     Name string `yaml:"name"`
+//     Namespace string `yaml:"namespace"`
+// }
+//
+// type MatchLabels struct {
+//     Container string `yaml:"container"`
+// }
+//
+// type Selector struct {
+//     MatchLabels MatchLabels `yaml:"matchLabels"`
+// }
+//
+// type FromSource struct {
+//     Path string `yaml:"path"`
+// }
+//
+// type MatchProtocol struct {
+//     Protocol string `yaml:"protocol"`
+//     FromSource []FromSource `yaml:"fromSource"`
+// }
+//
+// type Network struct {
+//     MatchProtocols []MatchProtocol `yaml:"matchProtocols"`
+// }
+//
+// type Spec struct {
+//     Severity int `yaml:"severity"`
+//     Selector Selector `yaml:"selector"`
+//     Network Network `yaml:"network"`
+//     Action string `yaml:"action"`
+// }
+//
+// type Instance struct {
+//     ApiVersion string `yaml:"apiVersion"`
+//     Kind string `yaml:"kind"`
+//     Metadata Metadata `yaml:"metadata"`
+//     Spec Spec `yaml:"spec"`
+// }
 
 func ReadInstanceYaml(obj *KubeArmorPolicy)  {
 
@@ -164,14 +164,6 @@ func (f *KubeArmorPolicy) hasApiVersion()  bool{
   }
 }
 
-func (f *Instance) hasKind()  bool{
-  if f.Kind != "" {
-    return true
-  } else {
-    return false
-  }
-}
-
 var _ = Describe("KubeArmorPolicy.hasApiVersion()" , func() {
 		Context("If KubeArmorPolicy has Api version", func ()  {
 				It("return true", func ()  {
@@ -179,19 +171,6 @@ var _ = Describe("KubeArmorPolicy.hasApiVersion()" , func() {
 						ReadInstanceYaml(&f)
 
 						response := f.hasApiVersion()
-
-						Expect(response).To(BeTrue())
-				})
-		})
-})
-
-var _ = Describe("Instance.hasKind()" , func() {
-		Context("If Instance has Kind", func ()  {
-				It("return true", func ()  {
-						f := Instance{}
-						ReadInstanceYaml(&f)
-
-						response := f.hasKind()
 
 						Expect(response).To(BeTrue())
 				})
