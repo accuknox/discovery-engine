@@ -15,6 +15,8 @@ require (
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/google/go-cmp v0.5.5
 	github.com/kubearmor/KubeArmor/protobuf v0.0.0-20220131043010-96e103d07c46
+	github.com/onsi/ginkgo v1.16.5
+	github.com/onsi/gomega v1.18.1
 	github.com/robfig/cron v1.2.0
 	github.com/rs/zerolog v1.25.0
 	github.com/spf13/viper v1.6.1
@@ -24,7 +26,7 @@ require (
 	google.golang.org/grpc v1.35.0
 	google.golang.org/protobuf v1.27.1
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
-	gopkg.in/yaml.v2 v2.3.0
+	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/apimachinery v0.19.8
 	k8s.io/client-go v11.0.0+incompatible
 )
