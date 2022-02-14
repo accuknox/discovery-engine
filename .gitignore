@@ -10,3 +10,5 @@ src/dist/
 src/coverage*.out
 src/report*.json
 kubearmor_policies*.yaml
+cilium_policies*.yaml
+knox_net_policies*.yaml
