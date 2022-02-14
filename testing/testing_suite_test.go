@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"example.com/m/v2/types"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
