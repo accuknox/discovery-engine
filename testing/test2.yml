@@ -1,0 +1,46 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: autopol-explorer-knoxautopolicy
+  namespace: explorer
+spec:
+  severity: 1
+  selector:
+    matchLabels:
+      container: knoxautopolicy
+  process:
+    matchPaths:
+    - path: /usr/bin/ls
+  file:
+    matchPaths:
+    - path: /etc/group
+      fromSource:
+      - path: /usr/bin/ls
+    - path: /etc/ld.so.cache
+      fromSource:
+      - path: /usr/bin/ls
+    - path: /etc/passwd
+      fromSource:
+      - path: /usr/bin/ls
+    - path: /lib/x86_64-linux-gnu/libc.so.6
+      fromSource:
+      - path: /usr/bin/ls
+    - path: /lib/x86_64-linux-gnu/libpcre2-8.so.0
+      fromSource:
+      - path: /usr/bin/ls
+    - path: /lib/x86_64-linux-gnu/libselinux.so.1
+      fromSource:
+      - path: /usr/bin/ls
+    matchDirectories:
+    - dir: /proc/
+      fromSource:
+      - path: /usr/bin/ls
+  network:
+    matchProtocols:
+    - protocol: tcp
+      fromSource:
+      - path: knoxAutoPolicy
+    - protocol: udp
+      fromSource:
+      - path: knoxAutoPolicy
+  action: Allow

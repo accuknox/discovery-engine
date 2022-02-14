@@ -1,0 +1,19 @@
+apiVersion: security.kubearmor.com/v1
+kind: KubeArmorPolicy
+metadata:
+  name: autopol-network-ucionjpxcdqzpca
+  namespace: explorer
+spec:
+  severity: 1
+  selector:
+    matchLabels:
+      container: knoxautopolicy
+  network:
+    matchProtocols:
+    - protocol: tcp
+      fromSource:
+      - path: knoxAutoPolicy
+    - protocol: udp
+      fromSource:
+      - path: knoxAutoPolicy
+  action: Allow

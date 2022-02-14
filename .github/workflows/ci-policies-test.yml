@@ -101,5 +101,35 @@ jobs:
           echo Checking status...
           kubectl get pods -A
 
+          echo Sleeping for 20 seconds...
+          sleep 20
+
           echo Get Auto discovered policies...
           curl -s https://raw.githubusercontent.com/accuknox/tools/main/get_discovered_yamls.sh | bash
+
+          echo Listing all policies....
+          ls -d kubearmor_policies_default*
+
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+           go-version: 1.17
+
+      - name: Set up Ginkgo
+        run: |
+            echo Onsi Ginkgo
+            go get github.com/onsi/ginkgo/v2/ginkgo
+            echo Onsi Gomega
+            go get github.com/onsi/gomega/...
+            echo Ubuntu Ginkgo dev
+            sudo apt-get install golang-ginkgo-dev
+
+            echo Testing...
+            ginkgo help
+
+      - name: Run Ginkgo test suite
+        run: |
+            pwd
+            cd ../../testing
+            go test
