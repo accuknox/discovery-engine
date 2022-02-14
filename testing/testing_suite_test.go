@@ -76,8 +76,7 @@ func ReadInstanceYaml(obj *Instance)  {
     for _, file := range files {
         fmt.Println(file)
 
-				res := strings.Contains(file, "kubearmor_policies_default_explorer_knoxautopolicy")
-				res := true
+				var res = strings.Contains(file, "kubearmor_policies_default_explorer_knoxautopolicy")
 				if res == true {
 					source, err1 := ioutil.ReadFile(file)
 
