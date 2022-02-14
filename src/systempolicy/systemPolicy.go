@@ -464,6 +464,148 @@ func cmpDirs(p1 types.KnoxMatchDirectories, p2 types.KnoxMatchDirectories) bool 
 	return cmpGenPathDir(p1.Dir, p1.FromSource, p2.Dir, p2.FromSource)
 }
 
+func sortFromSource(fs *[]types.KnoxFromSource) {
+	if len(*fs) <= 1 {
+		return
+	}
+	sort.Slice(*fs, func(x, y int) bool {
+		return (*fs)[x].Path+(*fs)[x].Dir < (*fs)[y].Path+(*fs)[y].Dir
+	})
+}
+
+func mergeFromSourceMatchPaths(pmp []types.KnoxMatchPaths, mp *[]types.KnoxMatchPaths) {
+	for _, pp := range pmp {
+		match := false
+		for i, _ := range *mp {
+			rp := &(*mp)[i]
+			if pp.Path == (*rp).Path {
+				(*rp).FromSource = append((*rp).FromSource, pp.FromSource...)
+				//remove dups
+				match = true
+			}
+			sortFromSource(&(*rp).FromSource)
+		}
+		if !match {
+			*mp = append(*mp, pp)
+		}
+	}
+}
+
+func mergeFromSourceMatchDirs(pmp []types.KnoxMatchDirectories, mp *[]types.KnoxMatchDirectories) {
+	for _, pp := range pmp {
+		match := false
+		for i, _ := range *mp {
+			rp := &(*mp)[i]
+			if pp.Dir == (*rp).Dir {
+				(*rp).FromSource = append((*rp).FromSource, pp.FromSource...)
+				//remove dups
+				match = true
+			}
+			sortFromSource(&(*rp).FromSource)
+		}
+		if !match {
+			*mp = append(*mp, pp)
+		}
+	}
+}
+
+func mergeFromSourceMatchProt(pmp []types.KnoxMatchProtocols, mp *[]types.KnoxMatchProtocols) {
+	for _, pp := range pmp {
+		match := false
+		for i, _ := range *mp {
+			rp := &(*mp)[i]
+			if pp.Protocol == (*rp).Protocol {
+				(*rp).FromSource = append((*rp).FromSource, pp.FromSource...)
+				//remove dups
+				match = true
+			}
+			sortFromSource(&(*rp).FromSource)
+		}
+		if !match {
+			*mp = append(*mp, pp)
+		}
+	}
+}
+
+/*
+The aim of the foll API is to merge multiple fromSources within the same policy.
+
+For e.g.,
+---[Input]---
+    matchPaths:
+    - path: /etc/ld.so.cache
+      fromSource:
+      - path: /bin/ls
+    - path: /etc/ld.so.cache
+      fromSource:
+      - path: /bin/sleep
+---
+
+---[Expected Output]---
+    matchPaths:
+    - path: /etc/ld.so.cache
+      fromSource:
+      - path: /bin/ls
+      - path: /bin/sleep
+---
+*/
+func mergeFromSource(pols []types.KnoxSystemPolicy) []types.KnoxSystemPolicy {
+	/*
+		Logic:
+		1. For every pol
+		2. Check if pol matches any policy in res
+			If no, Create new res (with metadata), without any MatchPath, MatchDir, Network
+			If yes,
+		3.
+				a. For every MatchPath in pol,
+					check if Path matches with any Path in res[i]
+					if Yes,
+						copy pol.MatchPath[I].FromSource to pol.MatchPath[J].FromSource
+						remove pol.MatchPath[J]
+					if No,
+						Append pol.MatchPath[i] -> res.MatchPath
+				b. Similarly for every MatchDirectories
+			If No,
+
+				a. For every MatchPath in pol,
+					check if Path
+
+	*/
+	var results []types.KnoxSystemPolicy
+	for _, pol := range pols {
+		checked := false
+	check:
+		i := checkIfMetadataMatches(pol, results)
+		if i < 0 {
+			if checked {
+				/* If a policy is not present in results, we create metadata
+				* for the newpol based on pol and reset Process/Network/File
+				* structure info. The aim is the checkIfMetadaMatches should
+				* return valid index of the newly appended newpol. */
+				// Ideally, this condition should never be hit.
+				log.Error().Msgf("assumptions went wrong. some policies wont work %+v", pol)
+				continue
+			}
+			newpol := pol
+			newpol.Spec.Process = types.KnoxSys{}
+			newpol.Spec.File = types.KnoxSys{}
+			newpol.Spec.Network = types.NetworkRule{}
+			results = append(results, newpol)
+			checked = true
+			goto check
+		}
+
+		mergeFromSourceMatchPaths(pol.Spec.File.MatchPaths, &results[i].Spec.File.MatchPaths)
+		mergeFromSourceMatchDirs(pol.Spec.File.MatchDirectories, &results[i].Spec.File.MatchDirectories)
+
+		mergeFromSourceMatchPaths(pol.Spec.Process.MatchPaths, &results[i].Spec.Process.MatchPaths)
+		mergeFromSourceMatchDirs(pol.Spec.Process.MatchDirectories, &results[i].Spec.Process.MatchDirectories)
+
+		mergeFromSourceMatchProt(pol.Spec.Network.MatchProtocols, &results[i].Spec.Network.MatchProtocols)
+	}
+	return results
+}
+
 func mergeSysPolicies(pols []types.KnoxSystemPolicy) []types.KnoxSystemPolicy {
 	var results []types.KnoxSystemPolicy
 	for _, pol := range pols {
@@ -473,45 +615,65 @@ func mergeSysPolicies(pols []types.KnoxSystemPolicy) []types.KnoxSystemPolicy {
 			continue
 		}
 
-		// merging and sorting all the rules
-		// sorting is needed so that the rules are placed consistently in the
-		// same order everytime the policy is generated
 		if len(pol.Spec.File.MatchPaths) > 0 {
 			mp := &results[i].Spec.File.MatchPaths
 			*mp = append(*mp, pol.Spec.File.MatchPaths...)
+		}
+		if len(pol.Spec.File.MatchDirectories) > 0 {
+			mp := &results[i].Spec.File.MatchDirectories
+			*mp = append(*mp, pol.Spec.File.MatchDirectories...)
+		}
+		if len(pol.Spec.Process.MatchPaths) > 0 {
+			mp := &results[i].Spec.Process.MatchPaths
+			*mp = append(*mp, pol.Spec.Process.MatchPaths...)
+		}
+		if len(pol.Spec.Process.MatchDirectories) > 0 {
+			mp := &results[i].Spec.Process.MatchDirectories
+			*mp = append(*mp, pol.Spec.Process.MatchDirectories...)
+		}
+		if len(pol.Spec.Network.MatchProtocols) > 0 {
+			mp := &results[i].Spec.Network.MatchProtocols
+			*mp = append(*mp, pol.Spec.Network.MatchProtocols...)
+		}
+		results[i].Metadata["name"] = "autopol-" + pol.Metadata["namespace"] + "-" + pol.Metadata["containername"]
+	}
+
+	results = mergeFromSource(results)
+
+	// merging and sorting all the rules at MatchPaths, MatchDirs, MatchProtocols level
+	// sorting is needed so that the rules are placed consistently in the
+	// same order everytime the policy is generated
+	for _, pol := range results {
+		if len(pol.Spec.File.MatchPaths) > 0 {
+			mp := &pol.Spec.File.MatchPaths
 			sort.Slice(*mp, func(x, y int) bool {
 				return cmpPaths((*mp)[x], (*mp)[y])
 			})
 		}
 		if len(pol.Spec.File.MatchDirectories) > 0 {
-			mp := &results[i].Spec.File.MatchDirectories
-			*mp = append(*mp, pol.Spec.File.MatchDirectories...)
+			mp := &pol.Spec.File.MatchDirectories
 			sort.Slice(*mp, func(x, y int) bool {
 				return cmpDirs((*mp)[x], (*mp)[y])
 			})
 		}
 		if len(pol.Spec.Process.MatchPaths) > 0 {
-			mp := &results[i].Spec.Process.MatchPaths
-			*mp = append(*mp, pol.Spec.Process.MatchPaths...)
+			mp := &pol.Spec.Process.MatchPaths
 			sort.Slice(*mp, func(x, y int) bool {
 				return cmpPaths((*mp)[x], (*mp)[y])
 			})
 		}
 		if len(pol.Spec.Process.MatchDirectories) > 0 {
-			mp := &results[i].Spec.Process.MatchDirectories
-			*mp = append(*mp, pol.Spec.Process.MatchDirectories...)
+			mp := &pol.Spec.Process.MatchDirectories
 			sort.Slice(*mp, func(x, y int) bool {
 				return cmpDirs((*mp)[x], (*mp)[y])
 			})
 		}
 		if len(pol.Spec.Network.MatchProtocols) > 0 {
-			mp := &results[i].Spec.Network.MatchProtocols
-			*mp = append(*mp, pol.Spec.Network.MatchProtocols...)
+			mp := &pol.Spec.Network.MatchProtocols
 			sort.Slice(*mp, func(x, y int) bool {
 				return cmpProts((*mp)[x], (*mp)[y])
 			})
 		}
-		results[i].Metadata["name"] = "autopol-" + pol.Metadata["namespace"] + "-" + pol.Metadata["containername"]
 	}
 	log.Info().Msgf("Merged %d sys policies into %d policies", len(pols), len(results))
 	return results
