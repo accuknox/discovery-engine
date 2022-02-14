@@ -63,7 +63,7 @@ func ReadInstanceYaml(obj *Instance)  {
 
 		var files []string
 
-    root := "/home/runner/work/vagrants/vagrants"
+    root := "/home/runner/work/auto-policy-discovery/auto-policy-discovery"
     err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
         files = append(files, path)
         return nil
