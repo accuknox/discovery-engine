@@ -110,6 +110,12 @@ jobs:
           echo Listing all policies....
           ls -d kubearmor_policies_default*
 
+      - name: List policies
+        run: |
+            ls -d kubearmor_policies_default*
+            echo pwd
+            pwd
+
 
       - name: Set up Go
         uses: actions/setup-go@v2
