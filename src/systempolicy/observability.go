@@ -1,6 +1,9 @@
 package systempolicy
 
 import (
+	"errors"
+	"time"
+
 	"github.com/accuknox/auto-policy-discovery/src/libs"
 	opb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/observability"
 	types "github.com/accuknox/auto-policy-discovery/src/types"
@@ -103,7 +106,14 @@ func GetSystemObsData(wpfs types.WorkloadProcessFileSet) (opb.Response, error) {
 	return opbSysObsResponse, nil
 }
 
-func ClearSysDb(wpfs types.WorkloadProcessFileSet, duration int64) error {
-	err := libs.ClearWPFSDb(CfgDB, wpfs, duration)
+func ClearSysDb(wpfs types.WorkloadProcessFileSet, durationStr string) error {
+	if durationStr == "0" {
+		return errors.New("not a valid duration")
+	}
+	duration, err := time.ParseDuration(durationStr)
+	if err != nil {
+		return err
+	}
+	err = libs.ClearWPFSDb(CfgDB, wpfs, int64(duration.Seconds()))
 	return err
 }

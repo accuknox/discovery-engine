@@ -3,6 +3,7 @@ package libs
 import (
 	"database/sql"
 	"encoding/json"
+	"strconv"
 	"strings"
 	"time"
 
@@ -515,6 +516,15 @@ func concatWhereClause(whereClause *string, field string) {
 	*whereClause = *whereClause + field + " = ?"
 }
 
+func concatWhereClauseIntRange(whereClause *string, field string, start int64, end int64) {
+	if *whereClause == "" {
+		*whereClause = " WHERE "
+	} else {
+		*whereClause = *whereClause + " and "
+	}
+	*whereClause = *whereClause + field + " between " + strconv.Itoa(int(start)) + " and " + strconv.Itoa(int(end))
+}
+
 // GetWorkloadProcessFileSetMySQL Handle File Sets in context to a given fromSource
 func GetWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadProcessFileSet) (map[types.WorkloadProcessFileSet][]string, types.PolicyNameMap, error) {
 	db := connectMySQL(cfg)
@@ -618,6 +628,7 @@ func InsertWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadPr
 	return err
 }
 
+// Clears out WPFS DB on full or as per options specified
 func ClearWPFSDbMySQL(cfg types.ConfigDB, wpfs types.WorkloadProcessFileSet, duration int64) error {
 	db := connectMySQL(cfg)
 	defer db.Close()
@@ -628,7 +639,7 @@ func ClearWPFSDbMySQL(cfg types.ConfigDB, wpfs types.WorkloadProcessFileSet, dur
 
 	var whereClause string
 	var args []interface{}
-	//time := ConvertStrToUnixTime("now")
+	time := ConvertStrToUnixTime("now")
 
 	if wpfs.ClusterName != "" {
 		concatWhereClause(&whereClause, "clusterName")
@@ -649,6 +660,9 @@ func ClearWPFSDbMySQL(cfg types.ConfigDB, wpfs types.WorkloadProcessFileSet, dur
 	if wpfs.FromSource != "" {
 		concatWhereClause(&whereClause, "fromSource")
 		args = append(args, wpfs.FromSource)
+	}
+	if duration != 0 {
+		concatWhereClauseIntRange(&whereClause, "createdtime", time-duration, time)
 	}
 
 	_, err = db.Query(query+whereClause, args...)
