@@ -137,5 +137,5 @@ jobs:
       - name: Run Ginkgo test suite
         run: |
             pwd
-            cd testing
+            cd src/testingpolicies
             go test
