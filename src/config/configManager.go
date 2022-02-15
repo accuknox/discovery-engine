@@ -1,9 +1,6 @@
 package config
 
 import (
-	"net"
-
-	"github.com/accuknox/auto-policy-discovery/src/libs"
 	types "github.com/accuknox/auto-policy-discovery/src/types"
 	"github.com/spf13/viper"
 )
@@ -60,12 +57,15 @@ func LoadConfigDB() types.ConfigDB {
 	cfgDB.DBName = viper.GetString("database.dbname")
 
 	cfgDB.DBHost = viper.GetString("database.host")
-	dbAddr, err := net.LookupIP(cfgDB.DBHost)
-	if err == nil {
-		cfgDB.DBHost = dbAddr[0].String()
-	} else {
-		cfgDB.DBHost = libs.GetExternalIPAddr()
-	}
+	/*
+		fix for #405
+		dbAddr, err := net.LookupIP(cfgDB.DBHost)
+		if err == nil {
+			cfgDB.DBHost = dbAddr[0].String()
+		} else {
+			cfgDB.DBHost = libs.GetExternalIPAddr()
+		}
+	*/
 	cfgDB.DBPort = viper.GetString("database.port")
 
 	return cfgDB
@@ -75,12 +75,15 @@ func LoadConfigCiliumHubble() types.ConfigCiliumHubble {
 	cfgHubble := types.ConfigCiliumHubble{}
 
 	cfgHubble.HubbleURL = viper.GetString("cilium-hubble.url")
-	addr, err := net.LookupIP(cfgHubble.HubbleURL)
-	if err == nil {
-		cfgHubble.HubbleURL = addr[0].String()
-	} else {
-		cfgHubble.HubbleURL = libs.GetExternalIPAddr()
-	}
+	/*
+		commented for fixing #405
+		addr, err := net.LookupIP(cfgHubble.HubbleURL)
+		if err == nil {
+			cfgHubble.HubbleURL = addr[0].String()
+		} else {
+			cfgHubble.HubbleURL = libs.GetExternalIPAddr()
+		}
+	*/
 
 	cfgHubble.HubblePort = viper.GetString("cilium-hubble.port")
 
