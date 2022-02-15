@@ -91,12 +91,14 @@ func LoadConfigKubeArmor() types.ConfigKubeArmorRelay {
 	cfgKubeArmor := types.ConfigKubeArmorRelay{}
 
 	cfgKubeArmor.KubeArmorRelayURL = viper.GetString("kubearmor.url")
-	addr, err := net.LookupIP(cfgKubeArmor.KubeArmorRelayURL)
-	if err == nil {
-		cfgKubeArmor.KubeArmorRelayURL = addr[0].String()
-	} else {
-		cfgKubeArmor.KubeArmorRelayURL = libs.GetExternalIPAddr()
-	}
+	/*
+		addr, err := net.LookupIP(cfgKubeArmor.KubeArmorRelayURL)
+		if err == nil {
+			cfgKubeArmor.KubeArmorRelayURL = addr[0].String()
+		} else {
+			cfgKubeArmor.KubeArmorRelayURL = libs.GetExternalIPAddr()
+		}
+	*/
 
 	cfgKubeArmor.KubeArmorRelayPort = viper.GetString("kubearmor.port")
 
