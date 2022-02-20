@@ -127,6 +127,14 @@ func InsertSystemPolicies(cfg types.ConfigDB, policies []types.KnoxSystemPolicy)
 	}
 }
 
+func UpdateSystemPolicy(cfg types.ConfigDB, policy types.KnoxSystemPolicy) {
+	if cfg.DBDriver == "mysql" {
+		if err := UpdateSystemPolicyToMySQL(cfg, policy); err != nil {
+			log.Error().Msg(err.Error())
+		}
+	}
+}
+
 func GetWorkloadProcessFileSet(cfg types.ConfigDB, wpfs types.WorkloadProcessFileSet) (map[types.WorkloadProcessFileSet][]string, types.PolicyNameMap, error) {
 	if cfg.DBDriver == "mysql" {
 		res, pnMap, err := GetWorkloadProcessFileSetMySQL(cfg, wpfs)

@@ -395,6 +395,42 @@ func InsertSystemPoliciesToMySQL(cfg types.ConfigDB, policies []types.KnoxSystem
 	return nil
 }
 
+func UpdateSystemPolicyToMySQL(cfg types.ConfigDB, policy types.KnoxSystemPolicy) error {
+	db := connectMySQL(cfg)
+	defer db.Close()
+
+	// set status -> outdated
+	stmt, err := db.Prepare("UPDATE " + TableSystemPolicy_TableName +
+		" SET apiVersion=?,kind=?,clusterName=?,namespace=?,type=?,status=?,outdated=?,spec=?,generatedTime=? WHERE name = ?")
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	specPointer := &policy.Spec
+	spec, err := json.Marshal(specPointer)
+	if err != nil {
+		return err
+	}
+
+	_, err = stmt.Exec(
+		policy.APIVersion,
+		policy.Kind,
+		policy.Metadata["clusterName"],
+		policy.Metadata["namespace"],
+		policy.Metadata["type"],
+		policy.Metadata["status"],
+		policy.Outdated,
+		spec,
+		policy.GeneratedTime,
+		policy.Metadata["name"])
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // =========== //
 // == Table == //
 // =========== //

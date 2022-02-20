@@ -23,7 +23,10 @@ import (
 	"github.com/robfig/cron"
 )
 
-var log *zerolog.Logger
+var (
+	log             *zerolog.Logger
+	isWpfsDbUpdated bool
+)
 
 func init() {
 	log = logger.GetInstance()
@@ -84,6 +87,7 @@ var FileFromSource bool
 func init() {
 	SystemWorkerStatus = STATUS_IDLE
 	SystemStopChan = make(chan struct{})
+	isWpfsDbUpdated = false
 }
 
 // ====================== //
@@ -244,14 +248,18 @@ func getSystemLogs() []types.KnoxSystemLog {
 	return systemLogs
 }
 
-func WriteSystemPoliciesToFile_Ext() {
+func populateKnoxSysPolicyFromWPFSDb() []types.KnoxSystemPolicy {
 	res, pnMap, err := libs.GetWorkloadProcessFileSet(CfgDB, types.WorkloadProcessFileSet{})
 	if err != nil {
 		log.Error().Msgf("cudnot fetch WPFS err=%s", err.Error())
-		return
+		return nil
 	}
 	log.Info().Msgf("found %d WPFS records", len(res))
-	sysPols := ConvertWPFSToKnoxSysPolicy(res, pnMap)
+	return ConvertWPFSToKnoxSysPolicy(res, pnMap)
+}
+
+func WriteSystemPoliciesToFile_Ext() {
+	sysPols := populateKnoxSysPolicyFromWPFSDb()
 
 	kubeArmorPolicies := plugin.ConvertKnoxSystemPolicyToKubeArmorPolicy(sysPols)
 	for _, pol := range kubeArmorPolicies {
@@ -854,6 +862,34 @@ func updateSysPolicySelector(clusterName string, pod types.Pod, policies []types
 	return results
 }
 
+func updateSysPolicies() {
+
+	var locSysPolicies []types.KnoxSystemPolicy
+	var isPolicyExist bool
+
+	wpfsPolicies := populateKnoxSysPolicyFromWPFSDb()
+
+	for _, wpfsPolicy := range wpfsPolicies {
+		isPolicyExist = false
+		sysPoliciesDb := libs.GetSystemPolicies(CfgDB, "", "")
+
+		for _, sysPolicyDb := range sysPoliciesDb {
+			if sysPolicyDb.Metadata["name"] == wpfsPolicy.Metadata["name"] {
+				libs.UpdateSystemPolicy(CfgDB, wpfsPolicy)
+				isPolicyExist = true
+				break
+			}
+		}
+
+		if !isPolicyExist {
+			locSysPolicies = append(locSysPolicies, wpfsPolicy)
+		}
+	}
+
+	libs.InsertSystemPolicies(CfgDB, locSysPolicies)
+	isWpfsDbUpdated = false
+}
+
 // ============================= //
 // == Discover System Policy  == //
 // ============================= //
@@ -920,6 +956,11 @@ func PopulateSystemPoliciesFromSystemLogs(sysLogs []types.KnoxSystemLog) []types
 					polCnt = len(discoveredSysPolicies)
 					log.Info().Msgf("discovered %d file policies from %d file logs",
 						len(discoveredSysPolicies), len(fileOpLogs))
+				} else {
+					// New mode of system policy generation using WPFS table
+					if isWpfsDbUpdated {
+						updateSysPolicies()
+					}
 				}
 			}
 
@@ -932,6 +973,11 @@ func PopulateSystemPoliciesFromSystemLogs(sysLogs []types.KnoxSystemLog) []types
 					polCnt = len(discoveredSysPolicies)
 					log.Info().Msgf("discovered %d process policies from %d process logs",
 						len(discoveredSysPolicies)-polCnt, len(procOpLogs))
+				} else {
+					// New mode of system policy generation using WPFS table
+					if isWpfsDbUpdated {
+						updateSysPolicies()
+					}
 				}
 			}
 
@@ -1136,10 +1182,12 @@ func GenFileSetForAllPodsInCluster(clusterName string, pods []types.Pod, settype
 		if !dbEntry {
 			log.Info().Msgf("adding wpfs db entry for wpfs=%+v", wpfs)
 			err = libs.InsertWorkloadProcessFileSet(CfgDB, wpfs, mergedfs)
+			isWpfsDbUpdated = true
 		} else {
 			if !reflect.DeepEqual(mergedfs, out[wpfs]) {
 				log.Info().Msgf("updating wpfs db entry for wpfs=%+v", wpfs)
 				err = libs.UpdateWorkloadProcessFileSetMySQL(CfgDB, wpfs, mergedfs)
+				isWpfsDbUpdated = true
 			}
 		}
 		if err != nil {
