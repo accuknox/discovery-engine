@@ -484,7 +484,7 @@ func sortFromSource(fs *[]types.KnoxFromSource) {
 func mergeFromSourceMatchPaths(pmp []types.KnoxMatchPaths, mp *[]types.KnoxMatchPaths) {
 	for _, pp := range pmp {
 		match := false
-		for i, _ := range *mp {
+		for i := range *mp {
 			rp := &(*mp)[i]
 			if pp.Path == (*rp).Path {
 				(*rp).FromSource = append((*rp).FromSource, pp.FromSource...)
@@ -502,7 +502,7 @@ func mergeFromSourceMatchPaths(pmp []types.KnoxMatchPaths, mp *[]types.KnoxMatch
 func mergeFromSourceMatchDirs(pmp []types.KnoxMatchDirectories, mp *[]types.KnoxMatchDirectories) {
 	for _, pp := range pmp {
 		match := false
-		for i, _ := range *mp {
+		for i := range *mp {
 			rp := &(*mp)[i]
 			if pp.Dir == (*rp).Dir {
 				(*rp).FromSource = append((*rp).FromSource, pp.FromSource...)
@@ -520,7 +520,7 @@ func mergeFromSourceMatchDirs(pmp []types.KnoxMatchDirectories, mp *[]types.Knox
 func mergeFromSourceMatchProt(pmp []types.KnoxMatchProtocols, mp *[]types.KnoxMatchProtocols) {
 	for _, pp := range pmp {
 		match := false
-		for i, _ := range *mp {
+		for i := range *mp {
 			rp := &(*mp)[i]
 			if pp.Protocol == (*rp).Protocol {
 				(*rp).FromSource = append((*rp).FromSource, pp.FromSource...)
@@ -760,7 +760,7 @@ func updateSysPolicySpec(opType string, policy types.KnoxSystemPolicy, src strin
 			Protocol: pathSpec.Path,
 		}
 		matchProtocols.FromSource = []types.KnoxFromSource{
-			types.KnoxFromSource{
+			{
 				Path: src,
 			},
 		}
@@ -782,7 +782,7 @@ func updateSysPolicySpec(opType string, policy types.KnoxSystemPolicy, src strin
 			if FileFromSource {
 				if src != "" {
 					matchDirs.FromSource = []types.KnoxFromSource{
-						types.KnoxFromSource{
+						{
 							Path: src,
 						},
 					}
@@ -795,7 +795,7 @@ func updateSysPolicySpec(opType string, policy types.KnoxSystemPolicy, src strin
 			if ProcessFromSource {
 				if src != "" {
 					matchDirs.FromSource = []types.KnoxFromSource{
-						types.KnoxFromSource{
+						{
 							Path: src,
 						},
 					}
@@ -815,7 +815,7 @@ func updateSysPolicySpec(opType string, policy types.KnoxSystemPolicy, src strin
 			if FileFromSource {
 				if src != "" {
 					matchPaths.FromSource = []types.KnoxFromSource{
-						types.KnoxFromSource{
+						{
 							Path: src,
 						},
 					}
@@ -828,7 +828,7 @@ func updateSysPolicySpec(opType string, policy types.KnoxSystemPolicy, src strin
 			if ProcessFromSource {
 				if src != "" {
 					matchPaths.FromSource = []types.KnoxFromSource{
-						types.KnoxFromSource{
+						{
 							Path: src,
 						},
 					}
@@ -985,6 +985,12 @@ func PopulateSystemPoliciesFromSystemLogs(sysLogs []types.KnoxSystemLog) []types
 			if SystemPolicyTypes&SYS_OP_NETWORK_INT > 0 {
 				netOpLogs := getOperationLogs(SYS_OP_NETWORK, perPodlogs)
 				GenFileSetForAllPodsInCluster(clusterName, pods, SYS_OP_NETWORK, netOpLogs)
+				if cfg.CurrentCfg.ConfigSysPolicy.DeprecateOldMode {
+					// New mode of system policy generation using WPFS table
+					if isWpfsDbUpdated {
+						updateSysPolicies()
+					}
+				}
 			}
 
 			if !cfg.CurrentCfg.ConfigSysPolicy.DeprecateOldMode {
@@ -1032,7 +1038,7 @@ func mergeStringSlices(a []string, b []string) []string {
 	for _, val := range d {
 		check[val] = 1
 	}
-	for letter, _ := range check {
+	for letter := range check {
 		res = append(res, letter)
 	}
 	sort.Strings(res)
