@@ -2,7 +2,7 @@ name: Push Policy Discovery Image to Docker
 
 on:
   push:
-    branches: [master,dev,AK-Dev]
+    branches: [master,dev,AK-Dev,v*]
 
 jobs:
   push-docker-img:
