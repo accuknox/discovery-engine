@@ -1127,6 +1127,7 @@ func GenFileSetForAllPodsInCluster(clusterName string, pods []types.Pod, settype
 	res := types.ResourceSetMap{} // key: WorkloadProcess - val: Accesss File Set
 	wpfs := types.WorkloadProcessFileSet{}
 	isNetworkOp := false
+	status := false
 	if settype == SYS_OP_NETWORK {
 		isNetworkOp = true // for network logs, need full ResourceOrigin to do regexp matching in getProtocolType()
 	}
@@ -1176,10 +1177,12 @@ func GenFileSetForAllPodsInCluster(clusterName string, pods []types.Pod, settype
 		if !dbEntry {
 			log.Info().Msgf("adding wpfs db entry for wpfs=%+v", wpfs)
 			err = libs.InsertWorkloadProcessFileSet(CfgDB, wpfs, mergedfs)
+			status = true
 		} else {
 			if !reflect.DeepEqual(mergedfs, out[wpfs]) {
 				log.Info().Msgf("updating wpfs db entry for wpfs=%+v", wpfs)
 				err = libs.UpdateWorkloadProcessFileSetMySQL(CfgDB, wpfs, mergedfs)
+				status = true
 			}
 		}
 		if err != nil {
@@ -1187,7 +1190,7 @@ func GenFileSetForAllPodsInCluster(clusterName string, pods []types.Pod, settype
 		}
 	}
 
-	return true
+	return status
 }
 
 func DiscoverSystemPolicyMain() {
