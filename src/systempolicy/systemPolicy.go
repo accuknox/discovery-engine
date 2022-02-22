@@ -23,10 +23,7 @@ import (
 	"github.com/robfig/cron"
 )
 
-var (
-	log             *zerolog.Logger
-	isWpfsDbUpdated bool
-)
+var log *zerolog.Logger
 
 func init() {
 	log = logger.GetInstance()
@@ -87,7 +84,6 @@ var FileFromSource bool
 func init() {
 	SystemWorkerStatus = STATUS_IDLE
 	SystemStopChan = make(chan struct{})
-	isWpfsDbUpdated = false
 }
 
 // ====================== //
@@ -887,7 +883,6 @@ func updateSysPolicies() {
 	}
 
 	libs.InsertSystemPolicies(CfgDB, locSysPolicies)
-	isWpfsDbUpdated = false
 }
 
 // ============================= //
@@ -914,6 +909,7 @@ func InitSysPolicyDiscoveryConfiguration() {
 
 func PopulateSystemPoliciesFromSystemLogs(sysLogs []types.KnoxSystemLog) []types.KnoxSystemPolicy {
 
+	isWpfsDbUpdated := false
 	discoveredSystemPolicies := []types.KnoxSystemPolicy{}
 
 	// delete duplicate logs
@@ -950,46 +946,38 @@ func PopulateSystemPoliciesFromSystemLogs(sysLogs []types.KnoxSystemLog) []types
 			// 1. discover file operation system policy
 			if SystemPolicyTypes&SYS_OP_FILE_INT > 0 {
 				fileOpLogs := getOperationLogs(SYS_OP_FILE, perPodlogs)
-				GenFileSetForAllPodsInCluster(clusterName, pods, SYS_OP_FILE, fileOpLogs)
+				isWpfsDbUpdated = GenFileSetForAllPodsInCluster(clusterName, pods, SYS_OP_FILE, fileOpLogs) || isWpfsDbUpdated
 				if !cfg.CurrentCfg.ConfigSysPolicy.DeprecateOldMode {
 					discoveredSysPolicies = discoverFileOperationPolicy(discoveredSysPolicies, pod, fileOpLogs)
 					polCnt = len(discoveredSysPolicies)
 					log.Info().Msgf("discovered %d file policies from %d file logs",
 						len(discoveredSysPolicies), len(fileOpLogs))
-				} else {
-					// New mode of system policy generation using WPFS table
-					if isWpfsDbUpdated {
-						updateSysPolicies()
-					}
 				}
 			}
 
 			// 2. discover process operation system policy
 			if SystemPolicyTypes&SYS_OP_PROCESS_INT > 0 {
 				procOpLogs := getOperationLogs(SYS_OP_PROCESS, perPodlogs)
-				GenFileSetForAllPodsInCluster(clusterName, pods, SYS_OP_PROCESS, procOpLogs)
+				isWpfsDbUpdated = GenFileSetForAllPodsInCluster(clusterName, pods, SYS_OP_PROCESS, procOpLogs) || isWpfsDbUpdated
 				if !cfg.CurrentCfg.ConfigSysPolicy.DeprecateOldMode {
 					discoveredSysPolicies = discoverProcessOperationPolicy(discoveredSysPolicies, pod, procOpLogs)
 					polCnt = len(discoveredSysPolicies)
 					log.Info().Msgf("discovered %d process policies from %d process logs",
 						len(discoveredSysPolicies)-polCnt, len(procOpLogs))
-				} else {
-					// New mode of system policy generation using WPFS table
-					if isWpfsDbUpdated {
-						updateSysPolicies()
-					}
 				}
 			}
 
 			// 3. discover network operation system policy
 			if SystemPolicyTypes&SYS_OP_NETWORK_INT > 0 {
 				netOpLogs := getOperationLogs(SYS_OP_NETWORK, perPodlogs)
-				GenFileSetForAllPodsInCluster(clusterName, pods, SYS_OP_NETWORK, netOpLogs)
-				if cfg.CurrentCfg.ConfigSysPolicy.DeprecateOldMode {
-					// New mode of system policy generation using WPFS table
-					if isWpfsDbUpdated {
-						updateSysPolicies()
-					}
+				isWpfsDbUpdated = GenFileSetForAllPodsInCluster(clusterName, pods, SYS_OP_NETWORK, netOpLogs) || isWpfsDbUpdated
+
+			}
+
+			if cfg.CurrentCfg.ConfigSysPolicy.DeprecateOldMode {
+				// New mode of system policy generation using WPFS table
+				if isWpfsDbUpdated {
+					updateSysPolicies()
 				}
 			}
 
@@ -1135,7 +1123,7 @@ func removeDuplicates(arr []string) []string {
 }
 
 // GenFileSetForAllPodsInCluster Generate process specific fileset across all pods in a cluster
-func GenFileSetForAllPodsInCluster(clusterName string, pods []types.Pod, settype string, slogs []types.KnoxSystemLog) {
+func GenFileSetForAllPodsInCluster(clusterName string, pods []types.Pod, settype string, slogs []types.KnoxSystemLog) bool {
 	res := types.ResourceSetMap{} // key: WorkloadProcess - val: Accesss File Set
 	wpfs := types.WorkloadProcessFileSet{}
 	isNetworkOp := false
@@ -1188,18 +1176,18 @@ func GenFileSetForAllPodsInCluster(clusterName string, pods []types.Pod, settype
 		if !dbEntry {
 			log.Info().Msgf("adding wpfs db entry for wpfs=%+v", wpfs)
 			err = libs.InsertWorkloadProcessFileSet(CfgDB, wpfs, mergedfs)
-			isWpfsDbUpdated = true
 		} else {
 			if !reflect.DeepEqual(mergedfs, out[wpfs]) {
 				log.Info().Msgf("updating wpfs db entry for wpfs=%+v", wpfs)
 				err = libs.UpdateWorkloadProcessFileSetMySQL(CfgDB, wpfs, mergedfs)
-				isWpfsDbUpdated = true
 			}
 		}
 		if err != nil {
 			log.Error().Msgf("failure add/updt db entry for wpfs=%+v err=%s", wpfs, err.Error())
 		}
 	}
+
+	return true
 }
 
 func DiscoverSystemPolicyMain() {
