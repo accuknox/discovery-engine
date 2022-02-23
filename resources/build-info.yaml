@@ -136,7 +136,7 @@ helm_build:
     image:
       name: "artifactory.accuknox.com/accuknox/custom-helm-image:latest"
       docker_run_params: ""
-    helm_dir: helm
+    helm_dir: knox-auto-policy-chart
     tag: 1.0.1
     commands:
       - helm lint
