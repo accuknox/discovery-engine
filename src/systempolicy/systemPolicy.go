@@ -639,7 +639,8 @@ func mergeSysPolicies(pols []types.KnoxSystemPolicy) []types.KnoxSystemPolicy {
 			mp := &results[i].Spec.Network.MatchProtocols
 			*mp = append(*mp, pol.Spec.Network.MatchProtocols...)
 		}
-		results[i].Metadata["name"] = "autopol-" + pol.Metadata["namespace"] + "-" + pol.Metadata["containername"]
+		md5SumB := []byte(pol.Metadata["labels"])
+		results[i].Metadata["name"] = "autopol-" + pol.Metadata["namespace"] + "-" + pol.Metadata["containername"] + string(md5SumB[:])
 	}
 
 	results = mergeFromSource(results)
