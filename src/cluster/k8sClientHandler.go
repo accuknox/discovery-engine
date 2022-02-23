@@ -10,8 +10,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/accuknox/knoxAutoPolicy/src/libs"
-	"github.com/accuknox/knoxAutoPolicy/src/types"
+	"github.com/accuknox/auto-policy-discovery/src/libs"
+	"github.com/accuknox/auto-policy-discovery/src/types"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	rest "k8s.io/client-go/rest"
@@ -48,12 +48,17 @@ func ConnectLocalAPIClient() *kubernetes.Clientset {
 			homeDir = os.Getenv("USERPROFILE") // windows
 		}
 
-		if home := homeDir; home != "" {
-			kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
+		envKubeConfig := os.Getenv("KUBECONFIG")
+		if envKubeConfig != "" {
+			kubeconfig = &envKubeConfig
 		} else {
-			kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
+			if home := homeDir; home != "" {
+				kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
+			} else {
+				kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
+			}
+			flag.Parse()
 		}
-		flag.Parse()
 
 		parsed = true
 	}
@@ -186,6 +191,7 @@ func GetPodsFromK8sClient() []types.Pod {
 
 			group.Labels = append(group.Labels, k+"="+v)
 		}
+		sort.Strings(group.Labels)
 
 		results = append(results, group)
 	}

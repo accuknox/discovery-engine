@@ -1,11 +1,7 @@
 package config
 
 import (
-	"errors"
-	"net"
-
-	"github.com/accuknox/knoxAutoPolicy/src/libs"
-	types "github.com/accuknox/knoxAutoPolicy/src/types"
+	types "github.com/accuknox/auto-policy-discovery/src/types"
 	"github.com/spf13/viper"
 )
 
@@ -61,20 +57,16 @@ func LoadConfigDB() types.ConfigDB {
 	cfgDB.DBName = viper.GetString("database.dbname")
 
 	cfgDB.DBHost = viper.GetString("database.host")
-	dbAddr, err := net.LookupIP(cfgDB.DBHost)
-	if err == nil {
-		cfgDB.DBHost = dbAddr[0].String()
-	} else {
-		cfgDB.DBHost = libs.GetExternalIPAddr()
-	}
+	/*
+		fix for #405
+		dbAddr, err := net.LookupIP(cfgDB.DBHost)
+		if err == nil {
+			cfgDB.DBHost = dbAddr[0].String()
+		} else {
+			cfgDB.DBHost = libs.GetExternalIPAddr()
+		}
+	*/
 	cfgDB.DBPort = viper.GetString("database.port")
-
-	cfgDB.TableConfiguration = viper.GetString("database.table-configuration")
-	cfgDB.TableNetworkLog = viper.GetString("database.table-network-log")
-	cfgDB.TableNetworkPolicy = viper.GetString("database.table-network-policy")
-	cfgDB.TableSystemLog = viper.GetString("database.table-system-log")
-	cfgDB.TableSystemAlert = viper.GetString("database.table-system-alert")
-	cfgDB.TableSystemPolicy = viper.GetString("database.table-system-policy")
 
 	return cfgDB
 }
@@ -83,19 +75,40 @@ func LoadConfigCiliumHubble() types.ConfigCiliumHubble {
 	cfgHubble := types.ConfigCiliumHubble{}
 
 	cfgHubble.HubbleURL = viper.GetString("cilium-hubble.url")
-	addr, err := net.LookupIP(cfgHubble.HubbleURL)
-	if err == nil {
-		cfgHubble.HubbleURL = addr[0].String()
-	} else {
-		cfgHubble.HubbleURL = libs.GetExternalIPAddr()
-	}
+	/*
+		commented for fixing #405
+		addr, err := net.LookupIP(cfgHubble.HubbleURL)
+		if err == nil {
+			cfgHubble.HubbleURL = addr[0].String()
+		} else {
+			cfgHubble.HubbleURL = libs.GetExternalIPAddr()
+		}
+	*/
 
 	cfgHubble.HubblePort = viper.GetString("cilium-hubble.port")
 
 	return cfgHubble
 }
 
-func LoadDefaultConfig() {
+func LoadConfigKubeArmor() types.ConfigKubeArmorRelay {
+	cfgKubeArmor := types.ConfigKubeArmorRelay{}
+
+	cfgKubeArmor.KubeArmorRelayURL = viper.GetString("kubearmor.url")
+	/*
+		addr, err := net.LookupIP(cfgKubeArmor.KubeArmorRelayURL)
+		if err == nil {
+			cfgKubeArmor.KubeArmorRelayURL = addr[0].String()
+		} else {
+			cfgKubeArmor.KubeArmorRelayURL = libs.GetExternalIPAddr()
+		}
+	*/
+
+	cfgKubeArmor.KubeArmorRelayPort = viper.GetString("kubearmor.port")
+
+	return cfgKubeArmor
+}
+
+func LoadConfigFromFile() {
 	CurrentCfg = types.Configuration{}
 
 	// default
@@ -106,9 +119,11 @@ func LoadDefaultConfig() {
 	// load network policy discovery
 	CurrentCfg.ConfigNetPolicy = types.ConfigNetworkPolicy{
 		OperationMode:           viper.GetInt("application.network.operation-mode"),
+		OperationTrigger:        viper.GetInt("application.network.operation-trigger"),
 		CronJobTimeInterval:     "@every " + viper.GetString("application.network.cron-job-time-interval"),
 		OneTimeJobTimeSelection: "", // e.g., 2021-01-20 07:00:23|2021-01-20 07:00:25
 
+		NetworkLogLimit:  viper.GetInt("application.network.network-log-limit"),
 		NetworkLogFrom:   viper.GetString("application.network.network-log-from"),
 		NetworkLogFile:   viper.GetString("application.network.network-log-file"),
 		NetworkPolicyTo:  viper.GetString("application.network.network-policy-to"),
@@ -120,23 +135,27 @@ func LoadDefaultConfig() {
 
 		NetLogFilters: []types.NetworkLogFilter{},
 
-		NetPolicyL3Level: 3,
-		NetPolicyL4Level: 3,
-		NetPolicyL7Level: 3,
+		NetPolicyL3Level: 1,
+		NetPolicyL4Level: 1,
+		NetPolicyL7Level: 1,
+
+		NetSkipCertVerification: viper.GetBool("application.network.skip-cert-verification"),
 	}
 
 	// load system policy discovery
 	CurrentCfg.ConfigSysPolicy = types.ConfigSystemPolicy{
 		OperationMode:           viper.GetInt("application.system.operation-mode"),
+		OperationTrigger:        viper.GetInt("application.system.operation-trigger"),
 		CronJobTimeInterval:     "@every " + viper.GetString("application.system.cron-job-time-interval"),
 		OneTimeJobTimeSelection: "", // e.g., 2021-01-20 07:00:23|2021-01-20 07:00:25
 
-		SysPolicyTypes: 7,
-
-		SystemLogFrom:   viper.GetString("application.system.system-log-from"),
-		SystemLogFile:   viper.GetString("application.system.system-log-file"),
-		SystemPolicyTo:  viper.GetString("application.system.system-policy-to"),
-		SystemPolicyDir: viper.GetString("application.system.system-policy-dir"),
+		SystemLogLimit:   viper.GetInt("application.system.system-log-limit"),
+		SystemLogFrom:    viper.GetString("application.system.system-log-from"),
+		SystemLogFile:    viper.GetString("application.system.system-log-file"),
+		SystemPolicyTo:   viper.GetString("application.system.system-policy-to"),
+		SystemPolicyDir:  viper.GetString("application.system.system-policy-dir"),
+		SysPolicyTypes:   viper.GetInt("application.system.system-policy-types"),
+		DeprecateOldMode: viper.GetBool("application.system.deprecate-old-mode"),
 
 		SystemLogFilters: []types.SystemLogFilter{},
 
@@ -155,52 +174,9 @@ func LoadDefaultConfig() {
 
 	// load cilium hubble relay
 	CurrentCfg.ConfigCiliumHubble = LoadConfigCiliumHubble()
-}
 
-// ======================== //
-// == Configuration CRUD == //
-// ======================== //
-
-func AddConfiguration(newConfig types.Configuration) error {
-	return libs.AddConfiguration(CurrentCfg.ConfigDB, newConfig)
-}
-
-func GetConfigurations(configName string) ([]types.Configuration, error) {
-	return libs.GetConfigurations(CurrentCfg.ConfigDB, configName)
-}
-
-func UpdateConfiguration(configName string, updateConfig types.Configuration) error {
-	return libs.UpdateConfiguration(CurrentCfg.ConfigDB, configName, updateConfig)
-}
-
-func DeleteConfiguration(configName string) error {
-	return libs.DeleteConfiguration(CurrentCfg.ConfigDB, configName)
-}
-
-func ApplyConfiguration(configName string) error {
-	if CurrentCfg.ConfigName == configName {
-		return errors.New("Not applied " + configName + " due to same configuration name")
-	}
-
-	if err := libs.ApplyConfiguration(CurrentCfg.ConfigDB, CurrentCfg.ConfigName, configName); err != nil {
-		return err
-	}
-
-	appliedConfigs, err := libs.GetConfigurations(CurrentCfg.ConfigDB, configName)
-	if err != nil {
-		return err
-	}
-
-	// check if db info is null
-	appliedCfg := appliedConfigs[0]
-	if appliedCfg.ConfigDB.DBHost == "" {
-		appliedCfg.ConfigDB = CurrentCfg.ConfigDB
-	}
-
-	// update current Cfg
-	CurrentCfg = appliedCfg
-
-	return nil
+	// load kubearmor relay config
+	CurrentCfg.ConfigKubeArmorRelay = LoadConfigKubeArmor()
 }
 
 // ============================ //
@@ -227,6 +203,10 @@ func GetCfgDB() types.ConfigDB {
 // == Get Network Config Info == //
 // ============================= //
 
+func GetCfgNet() types.ConfigNetworkPolicy {
+	return CurrentCfg.ConfigNetPolicy
+}
+
 func GetCfgNetOperationMode() int {
 	return CurrentCfg.ConfigNetPolicy.OperationMode
 }
@@ -239,7 +219,15 @@ func GetCfgNetOneTime() string {
 	return CurrentCfg.ConfigNetPolicy.OneTimeJobTimeSelection
 }
 
+func GetCfgNetOperationTrigger() int {
+	return CurrentCfg.ConfigNetPolicy.OperationTrigger
+}
+
 // == //
+
+func GetCfgNetLimit() int {
+	return CurrentCfg.ConfigNetPolicy.NetworkLogLimit
+}
 
 func GetCfgNetworkLogFrom() string {
 	return CurrentCfg.ConfigNetPolicy.NetworkLogFrom
@@ -251,6 +239,10 @@ func GetCfgNetworkLogFile() string {
 
 func GetCfgCiliumHubble() types.ConfigCiliumHubble {
 	return CurrentCfg.ConfigCiliumHubble
+}
+
+func GetCfgKubeArmor() types.ConfigKubeArmorRelay {
+	return CurrentCfg.ConfigKubeArmorRelay
 }
 
 func GetCfgNetworkPolicyTo() string {
@@ -293,12 +285,24 @@ func GetCfgNetworkLogFilters() []types.NetworkLogFilter {
 	return CurrentCfg.ConfigNetPolicy.NetLogFilters
 }
 
+func GetCfgNetworkSkipCertVerification() bool {
+	return CurrentCfg.ConfigNetPolicy.NetSkipCertVerification
+}
+
 // ============================ //
 // == Get System Config Info == //
 // ============================ //
 
+func GetCfgSys() types.ConfigSystemPolicy {
+	return CurrentCfg.ConfigSysPolicy
+}
+
 func GetCfgSysOperationMode() int {
 	return CurrentCfg.ConfigSysPolicy.OperationMode
+}
+
+func GetCfgSysOperationTrigger() int {
+	return CurrentCfg.ConfigSysPolicy.OperationTrigger
 }
 
 func GetCfgSysCronJobTime() string {
@@ -310,6 +314,10 @@ func GetCfgSysOneTime() string {
 }
 
 // == //
+
+func GetCfgSysLimit() int {
+	return CurrentCfg.ConfigSysPolicy.SystemLogLimit
+}
 
 func GetCfgSystemLogFrom() string {
 	return CurrentCfg.ConfigSysPolicy.SystemLogFrom

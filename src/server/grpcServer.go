@@ -2,22 +2,24 @@ package server
 
 import (
 	"context"
-	"encoding/json"
+	"errors"
 
-	"github.com/gogo/protobuf/jsonpb"
 	"github.com/rs/zerolog"
 
-	core "github.com/accuknox/knoxAutoPolicy/src/config"
-	"github.com/accuknox/knoxAutoPolicy/src/feedconsumer"
-	logger "github.com/accuknox/knoxAutoPolicy/src/logging"
-	networker "github.com/accuknox/knoxAutoPolicy/src/networkpolicy"
-	sysworker "github.com/accuknox/knoxAutoPolicy/src/systempolicy"
+	analyzer "github.com/accuknox/auto-policy-discovery/src/analyzer"
+	cfg "github.com/accuknox/auto-policy-discovery/src/config"
+	core "github.com/accuknox/auto-policy-discovery/src/config"
+	"github.com/accuknox/auto-policy-discovery/src/feedconsumer"
+	logger "github.com/accuknox/auto-policy-discovery/src/logging"
+	networker "github.com/accuknox/auto-policy-discovery/src/networkpolicy"
+	sysworker "github.com/accuknox/auto-policy-discovery/src/systempolicy"
 
-	"github.com/accuknox/knoxAutoPolicy/src/libs"
-	cpb "github.com/accuknox/knoxAutoPolicy/src/protobuf/v1/config"
-	fpb "github.com/accuknox/knoxAutoPolicy/src/protobuf/v1/consumer"
-	wpb "github.com/accuknox/knoxAutoPolicy/src/protobuf/v1/worker"
-	"github.com/accuknox/knoxAutoPolicy/src/types"
+	"github.com/accuknox/auto-policy-discovery/src/libs"
+	apb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/analyzer"
+	fpb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/consumer"
+	opb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/observability"
+	wpb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/worker"
+	"github.com/accuknox/auto-policy-discovery/src/types"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
@@ -33,104 +35,6 @@ func init() {
 	log = logger.GetInstance()
 }
 
-// =========================== //
-// == Configuration Service == //
-// ========================== //
-
-type configServer struct {
-	cpb.ConfigStoreServer
-}
-
-func (s *configServer) Add(ctx context.Context, in *cpb.ConfigRequest) (*cpb.ConfigResponse, error) {
-	log.Info().Msg("Add config called")
-
-	m := jsonpb.Marshaler{OrigName: true}
-	str, err := m.MarshalToString(in.GetConfig())
-	if err != nil {
-		return &cpb.ConfigResponse{Msg: err.Error()}, err
-	}
-
-	var config types.Configuration
-	if err := json.Unmarshal([]byte(str), &config); err != nil {
-		return &cpb.ConfigResponse{Msg: err.Error()}, err
-	}
-
-	if err := core.AddConfiguration(config); err != nil {
-		return &cpb.ConfigResponse{Msg: err.Error()}, err
-	}
-
-	return &cpb.ConfigResponse{Msg: "ok"}, nil
-}
-
-func (s *configServer) Get(ctx context.Context, in *cpb.ConfigRequest) (*cpb.ConfigResponse, error) {
-	log.Info().Msg("Get config called")
-
-	results, err := core.GetConfigurations(in.GetConfigName())
-	if err != nil {
-		return &cpb.ConfigResponse{Msg: err.Error()}, nil
-	}
-
-	configs := []*cpb.Config{}
-
-	for i := range results {
-		var config cpb.Config
-		if b, err := json.Marshal(&results[i]); err != nil {
-			log.Error().Msg(err.Error())
-			continue
-		} else {
-			if err := json.Unmarshal(b, &config); err != nil {
-				log.Error().Msg(err.Error())
-				continue
-			}
-		}
-
-		configs = append(configs, &config)
-	}
-
-	return &cpb.ConfigResponse{Msg: "ok", Config: configs}, nil
-}
-
-func (s *configServer) Update(ctx context.Context, in *cpb.ConfigRequest) (*cpb.ConfigResponse, error) {
-	log.Info().Msg("Update config called")
-
-	m := jsonpb.Marshaler{OrigName: true}
-	str, _ := m.MarshalToString(in.GetConfig())
-
-	var config types.Configuration
-	if err := json.Unmarshal([]byte(str), &config); err != nil {
-		return &cpb.ConfigResponse{Msg: err.Error()}, err
-	}
-
-	err := core.UpdateConfiguration(in.GetConfigName(), config)
-	if err != nil {
-		return &cpb.ConfigResponse{Msg: err.Error()}, err
-	}
-
-	return &cpb.ConfigResponse{Msg: "ok"}, err
-}
-
-func (s *configServer) Delete(ctx context.Context, in *cpb.ConfigRequest) (*cpb.ConfigResponse, error) {
-	log.Info().Msg("Delete config called")
-
-	err := core.DeleteConfiguration(in.GetConfigName())
-	if err != nil {
-		return &cpb.ConfigResponse{Msg: err.Error()}, nil
-	}
-
-	return &cpb.ConfigResponse{Msg: "ok"}, nil
-}
-
-func (s *configServer) Apply(ctx context.Context, in *cpb.ConfigRequest) (*cpb.ConfigResponse, error) {
-	log.Info().Msg("Apply config called")
-
-	err := core.ApplyConfiguration(in.GetConfigName())
-	if err != nil {
-		return &cpb.ConfigResponse{Msg: err.Error()}, nil
-	}
-
-	return &cpb.ConfigResponse{Msg: "ok"}, nil
-}
-
 // ==================== //
 // == Worker Service == //
 // ==================== //
@@ -142,23 +46,28 @@ type workerServer struct {
 func (s *workerServer) Start(ctx context.Context, in *wpb.WorkerRequest) (*wpb.WorkerResponse, error) {
 	log.Info().Msg("Start worker called")
 
+	response := ""
+
 	if in.GetReq() == "dbclear" {
 		libs.ClearDBTables(core.CurrentCfg.ConfigDB)
+		response += "Cleared DB."
 	}
 
 	if in.GetLogfile() != "" {
 		core.SetLogFile(in.GetLogfile())
+		response += "Log File Set ,"
 	}
 
-	if in.GetPolicytype() == "network" {
-		networker.StartNetworkWorker()
-	} else if in.GetPolicytype() == "system" {
-		sysworker.StartSystemWorker()
-	} else {
-		return &wpb.WorkerResponse{Res: "No policy type, choose 'network' or 'system', not [" + in.GetPolicytype() + "]"}, nil
+	if in.GetPolicytype() != "" {
+		if in.GetPolicytype() == "network" {
+			networker.StartNetworkWorker()
+		} else if in.GetPolicytype() == "system" {
+			sysworker.StartSystemWorker()
+		}
+		response += "Starting " + in.GetPolicytype() + " policy discovery"
 	}
 
-	return &wpb.WorkerResponse{Res: "ok starting " + in.GetPolicytype() + " policy discovery"}, nil
+	return &wpb.WorkerResponse{Res: response}, nil
 }
 
 func (s *workerServer) Stop(ctx context.Context, in *wpb.WorkerRequest) (*wpb.WorkerResponse, error) {
@@ -191,6 +100,22 @@ func (s *workerServer) GetWorkerStatus(ctx context.Context, in *wpb.WorkerReques
 	return &wpb.WorkerResponse{Res: status}, nil
 }
 
+func (s *workerServer) Convert(ctx context.Context, in *wpb.WorkerRequest) (*wpb.WorkerResponse, error) {
+	if in.GetPolicytype() == "network" {
+		log.Info().Msg("Convert network policy called")
+		networker.InitNetPolicyDiscoveryConfiguration()
+		networker.WriteNetworkPoliciesToFile("", "", []types.Service{})
+	} else if in.GetPolicytype() == "system" {
+		log.Info().Msg("Convert system policy called")
+		sysworker.InitSysPolicyDiscoveryConfiguration()
+		sysworker.WriteSystemPoliciesToFile("")
+	} else {
+		log.Info().Msg("Convert policy called, but no policy type")
+	}
+
+	return &wpb.WorkerResponse{Res: "ok"}, nil
+}
+
 // ====================== //
 // == Consumer Service == //
 // ====================== //
@@ -216,6 +141,57 @@ func (s *consumerServer) GetWorkerStatus(ctx context.Context, in *fpb.ConsumerRe
 	return &fpb.ConsumerResponse{Res: feedconsumer.Status}, nil
 }
 
+// ====================== //
+// == Analyzer Service == //
+// ====================== //
+
+type analyzerServer struct {
+	apb.AnalyzerServer
+}
+
+func (s *analyzerServer) GetNetworkPolicies(ctx context.Context, in *apb.NetworkLogs) (*apb.NetworkPolicies, error) {
+	pbNetworkPolicies := apb.NetworkPolicies{}
+	pbNetworkPolicies.NwPolicies = analyzer.GetNetworkPolicies(in.GetNwLog())
+	return &pbNetworkPolicies, nil
+}
+
+func (s *analyzerServer) GetSystemPolicies(ctx context.Context, in *apb.SystemLogs) (*apb.SystemPolicies, error) {
+	pbSystemPolicies := apb.SystemPolicies{}
+	pbSystemPolicies.SysPolicies = analyzer.GetSystemPolicies(in.GetSysLog())
+	return &pbSystemPolicies, nil
+}
+
+// =================== //
+// == Observability == //
+// =================== //
+
+type observabilityServer struct {
+	opb.ObservabilityServer
+}
+
+func (s *observabilityServer) SysObservabilityData(ctx context.Context, in *opb.Data) (*opb.Response, error) {
+
+	var wpfs types.WorkloadProcessFileSet
+
+	wpfs.ContainerName = in.ContainerName
+	wpfs.ClusterName = in.ClusterName
+	wpfs.FromSource = in.FromSource
+	wpfs.Namespace = in.Namespace
+	wpfs.Labels = in.Labels
+
+	if in.Request == "observe" {
+		wpfs.FromSource = "" // Forcing wpfs.FromSource to "" as it is not a search string
+		resp, err := sysworker.GetSystemObsData(wpfs)
+		return &resp, err
+	}
+	if in.Request == "dbclear" {
+		err := sysworker.ClearSysDb(wpfs, in.Duration)
+		return &opb.Response{}, err
+	}
+
+	return nil, errors.New("not a valid request, use observe/dbclear")
+}
+
 // ================= //
 // == gRPC server == //
 // ================= //
@@ -226,9 +202,28 @@ func GetNewServer() *grpc.Server {
 
 	reflection.Register(s)
 
-	cpb.RegisterConfigStoreServer(s, &configServer{})
-	wpb.RegisterWorkerServer(s, &workerServer{})
-	fpb.RegisterConsumerServer(s, &consumerServer{})
+	// create server instances
+	workerServer := &workerServer{}
+	consumerServer := &consumerServer{}
+	analyzerServer := &analyzerServer{}
+	observabilityServer := &observabilityServer{}
+
+	// register gRPC servers
+	wpb.RegisterWorkerServer(s, workerServer)
+	fpb.RegisterConsumerServer(s, consumerServer)
+	apb.RegisterAnalyzerServer(s, analyzerServer)
+	opb.RegisterObservabilityServer(s, observabilityServer)
+
+	if cfg.GetCurrentCfg().ConfigClusterMgmt.ClusterInfoFrom != "k8sclient" {
+		// start consumer automatically
+		feedconsumer.StartConsumer()
+	}
+
+	// start net worker automatically
+	networker.StartNetworkWorker()
+
+	// start sys worker automatically
+	sysworker.StartSystemWorker()
 
 	return s
 }

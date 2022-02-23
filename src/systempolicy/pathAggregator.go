@@ -1,14 +1,13 @@
 package systempolicy
 
 import (
-	"fmt"
+	"path/filepath"
 	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 
-	"github.com/accuknox/knoxAutoPolicy/src/libs"
-	types "github.com/accuknox/knoxAutoPolicy/src/types"
+	"github.com/accuknox/auto-policy-discovery/src/libs"
+	types "github.com/accuknox/auto-policy-discovery/src/types"
 )
 
 var WildPathDigit string = "/[0-9]+"
@@ -52,16 +51,6 @@ type HTTPDst struct {
 	MatchLabels string
 	ToPorts     []types.SpecPort
 	HTTPTree    map[string]map[string]*Node
-}
-
-func (n *Node) getChildNodesCount() int {
-	results := 0
-
-	for _, childNode := range n.childNodes {
-		results = results + childNode.touchCount
-	}
-
-	return results
 }
 
 func (n *Node) generatePaths(results map[string]bool, parentPath string) {
@@ -146,129 +135,6 @@ func (n *Node) findChildNode(path string, depth int) *Node {
 	return nil
 }
 
-func (n *Node) mergeSameChildNodes() {
-	if len(n.childNodes) == 0 {
-		return
-	}
-
-	nodeMap := map[MergedNode][]*Node{}
-	nodeMapTouchCount := map[MergedNode]int{}
-
-	merged := false
-
-	for _, childNode := range n.childNodes {
-		temp := MergedNode{
-			path:  childNode.path,
-			depth: childNode.depth,
-		}
-
-		// check existing same child nodes
-		if exist, ok := nodeMap[temp]; ok {
-			exist = append(exist, childNode.childNodes...)
-			nodeMap[temp] = exist
-			merged = true
-		} else {
-			nodeMap[temp] = childNode.childNodes
-		}
-
-		// merge touch count
-		nodeMapTouchCount[temp] = nodeMapTouchCount[temp] + childNode.touchCount
-	}
-
-	// if not merged, return
-	if !merged {
-		return
-	}
-
-	n.childNodes = []*Node{}
-
-	for uniqueChildNodes, grandChildNodes := range nodeMap {
-		newChildNode := &Node{
-			depth:      uniqueChildNodes.depth,
-			path:       uniqueChildNodes.path,
-			touchCount: nodeMapTouchCount[uniqueChildNodes],
-			childNodes: grandChildNodes,
-		}
-
-		n.childNodes = append(n.childNodes, newChildNode)
-	}
-}
-
-// =================== //
-// == Tree Handling == //
-// =================== //
-
-func findByName(root *Node, path string, depth int) *Node {
-	queue := make([]*Node, 0)
-	queue = append(queue, root)
-
-	for len(queue) > 0 {
-		nextUp := queue[0]
-		queue = queue[1:]
-
-		if len(nextUp.childNodes) > 0 {
-			for i := 0; i < nextUp.depth; i++ {
-				fmt.Print("\t")
-			}
-			for _, child := range nextUp.childNodes {
-				for i := 0; i < child.depth; i++ {
-					fmt.Print("\t")
-				}
-				queue = append(queue, child)
-			}
-		} else {
-			for i := 0; i < nextUp.depth; i++ {
-				fmt.Print("\t")
-			}
-		}
-	}
-
-	return nil
-}
-
-func printTree(node *Node) {
-	for i := 0; i < node.depth; i++ {
-		fmt.Print("\t")
-	}
-
-	fmt.Println(node.path, node.isDir, node.depth, node.touchCount)
-
-	for _, child := range node.childNodes {
-		for i := 0; i < node.depth; i++ {
-			fmt.Print("\t")
-		}
-
-		printTree(child)
-	}
-}
-
-func checkSamePathLength(paths []string) bool {
-	pathLength := map[int]bool{}
-
-	for _, path := range paths {
-		pathLength[len(path)] = true
-	}
-
-	if len(pathLength) > 1 {
-		return false
-	}
-
-	return true
-}
-
-func checkDigitsOnly(paths []string) bool {
-	isDigit := true
-
-	for _, path := range paths {
-		woSlash := strings.Split(path, "/")[1]
-		if _, err := strconv.Atoi(woSlash); err != nil {
-			isDigit = false
-		}
-	}
-
-	return isDigit
-}
-
 // ===================== //
 // == Build Path Tree == //
 // ===================== //
@@ -312,6 +178,33 @@ func buildPathTree(treeMap map[string]*Node, paths []string) {
 	}
 }
 
+// if you have files in a dir and the dir itself as input then no need to consider files
+// for e.g., /usr/xyz and /usr/ is given as input ... in this case, we can
+// skip /usr/xyz because whole /usr/ dir is already input
+func mergeFileInDir(paths []string) (map[string]bool, []string) {
+	var filelist []string
+	dirlist := map[string]bool{}
+	for _, path := range paths {
+		if strings.HasSuffix(path, "/") {
+			dirlist[path] = true
+		} else {
+			filelist = append(filelist, path)
+		}
+	}
+	if len(dirlist) <= 0 {
+		return dirlist, filelist
+	}
+	var finalFileList []string
+	for _, path := range filelist {
+		dir := filepath.Dir(path)
+		if !dirlist[dir+"/"] {
+			finalFileList = append(finalFileList, path)
+		}
+	}
+
+	return dirlist, finalFileList
+}
+
 func AggregatePaths(paths []string) []SysPath {
 	treeMap := map[string]*Node{}
 
@@ -350,6 +243,9 @@ func AggregatePaths(paths []string) []SysPath {
 	// step 4: make result
 	results := []SysPath{}
 	for path, isDir := range aggregatedPaths {
+		if isDir && !strings.HasSuffix(path, "/") {
+			path = path + "/"
+		}
 		sysPath := SysPath{
 			Path:  path,
 			isDir: isDir,
@@ -406,4 +302,30 @@ func MergeAndAggregatePaths(dirs []string, paths []string) []SysPath {
 	}
 
 	return results
+}
+
+func AggregatePathsExt(paths []string) []string {
+	dirlist, filelist := mergeFileInDir(paths)
+
+	results := AggregatePaths(filelist)
+
+	var flist []string
+	for _, sp := range results {
+		rec := sp.Path
+		if sp.isDir {
+			if !strings.HasSuffix(rec, "/") {
+				rec = rec + "/"
+			}
+			if dirlist[rec] { //already part of dirlist above
+				continue
+			}
+		}
+		flist = append(flist, rec)
+	}
+
+	for k, _ := range dirlist {
+		flist = append(flist, k)
+	}
+	sort.Strings(flist)
+	return flist
 }

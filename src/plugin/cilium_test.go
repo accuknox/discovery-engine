@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/accuknox/knoxAutoPolicy/src/types"
+	"github.com/accuknox/auto-policy-discovery/src/types"
 	flow "github.com/cilium/cilium/api/v1/flow"
 	"github.com/google/go-cmp/cmp"
 )

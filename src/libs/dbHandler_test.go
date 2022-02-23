@@ -5,89 +5,15 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/accuknox/knoxAutoPolicy/src/types"
+	"github.com/accuknox/auto-policy-discovery/src/types"
 	"github.com/stretchr/testify/assert"
 )
+
+const Unmet = "unmet expectation error: "
 
 // ================= //
 // == Network Log == //
 // ================= //
-
-func TestGetNetworkLogsFromDB(t *testing.T) {
-	// prepare mock mysql
-	_, mock := NewMock()
-
-	rows := mock.NewRows([]string{
-		"id",                // int
-		"time",              // int
-		"cluster_name",      // str
-		"traffic_direction", // str
-		"verdict",           // str
-		"policy_match_type", // int
-		"drop_reason",       // int
-		"event_type",        // []byte
-		"source",            // []byte
-		"destination",       // []byte
-		"ip",                // []byte
-		"l4",                // []byte
-		"l7"}).              // []byte
-		AddRow(1, 0, "", "", "", 0, 0, []byte{}, []byte{}, []byte{}, []byte{}, []byte{}, []byte{})
-
-	mock.ExpectQuery("^SELECT (.+) FROM network_log*").
-		WithArgs(0).
-		WillReturnRows(rows)
-
-	results := GetNetworkLogsFromDB(types.ConfigDB{DBDriver: "mysql", TableNetworkLog: "network_log"}, "")
-	assert.Equal(t, results[0]["id"], uint32(1))
-
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("unmet expectation error: %s", err)
-	}
-}
-
-func TestInsertNetworkLogToDB(t *testing.T) {
-	// prepare mock mysql
-	_, mock := NewMock()
-
-	prep := mock.ExpectPrepare("INSERT INTO network_log")
-	prep.ExpectExec().
-		WithArgs(
-			1616387100,
-			"test",
-			"",
-			0,
-			"null",
-			"null",
-			"null",
-			"null",
-			false,
-			"null",
-			"null",
-			"",
-			"",
-			"null",
-			"null",
-			"null",
-			"",
-			0,
-			"",
-			"",
-		).WillReturnResult(sqlmock.NewResult(0, 1))
-
-	nfe := []types.NetworkLogEvent{
-		types.NetworkLogEvent{
-			Time:        "2021-03-22T04:25:00.169452145Z",
-			ClusterName: "test",
-		},
-	}
-
-	err := InsertNetworkLogToDB(types.ConfigDB{DBDriver: "mysql", TableNetworkLog: "network_log"}, nfe)
-	assert.NoError(t, err)
-
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("unmet expectation error: %s", err)
-	}
-}
 
 // ==================== //
 // == Network Policy == //
@@ -122,11 +48,11 @@ func TestGetNetworkPolicies(t *testing.T) {
 	mock.ExpectQuery("^SELECT (.+) FROM network_policy*").
 		WillReturnRows(rows)
 
-	results := GetNetworkPolicies(types.ConfigDB{DBDriver: "mysql", TableNetworkPolicy: "network_policy"}, "", "", "")
+	results := GetNetworkPolicies(types.ConfigDB{DBDriver: "mysql"}, "", "", "")
 	assert.Equal(t, results[0].Kind, "test")
 
 	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("unmet expectation error: %s", err)
+		t.Errorf(Unmet+"%s", err)
 	}
 }
 
@@ -165,10 +91,10 @@ func TestInsertNetworkPolicies(t *testing.T) {
 		},
 	}
 
-	err := InsertNetworkPoliciesToMySQL(types.ConfigDB{DBDriver: "mysql", TableNetworkPolicy: "network_policy"}, nfe)
+	err := InsertNetworkPoliciesToMySQL(types.ConfigDB{DBDriver: "mysql"}, nfe)
 	assert.NoError(t, err)
 
 	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("unmet expectation error: %s", err)
+		t.Errorf(Unmet+"%s", err)
 	}
 }

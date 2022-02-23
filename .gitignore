@@ -1,9 +1,14 @@
 .vscode/
 src/knoxAutoPolicy
-src/go.sum
 script/log
 src/log
 log
 policies/*.yaml
 !policies/.keep
 tests/mysql/logs
+src/dist/
+src/coverage*.out
+src/report*.json
+kubearmor_policies*.yaml
+cilium_policies*.yaml
+knox_net_policies*.yaml

@@ -3,16 +3,16 @@ package plugin
 import (
 	"context"
 	"encoding/json"
-	"io"
+	"net"
 	"net/url"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/accuknox/knoxAutoPolicy/src/libs"
-	logger "github.com/accuknox/knoxAutoPolicy/src/logging"
-	"github.com/accuknox/knoxAutoPolicy/src/types"
+	"github.com/accuknox/auto-policy-discovery/src/libs"
+	logger "github.com/accuknox/auto-policy-discovery/src/logging"
+	"github.com/accuknox/auto-policy-discovery/src/types"
 	"github.com/rs/zerolog"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -54,17 +54,22 @@ var Verdict = map[string]int{
 }
 
 // ======================= //
-// == Gloabl Variables  == //
+// == Global Variables  == //
 // ======================= //
 
 var CiliumFlows []*cilium.Flow
 var CiliumFlowsMutex *sync.Mutex
+var CiliumFlowsKafka []*types.KnoxNetworkLog
+var CiliumFlowsKafkaMutex *sync.Mutex
 
 var log *zerolog.Logger
 
 func init() {
 	log = logger.GetInstance()
 	CiliumFlowsMutex = &sync.Mutex{}
+	KubeArmorRelayLogsMutex = &sync.Mutex{}
+	CiliumFlowsKafkaMutex = &sync.Mutex{}
+	KubeArmorKafkaLogsMutex = &sync.Mutex{}
 }
 
 // ====================== //
@@ -77,10 +82,6 @@ func convertVerdictToInt(vType interface{}) int {
 
 func convertTrafficDirectionToInt(tType interface{}) int {
 	return TrafficDirection[tType.(string)]
-}
-
-func convertTraceObservationPointToInt(tType interface{}) int {
-	return TraceObservationPoint[tType.(string)]
 }
 
 func isSynFlagOnly(tcp *cilium.TCP) bool {
@@ -111,18 +112,6 @@ func getProtocol(l4 *cilium.Layer4) int {
 		return 1
 	} else {
 		return 0 // unknown?
-	}
-}
-
-func getProtocolStr(l4 *cilium.Layer4) string {
-	if l4.GetTCP() != nil {
-		return "tcp"
-	} else if l4.GetUDP() != nil {
-		return "udp"
-	} else if l4.GetICMPv4() != nil {
-		return "icmp"
-	} else {
-		return "unknown" // unknown?
 	}
 }
 
@@ -162,7 +151,8 @@ func ConvertCiliumFlowToKnoxNetworkLog(ciliumFlow *cilium.Flow) (types.KnoxNetwo
 	log := types.KnoxNetworkLog{}
 
 	// TODO: packet is dropped (flow.Verdict == 2) and drop reason == 181 (Flows denied by deny policy)?
-	if ciliumFlow.Verdict == cilium.Verdict_DROPPED && ciliumFlow.DropReason == 181 {
+	// http://github.com/cilium/cilium/blob/f3887bd83f6f7495f5d487fe1002896488b9495f/bpf/lib/common.h#L432s
+	if ciliumFlow.Verdict == cilium.Verdict_DROPPED && ciliumFlow.GetDropReasonDesc() == 181 {
 		return log, false
 	}
 
@@ -201,6 +191,7 @@ func ConvertCiliumFlowToKnoxNetworkLog(ciliumFlow *cilium.Flow) (types.KnoxNetwo
 	} else {
 		log.DstPodName = ciliumFlow.Destination.GetPodName()
 	}
+	log.IsReply = ciliumFlow.GetIsReply().GetValue()
 
 	// get L3
 	if ciliumFlow.IP != nil {
@@ -244,9 +235,7 @@ func ConvertCiliumFlowToKnoxNetworkLog(ciliumFlow *cilium.Flow) (types.KnoxNetwo
 
 			log.DNSRes = query
 			log.DNSResIPs = []string{}
-			for _, ip := range ips {
-				log.DNSResIPs = append(log.DNSResIPs, ip)
-			}
+			log.DNSResIPs = append(log.DNSResIPs, ips...)
 		}
 	}
 
@@ -373,6 +362,17 @@ func ConvertCiliumNetworkLogsToKnoxNetworkLogs(dbDriver string, docs []map[strin
 	}
 }
 
+func GetFlowData(netLogEventType []byte, flowEventType interface{}) error {
+	if netLogEventType == nil {
+		return nil
+	}
+	err := json.Unmarshal(netLogEventType, flowEventType)
+	if err != nil {
+		log.Error().Msg("error while unmarshing event type :" + err.Error())
+	}
+	return err
+}
+
 // ============================== //
 // == Network Policy Convertor == //
 // ============================== //
@@ -388,11 +388,18 @@ func getCoreDNSEndpoint(services []types.Service) ([]types.CiliumEndpoint, []typ
 
 	ciliumPort := types.CiliumPortList{}
 	ciliumPort.Ports = []types.CiliumPort{}
-	for _, svc := range services {
-		if svc.Namespace == "kube-system" && svc.ServiceName == "kube-dns" {
-			ciliumPort.Ports = append(ciliumPort.Ports, types.CiliumPort{
-				Port: strconv.Itoa(svc.ServicePort), Protocol: strings.ToUpper(svc.Protocol)},
-			)
+
+	if len(services) == 0 { // add statically
+		ciliumPort.Ports = append(ciliumPort.Ports, types.CiliumPort{
+			Port: strconv.Itoa(53), Protocol: strings.ToUpper("UDP")},
+		)
+	} else { // search DNS
+		for _, svc := range services {
+			if svc.Namespace == "kube-system" && svc.ServiceName == "kube-dns" {
+				ciliumPort.Ports = append(ciliumPort.Ports, types.CiliumPort{
+					Port: strconv.Itoa(svc.ServicePort), Protocol: strings.ToUpper(svc.Protocol)},
+				)
+			}
 		}
 	}
 
@@ -480,9 +487,7 @@ func ConvertKnoxNetworkPolicyToCiliumPolicy(services []types.Service, inPolicy t
 				// =============== //
 				for _, toCIDR := range knoxEgress.ToCIDRs {
 					cidrs := []string{}
-					for _, cidr := range toCIDR.CIDRs {
-						cidrs = append(cidrs, cidr)
-					}
+					cidrs = append(cidrs, toCIDR.CIDRs...)
 					ciliumEgress.ToCIDRs = cidrs
 
 					// update toPorts if exist
@@ -620,9 +625,7 @@ func ConvertKnoxNetworkPolicyToCiliumPolicy(services []types.Service, inPolicy t
 			// build CIDR rule //
 			// =============== //
 			for _, fromCIDR := range knoxIngress.FromCIDRs {
-				for _, cidr := range fromCIDR.CIDRs {
-					ciliumIngress.FromCIDRs = append(ciliumIngress.FromCIDRs, cidr)
-				}
+				ciliumIngress.FromCIDRs = append(ciliumIngress.FromCIDRs, fromCIDR.CIDRs...)
 			}
 
 			// ================= //
@@ -659,7 +662,7 @@ func ConvertKnoxPoliciesToCiliumPolicies(services []types.Service, policies []ty
 // ========================= //
 
 func ConnectHubbleRelay(cfg types.ConfigCiliumHubble) *grpc.ClientConn {
-	addr := cfg.HubbleURL + ":" + cfg.HubblePort
+	addr := net.JoinHostPort(cfg.HubbleURL, cfg.HubblePort)
 
 	conn, err := grpc.Dial(addr, grpc.WithInsecure())
 	if err != nil {
@@ -667,22 +670,29 @@ func ConnectHubbleRelay(cfg types.ConfigCiliumHubble) *grpc.ClientConn {
 		return nil
 	}
 
-	log.Info().Msg("connected to Hubble Relay")
+	log.Info().Msg("dialed for hubble relay:" + addr)
 	return conn
 }
 
-func GetCiliumFlowsFromHubble() []*cilium.Flow {
-	results := CiliumFlows
+func GetCiliumFlowsFromHubble(trigger int) []*cilium.Flow {
+	results := []*cilium.Flow{}
 
 	CiliumFlowsMutex.Lock()
-	CiliumFlows = []*cilium.Flow{} // reset
-	CiliumFlowsMutex.Unlock()
-
-	if len(results) == 0 {
-		log.Info().Msgf("Traffic flow not exist")
-
+	if len(CiliumFlows) == 0 {
+		log.Info().Msgf("Cilium hubble traffic flow not exist")
+		CiliumFlowsMutex.Unlock()
 		return results
 	}
+
+	if len(CiliumFlows) < trigger {
+		log.Info().Msgf("The number of cilium hubble traffic flow [%d] is less than trigger [%d]", len(CiliumFlows), trigger)
+		CiliumFlowsMutex.Unlock()
+		return results
+	}
+
+	results = CiliumFlows          // copy
+	CiliumFlows = []*cilium.Flow{} // reset
+	CiliumFlowsMutex.Unlock()
 
 	fisrtDoc := results[0]
 	lastDoc := results[len(results)-1]
@@ -691,17 +701,31 @@ func GetCiliumFlowsFromHubble() []*cilium.Flow {
 	startTime := fisrtDoc.Time.Seconds
 	endTime := lastDoc.Time.Seconds
 
-	log.Info().Msgf("The total number of traffic flow: [%d] from %s ~ to %s", len(results),
+	log.Info().Msgf("The total number of cilium hubble traffic flow: [%d] from %s ~ to %s", len(results),
 		time.Unix(startTime, 0).Format(libs.TimeFormSimple),
 		time.Unix(endTime, 0).Format(libs.TimeFormSimple))
 
 	return results
 }
 
-func StartHubbleRelay(StopChan chan struct{}, wg *sync.WaitGroup, cfg types.ConfigCiliumHubble) {
+var HubbleRelayStarted = false
+
+func StartHubbleRelay(StopChan chan struct{}, cfg types.ConfigCiliumHubble) {
+	if HubbleRelayStarted {
+		return
+	}
 	conn := ConnectHubbleRelay(cfg)
-	defer conn.Close()
-	defer wg.Done()
+	if conn == nil {
+		log.Error().Msg("ConnectHubbleRelay() failed")
+		return
+	}
+	HubbleRelayStarted = true
+
+	defer func() {
+		log.Info().Msg("hubble relay stream rcvr returning")
+		HubbleRelayStarted = false
+		_ = conn.Close()
+	}()
 
 	client := observer.NewObserverClient(conn)
 
@@ -713,33 +737,54 @@ func StartHubbleRelay(StopChan chan struct{}, wg *sync.WaitGroup, cfg types.Conf
 		Until:     nil,
 	}
 
-	if stream, err := client.GetFlows(context.Background(), req); err == nil {
-		for {
-			select {
-			case <-StopChan:
+	stream, err := client.GetFlows(context.Background(), req)
+	if err != nil {
+		log.Error().Msg("Unable to stream network flow: " + err.Error())
+		return
+	}
+	for {
+		select {
+		case <-StopChan:
+			return
+
+		default:
+			res, err := stream.Recv()
+			if err != nil {
+				log.Error().Msg("Cilium network flow stream stopped: " + err.Error())
 				return
+			}
 
-			default:
-				res, err := stream.Recv()
-				if err == io.EOF {
-					log.Info().Msg("end of file: " + err.Error())
-				}
+			switch r := res.ResponseTypes.(type) {
+			case *observer.GetFlowsResponse_Flow:
+				flow := r.Flow
 
-				if err != nil {
-					log.Error().Msg("network flow stream stopped: " + err.Error())
-				}
-
-				switch r := res.ResponseTypes.(type) {
-				case *observer.GetFlowsResponse_Flow:
-					flow := r.Flow
-
-					CiliumFlowsMutex.Lock()
-					CiliumFlows = append(CiliumFlows, flow)
-					CiliumFlowsMutex.Unlock()
-				}
+				CiliumFlowsMutex.Lock()
+				CiliumFlows = append(CiliumFlows, flow)
+				CiliumFlowsMutex.Unlock()
 			}
 		}
-	} else {
-		log.Error().Msg("unable to stream network flow: " + err.Error())
 	}
+}
+
+func GetCiliumFlowsFromKafka(trigger int) []*types.KnoxNetworkLog {
+	results := []*types.KnoxNetworkLog{}
+
+	CiliumFlowsKafkaMutex.Lock()
+	defer CiliumFlowsKafkaMutex.Unlock()
+	if len(CiliumFlowsKafka) == 0 {
+		log.Info().Msgf("Cilium kafka traffic flow not exist")
+		return results
+	}
+
+	if len(CiliumFlowsKafka) < trigger {
+		log.Info().Msgf("The number of cilium kafka traffic flow [%d] is less than trigger [%d]", len(CiliumFlowsKafka), trigger)
+		return results
+	}
+
+	results = CiliumFlowsKafka                   // copy
+	CiliumFlowsKafka = []*types.KnoxNetworkLog{} // reset
+
+	log.Info().Msgf("The total number of cilium kafka traffic flow: [%d]", len(results))
+
+	return results
 }

@@ -72,11 +72,11 @@ ingress:
 
 resources: 
   requests:
-    cpu: 200m
-    memory: 250Mi
+    cpu: 800m
+    memory: 2Gi
   limits:
-    cpu: 400m
-    memory: 450Mi
+    cpu: 800m
+    memory: 2Gi
 
 autoscaling:
   enabled: true
@@ -97,23 +97,28 @@ config:
     name: knoxautopolicy
     network:
       operation-mode: 1                         # 1: cronjob | 2: one-time-job
-      cron-job-time-interval: "0h0m10s"         # format: XhYmZs 
-      network-log-from: "db"                    # db|hubble
+      cron-job-time-interval: "0h0m30s"         # format: XhYmZs 
+      operation-trigger: 100000
+      network-log-limit: 100000
+      network-log-from: "kafka"                    # db|hubble
       network-log-file: "./flow.json"           # file path
       network-policy-to: "db|file"              # db, file
       network-policy-dir: "./"
       network-policy-types: 3
       network-policy-rule-types: 511
+      skip-cert-verification: true
     system:
       operation-mode: 1                         # 1: cronjob | 2: one-time-job
-      cron-job-time-interval: "0h0m10s"         # format: XhYmZs 
-      system-log-from: "db"                     # db|kubearmor
+      cron-job-time-interval: "0h0m30s"         # format: XhYmZs
+      operation-trigger: 1000
+      system-log-limit: 100000 
+      system-log-from: "kafka"                     # db|kubearmor
       system-log-file: "./log.json"             # file path
       system-policy-to: "db|file"               # db, file
       system-policy-dir: "./"
     cluster:
       cluster-info-from: "accuknox"            # k8sclient|accuknox
-      cluster-mgmt-url: "http://cluster-management-service.accuknox-verify-cluster-mgmt.svc.cluster.local/cm"
+      cluster-mgmt-url: "https://api-dev.accuknox.com"
 
   database:
     driver: mysql
@@ -122,7 +127,6 @@ config:
     user: accuknox_user
     password: EAy5Kq4uhc5Gkws
     dbname: accuknox
-    table-configuration: auto_policy_config
     table-network-log: network_log
     table-network-policy: network_policy
     table-system-log: system_log
@@ -132,14 +136,13 @@ config:
   feed-consumer:
     kafka:
       number-of-consumers: 3
-      broker-address-family: v4'
+      broker-address-family: v4
       session-timeout-ms: 6000
       auto-offset-reset: "earliest"
       bootstrap-servers: "accuknox-verify-kafka-kafka-bootstrap.accuknox-verify-kafka.svc.cluster.local:9092"
       group-id: knoxautopolicy
       topics: 
         - cilium-telemetry-new
-        - cilium-telemetry
         - kubearmor-syslogs
       security:
         protocol: SSL

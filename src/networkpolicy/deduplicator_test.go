@@ -3,10 +3,12 @@ package networkpolicy
 import (
 	"testing"
 
-	"github.com/accuknox/knoxAutoPolicy/src/libs"
-	"github.com/accuknox/knoxAutoPolicy/src/types"
+	"github.com/accuknox/auto-policy-discovery/src/libs"
+	"github.com/accuknox/auto-policy-discovery/src/types"
 	"github.com/stretchr/testify/assert"
 )
+
+const ShouldBeEqual = "they should be equal"
 
 func TestGetLatestCIDRs(t *testing.T) {
 	exist1 := types.KnoxNetworkPolicy{
@@ -45,10 +47,10 @@ func TestGetLatestCIDRs(t *testing.T) {
 	existings := []types.KnoxNetworkPolicy{exist1, exist2}
 
 	result := GetLatestCIDRPolicy(existings, cidrPolicy)
-	assert.Equal(t, result[0], exist1, "they should be equal")
+	assert.Equal(t, result[0], exist1, ShouldBeEqual)
 }
 
-func TestGetLastedFQDNs(t *testing.T) {
+func TestGetLatestFQDNs(t *testing.T) {
 	exist1 := types.KnoxNetworkPolicy{
 		Metadata: map[string]string{
 			"status": "latest",
@@ -84,8 +86,8 @@ func TestGetLastedFQDNs(t *testing.T) {
 
 	existings := []types.KnoxNetworkPolicy{exist1, exist2}
 
-	result := GetLastedFQDNPolicy(existings, fqdnPolicy)
-	assert.Equal(t, result[0], exist1, "they should be equal")
+	result := GetLatestFQDNPolicy(existings, fqdnPolicy)
+	assert.Equal(t, result[0], exist1, ShouldBeEqual)
 }
 
 func TestGetLastedHTTPPolicy(t *testing.T) {
@@ -126,7 +128,7 @@ func TestGetLastedHTTPPolicy(t *testing.T) {
 	existings := []types.KnoxNetworkPolicy{exist1, exist2}
 
 	result := GetLastedHTTPPolicy(existings, httpPolicy)
-	assert.Equal(t, result[0], exist1, "they should be equal")
+	assert.Equal(t, result[0], exist1, ShouldBeEqual)
 }
 
 func TestGetLatestMatchLabelsPolicy(t *testing.T) {
@@ -164,7 +166,7 @@ func TestGetLatestMatchLabelsPolicy(t *testing.T) {
 	existings := []types.KnoxNetworkPolicy{exist1, exist2}
 
 	result := GetLatestMatchLabelsPolicy(existings, matchLabelPolicy)
-	assert.Equal(t, result[0], exist1, "they should be equal")
+	assert.Equal(t, result[0], exist1, ShouldBeEqual)
 }
 
 func TestGetLatestEntityPolicy(t *testing.T) {
@@ -200,7 +202,7 @@ func TestGetLatestEntityPolicy(t *testing.T) {
 	existings := []types.KnoxNetworkPolicy{exist1, exist2}
 
 	result := GetLatestEntityPolicy(existings, entityPolicy)
-	assert.Equal(t, result[0], exist1, "they should be equal")
+	assert.Equal(t, result[0], exist1, ShouldBeEqual)
 }
 
 func TestGetLatestServicePolicy(t *testing.T) {
@@ -240,8 +242,8 @@ func TestGetLatestServicePolicy(t *testing.T) {
 
 	existings := []types.KnoxNetworkPolicy{exist1, exist2}
 
-	result := GetLatestServicePolicy(existings, toServicePolicy)
-	assert.Equal(t, result[0], exist1, "they should be equal")
+	result := GetLatestEntityPolicy(existings, toServicePolicy)
+	assert.Equal(t, result[0], exist1, ShouldBeEqual)
 }
 
 // ============================ //
@@ -297,7 +299,7 @@ func TestUpdateHTTP(t *testing.T) {
 	result, updated := UpdateHTTP(newPolicy, existings)
 	assert.True(t, updated)
 
-	assert.Equal(t, result, expected, "they should be equal")
+	assert.Equal(t, result, expected, ShouldBeEqual)
 }
 
 func TestUpdateToPorts(t *testing.T) {
@@ -354,7 +356,7 @@ func TestUpdateToPorts(t *testing.T) {
 	result, updated := UpdateToPorts(newPolicy, existings)
 	assert.True(t, updated)
 
-	assert.Equal(t, result, expected, "they should be equal")
+	assert.Equal(t, result, expected, ShouldBeEqual)
 }
 
 func TestUpdateMatchLabels(t *testing.T) {
@@ -409,7 +411,7 @@ func TestUpdateMatchLabels(t *testing.T) {
 	result, updated := UpdateMatchLabels(newPolicy, existings)
 	assert.True(t, updated)
 
-	assert.Equal(t, result, expected, "they should be equal")
+	assert.Equal(t, result, expected, ShouldBeEqual)
 }
 
 func TestUpdateEntity(t *testing.T) {
@@ -448,7 +450,7 @@ func TestUpdateEntity(t *testing.T) {
 	result, updated := UpdateEntity(newPolicy, existings)
 	assert.True(t, updated)
 
-	assert.Equal(t, result, expected, "they should be equal")
+	assert.Equal(t, result, expected, ShouldBeEqual)
 }
 
 func TestUpdateService(t *testing.T) {
@@ -500,5 +502,5 @@ func TestUpdateService(t *testing.T) {
 	result, updated := UpdateService(newPolicy, existings)
 	assert.True(t, updated)
 
-	assert.Equal(t, result, expected, "they should be equal")
+	assert.Equal(t, result, expected, ShouldBeEqual)
 }

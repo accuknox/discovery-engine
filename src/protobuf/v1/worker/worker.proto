@@ -8,6 +8,7 @@ service Worker {
     rpc GetWorkerStatus (WorkerRequest) returns (WorkerResponse);
     rpc Start (WorkerRequest) returns (WorkerResponse);
     rpc Stop (WorkerRequest) returns (WorkerResponse);
+    rpc Convert (WorkerRequest) returns (WorkerResponse);
 }
 
 message WorkerRequest {

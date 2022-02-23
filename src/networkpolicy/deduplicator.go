@@ -4,8 +4,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/accuknox/knoxAutoPolicy/src/libs"
-	types "github.com/accuknox/knoxAutoPolicy/src/types"
+	"github.com/accuknox/auto-policy-discovery/src/libs"
+	types "github.com/accuknox/auto-policy-discovery/src/types"
 
 	"github.com/google/go-cmp/cmp"
 )
@@ -18,14 +18,10 @@ func includeSelectorLabels(newSelectorLabels map[string]string, existSelectorLab
 	includeSelector := true
 
 	for k, v := range newSelectorLabels {
-		if val, ok := existSelectorLabels[k]; !ok {
+
+		if existSelectorLabels[k] != v {
 			includeSelector = false
 			break
-		} else {
-			if val != v {
-				includeSelector = false
-				break
-			}
 		}
 	}
 
@@ -68,7 +64,7 @@ func GetLatestCIDRPolicy(existingPolicies []types.KnoxNetworkPolicy, policy type
 	return latestPolicies
 }
 
-func GetLastedFQDNPolicy(existingPolicies []types.KnoxNetworkPolicy, policy types.KnoxNetworkPolicy) []types.KnoxNetworkPolicy {
+func GetLatestFQDNPolicy(existingPolicies []types.KnoxNetworkPolicy, policy types.KnoxNetworkPolicy) []types.KnoxNetworkPolicy {
 	latestPolicies := []types.KnoxNetworkPolicy{}
 
 	for _, exist := range existingPolicies {
@@ -143,16 +139,12 @@ func GetLastedHTTPPolicy(existingPolicies []types.KnoxNetworkPolicy, policy type
 			}
 
 			// 1. check matchLabels
-			matchLables := true
+			matchLabels := true
 			for k, v := range newMatchLabels {
-				if val, ok := existMatchLabels[k]; !ok {
-					matchLables = false
+
+				if existMatchLabels[k] != v {
+					matchLabels = false
 					break
-				} else {
-					if val != v {
-						matchLables = false
-						break
-					}
 				}
 			}
 
@@ -170,7 +162,7 @@ func GetLastedHTTPPolicy(existingPolicies []types.KnoxNetworkPolicy, policy type
 				}
 			}
 
-			if matchLables && matchToPorts {
+			if matchLabels && matchToPorts {
 				latestPolicies = append(latestPolicies, exist)
 			}
 		}
@@ -206,22 +198,18 @@ func GetLatestMatchLabelsPolicy(existingPolicies []types.KnoxNetworkPolicy, poli
 				existMatchLabels = exist.Spec.Ingress[0].MatchLabels
 			}
 
-			matchLables := true
+			matchLabels := true
 
 			// check target matchLabels
 			for k, v := range newMatchLabels {
-				if val, ok := existMatchLabels[k]; !ok {
-					matchLables = false
+
+				if existMatchLabels[k] != v {
+					matchLabels = false
 					break
-				} else {
-					if val != v {
-						matchLables = false
-						break
-					}
 				}
 			}
 
-			if matchLables {
+			if matchLabels {
 				latestPolicies = append(latestPolicies, exist)
 			}
 		}
@@ -231,30 +219,6 @@ func GetLatestMatchLabelsPolicy(existingPolicies []types.KnoxNetworkPolicy, poli
 }
 
 func GetLatestEntityPolicy(existingPolicies []types.KnoxNetworkPolicy, policy types.KnoxNetworkPolicy) []types.KnoxNetworkPolicy {
-	latestPolicies := []types.KnoxNetworkPolicy{}
-
-	for _, exist := range existingPolicies {
-		existPolicyType := exist.Metadata["type"]
-		existRule := exist.Metadata["rule"]
-
-		if exist.Metadata["namespace"] == policy.Metadata["namespace"] &&
-			existPolicyType == policy.Metadata["type"] &&
-			existRule == policy.Metadata["rule"] &&
-			exist.Metadata["status"] == "latest" {
-
-			// check selector matchLabels, if not matched, next existing rule
-			if !includeSelectorLabels(policy.Spec.Selector.MatchLabels, exist.Spec.Selector.MatchLabels) {
-				continue
-			}
-
-			latestPolicies = append(latestPolicies, exist)
-		}
-	}
-
-	return latestPolicies
-}
-
-func GetLatestServicePolicy(existingPolicies []types.KnoxNetworkPolicy, policy types.KnoxNetworkPolicy) []types.KnoxNetworkPolicy {
 	latestPolicies := []types.KnoxNetworkPolicy{}
 
 	for _, exist := range existingPolicies {
@@ -383,7 +347,7 @@ func UpdateToPorts(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.K
 	if newPolicy.Metadata["rule"] == "toCIDRs+toPorts" {
 		latestPolicies = GetLatestCIDRPolicy(existingPolicies, newPolicy)
 	} else if newPolicy.Metadata["rule"] == "toFQDNs+toPorts" {
-		latestPolicies = GetLastedFQDNPolicy(existingPolicies, newPolicy)
+		latestPolicies = GetLatestFQDNPolicy(existingPolicies, newPolicy)
 	} else {
 		return newPolicy, true
 	}
@@ -516,7 +480,7 @@ func UpdateMatchLabels(newPolicy types.KnoxNetworkPolicy, existingPolicies []typ
 		updated = true
 	}
 
-	// at least one updated occured
+	// at least one updated occurred
 	if updated {
 		if newPolicy.Metadata["type"] == "egress" {
 			newPolicy.Spec.Egress[0].ToPorts = newToPorts
@@ -600,7 +564,7 @@ func UpdateEntity(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.Kn
 
 func UpdateService(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.KnoxNetworkPolicy) (types.KnoxNetworkPolicy, bool) {
 	// case 1: if there is no latest, policy is new one
-	latestPolicies := GetLatestServicePolicy(existingPolicies, newPolicy)
+	latestPolicies := GetLatestEntityPolicy(existingPolicies, newPolicy)
 	if len(latestPolicies) == 0 {
 		return newPolicy, true
 	}

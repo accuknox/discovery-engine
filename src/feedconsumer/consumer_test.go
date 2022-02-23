@@ -7,7 +7,7 @@ import (
 )
 
 func TestProcessMessage(t *testing.T) {
-	var cilium string = `{
+	var cilium = `{
 		"cluster_name":"accuknox-dev",
 		"component_name":"cilium",
 		"flow":{
@@ -87,14 +87,14 @@ func TestProcessMessage(t *testing.T) {
 	 }`
 
 	dataBytes := []byte(cilium)
-	consumer = &KnoxFeedConsumer{}
+	consumer := &KnoxFeedConsumer{}
 
 	err := consumer.processNetworkLogMessage(dataBytes)
 	assert.NoError(t, err)
 }
 
 func TestProcessSystemLogMessage(t *testing.T) {
-	var kubearmor string = `{
+	var kubearmor = `{
 		"ContainerID":"78c4b0cb165d24e6ae4049fa2547507be26f7def6bf39a265b9360928a606e2a",
 		"ContainerName":"k8s_server_recommendationservice-cb98b57c-6255h_default_57402aec-19ae-4119-a090-fa3d223cea11_745",
 		"Data":"fd=6",
@@ -117,7 +117,7 @@ func TestProcessSystemLogMessage(t *testing.T) {
 	 }`
 
 	dataBytes := []byte(kubearmor)
-	consumer = &KnoxFeedConsumer{}
+	consumer := &KnoxFeedConsumer{}
 
 	err := consumer.processSystemLogMessage(dataBytes)
 	assert.NoError(t, err)

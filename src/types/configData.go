@@ -1,59 +1,5 @@
 package types
 
-var MockConfigYaml = []byte(`
-application:
-  name: knoxautopolicy
-  operation-mode: 2
-  cron-job-time-interval: "@every 0h0m10s"
-  network-log-from: db
-  network-log-file: "./flow.json"
-  network-policy-to: "db|file"
-  network-policy-dir: "./"
-  network-policy-types: 3
-  network-policy-rule-types: 511
-  network-policy-ignoring-namespaces: "kube-system"
-  system-log-from: db
-  system-log-file: "./log.json"
-  system-policy-to: "db|file"
-  system-policy-dir: "./"
-  #accuknox-cluster-mgmt: "http://cluster-management-service.accuknox-dev-cluster-mgmt.svc.cluster.local/cm"
-  accuknox-cluster-mgmt: "http://localhost:8080"
-
-logging:
-  level: INFO
-
-kafka:
-  broker-address-family: v4
-  session-timeout-ms: 6000
-  auto-offset-reset: "earliest"
-  bootstrap-servers: "dev-kafka-kafka-bootstrap.accuknox-dev-kafka.svc.cluster.local:9092"
-  group-id: policy.cilium
-  topics: 
-    - cilium-telemetry-test
-    - kubearmor-syslogs
-  ssl:
-    enabled: false
-  events:
-    buffer: 50
-
-database:
-  driver: mysql
-  host: 127.0.0.1
-  port: 3306
-  user: root
-  password: password
-  dbname: networkflowdb
-  table-configuration: auto_policy_config
-  table-network-log: network_log
-  table-network-policy: network_policy
-  table-system-log: system_log
-  table-system-policy: system_policy
-
-cilium-hubble:
-  url: 10.4.41.240
-  port: 80 
-`)
-
 type ConfigDB struct {
 	DBDriver string `json:"db_driver,omitempty" bson:"db_driver,omitempty"`
 	DBHost   string `json:"db_host,omitempty" bson:"db_host,omitempty"`
@@ -61,18 +7,16 @@ type ConfigDB struct {
 	DBUser   string `json:"db_user,omitempty" bson:"db_user,omitempty"`
 	DBPass   string `json:"db_pass,omitempty" bson:"db_pass,omitempty"`
 	DBName   string `json:"db_name,omitempty" bson:"db_name,omitempty"`
-
-	TableConfiguration string `json:"table_auto_policy_config,omitempty" bson:"table_auto_policy_config,omitempty"`
-	TableNetworkLog    string `json:"table_network_log,omitempty" bson:"table_network_log,omitempty"`
-	TableNetworkPolicy string `json:"table_network_policy,omitempty" bson:"table_network_policy,omitempty"`
-	TableSystemLog     string `json:"table_system_log,omitempty" bson:"table_system_log,omitempty"`
-	TableSystemAlert   string `json:"table_system_alert,omitempty" bson:"table_system_alert,omitempty"`
-	TableSystemPolicy  string `json:"table_system_policy,omitempty" bson:"table_system_policy,omitempty"`
 }
 
 type ConfigCiliumHubble struct {
 	HubbleURL  string `json:"hubble_url,omitempty" bson:"hubble_url,omitempty"`
 	HubblePort string `json:"hubble_port,omitempty" bson:"hubble_port,omitempty"`
+}
+
+type ConfigKubeArmorRelay struct {
+	KubeArmorRelayURL  string `json:"kubearmor_url,omitempty" bson:"kubearmor_url,omitempty"`
+	KubeArmorRelayPort string `json:"kubearmor_port,omitempty" bson:"kubearmor_port,omitempty"`
 }
 
 type NetworkLogFilter struct {
@@ -85,10 +29,12 @@ type NetworkLogFilter struct {
 }
 
 type ConfigNetworkPolicy struct {
-	OperationMode           int    `json:"operation_mode,omitempty" bson:"operation_mode,omitempty"`
+	OperationMode           int `json:"operation_mode,omitempty" bson:"operation_mode,omitempty"`
+	OperationTrigger        int
 	CronJobTimeInterval     string `json:"cronjob_time_interval,omitempty" bson:"cronjob_time_interval,omitempty"`
 	OneTimeJobTimeSelection string `json:"one_time_job_time_selection,omitempty" bson:"one_time_job_time_selection,omitempty"`
 
+	NetworkLogLimit  int
 	NetworkLogFrom   string `json:"network_log_from,omitempty" bson:"network_log_from,omitempty"`
 	NetworkLogFile   string `json:"network_log_file,omitempty" bson:"network_log_file,omitempty"`
 	NetworkPolicyTo  string `json:"network_policy_to,omitempty" bson:"network_policy_to,omitempty"`
@@ -103,6 +49,8 @@ type ConfigNetworkPolicy struct {
 	NetPolicyL3Level int `json:"network_policy_l3_level,omitempty" bson:"network_policy_l3_level,omitempty"`
 	NetPolicyL4Level int `json:"network_policy_l4_level,omitempty" bson:"network_policy_l4_level,omitempty"`
 	NetPolicyL7Level int `json:"network_policy_l7_level,omitempty" bson:"network_policy_l7_level,omitempty"`
+
+	NetSkipCertVerification bool `json:"skip_cert_verification,omitempty" bson:"skip_cert_verification,omitempty"`
 }
 
 type SystemLogFilter struct {
@@ -115,16 +63,19 @@ type SystemLogFilter struct {
 }
 
 type ConfigSystemPolicy struct {
-	OperationMode           int    `json:"operation_mode,omitempty" bson:"operation_mode,omitempty"`
+	OperationMode           int `json:"operation_mode,omitempty" bson:"operation_mode,omitempty"`
+	OperationTrigger        int
 	CronJobTimeInterval     string `json:"cronjob_time_interval,omitempty" bson:"cronjob_time_interval,omitempty"`
 	OneTimeJobTimeSelection string `json:"one_time_job_time_selection,omitempty" bson:"one_time_job_time_selection,omitempty"`
 
+	SystemLogLimit  int
 	SystemLogFrom   string `json:"system_log_from,omitempty" bson:"system_log_from,omitempty"`
 	SystemLogFile   string `json:"system_log_file,omitempty" bson:"system_log_file,omitempty"`
 	SystemPolicyTo  string `json:"system_policy_to,omitempty" bson:"system_policy_to,omitempty"`
 	SystemPolicyDir string `json:"system_policy_dir,omitempty" bson:"system_policy_dir,omitempty"`
 
-	SysPolicyTypes int `json:"system_policy_types,omitempty" bson:"system_policy_types,omitempty"`
+	SysPolicyTypes   int  `json:"system_policy_types,omitempty" bson:"system_policy_types,omitempty"`
+	DeprecateOldMode bool `json:"deprecate_old_mode,omitempty" bson:"deprecate_old_mode,omitempty"`
 
 	SystemLogFilters []SystemLogFilter `json:"system_policy_log_filters,omitempty" bson:"system_policy_log_filters,omitempty"`
 
@@ -141,8 +92,9 @@ type Configuration struct {
 	ConfigName string `json:"config_name,omitempty" bson:"config_name,omitempty"`
 	Status     int    `json:"status,omitempty" bson:"status,omitempty"`
 
-	ConfigDB           ConfigDB           `json:"config_db,omitempty" bson:"config_db,omitempty"`
-	ConfigCiliumHubble ConfigCiliumHubble `json:"config_cilium_hubble,omitempty" bson:"config_cilium_hubble,omitempty"`
+	ConfigDB             ConfigDB             `json:"config_db,omitempty" bson:"config_db,omitempty"`
+	ConfigCiliumHubble   ConfigCiliumHubble   `json:"config_cilium_hubble,omitempty" bson:"config_cilium_hubble,omitempty"`
+	ConfigKubeArmorRelay ConfigKubeArmorRelay `json:"config_kubearmor_relay,omitempty" bson:"config_kubearmor_relay,omitempty"`
 
 	ConfigNetPolicy   ConfigNetworkPolicy `json:"config_network_policy,omitempty" bson:"config_network_policy,omitempty"`
 	ConfigSysPolicy   ConfigSystemPolicy  `json:"config_system_policy,omitempty" bson:"config_system_policy,omitempty"`

@@ -1,33 +1,24 @@
 ### Builder
 
-FROM golang:1.15.2-buster as builder
+FROM golang:1.15.3-buster as builder
 
 WORKDIR /usr/src/knox
 
-COPY ./libs ./libs
-COPY ./logging ./logging
-COPY ./feedconsumer ./feedconsumer
-COPY ./config ./config
-COPY ./cluster ./cluster
-COPY ./networkpolicy ./networkpolicy
-COPY ./systempolicy ./systempolicy
-COPY ./types ./types
-COPY ./plugin ./plugin
-COPY ./protobuf ./protobuf
-COPY ./server ./server
+COPY . .
 
-COPY ./main.go ./main.go
-COPY ./go.mod ./go.mod
+RUN curl -O -L https://github.com/fullstorydev/grpcurl/releases/download/v1.8.5/grpcurl_1.8.5_linux_x86_64.tar.gz
+RUN tar xf grpcurl_1.8.5_linux_x86_64.tar.gz
 
-#RUN go mod download
-RUN go build -o knoxAutoPolicy main.go
+RUN cd src && make
 
-### Make executable image
+FROM ubuntu:22.04
 
-FROM debian:buster
-#FROM artifactory.accuknox.com/accuknox/ubuntu:bionic-20210512 
-
-COPY conf/local.yaml conf/local.yaml
-COPY --from=builder /usr/src/knox/knoxAutoPolicy /knoxAutoPolicy
+COPY --from=builder /usr/src/knox/grpcurl /usr/local/bin/grpcurl
+COPY --from=builder /usr/src/knox/scripts/convert_net_policy.sh /convert_net_policy.sh
+COPY --from=builder /usr/src/knox/scripts/dbclear.sh /dbclear.sh
+COPY --from=builder /usr/src/knox/scripts/convert_sys_policy.sh /convert_sys_policy.sh
+COPY --from=builder /usr/src/knox/scripts/observe_clear_sys_data.sh /observe_clear_sys_data.sh
+COPY --from=builder /usr/src/knox/src/knoxAutoPolicy /knoxAutoPolicy
+COPY --from=builder /usr/src/knox/src/conf/local.yaml /conf/conf.yaml
 
 ENTRYPOINT ["/knoxAutoPolicy"]
