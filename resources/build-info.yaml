@@ -187,6 +187,7 @@ argocd:
   #*********************************************************************************************#
   #               Argocd Configuration for dev Environment.
   #*********************************************************************************************#
+
   snapshot:
     server: "argocd-dev.accuknox.com"                  #Argocd server name or url
     credentials: "argocdcred"                          #Credentials for Argocd
@@ -198,6 +199,8 @@ argocd:
       name: "accuknox-saas-dev"                        #Kubernetes cluster name
       region: "us-central1-c"                          #Kubernetes cluster Region
       
+
+  enable: false
   dev: 
     server: "argocd-dev.accuknox.com"                  #Argocd server name or url
     credentials: "argocdcred"                          #Credentials for Argocd
