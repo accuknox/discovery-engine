@@ -32,6 +32,8 @@ func ConvertKnoxSystemPolicyToKubeArmorPolicy(knoxPolicies []types.KnoxSystemPol
 		}
 
 		kubePolicy.Metadata["namespace"] = policy.Metadata["namespace"]
+		kubePolicy.Metadata["clusterName"] = policy.Metadata["clusterName"]
+		kubePolicy.Metadata["containername"] = policy.Metadata["containername"]
 		kubePolicy.Metadata["name"] = policy.Metadata["name"]
 
 		kubePolicy.Spec = policy.Spec
@@ -79,6 +81,7 @@ func ConvertMySQLKubeArmorLogsToKnoxSystemLogs(docs []map[string]interface{}) []
 			ClusterName:    syslog.ClusterName,
 			HostName:       syslog.HostName,
 			Namespace:      syslog.NamespaceName,
+			ContainerName:  syslog.ContainerName,
 			PodName:        syslog.PodName,
 			Source:         source,
 			SourceOrigin:   syslog.Source,
@@ -127,6 +130,7 @@ func ConvertKubeArmorLogToKnoxSystemLog(relayLog *pb.Log) types.KnoxSystemLog {
 		ClusterName:    relayLog.ClusterName,
 		HostName:       relayLog.HostName,
 		Namespace:      relayLog.NamespaceName,
+		ContainerName:  relayLog.ContainerName,
 		PodName:        relayLog.PodName,
 		Source:         source,
 		SourceOrigin:   relayLog.Source,
@@ -195,8 +199,8 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 	conn := ConnectKubeArmorRelay(cfg)
 
 	client := pb.NewLogServiceClient(conn)
-
 	req := pb.RequestMessage{}
+	req.Filter = "all"
 
 	//Stream Logs
 	go func(client pb.LogServiceClient) {

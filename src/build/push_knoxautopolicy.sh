@@ -4,7 +4,7 @@ AUTOPOL_HOME=`dirname $(realpath "$0")`/../..
 [[ "$REPO" == "" ]] && REPO="accuknox/knoxautopolicy"
 
 # check version
-VERSION=dev
+VERSION=`git rev-parse --abbrev-ref HEAD`
 
 if [ ! -z $1 ]; then
     VERSION=$1

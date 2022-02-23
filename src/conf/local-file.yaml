@@ -1,13 +1,13 @@
 application:
   name: knoxautopolicy
   network:
-    operation-mode: 2                         # 1: cronjob | 2: one-time-job
+    operation-mode: 1                         # 1: cronjob | 2: one-time-job
     operation-trigger: 100
     cron-job-time-interval: "0h0m10s"         # format: XhYmZs 
     network-log-limit: 10000
     network-log-from: "hubble"                # db|hubble|kafka
       #network-log-file: "/home/rahul/feeds.json"           # file path
-    network-policy-to: "db|file"              # db, file
+    network-policy-to: "db"              # db, file
     network-policy-dir: "./"
   system:
     operation-mode: 1                         # 1: cronjob | 2: one-time-job
@@ -15,9 +15,11 @@ application:
     cron-job-time-interval: "0h0m10s"         # format: XhYmZs
     system-log-from: "kubearmor"                     # db|kubearmor|kafka
     system-log-limit: 10000
+      #system-policy-types: 1
       #system-log-file: "./log.json"             # file path
-    system-policy-to: "db|file"               # db, file
+    system-policy-to: "db"               # db, file
     system-policy-dir: "./"
+    deprecate-old-mode: true
   cluster:
     cluster-info-from: "k8sclient"            # k8sclient|accuknox
     #cluster-mgmt-url: "http://cluster-management-service.accuknox-dev-cluster-mgmt.svc.cluster.local/cm"

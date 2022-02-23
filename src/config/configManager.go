@@ -1,9 +1,6 @@
 package config
 
 import (
-	"net"
-
-	"github.com/accuknox/auto-policy-discovery/src/libs"
 	types "github.com/accuknox/auto-policy-discovery/src/types"
 	"github.com/spf13/viper"
 )
@@ -60,19 +57,16 @@ func LoadConfigDB() types.ConfigDB {
 	cfgDB.DBName = viper.GetString("database.dbname")
 
 	cfgDB.DBHost = viper.GetString("database.host")
-	dbAddr, err := net.LookupIP(cfgDB.DBHost)
-	if err == nil {
-		cfgDB.DBHost = dbAddr[0].String()
-	} else {
-		cfgDB.DBHost = libs.GetExternalIPAddr()
-	}
+	/*
+		fix for #405
+		dbAddr, err := net.LookupIP(cfgDB.DBHost)
+		if err == nil {
+			cfgDB.DBHost = dbAddr[0].String()
+		} else {
+			cfgDB.DBHost = libs.GetExternalIPAddr()
+		}
+	*/
 	cfgDB.DBPort = viper.GetString("database.port")
-
-	cfgDB.TableNetworkLog = viper.GetString("database.table-network-log")
-	cfgDB.TableNetworkPolicy = viper.GetString("database.table-network-policy")
-	cfgDB.TableSystemLog = viper.GetString("database.table-system-log")
-	cfgDB.TableSystemAlert = viper.GetString("database.table-system-alert")
-	cfgDB.TableSystemPolicy = viper.GetString("database.table-system-policy")
 
 	return cfgDB
 }
@@ -81,12 +75,15 @@ func LoadConfigCiliumHubble() types.ConfigCiliumHubble {
 	cfgHubble := types.ConfigCiliumHubble{}
 
 	cfgHubble.HubbleURL = viper.GetString("cilium-hubble.url")
-	addr, err := net.LookupIP(cfgHubble.HubbleURL)
-	if err == nil {
-		cfgHubble.HubbleURL = addr[0].String()
-	} else {
-		cfgHubble.HubbleURL = libs.GetExternalIPAddr()
-	}
+	/*
+		commented for fixing #405
+		addr, err := net.LookupIP(cfgHubble.HubbleURL)
+		if err == nil {
+			cfgHubble.HubbleURL = addr[0].String()
+		} else {
+			cfgHubble.HubbleURL = libs.GetExternalIPAddr()
+		}
+	*/
 
 	cfgHubble.HubblePort = viper.GetString("cilium-hubble.port")
 
@@ -97,12 +94,14 @@ func LoadConfigKubeArmor() types.ConfigKubeArmorRelay {
 	cfgKubeArmor := types.ConfigKubeArmorRelay{}
 
 	cfgKubeArmor.KubeArmorRelayURL = viper.GetString("kubearmor.url")
-	addr, err := net.LookupIP(cfgKubeArmor.KubeArmorRelayURL)
-	if err == nil {
-		cfgKubeArmor.KubeArmorRelayURL = addr[0].String()
-	} else {
-		cfgKubeArmor.KubeArmorRelayURL = libs.GetExternalIPAddr()
-	}
+	/*
+		addr, err := net.LookupIP(cfgKubeArmor.KubeArmorRelayURL)
+		if err == nil {
+			cfgKubeArmor.KubeArmorRelayURL = addr[0].String()
+		} else {
+			cfgKubeArmor.KubeArmorRelayURL = libs.GetExternalIPAddr()
+		}
+	*/
 
 	cfgKubeArmor.KubeArmorRelayPort = viper.GetString("kubearmor.port")
 
@@ -150,13 +149,13 @@ func LoadConfigFromFile() {
 		CronJobTimeInterval:     "@every " + viper.GetString("application.system.cron-job-time-interval"),
 		OneTimeJobTimeSelection: "", // e.g., 2021-01-20 07:00:23|2021-01-20 07:00:25
 
-		SysPolicyTypes: 7,
-
-		SystemLogLimit:  viper.GetInt("application.system.system-log-limit"),
-		SystemLogFrom:   viper.GetString("application.system.system-log-from"),
-		SystemLogFile:   viper.GetString("application.system.system-log-file"),
-		SystemPolicyTo:  viper.GetString("application.system.system-policy-to"),
-		SystemPolicyDir: viper.GetString("application.system.system-policy-dir"),
+		SystemLogLimit:   viper.GetInt("application.system.system-log-limit"),
+		SystemLogFrom:    viper.GetString("application.system.system-log-from"),
+		SystemLogFile:    viper.GetString("application.system.system-log-file"),
+		SystemPolicyTo:   viper.GetString("application.system.system-policy-to"),
+		SystemPolicyDir:  viper.GetString("application.system.system-policy-dir"),
+		SysPolicyTypes:   viper.GetInt("application.system.system-policy-types"),
+		DeprecateOldMode: viper.GetBool("application.system.deprecate-old-mode"),
 
 		SystemLogFilters: []types.SystemLogFilter{},
 

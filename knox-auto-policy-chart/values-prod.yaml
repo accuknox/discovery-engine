@@ -2,10 +2,10 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-replicaCount: 1
+replicaCount: 2
 
 image:
-  repository: agents.accuknox.com/repository/knoxautopolicy
+  repository: gcr.io/mimetic-kit-294408/production/knoxautopolicy
   pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""
@@ -14,17 +14,22 @@ labels:
   app: knoxautopolicy
   env: prod
 
-namespace: accuknox-prod-knoxautopolicy
+namespace: accuknox-knoxautopolicy
 
 volumeMounts:
   - mountPath: /conf
     name: config-volume
     readOnly: true
+  - mountPath: /kafka-ssl
+    name: knoxautopolicy-kafka-ssl-volume
+    readOnly: true
 volumes:
   - name: config-volume
     configMap:
       name: knoxautopolicy-config
-
+  - name: knoxautopolicy-kafka-ssl-volume
+    secret:
+      secretName: knoxautopolicy-kafka-ssl
 
 imagePullSecrets: []
 nameOverride: ""
@@ -117,11 +122,11 @@ config:
       system-policy-dir: "./"
     cluster:
       cluster-info-from: "accuknox"            # k8sclient|accuknox
-      cluster-mgmt-url: "https://api-dev.accuknox.com"
+      cluster-mgmt-url: "https://api.accuknox.com"
 
   database:
     driver: mysql
-    host: accuknox-prod-mysql-haproxy.accuknox-prod-mysql-db.svc.cluster.local
+    host: accuknox-mysql-haproxy.accuknox-mysql.svc.cluster.local
     port: 3306
     user: accuknox_user
     password: EAy5Kq4uhc5Gkws
@@ -135,10 +140,10 @@ config:
   feed-consumer:
     kafka:
       number-of-consumers: 3
-      broker-address-family: v4'
+      broker-address-family: v4
       session-timeout-ms: 6000
-      auto-offset-reset: "earliest"
-      bootstrap-servers: "accuknox-prod-kafka-kafka-bootstrap.accuknox-prod-kafka.svc.cluster.local:9092"
+      auto-offset-reset: "latest" # earliest | latest
+      bootstrap-servers: "accuknox-kafka-bootstrap.accuknox-kafka.svc.cluster.local:9095"
       group-id: knoxautopolicy
       topics: 
         - cilium-telemetry-new

@@ -29,6 +29,7 @@ func init() {
 // const values
 const (
 	// operation mode
+	OP_MODE_NOOP    = 0
 	OP_MODE_CRONJOB = 1
 	OP_MODE_ONETIME = 2
 
@@ -1662,7 +1663,9 @@ func StartNetworkWorker() {
 		return
 	}
 
-	if cfg.GetCfgNetOperationMode() == OP_MODE_CRONJOB { // every time intervals
+	if cfg.GetCfgNetOperationMode() == OP_MODE_NOOP { // Do not run the operation
+		log.Info().Msg("network operation mode is NOOP ... NO NETWORK POLICY DISCOVERY")
+	} else if cfg.GetCfgNetOperationMode() == OP_MODE_CRONJOB { // every time intervals
 		StartNetworkCronJob()
 	} else { // one-time generation
 		DiscoverNetworkPolicyMain()

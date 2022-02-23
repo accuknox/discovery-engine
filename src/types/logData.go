@@ -41,9 +41,10 @@ type KnoxSystemLog struct {
 
 	ClusterName string `json:"cluster_name,omitempty"`
 
-	HostName  string `json:"host_name,omitempty"`
-	Namespace string `json:"namespace_name,omitempty"`
-	PodName   string `json:"pod_name,omitempty"`
+	HostName      string `json:"host_name,omitempty"`
+	Namespace     string `json:"namespace_name,omitempty"`
+	ContainerName string `json:"container_name,omitempty"`
+	PodName       string `json:"pod_name,omitempty"`
 
 	SourceOrigin string `json:"source_origin,omitempty"` // if source origin "/usr/bin/iperf3 -s -p 5101"
 	Source       string `json:"source,omitempty"`        // --> source: "/usr/bin/iperf3"

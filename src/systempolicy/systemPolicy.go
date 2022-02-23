@@ -5,6 +5,9 @@ import (
 	"errors"
 	"io/ioutil"
 	"os"
+	"reflect"
+	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -29,6 +32,7 @@ func init() {
 // const values
 const (
 	// operation mode
+	OP_MODE_NOOP    = 0
 	OP_MODE_CRONJOB = 1
 	OP_MODE_ONETIME = 2
 
@@ -40,9 +44,11 @@ const (
 const (
 	SYS_OP_PROCESS = "Process"
 	SYS_OP_FILE    = "File"
+	SYS_OP_NETWORK = "Network"
 
 	SYS_OP_PROCESS_INT = 1
 	SYS_OP_FILE_INT    = 2
+	SYS_OP_NETWORK_INT = 4
 
 	SOURCE_ALL = "/ALL" // for fromSource 'off'
 )
@@ -238,12 +244,35 @@ func getSystemLogs() []types.KnoxSystemLog {
 	return systemLogs
 }
 
+func populateKnoxSysPolicyFromWPFSDb() []types.KnoxSystemPolicy {
+	res, pnMap, err := libs.GetWorkloadProcessFileSet(CfgDB, types.WorkloadProcessFileSet{})
+	if err != nil {
+		log.Error().Msgf("cudnot fetch WPFS err=%s", err.Error())
+		return nil
+	}
+	log.Info().Msgf("found %d WPFS records", len(res))
+	return ConvertWPFSToKnoxSysPolicy(res, pnMap)
+}
+
+func WriteSystemPoliciesToFile_Ext() {
+	sysPols := populateKnoxSysPolicyFromWPFSDb()
+
+	kubeArmorPolicies := plugin.ConvertKnoxSystemPolicyToKubeArmorPolicy(sysPols)
+	for _, pol := range kubeArmorPolicies {
+		fname := "kubearmor_policies_" + pol.Metadata["clusterName"] + "_" + pol.Metadata["namespace"] + "_" + pol.Metadata["containername"] + "_" + libs.RandSeq(8)
+		delete(pol.Metadata, "clusterName")
+		delete(pol.Metadata, "containername")
+		libs.WriteKubeArmorPolicyToYamlFile(fname, []types.KubeArmorPolicy{pol})
+	}
+}
+
 func WriteSystemPoliciesToFile(namespace string) {
 	latestPolicies := libs.GetSystemPolicies(CfgDB, namespace, "latest")
-
-	kubeArmorPolicies := plugin.ConvertKnoxSystemPolicyToKubeArmorPolicy(latestPolicies)
-
-	libs.WriteKubeArmorPolicyToYamlFile("", kubeArmorPolicies)
+	if len(latestPolicies) > 0 {
+		kubeArmorPolicies := plugin.ConvertKnoxSystemPolicyToKubeArmorPolicy(latestPolicies)
+		libs.WriteKubeArmorPolicyToYamlFile("kubearmor_policies", kubeArmorPolicies)
+	}
+	WriteSystemPoliciesToFile_Ext()
 }
 
 // ============================= //
@@ -400,6 +429,299 @@ func discoverProcessOperationPolicy(results []types.KnoxSystemPolicy, pod types.
 	return results
 }
 
+func checkIfMetadataMatches(pin types.KnoxSystemPolicy, hay []types.KnoxSystemPolicy) int {
+	for idx, v := range hay {
+		if pin.Metadata["clusterName"] == v.Metadata["clusterName"] &&
+			pin.Metadata["namespace"] == v.Metadata["namespace"] &&
+			pin.Metadata["containername"] == v.Metadata["containername"] &&
+			pin.Metadata["labels"] == v.Metadata["labels"] {
+			return idx
+		}
+	}
+	return -1
+}
+
+func cmpGenPathDir(p1 string, p1fs []types.KnoxFromSource, p2 string, p2fs []types.KnoxFromSource) bool {
+	if len(p1fs) > 0 {
+		for _, v := range p1fs {
+			p1 = p1 + v.Path
+		}
+	}
+
+	if len(p2fs) > 0 {
+		for _, v := range p2fs {
+			p2 = p2 + v.Path
+		}
+	}
+	return p1 < p2
+}
+
+func cmpPaths(p1 types.KnoxMatchPaths, p2 types.KnoxMatchPaths) bool {
+	return cmpGenPathDir(p1.Path, p1.FromSource, p2.Path, p2.FromSource)
+}
+
+func cmpProts(p1 types.KnoxMatchProtocols, p2 types.KnoxMatchProtocols) bool {
+	return cmpGenPathDir(p1.Protocol, p1.FromSource, p2.Protocol, p2.FromSource)
+}
+
+func cmpDirs(p1 types.KnoxMatchDirectories, p2 types.KnoxMatchDirectories) bool {
+	return cmpGenPathDir(p1.Dir, p1.FromSource, p2.Dir, p2.FromSource)
+}
+
+func sortFromSource(fs *[]types.KnoxFromSource) {
+	if len(*fs) <= 1 {
+		return
+	}
+	sort.Slice(*fs, func(x, y int) bool {
+		return (*fs)[x].Path+(*fs)[x].Dir < (*fs)[y].Path+(*fs)[y].Dir
+	})
+}
+
+func mergeFromSourceMatchPaths(pmp []types.KnoxMatchPaths, mp *[]types.KnoxMatchPaths) {
+	for _, pp := range pmp {
+		match := false
+		for i := range *mp {
+			rp := &(*mp)[i]
+			if pp.Path == (*rp).Path {
+				(*rp).FromSource = append((*rp).FromSource, pp.FromSource...)
+				//remove dups
+				match = true
+			}
+			sortFromSource(&(*rp).FromSource)
+		}
+		if !match {
+			*mp = append(*mp, pp)
+		}
+	}
+}
+
+func mergeFromSourceMatchDirs(pmp []types.KnoxMatchDirectories, mp *[]types.KnoxMatchDirectories) {
+	for _, pp := range pmp {
+		match := false
+		for i := range *mp {
+			rp := &(*mp)[i]
+			if pp.Dir == (*rp).Dir {
+				(*rp).FromSource = append((*rp).FromSource, pp.FromSource...)
+				//remove dups
+				match = true
+			}
+			sortFromSource(&(*rp).FromSource)
+		}
+		if !match {
+			*mp = append(*mp, pp)
+		}
+	}
+}
+
+func mergeFromSourceMatchProt(pmp []types.KnoxMatchProtocols, mp *[]types.KnoxMatchProtocols) {
+	for _, pp := range pmp {
+		match := false
+		for i := range *mp {
+			rp := &(*mp)[i]
+			if pp.Protocol == (*rp).Protocol {
+				(*rp).FromSource = append((*rp).FromSource, pp.FromSource...)
+				//remove dups
+				match = true
+			}
+			sortFromSource(&(*rp).FromSource)
+		}
+		if !match {
+			*mp = append(*mp, pp)
+		}
+	}
+}
+
+/*
+The aim of the foll API is to merge multiple fromSources within the same policy.
+
+For e.g.,
+---[Input]---
+    matchPaths:
+    - path: /etc/ld.so.cache
+      fromSource:
+      - path: /bin/ls
+    - path: /etc/ld.so.cache
+      fromSource:
+      - path: /bin/sleep
+---
+
+---[Expected Output]---
+    matchPaths:
+    - path: /etc/ld.so.cache
+      fromSource:
+      - path: /bin/ls
+      - path: /bin/sleep
+---
+*/
+func mergeFromSource(pols []types.KnoxSystemPolicy) []types.KnoxSystemPolicy {
+	/*
+		Logic:
+		1. For every pol
+		2. Check if pol matches any policy in res
+			If no, Create new res (with metadata), without any MatchPath, MatchDir, Network
+			If yes,
+		3.
+				a. For every MatchPath in pol,
+					check if Path matches with any Path in res[i]
+					if Yes,
+						copy pol.MatchPath[I].FromSource to pol.MatchPath[J].FromSource
+						remove pol.MatchPath[J]
+					if No,
+						Append pol.MatchPath[i] -> res.MatchPath
+				b. Similarly for every MatchDirectories
+			If No,
+
+				a. For every MatchPath in pol,
+					check if Path
+
+	*/
+	var results []types.KnoxSystemPolicy
+	for _, pol := range pols {
+		checked := false
+	check:
+		i := checkIfMetadataMatches(pol, results)
+		if i < 0 {
+			if checked {
+				/* If a policy is not present in results, we create metadata
+				* for the newpol based on pol and reset Process/Network/File
+				* structure info. The aim is the checkIfMetadaMatches should
+				* return valid index of the newly appended newpol. */
+				// Ideally, this condition should never be hit.
+				log.Error().Msgf("assumptions went wrong. some policies wont work %+v", pol)
+				continue
+			}
+			newpol := pol
+			newpol.Spec.Process = types.KnoxSys{}
+			newpol.Spec.File = types.KnoxSys{}
+			newpol.Spec.Network = types.NetworkRule{}
+			results = append(results, newpol)
+			checked = true
+			goto check
+		}
+
+		mergeFromSourceMatchPaths(pol.Spec.File.MatchPaths, &results[i].Spec.File.MatchPaths)
+		mergeFromSourceMatchDirs(pol.Spec.File.MatchDirectories, &results[i].Spec.File.MatchDirectories)
+
+		mergeFromSourceMatchPaths(pol.Spec.Process.MatchPaths, &results[i].Spec.Process.MatchPaths)
+		mergeFromSourceMatchDirs(pol.Spec.Process.MatchDirectories, &results[i].Spec.Process.MatchDirectories)
+
+		mergeFromSourceMatchProt(pol.Spec.Network.MatchProtocols, &results[i].Spec.Network.MatchProtocols)
+	}
+	return results
+}
+
+func mergeSysPolicies(pols []types.KnoxSystemPolicy) []types.KnoxSystemPolicy {
+	var results []types.KnoxSystemPolicy
+	for _, pol := range pols {
+		i := checkIfMetadataMatches(pol, results)
+		if i < 0 {
+			results = append(results, pol)
+			continue
+		}
+
+		if len(pol.Spec.File.MatchPaths) > 0 {
+			mp := &results[i].Spec.File.MatchPaths
+			*mp = append(*mp, pol.Spec.File.MatchPaths...)
+		}
+		if len(pol.Spec.File.MatchDirectories) > 0 {
+			mp := &results[i].Spec.File.MatchDirectories
+			*mp = append(*mp, pol.Spec.File.MatchDirectories...)
+		}
+		if len(pol.Spec.Process.MatchPaths) > 0 {
+			mp := &results[i].Spec.Process.MatchPaths
+			*mp = append(*mp, pol.Spec.Process.MatchPaths...)
+		}
+		if len(pol.Spec.Process.MatchDirectories) > 0 {
+			mp := &results[i].Spec.Process.MatchDirectories
+			*mp = append(*mp, pol.Spec.Process.MatchDirectories...)
+		}
+		if len(pol.Spec.Network.MatchProtocols) > 0 {
+			mp := &results[i].Spec.Network.MatchProtocols
+			*mp = append(*mp, pol.Spec.Network.MatchProtocols...)
+		}
+		results[i].Metadata["name"] = "autopol-" + pol.Metadata["namespace"] + "-" + pol.Metadata["containername"]
+	}
+
+	results = mergeFromSource(results)
+
+	// merging and sorting all the rules at MatchPaths, MatchDirs, MatchProtocols level
+	// sorting is needed so that the rules are placed consistently in the
+	// same order everytime the policy is generated
+	for _, pol := range results {
+		if len(pol.Spec.File.MatchPaths) > 0 {
+			mp := &pol.Spec.File.MatchPaths
+			sort.Slice(*mp, func(x, y int) bool {
+				return cmpPaths((*mp)[x], (*mp)[y])
+			})
+		}
+		if len(pol.Spec.File.MatchDirectories) > 0 {
+			mp := &pol.Spec.File.MatchDirectories
+			sort.Slice(*mp, func(x, y int) bool {
+				return cmpDirs((*mp)[x], (*mp)[y])
+			})
+		}
+		if len(pol.Spec.Process.MatchPaths) > 0 {
+			mp := &pol.Spec.Process.MatchPaths
+			sort.Slice(*mp, func(x, y int) bool {
+				return cmpPaths((*mp)[x], (*mp)[y])
+			})
+		}
+		if len(pol.Spec.Process.MatchDirectories) > 0 {
+			mp := &pol.Spec.Process.MatchDirectories
+			sort.Slice(*mp, func(x, y int) bool {
+				return cmpDirs((*mp)[x], (*mp)[y])
+			})
+		}
+		if len(pol.Spec.Network.MatchProtocols) > 0 {
+			mp := &pol.Spec.Network.MatchProtocols
+			sort.Slice(*mp, func(x, y int) bool {
+				return cmpProts((*mp)[x], (*mp)[y])
+			})
+		}
+	}
+	log.Info().Msgf("Merged %d sys policies into %d policies", len(pols), len(results))
+	return results
+}
+
+func ConvertWPFSToKnoxSysPolicy(wpfsSet types.ResourceSetMap, pnMap types.PolicyNameMap) []types.KnoxSystemPolicy {
+	var results []types.KnoxSystemPolicy
+	for wpfs, fsset := range wpfsSet {
+		policy := buildSystemPolicy()
+		policy.Metadata["type"] = wpfs.SetType
+
+		for _, fpath := range fsset {
+			path := SysPath{
+				Path:  fpath,
+				isDir: strings.HasSuffix(fpath, "/"),
+			}
+			src := ""
+			if wpfs.SetType == SYS_OP_NETWORK || strings.HasPrefix(wpfs.FromSource, "/") {
+				src = wpfs.FromSource
+			}
+			policy = updateSysPolicySpec(wpfs.SetType, policy, src, path)
+		}
+
+		policy.Metadata["clusterName"] = wpfs.ClusterName
+		policy.Metadata["namespace"] = wpfs.Namespace
+		policy.Metadata["containername"] = wpfs.ContainerName
+		policy.Metadata["labels"] = wpfs.Labels
+		policy.Metadata["name"] = pnMap[wpfs]
+
+		labels := strings.Split(wpfs.Labels, ",")
+		for _, label := range labels {
+			k := strings.Split(label, "=")[0]
+			v := strings.Split(label, "=")[1]
+			policy.Spec.Selector.MatchLabels[k] = v
+		}
+
+		results = append(results, policy)
+	}
+
+	results = mergeSysPolicies(results)
+
+	return results
+}
+
 func getPodInstance(key SysLogKey, pods []types.Pod) (types.Pod, error) {
 	for _, pod := range pods {
 		if key.Namespace == pod.Namespace && key.PodName == pod.PodName {
@@ -429,42 +751,55 @@ func buildSystemPolicy() types.KnoxSystemPolicy {
 }
 
 func updateSysPolicySpec(opType string, policy types.KnoxSystemPolicy, src string, pathSpec SysPath) types.KnoxSystemPolicy {
+	if opType == SYS_OP_NETWORK {
+		matchProtocols := types.KnoxMatchProtocols{
+			Protocol: pathSpec.Path,
+		}
+		matchProtocols.FromSource = []types.KnoxFromSource{
+			{
+				Path: src,
+			},
+		}
+		policy.Metadata["fromSource"] = src
+		policy.Spec.Network.MatchProtocols = append(policy.Spec.Network.MatchProtocols, matchProtocols)
+		return policy
+	}
 	// matchDirectories
 	if pathSpec.isDir {
+		path := pathSpec.Path
+		if !strings.HasSuffix(path, "/") {
+			path = path + "/"
+		}
 		matchDirs := types.KnoxMatchDirectories{
-			Dir: pathSpec.Path + "/",
+			Dir: path,
 		}
 
 		if opType == SYS_OP_FILE {
 			if FileFromSource {
-				matchDirs.FromSource = []types.KnoxFromSource{
-					types.KnoxFromSource{
-						Path: src,
-					},
+				if src != "" {
+					matchDirs.FromSource = []types.KnoxFromSource{
+						{
+							Path: src,
+						},
+					}
 				}
 				policy.Metadata["fromSource"] = src
 			}
 
-			if len(policy.Spec.File.MatchDirectories) == 0 {
-				policy.Spec.File.MatchDirectories = []types.KnoxMatchDirectories{matchDirs}
-			} else {
-				policy.Spec.File.MatchDirectories = append(policy.Spec.File.MatchDirectories, matchDirs)
-			}
+			policy.Spec.File.MatchDirectories = append(policy.Spec.File.MatchDirectories, matchDirs)
 		} else if opType == SYS_OP_PROCESS {
 			if ProcessFromSource {
-				matchDirs.FromSource = []types.KnoxFromSource{
-					types.KnoxFromSource{
-						Path: src,
-					},
+				if src != "" {
+					matchDirs.FromSource = []types.KnoxFromSource{
+						{
+							Path: src,
+						},
+					}
 				}
 				policy.Metadata["fromSource"] = src
 			}
 
-			if len(policy.Spec.File.MatchDirectories) == 0 {
-				policy.Spec.Process.MatchDirectories = []types.KnoxMatchDirectories{matchDirs}
-			} else {
-				policy.Spec.Process.MatchDirectories = append(policy.Spec.Process.MatchDirectories, matchDirs)
-			}
+			policy.Spec.Process.MatchDirectories = append(policy.Spec.Process.MatchDirectories, matchDirs)
 		}
 	} else {
 		// matchPaths
@@ -474,34 +809,30 @@ func updateSysPolicySpec(opType string, policy types.KnoxSystemPolicy, src strin
 
 		if opType == SYS_OP_FILE {
 			if FileFromSource {
-				matchPaths.FromSource = []types.KnoxFromSource{
-					types.KnoxFromSource{
-						Path: src,
-					},
+				if src != "" {
+					matchPaths.FromSource = []types.KnoxFromSource{
+						{
+							Path: src,
+						},
+					}
 				}
 				policy.Metadata["fromSource"] = src
 			}
 
-			if len(policy.Spec.File.MatchPaths) == 0 {
-				policy.Spec.File.MatchPaths = []types.KnoxMatchPaths{matchPaths}
-			} else {
-				policy.Spec.File.MatchPaths = append(policy.Spec.File.MatchPaths, matchPaths)
-			}
+			policy.Spec.File.MatchPaths = append(policy.Spec.File.MatchPaths, matchPaths)
 		} else if opType == SYS_OP_PROCESS {
 			if ProcessFromSource {
-				matchPaths.FromSource = []types.KnoxFromSource{
-					types.KnoxFromSource{
-						Path: src,
-					},
+				if src != "" {
+					matchPaths.FromSource = []types.KnoxFromSource{
+						{
+							Path: src,
+						},
+					}
 				}
 				policy.Metadata["fromSource"] = src
 			}
 
-			if len(policy.Spec.File.MatchPaths) == 0 {
-				policy.Spec.Process.MatchPaths = []types.KnoxMatchPaths{matchPaths}
-			} else {
-				policy.Spec.Process.MatchPaths = append(policy.Spec.Process.MatchPaths, matchPaths)
-			}
+			policy.Spec.Process.MatchPaths = append(policy.Spec.Process.MatchPaths, matchPaths)
 		}
 	}
 
@@ -525,6 +856,33 @@ func updateSysPolicySelector(clusterName string, pod types.Pod, policies []types
 	}
 
 	return results
+}
+
+func updateSysPolicies() {
+
+	var locSysPolicies []types.KnoxSystemPolicy
+	var isPolicyExist bool
+
+	wpfsPolicies := populateKnoxSysPolicyFromWPFSDb()
+
+	for _, wpfsPolicy := range wpfsPolicies {
+		isPolicyExist = false
+		sysPoliciesDb := libs.GetSystemPolicies(CfgDB, "", "")
+
+		for _, sysPolicyDb := range sysPoliciesDb {
+			if sysPolicyDb.Metadata["name"] == wpfsPolicy.Metadata["name"] {
+				libs.UpdateSystemPolicy(CfgDB, wpfsPolicy)
+				isPolicyExist = true
+				break
+			}
+		}
+
+		if !isPolicyExist {
+			locSysPolicies = append(locSysPolicies, wpfsPolicy)
+		}
+	}
+
+	libs.InsertSystemPolicies(CfgDB, locSysPolicies)
 }
 
 // ============================= //
@@ -551,6 +909,7 @@ func InitSysPolicyDiscoveryConfiguration() {
 
 func PopulateSystemPoliciesFromSystemLogs(sysLogs []types.KnoxSystemLog) []types.KnoxSystemPolicy {
 
+	isWpfsDbUpdated := false
 	discoveredSystemPolicies := []types.KnoxSystemPolicy{}
 
 	// delete duplicate logs
@@ -560,10 +919,10 @@ func PopulateSystemPoliciesFromSystemLogs(sysLogs []types.KnoxSystemLog) []types
 	clusteredLogs := clusteringSystemLogsByCluster(sysLogs)
 
 	for clusterName, sysLogs := range clusteredLogs {
-		log.Info().Msgf("System policy discovery started for cluster [%s]", clusterName)
-
 		// get existing system policies in db
 		existingPolicies := libs.GetSystemPolicies(CfgDB, "", "")
+		log.Info().Msgf("System policy discovery started for cluster [%s] len(existingPolicies):%d len(sysLogs):%d",
+			clusterName, len(existingPolicies), len(sysLogs))
 
 		// get k8s pods
 		pods := cluster.GetPods(clusterName)
@@ -583,32 +942,62 @@ func PopulateSystemPoliciesFromSystemLogs(sysLogs []types.KnoxSystemLog) []types
 				continue
 			}
 
+			polCnt := 0
 			// 1. discover file operation system policy
 			if SystemPolicyTypes&SYS_OP_FILE_INT > 0 {
 				fileOpLogs := getOperationLogs(SYS_OP_FILE, perPodlogs)
-				discoveredSysPolicies = discoverFileOperationPolicy(discoveredSysPolicies, pod, fileOpLogs)
+				isWpfsDbUpdated = GenFileSetForAllPodsInCluster(clusterName, pods, SYS_OP_FILE, fileOpLogs) || isWpfsDbUpdated
+				if !cfg.CurrentCfg.ConfigSysPolicy.DeprecateOldMode {
+					discoveredSysPolicies = discoverFileOperationPolicy(discoveredSysPolicies, pod, fileOpLogs)
+					polCnt = len(discoveredSysPolicies)
+					log.Info().Msgf("discovered %d file policies from %d file logs",
+						len(discoveredSysPolicies), len(fileOpLogs))
+				}
 			}
 
 			// 2. discover process operation system policy
 			if SystemPolicyTypes&SYS_OP_PROCESS_INT > 0 {
 				procOpLogs := getOperationLogs(SYS_OP_PROCESS, perPodlogs)
-				discoveredSysPolicies = discoverProcessOperationPolicy(discoveredSysPolicies, pod, procOpLogs)
+				isWpfsDbUpdated = GenFileSetForAllPodsInCluster(clusterName, pods, SYS_OP_PROCESS, procOpLogs) || isWpfsDbUpdated
+				if !cfg.CurrentCfg.ConfigSysPolicy.DeprecateOldMode {
+					discoveredSysPolicies = discoverProcessOperationPolicy(discoveredSysPolicies, pod, procOpLogs)
+					polCnt = len(discoveredSysPolicies)
+					log.Info().Msgf("discovered %d process policies from %d process logs",
+						len(discoveredSysPolicies)-polCnt, len(procOpLogs))
+				}
 			}
 
-			// 3. update selector
-			discoveredSysPolicies = updateSysPolicySelector(clusterName, pod, discoveredSysPolicies)
-			discoveredSystemPolicies = append(discoveredSystemPolicies, discoveredSysPolicies...)
+			// 3. discover network operation system policy
+			if SystemPolicyTypes&SYS_OP_NETWORK_INT > 0 {
+				netOpLogs := getOperationLogs(SYS_OP_NETWORK, perPodlogs)
+				isWpfsDbUpdated = GenFileSetForAllPodsInCluster(clusterName, pods, SYS_OP_NETWORK, netOpLogs) || isWpfsDbUpdated
 
-			// 4. update duplicated policy
-			newPolicies := UpdateDuplicatedPolicy(existingPolicies, discoveredSysPolicies, clusterName)
+			}
 
-			if len(newPolicies) > 0 {
-				// insert discovered policies to db
-				if strings.Contains(SystemPolicyTo, "db") {
-					libs.InsertSystemPolicies(CfgDB, newPolicies)
+			if cfg.CurrentCfg.ConfigSysPolicy.DeprecateOldMode {
+				// New mode of system policy generation using WPFS table
+				if isWpfsDbUpdated {
+					updateSysPolicies()
 				}
+			}
 
-				log.Info().Msgf("-> System policy discovery done for cluster/namespace/pod: [%s/%s/%s], [%d] policies discovered", clusterName, pod.Namespace, pod.PodName, len(newPolicies))
+			if !cfg.CurrentCfg.ConfigSysPolicy.DeprecateOldMode {
+				// 3. update selector
+				discoveredSysPolicies = updateSysPolicySelector(clusterName, pod, discoveredSysPolicies)
+				discoveredSystemPolicies = append(discoveredSystemPolicies, discoveredSysPolicies...)
+
+				// 4. update duplicated policy
+				newPolicies := UpdateDuplicatedPolicy(existingPolicies, discoveredSysPolicies, clusterName)
+
+				if len(newPolicies) > 0 {
+					// insert discovered policies to db
+					if strings.Contains(SystemPolicyTo, "db") {
+						libs.InsertSystemPolicies(CfgDB, newPolicies)
+					}
+
+					log.Info().Msgf("system policy discovery done for [%s/%s/%s], [%d] policies discovered",
+						clusterName, pod.Namespace, pod.PodName, len(newPolicies))
+				}
 			}
 
 			if strings.Contains(SystemPolicyTo, "file") {
@@ -618,6 +1007,190 @@ func PopulateSystemPoliciesFromSystemLogs(sysLogs []types.KnoxSystemLog) []types
 	}
 
 	return discoveredSystemPolicies
+}
+
+func GetPodLabels(cn string, pn string, ns string, pods []types.Pod) ([]string, error) {
+	for _, pod := range pods {
+		if pod.Namespace == ns && pod.PodName == pn {
+			return pod.Labels, nil
+		}
+	}
+	return nil, errors.New("pod not found")
+}
+
+// Merge, remove duplicates and sort
+func mergeStringSlices(a []string, b []string) []string {
+	check := make(map[string]int)
+	d := append(a, b...)
+	res := make([]string, 0)
+	for _, val := range d {
+		check[val] = 1
+	}
+	for letter := range check {
+		res = append(res, letter)
+	}
+	sort.Strings(res)
+	return res
+}
+
+var retcp, reudp, reicmp, reraw *regexp.Regexp
+var reInit bool
+
+func regexInit() error {
+	if reInit {
+		return nil
+	}
+	var err error
+	retcp, err = regexp.Compile("domain=.*type=SOCK_STREAM")
+	if err != nil {
+		log.Error().Msgf("failed tcp regexp compile err=%s", err.Error())
+		return err
+	}
+	reudp, err = regexp.Compile("domain=.*type=SOCK_DGRAM")
+	if err != nil {
+		log.Error().Msgf("failed udp regexp compile err=%s", err.Error())
+		return err
+	}
+	reicmp, err = regexp.Compile(`domain=.*protocol=(\b58\b|\b1\b)`) //1=icmp, 58=icmp6
+	if err != nil {
+		log.Error().Msgf("failed icmp regexp compile err=%s", err.Error())
+		return err
+	}
+	reraw, err = regexp.Compile("domain=.*type=SOCK_RAW")
+	if err != nil {
+		log.Error().Msgf("failed raw regexp compile err=%s", err.Error())
+		return err
+	}
+	reInit = true
+	return nil
+}
+
+func getProtocolType(str string) string {
+	if err := regexInit(); err != nil {
+		return ""
+	}
+
+	if reicmp.MatchString(str) {
+		return "icmp"
+		// return "icmp,icmp6"
+	}
+	if retcp.MatchString(str) {
+		return "tcp"
+	}
+	if reudp.MatchString(str) {
+		return "udp"
+	}
+	if reraw.MatchString(str) {
+		return "raw"
+	}
+	return ""
+}
+
+// cleanResource : Certain linux files keep changing always and needs to refed
+// just once. Examples are /proc, /sys.
+func cleanResource(op string, str string) []string {
+	var arr []string
+	if op == SYS_OP_NETWORK {
+		prot := getProtocolType(str)
+		if prot != "" {
+			arr = strings.Split(prot, ",")
+		}
+	} else {
+		if strings.HasPrefix(str, "/proc") {
+			arr = append(arr, "/proc/")
+		} else if strings.HasPrefix(str, "/sys") {
+			arr = append(arr, "/sys/")
+		} else {
+			arr = append(arr, str)
+		}
+	}
+	return arr
+}
+
+// removeDuplicates Works by Sorting the input and then checking if consecutive elements are same
+func removeDuplicates(arr []string) []string {
+	var res []string
+	sort.Strings(arr)
+	prev := ""
+	for _, v := range arr {
+		if prev == v {
+			continue
+		}
+		prev = v
+		res = append(res, v)
+	}
+	return res
+}
+
+// GenFileSetForAllPodsInCluster Generate process specific fileset across all pods in a cluster
+func GenFileSetForAllPodsInCluster(clusterName string, pods []types.Pod, settype string, slogs []types.KnoxSystemLog) bool {
+	res := types.ResourceSetMap{} // key: WorkloadProcess - val: Accesss File Set
+	wpfs := types.WorkloadProcessFileSet{}
+	isNetworkOp := false
+	status := false
+	if settype == SYS_OP_NETWORK {
+		isNetworkOp = true // for network logs, need full ResourceOrigin to do regexp matching in getProtocolType()
+	}
+	var resource []string
+	for _, slog := range slogs {
+		wpfs.ClusterName = slog.ClusterName
+		wpfs.ContainerName = slog.ContainerName
+		wpfs.Namespace = slog.Namespace
+		wpfs.FromSource = slog.Source
+		wpfs.SetType = settype
+		labels, err := GetPodLabels(slog.ClusterName, slog.PodName, slog.Namespace, pods)
+		if err != nil {
+			log.Error().Msgf("cudnot get pod labels for podname=%s ns=%s", slog.PodName, slog.Namespace)
+			continue
+		}
+		wpfs.Labels = strings.Join(labels[:], ",")
+
+		if isNetworkOp {
+			resource = cleanResource(settype, slog.ResourceOrigin)
+		} else {
+			resource = cleanResource(settype, slog.Resource)
+		}
+		if len(resource) == 0 {
+			continue
+		}
+		res[wpfs] = append(res[wpfs], resource...)
+	}
+
+	var mergedfs []string
+	for wpfs, fs := range res {
+		out, _, err := libs.GetWorkloadProcessFileSet(CfgDB, wpfs)
+		if err != nil {
+			log.Error().Msgf("failed processing wpfs=%+v err=%s", wpfs, err.Error())
+			continue
+		}
+		dbEntry := true
+		if len(out[wpfs]) == 0 {
+			dbEntry = false
+		}
+		mergedfs = removeDuplicates(append(fs, out[wpfs]...))
+		if !isNetworkOp {
+			// Path aggregation makes sense for file, process operations only
+			mergedfs = AggregatePathsExt(mergedfs) // merge and sort the filesets
+		}
+
+		// Add/Update DB Entry
+		if !dbEntry {
+			log.Info().Msgf("adding wpfs db entry for wpfs=%+v", wpfs)
+			err = libs.InsertWorkloadProcessFileSet(CfgDB, wpfs, mergedfs)
+			status = true
+		} else {
+			if !reflect.DeepEqual(mergedfs, out[wpfs]) {
+				log.Info().Msgf("updating wpfs db entry for wpfs=%+v", wpfs)
+				err = libs.UpdateWorkloadProcessFileSetMySQL(CfgDB, wpfs, mergedfs)
+				status = true
+			}
+		}
+		if err != nil {
+			log.Error().Msgf("failure add/updt db entry for wpfs=%+v err=%s", wpfs, err.Error())
+		}
+	}
+
+	return status
 }
 
 func DiscoverSystemPolicyMain() {
@@ -692,7 +1265,9 @@ func StartSystemWorker() {
 		return
 	}
 
-	if cfg.GetCfgSysOperationMode() == OP_MODE_CRONJOB { // every time intervals
+	if cfg.GetCfgSysOperationMode() == OP_MODE_NOOP { // Do not run the operation
+		log.Info().Msg("system operation mode is NOOP ... NO SYSTEM POLICY DISCOVERY")
+	} else if cfg.GetCfgSysOperationMode() == OP_MODE_CRONJOB { // every time intervals
 		StartSystemCronJob()
 	} else { // one-time generation
 		DiscoverSystemPolicyMain()

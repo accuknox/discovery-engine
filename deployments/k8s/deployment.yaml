@@ -16,7 +16,7 @@ spec:
       serviceAccountName: knoxautopolicy
       containers:
       - image: accuknox/knoxautopolicy:dev
-        #image: accuknox/knoxautopolicy:latest
+        imagePullPolicy: Always
         name: knoxautopolicy
         ports:
         - containerPort: 9089

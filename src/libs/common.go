@@ -33,6 +33,9 @@ var BuildDate string
 var Version string
 
 func printBuildDetails() {
+	if GitCommit == "" {
+		return
+	}
 	log.Info().Msgf("BUILD-INFO: commit:%v, branch: %v, date: %v, version: %v",
 		GitCommit, GitBranch, BuildDate, Version)
 }
@@ -65,6 +68,8 @@ func SetDefaultConfig() {
 	viper.SetDefault("application.system.system-log-from", "kubearmor")
 	viper.SetDefault("application.system.system-policy-to", "db|file")
 	viper.SetDefault("application.system.system-policy-dir", "./")
+	viper.SetDefault("application.system.system-policy-types", 7)
+	viper.SetDefault("application.system.deprecate-old-mode", false)
 
 	// Application->cluster config
 	viper.SetDefault("application.cluster.cluster-info-from", "k8sclient")
@@ -98,6 +103,9 @@ func (i *cfgArray) String() string {
 
 func (i *cfgArray) Set(str string) error {
 	kv := strings.Split(str, "=")
+	if len(kv) != 2 {
+		log.Panic().Msgf("invalid cfg keyval: %s\n", str)
+	}
 	viper.SetDefault(kv[0], kv[1])
 	return nil
 }
@@ -344,6 +352,16 @@ func writeYamlByte(f *os.File, b []byte) {
 	}
 }
 
+func writeJsonByte(f *os.File, b []byte) {
+	if _, err := f.Write(b); err != nil {
+		log.Error().Msg(err.Error())
+	}
+
+	if err := f.Sync(); err != nil {
+		log.Error().Msg(err.Error())
+	}
+}
+
 func WriteKnoxNetPolicyToYamlFile(namespace string, policies []types.KnoxNetworkPolicy) {
 	fileName := GetEnv("POLICY_DIR", "./")
 	if namespace != "" {
@@ -414,13 +432,9 @@ func WriteCiliumPolicyToYamlFile(namespace string, policies []types.CiliumNetwor
 	}
 }
 
-func WriteKubeArmorPolicyToYamlFile(namespace string, policies []types.KubeArmorPolicy) {
+func WriteKubeArmorPolicyToYamlFile(fname string, policies []types.KubeArmorPolicy) {
 	fileName := GetEnv("POLICY_DIR", "./")
-	if namespace != "" {
-		fileName = fileName + "kubearmor_policies_" + namespace + ".yaml"
-	} else {
-		fileName = fileName + "kubearmor_policies.yaml"
-	}
+	fileName = fileName + fname + ".yaml"
 
 	if err := os.Remove(fileName); err != nil {
 		if !strings.Contains(err.Error(), NoSuchFileOrDir) {
@@ -445,6 +459,34 @@ func WriteKubeArmorPolicyToYamlFile(namespace string, policies []types.KubeArmor
 	if err := f.Close(); err != nil {
 		log.Error().Msg(err.Error())
 	}
+}
+
+func WriteSysObsDataToJsonFile(obsData types.SysObsResponseData) {
+	fileName := GetEnv("POLICY_DIR", "./")
+	fileName = fileName + "sys_observability_data" + ".json"
+
+	if err := os.Remove(fileName); err != nil {
+		if !strings.Contains(err.Error(), NoSuchFileOrDir) {
+			log.Error().Msg(err.Error())
+		}
+	}
+
+	f, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY, 0600)
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return
+	}
+
+	b, err := json.Marshal(&obsData)
+	if err != nil {
+		log.Error().Msg(err.Error())
+	}
+	writeJsonByte(f, b)
+
+	if err := f.Close(); err != nil {
+		log.Error().Msg(err.Error())
+	}
+
 }
 
 // ========== //

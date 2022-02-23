@@ -191,6 +191,7 @@ func GetPodsFromK8sClient() []types.Pod {
 
 			group.Labels = append(group.Labels, k+"="+v)
 		}
+		sort.Strings(group.Labels)
 
 		results = append(results, group)
 	}

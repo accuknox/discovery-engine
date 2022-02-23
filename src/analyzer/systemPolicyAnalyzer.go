@@ -99,7 +99,7 @@ func populatePbSysPolicyFromSysPolicy(KnoxSysPolicy types.KnoxSystemPolicy) apb.
 	}
 
 	// Spec -- Match Protocol
-	for _, matchProtocol := range KnoxSysPolicy.Spec.Network {
+	for _, matchProtocol := range KnoxSysPolicy.Spec.Network.MatchProtocols {
 		pbMatchProtocol := apb.KnoxMatchProtocols{}
 		pbMatchProtocol.Protocol = matchProtocol.Protocol
 		for _, fromSrc := range matchProtocol.FromSource {

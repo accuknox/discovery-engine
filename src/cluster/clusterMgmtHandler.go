@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -403,6 +404,7 @@ func GetPodsFromCluster(cluster types.Cluster) []types.Pod {
 
 			pod.Labels = append(pod.Labels, key+"="+val)
 		}
+		sort.Strings(pod.Labels)
 
 		results = append(results, pod)
 	}

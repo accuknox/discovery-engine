@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 
 	"github.com/rs/zerolog"
 
@@ -16,6 +17,7 @@ import (
 	"github.com/accuknox/auto-policy-discovery/src/libs"
 	apb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/analyzer"
 	fpb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/consumer"
+	opb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/observability"
 	wpb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/worker"
 	"github.com/accuknox/auto-policy-discovery/src/types"
 
@@ -48,7 +50,7 @@ func (s *workerServer) Start(ctx context.Context, in *wpb.WorkerRequest) (*wpb.W
 
 	if in.GetReq() == "dbclear" {
 		libs.ClearDBTables(core.CurrentCfg.ConfigDB)
-		response += "Cleared DB ,"
+		response += "Cleared DB."
 	}
 
 	if in.GetLogfile() != "" {
@@ -63,8 +65,6 @@ func (s *workerServer) Start(ctx context.Context, in *wpb.WorkerRequest) (*wpb.W
 			sysworker.StartSystemWorker()
 		}
 		response += "Starting " + in.GetPolicytype() + " policy discovery"
-	} else {
-		response += "No policy type provided, choose 'network' or 'system' to start policy discovery"
 	}
 
 	return &wpb.WorkerResponse{Res: response}, nil
@@ -102,11 +102,11 @@ func (s *workerServer) GetWorkerStatus(ctx context.Context, in *wpb.WorkerReques
 
 func (s *workerServer) Convert(ctx context.Context, in *wpb.WorkerRequest) (*wpb.WorkerResponse, error) {
 	if in.GetPolicytype() == "network" {
-		log.Info().Msg("Convert network poolicy called")
+		log.Info().Msg("Convert network policy called")
 		networker.InitNetPolicyDiscoveryConfiguration()
 		networker.WriteNetworkPoliciesToFile("", "", []types.Service{})
 	} else if in.GetPolicytype() == "system" {
-		log.Info().Msg("Convert system poolicy called")
+		log.Info().Msg("Convert system policy called")
 		sysworker.InitSysPolicyDiscoveryConfiguration()
 		sysworker.WriteSystemPoliciesToFile("")
 	} else {
@@ -161,6 +161,37 @@ func (s *analyzerServer) GetSystemPolicies(ctx context.Context, in *apb.SystemLo
 	return &pbSystemPolicies, nil
 }
 
+// =================== //
+// == Observability == //
+// =================== //
+
+type observabilityServer struct {
+	opb.ObservabilityServer
+}
+
+func (s *observabilityServer) SysObservabilityData(ctx context.Context, in *opb.Data) (*opb.Response, error) {
+
+	var wpfs types.WorkloadProcessFileSet
+
+	wpfs.ContainerName = in.ContainerName
+	wpfs.ClusterName = in.ClusterName
+	wpfs.FromSource = in.FromSource
+	wpfs.Namespace = in.Namespace
+	wpfs.Labels = in.Labels
+
+	if in.Request == "observe" {
+		wpfs.FromSource = "" // Forcing wpfs.FromSource to "" as it is not a search string
+		resp, err := sysworker.GetSystemObsData(wpfs)
+		return &resp, err
+	}
+	if in.Request == "dbclear" {
+		err := sysworker.ClearSysDb(wpfs, in.Duration)
+		return &opb.Response{}, err
+	}
+
+	return nil, errors.New("not a valid request, use observe/dbclear")
+}
+
 // ================= //
 // == gRPC server == //
 // ================= //
@@ -175,11 +206,13 @@ func GetNewServer() *grpc.Server {
 	workerServer := &workerServer{}
 	consumerServer := &consumerServer{}
 	analyzerServer := &analyzerServer{}
+	observabilityServer := &observabilityServer{}
 
 	// register gRPC servers
 	wpb.RegisterWorkerServer(s, workerServer)
 	fpb.RegisterConsumerServer(s, consumerServer)
 	apb.RegisterAnalyzerServer(s, analyzerServer)
+	opb.RegisterObservabilityServer(s, observabilityServer)
 
 	if cfg.GetCurrentCfg().ConfigClusterMgmt.ClusterInfoFrom != "k8sclient" {
 		// start consumer automatically

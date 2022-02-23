@@ -12,7 +12,7 @@ data:
         operation-trigger: 1000
         network-log-from: "hubble"                    # db|hubble
         network-log-file: "./flow.json"           # file path
-        network-policy-to: "db|file"              # db, file
+        network-policy-to: "db"              # db, file
         network-policy-dir: "./"
         network-policy-types: 3
         network-policy-rule-types: 511
@@ -21,8 +21,9 @@ data:
         cron-job-time-interval: "0h0m10s"         # format: XhYmZs
         system-log-from: "kubearmor"                     # db|kubearmor
         system-log-file: "./log.json"             # file path
-        system-policy-to: "db|file"               # db, file
+        system-policy-to: "db"               # db, file
         system-policy-dir: "./"
+        deprecate-old-mode: true
       cluster:
         cluster-info-from: "k8sclient"            # k8sclient|accuknox
 
