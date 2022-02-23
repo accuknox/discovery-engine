@@ -217,7 +217,7 @@ argocd:
     credentials: "argocd-prod-cred"                        #Credentials for Argocd
     application_name: "accuknox-knoxautopolicy"            #Application name to create
     namespace: "accuknox-knoxautopolicy"                   #Namespace to where the application to be deployed
-    project: "useronboarding"                              #specify poject name in argocd
+    project: "usermanagement"                              #specify poject name in argocd
     cluster:
       project: "mimetic-kit-294408"                         #Kubernetes project name
       name: "accuknox-saas-prod"                            #Kubernetes cluster name
