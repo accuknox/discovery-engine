@@ -3,8 +3,8 @@ package systempolicy
 import (
 	"testing"
 
-	"github.com/accuknox/knoxAutoPolicy/src/libs"
-	"github.com/accuknox/knoxAutoPolicy/src/types"
+	"github.com/accuknox/auto-policy-discovery/src/libs"
+	"github.com/accuknox/auto-policy-discovery/src/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -13,7 +13,7 @@ import (
 // ==================== //
 
 func TestIsExistingPolicy(t *testing.T) {
-	exist := types.KubeArmorPolicy{
+	exist := types.KnoxSystemPolicy{
 		Metadata: map[string]string{
 			"name": "test",
 		},
@@ -27,10 +27,10 @@ func TestIsExistingPolicy(t *testing.T) {
 		},
 	}
 
-	newOne := types.KubeArmorPolicy{}
+	newOne := types.KnoxSystemPolicy{}
 	libs.DeepCopy(&newOne, &exist)
 
-	assert.True(t, IsExistingPolicy([]types.KubeArmorPolicy{exist}, newOne))
+	assert.True(t, IsExistingPolicy([]types.KnoxSystemPolicy{exist}, newOne))
 }
 
 // ======================= //
@@ -38,7 +38,7 @@ func TestIsExistingPolicy(t *testing.T) {
 // ======================= //
 
 func TestGeneratePolicyName(t *testing.T) {
-	exist := types.KubeArmorPolicy{
+	exist := types.KnoxSystemPolicy{
 		Metadata: map[string]string{},
 
 		Spec: types.KnoxSystemSpec{

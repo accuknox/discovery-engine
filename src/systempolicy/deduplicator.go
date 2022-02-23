@@ -5,9 +5,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/accuknox/knoxAutoPolicy/src/config"
-	"github.com/accuknox/knoxAutoPolicy/src/libs"
-	types "github.com/accuknox/knoxAutoPolicy/src/types"
+	"github.com/accuknox/auto-policy-discovery/src/config"
+	"github.com/accuknox/auto-policy-discovery/src/libs"
+	types "github.com/accuknox/auto-policy-discovery/src/types"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -170,14 +170,10 @@ func includeSelectorLabels(newSelectorLabels map[string]string, existSelectorLab
 	includeSelector := true
 
 	for k, v := range newSelectorLabels {
-		if val, ok := existSelectorLabels[k]; !ok {
+
+		if existSelectorLabels[k] != v {
 			includeSelector = false
 			break
-		} else {
-			if val != v {
-				includeSelector = false
-				break
-			}
 		}
 	}
 

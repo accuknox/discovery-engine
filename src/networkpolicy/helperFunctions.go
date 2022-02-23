@@ -10,10 +10,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/accuknox/knoxAutoPolicy/src/cluster"
-	"github.com/accuknox/knoxAutoPolicy/src/libs"
-	"github.com/accuknox/knoxAutoPolicy/src/plugin"
-	types "github.com/accuknox/knoxAutoPolicy/src/types"
+	"github.com/accuknox/auto-policy-discovery/src/cluster"
+	"github.com/accuknox/auto-policy-discovery/src/libs"
+	"github.com/accuknox/auto-policy-discovery/src/plugin"
+	types "github.com/accuknox/auto-policy-discovery/src/types"
 	"github.com/cilium/cilium/api/v1/flow"
 )
 
@@ -74,17 +74,6 @@ func updateMultiClusterVariables(clusterName string) {
 // == Network Policy Filter == //
 // =========================== //
 
-func SkipNamespaceForNetworkPolicy(namespace string) bool {
-	// skip uninterested namespaces
-	if libs.ContainsElement(NamespaceFilters, namespace) {
-		return true
-	} else if strings.HasPrefix(namespace, "accuknox-") {
-		return true
-	}
-
-	return false
-}
-
 func getHaveToCheckItems(igFlows types.NetworkLogFilter) int {
 	check := 0
 
@@ -121,6 +110,18 @@ func FilterNetworkLogsByConfig(logs []types.KnoxNetworkLog, pods []types.Pod) []
 	for _, log := range logs {
 		filtered := false
 
+		if log.Protocol == 6 && !log.SynFlag { // In case of TCP only handle flows with SYN flag
+			continue
+		}
+
+		if log.Protocol == 17 && log.IsReply && log.DstNamespace == "reserved:world" {
+			/*
+				fmt.Printf("dropping UDP SrcPort:%v DstPort:%v DstNamespace:%v\n",
+					log.SrcPort, log.DstPort, log.DstNamespace)
+			*/
+			continue
+		}
+
 		for _, filter := range NetworkLogFilters {
 			checkItems := getHaveToCheckItems(filter)
 
@@ -132,7 +133,7 @@ func FilterNetworkLogsByConfig(logs []types.KnoxNetworkLog, pods []types.Pod) []
 			}
 
 			// 2. check src pod labels
-			if (checkItems&2 > 0) && containLabelByConfiguration("cilium", filter.SourceLabels, getLabelsFromPod(log.SrcPodName, pods)) {
+			if (checkItems&2 > 0) && containLabelByConfiguration(filter.SourceLabels, getLabelsFromPod(log.SrcPodName, pods)) {
 				checkedItems = checkedItems | 1<<1
 			}
 
@@ -142,12 +143,12 @@ func FilterNetworkLogsByConfig(logs []types.KnoxNetworkLog, pods []types.Pod) []
 			}
 
 			// 4. check dest pod labels
-			if (checkItems&8 > 0) && containLabelByConfiguration("cilium", filter.DestinationLabels, getLabelsFromPod(log.DstPodName, pods)) {
+			if (checkItems&8 > 0) && containLabelByConfiguration(filter.DestinationLabels, getLabelsFromPod(log.DstPodName, pods)) {
 				checkedItems = checkedItems | 1<<3
 			}
 
 			// 5. check protocol
-			if (checkItems&16 > 0) && libs.GetProtocol(log.Protocol) == strings.ToLower(filter.Protocol) {
+			if (checkItems&16 > 0) && libs.GetProtocol(log.Protocol) == strings.ToUpper(filter.Protocol) {
 				checkedItems = checkedItems | 1<<4
 			}
 
@@ -175,13 +176,15 @@ func FilterNetworkLogsByConfig(logs []types.KnoxNetworkLog, pods []types.Pod) []
 func FilterNetworkLogsByNamespace(targetNamespace string, logs []types.KnoxNetworkLog) []types.KnoxNetworkLog {
 	filteredLogs := []types.KnoxNetworkLog{}
 
-	// case 1: src namespace == target namespace
-	// case 2: dst namespace == target namespace && src namespace == reserved: or kube-system or cilium
 	for _, log := range logs {
+		// case 1: src namespace == target namespace
 		if log.SrcNamespace == targetNamespace {
 			filteredLogs = append(filteredLogs, log)
 
-		} else if log.DstNamespace == targetNamespace {
+		}
+
+		// case 2: dst namespace == target namespace && src namespace == reserved: or kube-system or cilium
+		if log.DstNamespace == targetNamespace {
 			if strings.Contains(log.SrcNamespace, "reserved:") {
 				filteredLogs = append(filteredLogs, log)
 			}
@@ -198,29 +201,15 @@ func FilterNetworkLogsByNamespace(targetNamespace string, logs []types.KnoxNetwo
 func getNetworkLogs() []types.KnoxNetworkLog {
 	networkLogs := []types.KnoxNetworkLog{}
 
-	// =============== //
-	// == Database  == //
-	// =============== //
-	if NetworkLogFrom == "db" {
-		log.Info().Msg("Get network log from the database")
-
-		// get network logs from db
-		netLogs := libs.GetNetworkLogsFromDB(CfgDB, OneTimeJobTime)
-		if len(netLogs) == 0 {
-			return nil
-		}
-
-		// convert cilium network logs -> knox network logs
-		networkLogs = plugin.ConvertCiliumNetworkLogsToKnoxNetworkLogs(CfgDB.DBDriver, netLogs)
-	} else if NetworkLogFrom == "hubble" {
+	if NetworkLogFrom == "hubble" {
 		// ========================== //
 		// == Cilium Hubble Relay  == //
 		// ========================== //
 		log.Info().Msg("Get network log from the Cilium Hubble directly")
 
 		// get flows from hubble relay
-		flows := plugin.GetCiliumFlowsFromHubble()
-		if len(flows) == 0 {
+		flows := plugin.GetCiliumFlowsFromHubble(OperationTrigger)
+		if len(flows) == 0 || len(flows) < OperationTrigger {
 			return nil
 		}
 
@@ -229,6 +218,22 @@ func getNetworkLogs() []types.KnoxNetworkLog {
 			if log, valid := plugin.ConvertCiliumFlowToKnoxNetworkLog(flow); valid {
 				networkLogs = append(networkLogs, log)
 			}
+		}
+	} else if NetworkLogFrom == "kafka" {
+		// ================== //
+		// == Cilium kafka == //
+		// ================== //
+		log.Info().Msg("Get network log from the kafka consumer")
+
+		// get flows from kafka consumer
+		flows := plugin.GetCiliumFlowsFromKafka(OperationTrigger)
+		if len(flows) == 0 || len(flows) < OperationTrigger {
+			return nil
+		}
+
+		// convert hubble flows -> network logs (but, in this case, no flow id)
+		for _, flow := range flows {
+			networkLogs = append(networkLogs, *flow)
 		}
 	} else if NetworkLogFrom == "file" {
 		// =============================== //
@@ -276,6 +281,12 @@ func getNetworkLogs() []types.KnoxNetworkLog {
 		return nil
 	}
 
+	for i, log := range networkLogs {
+		if log.ClusterName == "" {
+			networkLogs[i].ClusterName = "Default"
+		}
+	}
+
 	return networkLogs
 }
 
@@ -283,11 +294,7 @@ func clusteringNetworkLogs(networkLogs []types.KnoxNetworkLog) map[string][]type
 	clusterNameMap := map[string][]types.KnoxNetworkLog{}
 
 	for _, log := range networkLogs {
-		if _, ok := clusterNameMap[log.ClusterName]; ok {
-			clusterNameMap[log.ClusterName] = append(clusterNameMap[log.ClusterName], log)
-		} else {
-			clusterNameMap[log.ClusterName] = []types.KnoxNetworkLog{log}
-		}
+		clusterNameMap[log.ClusterName] = append(clusterNameMap[log.ClusterName], log)
 	}
 
 	return clusterNameMap
@@ -338,12 +345,8 @@ func containLabel(mergedLabel, targetLabel string) bool {
 	return false
 }
 
-func containLabelByConfiguration(cni string, igLabels []string, flowLabels []string) bool {
-	prefix := ""
-
-	if cni == "cilium" {
-		prefix = "k8s:"
-	}
+func containLabelByConfiguration(igLabels []string, flowLabels []string) bool {
+	prefix := "k8s:"
 
 	for _, label := range igLabels {
 		label = prefix + label
@@ -432,10 +435,8 @@ func getMergedSortedLabels(namespace, podName string, pods []types.Pod) string {
 			// remove common name identities
 			labels := []string{}
 
-			for _, label := range pod.Labels {
-				/* TODO: do we need to skip the hash labels? */
-				labels = append(labels, label)
-			}
+			/* TODO: do we need to skip the hash labels? */
+			labels = append(labels, pod.Labels...)
 
 			// sorting labels alphabetically
 			sort.Slice(labels, func(i, j int) bool {
@@ -626,7 +627,7 @@ func removeDstFromMergedDstSlice(dsts []MergedPortDst, remove MergedPortDst) []M
 func checkK8sExternalService(log types.KnoxNetworkLog, endpoints []types.Endpoint) (types.Endpoint, bool) {
 	for _, endpoint := range endpoints {
 		for _, port := range endpoint.Endpoints {
-			if (libs.GetProtocol(log.Protocol) == strings.ToLower(port.Protocol)) &&
+			if (libs.GetProtocol(log.Protocol) == strings.ToUpper(port.Protocol)) &&
 				log.DstPort == port.Port &&
 				log.DstIP == port.IP {
 				return endpoint, true
@@ -653,31 +654,6 @@ func isExposedPort(protocol int, port int) bool {
 	}
 
 	return false
-}
-
-func removeKubeDNSPort(toPorts []types.SpecPort) []types.SpecPort {
-	filtered := []types.SpecPort{}
-
-	for _, toPort := range toPorts {
-		isDNS := false
-		for _, dnsSvc := range K8sDNSServices {
-			if toPort.Port == strconv.Itoa(dnsSvc.ServicePort) &&
-				toPort.Protocol == strings.ToLower(dnsSvc.Protocol) {
-				isDNS = true
-				break
-			}
-		}
-
-		if !isDNS {
-			filtered = append(filtered, toPort)
-		}
-	}
-
-	if len(filtered) == 0 {
-		return nil
-	}
-
-	return filtered
 }
 
 func updateServiceEndpoint(services []types.Service, endpoints []types.Endpoint, pods []types.Pod) {
@@ -754,26 +730,6 @@ func clearTrackFlowIDMaps() {
 	FlowIDTrackerSecond = map[FlowIDTrackingSecond][]int{}
 }
 
-func clearDomainToIPs() {
-	DomainToIPs = map[string][]string{}
-}
-
-func cleargLabeledSrcsPerDst() {
-	LabeledSrcsPerDst = map[string]labeledSrcsPerDstMap{}
-}
-
-func clearHTTPAggregator() {
-	WildPaths = []string{WildPathDigit, WildPathChar}
-	MergedSrcPerMergedDstForHTTP = map[string][]*HTTPDst{}
-}
-
-func clearGlobalVariabels() {
-	clearDomainToIPs()
-	cleargLabeledSrcsPerDst()
-	clearHTTPAggregator()
-	clearTrackFlowIDMaps()
-}
-
 // ================== //
 // == File Outputs == //
 // ================== //
@@ -783,7 +739,7 @@ func WriteNetworkPoliciesToFile(cluster, namespace string, services []types.Serv
 	latestPolicies := libs.GetNetworkPolicies(CfgDB, cluster, namespace, "latest")
 
 	// write discovered policies to files
-	libs.WriteKnoxPolicyToYamlFile(namespace, latestPolicies)
+	libs.WriteKnoxNetPolicyToYamlFile(namespace, latestPolicies)
 
 	// convert knoxPolicy to CiliumPolicy
 	ciliumPolicies := plugin.ConvertKnoxPoliciesToCiliumPolicies(services, latestPolicies)

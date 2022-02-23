@@ -21,6 +21,7 @@ type KnoxNetworkLog struct {
 	DstPort  int    `json:"dst_port,omitempty" bson:"dst_port"`
 
 	SynFlag bool `json:"syn_flag,omitempty" bson:"syn_flag"` // for tcp
+	IsReply bool `json:"is_reply,omitempty" bson:"is_reply"` // is_reply
 
 	DNSQuery  string   `json:"dns_query,omitempty" bson:"dns_query"`       // for L7 dns
 	DNSRes    string   `json:"dns_response,omitempty" bson:"dns_response"` // for L7 dns
@@ -40,9 +41,10 @@ type KnoxSystemLog struct {
 
 	ClusterName string `json:"cluster_name,omitempty"`
 
-	HostName  string `json:"host_name,omitempty"`
-	Namespace string `json:"namespace_name,omitempty"`
-	PodName   string `json:"pod_name,omitempty"`
+	HostName      string `json:"host_name,omitempty"`
+	Namespace     string `json:"namespace_name,omitempty"`
+	ContainerName string `json:"container_name,omitempty"`
+	PodName       string `json:"pod_name,omitempty"`
 
 	SourceOrigin string `json:"source_origin,omitempty"` // if source origin "/usr/bin/iperf3 -s -p 5101"
 	Source       string `json:"source,omitempty"`        // --> source: "/usr/bin/iperf3"

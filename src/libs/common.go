@@ -15,8 +15,8 @@ import (
 	"syscall"
 	"time"
 
-	logger "github.com/accuknox/knoxAutoPolicy/src/logging"
-	"github.com/accuknox/knoxAutoPolicy/src/types"
+	logger "github.com/accuknox/auto-policy-discovery/src/logging"
+	"github.com/accuknox/auto-policy-discovery/src/types"
 	"github.com/rs/zerolog"
 	"github.com/spf13/viper"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -25,30 +25,119 @@ import (
 
 var log *zerolog.Logger
 
+const NoSuchFileOrDir = "no such file or directory"
+
+var GitCommit string
+var GitBranch string
+var BuildDate string
+var Version string
+
+func printBuildDetails() {
+	if GitCommit == "" {
+		return
+	}
+	log.Info().Msgf("BUILD-INFO: commit:%v, branch: %v, date: %v, version: %v",
+		GitCommit, GitBranch, BuildDate, Version)
+}
+
 func init() {
 	log = logger.GetInstance()
+	printBuildDetails()
 }
 
 // =================== //
 // == Configuration == //
 // =================== //
 
-func LoadConfigurationFile() {
+func SetDefaultConfig() {
+	// Application->Network config
+	viper.SetDefault("application.network.operation-mode", 1)
+	viper.SetDefault("application.network.operation-trigger", 100)
+	viper.SetDefault("application.network.cron-job-time-interval", "0h0m10s")
+	viper.SetDefault("application.network.network-log-limit", 10000)
+	viper.SetDefault("application.network.network-log-from", "hubble")
+	viper.SetDefault("application.network.network-policy-to", "db|file")
+	viper.SetDefault("application.network.network-policy-dir", "./")
+	viper.SetDefault("application.network.skip-cert-verification", true)
+
+	// Application->System config
+	viper.SetDefault("application.system.operation-mode", 1)
+	viper.SetDefault("application.system.operation-trigger", 10)
+	viper.SetDefault("application.system.cron-job-time-interval", "0h0m10s")
+	viper.SetDefault("application.system.system-log-limit", 10000)
+	viper.SetDefault("application.system.system-log-from", "kubearmor")
+	viper.SetDefault("application.system.system-policy-to", "db|file")
+	viper.SetDefault("application.system.system-policy-dir", "./")
+	viper.SetDefault("application.system.system-policy-types", 7)
+	viper.SetDefault("application.system.deprecate-old-mode", false)
+
+	// Application->cluster config
+	viper.SetDefault("application.cluster.cluster-info-from", "k8sclient")
+
+	// Database config
+	viper.SetDefault("database.driver", "mysql")
+	viper.SetDefault("database.user", "root")
+	viper.SetDefault("database.dbname", "accuknox")
+	viper.SetDefault("database.host", "127.0.0.1")
+	viper.SetDefault("database.port", "3306")
+	viper.SetDefault("database.table-network-policy", "network_policy")
+	viper.SetDefault("database.table-system-policy", "system_policy")
+
+	// logging config
+	viper.SetDefault("logging.level", "INFO")
+
+	// cilium config
+	viper.SetDefault("cilium-hubble.url", "localhost")
+	viper.SetDefault("cilium-hubble.port", "4245")
+
+	// kubearmor config
+	viper.SetDefault("kubearmor.url", "localhost")
+	viper.SetDefault("kubearmor.port", "32767")
+}
+
+type cfgArray []string
+
+func (i *cfgArray) String() string {
+	return "config-key=config-value"
+}
+
+func (i *cfgArray) Set(str string) error {
+	kv := strings.Split(str, "=")
+	if len(kv) != 2 {
+		log.Panic().Msgf("invalid cfg keyval: %s\n", str)
+	}
+	viper.SetDefault(kv[0], kv[1])
+	return nil
+}
+
+/* configuration file values are final values */
+func CheckCommandLineConfig() {
+	var cmdlineCfg cfgArray
+
+	version1 := flag.Bool("v", false, "print version and exit")
+	version2 := flag.Bool("version", false, "print version and exit")
+	flag.Var(&cmdlineCfg, "cfg", "Configuration key=val")
+
 	configFilePath := flag.String("config-path", "conf/", "conf/")
 	flag.Parse()
+
+	if *version1 || *version2 {
+		os.Exit(0)
+	}
 
 	viper.SetConfigName(GetEnv("CONF_FILE_NAME", "conf"))
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath(*configFilePath)
 	if err := viper.ReadInConfig(); err != nil {
-		if readErr, ok := err.(viper.ConfigFileNotFoundError); ok {
-			var log *zerolog.Logger = logger.GetInstance()
-			log.Panic().Msgf("No config file found at %s\n", *configFilePath)
-		} else {
-			var log *zerolog.Logger = logger.GetInstance()
+		if readErr, ok := err.(viper.ConfigFileNotFoundError); !ok {
 			log.Panic().Msgf("Error reading config file: %s\n", readErr)
 		}
 	}
+}
+
+func LoadConfigurationFile() {
+	SetDefaultConfig()       // set default values for all config items
+	CheckCommandLineConfig() // update config values from command line, if any
 }
 
 // ================== //
@@ -122,10 +211,10 @@ func GetExternalIPAddr() string {
 
 func GetProtocol(protocol int) string {
 	protocolMap := map[int]string{
-		1:   "icmp",
-		6:   "tcp",
-		17:  "udp",
-		132: "stcp",
+		1:   "ICMP",
+		6:   "TCP",
+		17:  "UDP",
+		132: "STCP",
 	}
 
 	return protocolMap[protocol]
@@ -187,7 +276,6 @@ func GetOSSigChannel() chan os.Signal {
 	c := make(chan os.Signal, 1)
 
 	signal.Notify(c,
-		syscall.SIGKILL,
 		syscall.SIGHUP,
 		syscall.SIGINT,
 		syscall.SIGTERM,
@@ -264,11 +352,28 @@ func writeYamlByte(f *os.File, b []byte) {
 	}
 }
 
-func WriteKnoxPolicyToYamlFile(namespace string, policies []types.KnoxNetworkPolicy) {
-	fileName := GetEnv("POLICY_DIR", "./") + "knox_policies_" + namespace + ".yaml"
+func writeJsonByte(f *os.File, b []byte) {
+	if _, err := f.Write(b); err != nil {
+		log.Error().Msg(err.Error())
+	}
+
+	if err := f.Sync(); err != nil {
+		log.Error().Msg(err.Error())
+	}
+}
+
+func WriteKnoxNetPolicyToYamlFile(namespace string, policies []types.KnoxNetworkPolicy) {
+	fileName := GetEnv("POLICY_DIR", "./")
+	if namespace != "" {
+		fileName = fileName + "knox_net_policies_" + namespace + ".yaml"
+	} else {
+		fileName = fileName + "knox_net_policies.yaml"
+	}
 
 	if err := os.Remove(fileName); err != nil {
-		// log.Error().Msg(err.Error()) // no such file or directory -> ignore
+		if !strings.Contains(err.Error(), NoSuchFileOrDir) {
+			log.Error().Msg(err.Error())
+		}
 	}
 
 	// create policy file
@@ -295,11 +400,17 @@ func WriteKnoxPolicyToYamlFile(namespace string, policies []types.KnoxNetworkPol
 }
 
 func WriteCiliumPolicyToYamlFile(namespace string, policies []types.CiliumNetworkPolicy) {
-	// create policy file
-	fileName := GetEnv("POLICY_DIR", "./") + "cilium_policies_" + namespace + ".yaml"
+	fileName := GetEnv("POLICY_DIR", "./")
+	if namespace != "" {
+		fileName = fileName + "cilium_policies_" + namespace + ".yaml"
+	} else {
+		fileName = fileName + "cilium_policies.yaml"
+	}
 
 	if err := os.Remove(fileName); err != nil {
-		log.Error().Msg(err.Error())
+		if !strings.Contains(err.Error(), NoSuchFileOrDir) {
+			log.Error().Msg(err.Error())
+		}
 	}
 
 	f, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY, 0600)
@@ -321,12 +432,14 @@ func WriteCiliumPolicyToYamlFile(namespace string, policies []types.CiliumNetwor
 	}
 }
 
-func WriteKubeArmorPolicyToYamlFile(namespace string, policies []types.KubeArmorPolicy) {
-	// create policy file
-	fileName := GetEnv("POLICY_DIR", "./") + "system_policies.yaml"
+func WriteKubeArmorPolicyToYamlFile(fname string, policies []types.KubeArmorPolicy) {
+	fileName := GetEnv("POLICY_DIR", "./")
+	fileName = fileName + fname + ".yaml"
 
 	if err := os.Remove(fileName); err != nil {
-		log.Error().Msg(err.Error())
+		if !strings.Contains(err.Error(), NoSuchFileOrDir) {
+			log.Error().Msg(err.Error())
+		}
 	}
 
 	f, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY, 0600)
@@ -346,6 +459,34 @@ func WriteKubeArmorPolicyToYamlFile(namespace string, policies []types.KubeArmor
 	if err := f.Close(); err != nil {
 		log.Error().Msg(err.Error())
 	}
+}
+
+func WriteSysObsDataToJsonFile(obsData types.SysObsResponseData) {
+	fileName := GetEnv("POLICY_DIR", "./")
+	fileName = fileName + "sys_observability_data" + ".json"
+
+	if err := os.Remove(fileName); err != nil {
+		if !strings.Contains(err.Error(), NoSuchFileOrDir) {
+			log.Error().Msg(err.Error())
+		}
+	}
+
+	f, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY, 0600)
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return
+	}
+
+	b, err := json.Marshal(&obsData)
+	if err != nil {
+		log.Error().Msg(err.Error())
+	}
+	writeJsonByte(f, b)
+
+	if err := f.Close(); err != nil {
+		log.Error().Msg(err.Error())
+	}
+
 }
 
 // ========== //

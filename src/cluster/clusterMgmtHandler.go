@@ -2,19 +2,21 @@ package cluster
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
+	"net/http/httputil"
+	"sort"
 	"strconv"
 	"strings"
 
-	"github.com/accuknox/knoxAutoPolicy/src/config"
-	"github.com/accuknox/knoxAutoPolicy/src/libs"
-	logger "github.com/accuknox/knoxAutoPolicy/src/logging"
-	"github.com/accuknox/knoxAutoPolicy/src/types"
+	"github.com/accuknox/auto-policy-discovery/src/config"
+	"github.com/accuknox/auto-policy-discovery/src/libs"
+	logger "github.com/accuknox/auto-policy-discovery/src/logging"
+	"github.com/accuknox/auto-policy-discovery/src/types"
 
 	"github.com/rs/zerolog"
-	"github.com/spf13/viper"
 )
 
 var BaseURL string
@@ -25,7 +27,26 @@ func init() {
 	log = logger.GetInstance()
 }
 
-func getResponseBytes(mothod string, url string, data map[string]interface{}) []byte {
+func dumpHttpClient(req *http.Request, rsp *http.Response) {
+	if req != nil {
+		dump, err := httputil.DumpRequestOut(req, true)
+		if err != nil {
+			log.Error().Msgf("Failed to dump request: %s", err.Error())
+		} else {
+			log.Info().Msgf("REQUEST:\n%q", dump)
+		}
+	}
+	if rsp != nil {
+		dump, err := httputil.DumpResponse(rsp, true)
+		if err != nil {
+			log.Error().Msgf("Failed to dump response: %s", err.Error())
+		} else {
+			log.Info().Msgf("RESPONSE:\n%q", dump)
+		}
+	}
+}
+
+func getResponseBytes(method string, url string, data map[string]interface{}) []byte {
 	if BaseURL == "" {
 		BaseURL = config.GetCfgClusterMgmtURL()
 	}
@@ -40,8 +61,9 @@ func getResponseBytes(mothod string, url string, data map[string]interface{}) []
 		return nil
 	}
 
+	log.Info().Msgf("http request url: %s", url)
 	// create a new request using http [method; POST, GET]
-	req, err := http.NewRequest(mothod, url, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequest(method, url, bytes.NewBuffer(jsonData))
 	if err != nil {
 		log.Error().Msgf("http reqeust error: %s", err.Error())
 		return nil
@@ -51,13 +73,22 @@ func getResponseBytes(mothod string, url string, data map[string]interface{}) []
 	req.Header.Add("Accept", "application/json")
 	req.Header.Add("knox-internal", "true")
 
+	// skip certificate verification
+	skipCertVerification := config.GetCfgNetworkSkipCertVerification()
+	tr := &http.Transport{
+		// #nosec G402
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: skipCertVerification},
+	}
+
+	dumpHttpClient(req, nil)
 	// send req using http Client
-	client := &http.Client{}
+	client := &http.Client{Transport: tr}
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Error().Msgf("Error on response.\n[ERROR] - %s", err)
 		return nil
 	}
+	dumpHttpClient(nil, resp)
 	defer resp.Body.Close()
 
 	// read response to []byte
@@ -87,38 +118,6 @@ func getResponseBytes(mothod string, url string, data map[string]interface{}) []
 	}
 
 	return resultByte
-}
-
-// =========== //
-// == Login == //
-// =========== //
-
-func authLogin() error {
-	user := viper.GetString("accuknox-cluster-mgmt.username")
-	password := viper.GetString("accuknox-cluster-mgmt.password")
-	autourl := viper.GetString("accuknox-cluster-mgmt.url-auth")
-
-	values := map[string]string{"username": user, "password": password}
-	json_data, err := json.Marshal(values)
-	if err != nil {
-		return err
-	}
-
-	resp, err := http.Post(autourl, "application/json",
-		bytes.NewBuffer(json_data))
-
-	if err != nil {
-		return err
-	}
-
-	var res map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
-		return err
-	}
-
-	BearerToken = res["access_token"].(string)
-
-	return nil
 }
 
 // ====================== //
@@ -312,9 +311,14 @@ func GetEndpointsFromCluster(cluster types.Cluster) []types.Endpoint {
 		}
 
 		for _, m := range epCluster.Mappings {
+			protocol, ok := m["Protocol"].(string)
+			if !ok {
+				log.Error().Msg("Field protocol is not a string")
+			}
+
 			mapping := types.Mapping{
-				Protocol: m["Protocol"].(string),
-				Port:     m["port"].(int),
+				Protocol: protocol,
+				Port:     int(m["port"].(float64)),
 				IP:       m["ip"].(string),
 			}
 			ep.Endpoints = append(ep.Endpoints, mapping)
@@ -341,9 +345,9 @@ func GetPodsFromCluster(cluster types.Cluster) []types.Pod {
 
 	url := "/cm/api/v1/cluster-management/pods-in-node"
 	data := map[string]interface{}{
-		"WorkspaceID": cluster.WorkspaceID,
-		"ClusterID":   []int{cluster.ClusterID},
-		"Time":        0,
+		"workspace_id": cluster.WorkspaceID,
+		"cluster_id":   []int{cluster.ClusterID},
+		"Time":         0,
 	}
 
 	res := getResponseBytes("POST", url, data)
@@ -400,6 +404,7 @@ func GetPodsFromCluster(cluster types.Cluster) []types.Pod {
 
 			pod.Labels = append(pod.Labels, key+"="+val)
 		}
+		sort.Strings(pod.Labels)
 
 		results = append(results, pod)
 	}

@@ -1,15 +1,14 @@
 package networkpolicy
 
 import (
-	"fmt"
 	"net/http"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 
-	"github.com/accuknox/knoxAutoPolicy/src/libs"
-	types "github.com/accuknox/knoxAutoPolicy/src/types"
+	"github.com/accuknox/auto-policy-discovery/src/libs"
+	types "github.com/accuknox/auto-policy-discovery/src/types"
 )
 
 var WildPathDigit string = "/[0-9]+"
@@ -114,9 +113,7 @@ func setHTTPTree(targetSrc string, targetDst MergedPortDst, tree map[string]map[
 			HTTPTree:    tree,
 		}
 
-		for _, toPort := range targetDst.ToPorts {
-			httpDst.ToPorts = append(httpDst.ToPorts, toPort)
-		}
+		httpDst.ToPorts = append(httpDst.ToPorts, targetDst.ToPorts...)
 
 		MergedSrcPerMergedDstForHTTP[targetSrc] = []*HTTPDst{&httpDst}
 	}
@@ -321,50 +318,6 @@ func (n *Node) mergeSameChildNodes() {
 // == Tree Handling == //
 // =================== //
 
-func findByName(root *Node, path string, depth int) *Node {
-	queue := make([]*Node, 0)
-	queue = append(queue, root)
-
-	for len(queue) > 0 {
-		nextUp := queue[0]
-		queue = queue[1:]
-
-		if len(nextUp.childNodes) > 0 {
-			for i := 0; i < nextUp.depth; i++ {
-				fmt.Print("\t")
-			}
-			for _, child := range nextUp.childNodes {
-				for i := 0; i < child.depth; i++ {
-					fmt.Print("\t")
-				}
-				queue = append(queue, child)
-			}
-		} else {
-			for i := 0; i < nextUp.depth; i++ {
-				fmt.Print("\t")
-			}
-		}
-	}
-
-	return nil
-}
-
-func printTree(node *Node) {
-	for i := 0; i < node.depth; i++ {
-		fmt.Print("\t")
-	}
-
-	fmt.Println(node.path, node.depth, node.touchCount)
-
-	for _, child := range node.childNodes {
-		for i := 0; i < node.depth; i++ {
-			fmt.Print("\t")
-		}
-
-		printTree(child)
-	}
-}
-
 func checkSamePathLength(paths []string) bool {
 	pathLength := map[int]bool{}
 
@@ -372,11 +325,7 @@ func checkSamePathLength(paths []string) bool {
 		pathLength[len(path)] = true
 	}
 
-	if len(pathLength) > 1 {
-		return false
-	}
-
-	return true
+	return len(pathLength) <= 1
 }
 
 func checkDigitsOnly(paths []string) bool {
@@ -434,51 +383,6 @@ func buildPathTree(treeMap map[string]*Node, paths []string) {
 // ========================== //
 // == Aggreagtion function == //
 // ========================== //
-
-func aggreateHTTPPathsNaive(paths []string) []string {
-	aggregatedPaths := []string{}
-
-	sort.Strings(paths)
-
-	depthToPaths := map[string][]string{}
-
-	pathLevel := 1
-
-	for _, path := range paths {
-		// if path in /apple/banana
-		if len(strings.Split(path, "/")) >= pathLevel+2 {
-			base := "/" + strings.Split(path, "/")[pathLevel]
-			if depPaths, ok := depthToPaths[base]; ok {
-				if !libs.ContainsElement(depPaths, path) {
-					depPaths = append(depPaths, path)
-				}
-				depthToPaths[base] = depPaths
-			} else {
-				depthToPaths[base] = []string{path}
-			}
-		} else {
-			// root path or <= depths
-			if path == "/" || !libs.ContainsElement(aggregatedPaths, path) {
-				aggregatedPaths = append(aggregatedPaths, path)
-			}
-		}
-	}
-
-	for key, paths := range depthToPaths {
-		// if threshold over, aggregate it
-		if len(paths) >= HTTPThreshold {
-			aggregatedPaths = append(aggregatedPaths, key+"/.*")
-		} else {
-			for _, path := range paths {
-				if !libs.ContainsElement(aggregatedPaths, path) {
-					aggregatedPaths = append(aggregatedPaths, path)
-				}
-			}
-		}
-	}
-
-	return aggregatedPaths
-}
 
 func AggregatePaths(treeMap map[string]*Node, paths []string) []string {
 	// build path tree
@@ -558,8 +462,8 @@ func AggregateHTTPRule(aggregatedSrcPerAggregatedDst map[string][]MergedPortDst)
 					httpPathTree = existed
 				}
 
-				aggreatedPaths := AggregatePaths(httpPathTree, paths)
-				for _, aggPath := range aggreatedPaths {
+				aggregatedPaths := AggregatePaths(httpPathTree, paths)
+				for _, aggPath := range aggregatedPaths {
 					updatedAdditionals = append(updatedAdditionals, method+"|"+aggPath)
 				}
 

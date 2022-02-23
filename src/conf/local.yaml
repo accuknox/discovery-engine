@@ -2,17 +2,21 @@ application:
   name: knoxautopolicy
   network:
     operation-mode: 1                         # 1: cronjob | 2: one-time-job
+    operation-trigger: 100
     cron-job-time-interval: "0h0m10s"         # format: XhYmZs 
-    network-log-from: "db"                    # db|hubble
+    network-log-limit: 100000
+    network-log-from: "hubble"                # db|hubble|kafka
     network-log-file: "./flow.json"           # file path
-    network-policy-to: "db|file"              # db, file
+    network-policy-to: "db"              # db, file
     network-policy-dir: "./"
   system:
-    operation-mode: 2                         # 1: cronjob | 2: one-time-job
-    cron-job-time-interval: "0h0m5s"          # format: XhYmZs 
-    system-log-from: "db"                     # db|kubearmor
+    operation-mode: 1                         # 1: cronjob | 2: one-time-job
+    operation-trigger: 100
+    cron-job-time-interval: "0h0m10s"         # format: XhYmZs
+    system-log-from: "kafka"                     # db|kubearmor|kafka
+    system-log-limit: 100000
     system-log-file: "./log.json"             # file path
-    system-policy-to: "db|file"               # db, file
+    system-policy-to: "db"               # db, file
     system-policy-dir: "./"
   cluster:
     cluster-info-from: "k8sclient"            # k8sclient|accuknox
@@ -26,7 +30,6 @@ database:
   user: root
   password: password
   dbname: accuknox
-  table-configuration: auto_policy_config
   table-network-log: network_log
   table-network-policy: network_policy
   table-system-log: system_log
@@ -44,6 +47,7 @@ feed-consumer:
     group-id: knoxautopolicy
     topics: 
       - cilium-telemetry-new
+      - cilium-telemetry
       - kubearmor-syslogs
     security:
       protocol: SSL
@@ -59,7 +63,12 @@ feed-consumer:
 
 logging:
   level: "INFO"
-  
+
+# kubectl -n kube-system port-forward service/hubble-relay --address 0.0.0.0 --address :: 4245:80
 cilium-hubble:
-  url: 10.4.41.240
-  port: 80
+  url: localhost
+  port: 4245
+
+kubearmor:
+  url: localhost
+  port: 32767

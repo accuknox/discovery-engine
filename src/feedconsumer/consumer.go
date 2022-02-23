@@ -2,18 +2,21 @@ package feedconsumer
 
 import (
 	"encoding/json"
-	"errors"
+	"strconv"
 	"sync"
+	"time"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/rs/zerolog"
 
 	"github.com/spf13/viper"
 
-	cfg "github.com/accuknox/knoxAutoPolicy/src/config"
-	"github.com/accuknox/knoxAutoPolicy/src/libs"
-	logger "github.com/accuknox/knoxAutoPolicy/src/logging"
-	types "github.com/accuknox/knoxAutoPolicy/src/types"
+	logger "github.com/accuknox/auto-policy-discovery/src/logging"
+	"github.com/accuknox/auto-policy-discovery/src/plugin"
+	types "github.com/accuknox/auto-policy-discovery/src/types"
+	cilium "github.com/cilium/cilium/api/v1/flow"
+	pb "github.com/kubearmor/KubeArmor/protobuf"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const ( // status
@@ -22,7 +25,7 @@ const ( // status
 )
 
 // ====================== //
-// == Gloabl Variables == //
+// == Global Variables == //
 // ====================== //
 
 var numOfConsumers int
@@ -67,7 +70,7 @@ func (cfc *KnoxFeedConsumer) setupKafkaConfig() {
 	sessionTimeoutMs := viper.GetString("feed-consumer.kafka.session-timeout-ms")
 	autoOffsetReset := viper.GetString("feed-consumer.kafka.auto-offset-reset")
 
-	groupID := viper.GetString("feed-consumer.kafka.group-id")
+	groupID := viper.GetString("feed-consumer.kafka.group-id") + strconv.FormatUint(uint64(time.Now().Unix()), 10)
 	cfc.topics = viper.GetStringSlice("feed-consumer.kafka.topics")
 	cfc.eventsBuffer = viper.GetInt("feed-consumer.kafka.events.buffer")
 
@@ -108,6 +111,35 @@ func (cfc *KnoxFeedConsumer) setupKafkaConfig() {
 	}
 }
 
+func (cfc *KnoxFeedConsumer) HandlePollEvent(ev interface{}) bool {
+	run := true
+	switch e := ev.(type) {
+	case *kafka.Message:
+		if *e.TopicPartition.Topic != "kubearmor-syslogs" { // cilium-hubble
+			if err := cfc.processNetworkLogMessage(e.Value); err != nil {
+				log.Error().Msg(err.Error())
+			}
+		} else { // kubearmor-syslogs
+			if err := cfc.processSystemLogMessage(e.Value); err != nil {
+				log.Error().Msg(err.Error())
+			}
+		}
+	case kafka.Error:
+		// Errors should generally be considered
+		// informational, the client will try to
+		// automatically recover.
+		// But in this example we choose to terminate
+		// the application if all brokers are down.
+		log.Error().Msgf("Error: %v: %v\n", e.Code(), e)
+		if e.Code() == kafka.ErrAllBrokersDown {
+			run = false
+		}
+	default:
+		log.Debug().Msgf("Ignored %v\n", e)
+	}
+	return run
+}
+
 func (cfc *KnoxFeedConsumer) startConsumer() {
 	defer waitG.Done()
 
@@ -138,37 +170,7 @@ func (cfc *KnoxFeedConsumer) startConsumer() {
 			if ev == nil {
 				continue
 			}
-
-			switch e := ev.(type) {
-			case *kafka.Message:
-				if *e.TopicPartition.Topic != "kubearmor-syslogs" { // cilium-hubble
-					if err := cfc.processNetworkLogMessage(e.Value); err != nil {
-						log.Error().Msg(err.Error())
-					}
-					if e.Headers != nil {
-						log.Debug().Msgf("Headers: %v", e.Headers)
-					}
-				} else { // kubearmor-syslogs
-					if err := cfc.processSystemLogMessage(e.Value); err != nil {
-						log.Error().Msg(err.Error())
-					}
-					if e.Headers != nil {
-						log.Debug().Msgf("Headers: %v", e.Headers)
-					}
-				}
-			case kafka.Error:
-				// Errors should generally be considered
-				// informational, the client will try to
-				// automatically recover.
-				// But in this example we choose to terminate
-				// the application if all brokers are down.
-				log.Error().Msgf("Error: %v: %v\n", e.Code(), e)
-				if e.Code() == kafka.ErrAllBrokersDown {
-					run = false
-				}
-			default:
-				log.Debug().Msgf("Ignored %v\n", e)
-			}
+			run = cfc.HandlePollEvent(ev)
 		}
 	}
 
@@ -186,13 +188,19 @@ func (cfc *KnoxFeedConsumer) processNetworkLogMessage(message []byte) error {
 	}
 
 	clusterName := eventMap["cluster_name"]
+
 	clusterNameStr := ""
 	if err := json.Unmarshal(clusterName, &clusterNameStr); err != nil {
+		log.Error().Stack().Msg(err.Error())
 		return err
 	}
 
-	flowEvent := eventMap["flow"]
+	flowEvent, exists := eventMap["flow"]
+	if !exists {
+		return nil
+	}
 	if err := json.Unmarshal(flowEvent, &event); err != nil {
+		log.Error().Msg(err.Error())
 		return err
 	}
 
@@ -203,9 +211,39 @@ func (cfc *KnoxFeedConsumer) processNetworkLogMessage(message []byte) error {
 
 	if cfc.netLogEventsCount == cfc.eventsBuffer {
 		if len(cfc.netLogEvents) > 0 {
-			isSuccess := cfc.PushNetworkLogToDB()
-			if !isSuccess {
-				return errors.New("error saving to DB")
+			for _, netLog := range cfc.netLogEvents {
+				time, _ := strconv.ParseInt(netLog.Time, 10, 64)
+				flow := &cilium.Flow{
+					TrafficDirection: cilium.TrafficDirection(plugin.TrafficDirection[netLog.TrafficDirection]),
+					PolicyMatchType:  uint32(netLog.PolicyMatchType),
+					DropReason:       uint32(netLog.DropReason),
+					Verdict:          cilium.Verdict(plugin.Verdict[netLog.Verdict]),
+					Time: &timestamppb.Timestamp{
+						Seconds: time,
+					},
+					EventType:   &cilium.CiliumEventType{},
+					Source:      &cilium.Endpoint{},
+					Destination: &cilium.Endpoint{},
+					IP:          &cilium.IP{},
+					L4:          &cilium.Layer4{},
+					L7:          &cilium.Layer7{},
+				}
+
+				// _ = is to ignore the return value
+				_ = plugin.GetFlowData(netLog.EventType, flow.EventType)
+				_ = plugin.GetFlowData(netLog.Source, flow.Source)
+				_ = plugin.GetFlowData(netLog.Destination, flow.Destination)
+				_ = plugin.GetFlowData(netLog.IP, flow.IP)
+				_ = plugin.GetFlowData(netLog.L4, flow.L4)
+				_ = plugin.GetFlowData(netLog.L7, flow.L7)
+
+				knoxFlow, valid := plugin.ConvertCiliumFlowToKnoxNetworkLog(flow)
+				if valid {
+					knoxFlow.ClusterName = netLog.ClusterName
+					plugin.CiliumFlowsKafkaMutex.Lock()
+					plugin.CiliumFlowsKafka = append(plugin.CiliumFlowsKafka, &knoxFlow)
+					plugin.CiliumFlowsKafkaMutex.Unlock()
+				}
 			}
 			cfc.netLogEvents = nil
 			cfc.netLogEvents = make([]types.NetworkLogEvent, 0, cfc.eventsBuffer)
@@ -215,15 +253,6 @@ func (cfc *KnoxFeedConsumer) processNetworkLogMessage(message []byte) error {
 	}
 
 	return nil
-}
-
-func (cfc *KnoxFeedConsumer) PushNetworkLogToDB() bool {
-	if err := libs.InsertNetworkLogToDB(cfg.GetCfgDB(), cfc.netLogEvents); err != nil {
-		log.Error().Msgf("InsertNetworkFlowToDB err: %s", err.Error())
-		return false
-	}
-
-	return true
 }
 
 // == //
@@ -242,9 +271,25 @@ func (cfc *KnoxFeedConsumer) processSystemLogMessage(message []byte) error {
 
 	if cfc.syslogEventsCount == cfc.eventsBuffer {
 		if len(cfc.syslogEvents) > 0 {
-			isSuccess := cfc.PushSystemLogToDB()
-			if !isSuccess {
-				return errors.New("error saving to DB")
+			for _, syslog := range cfc.syslogEvents {
+				log := pb.Log{
+					ClusterName:   syslog.ClusterName,
+					HostName:      syslog.HostName,
+					NamespaceName: syslog.NamespaceName,
+					ContainerName: syslog.ContainerName,
+					PodName:       syslog.PodName,
+					Source:        syslog.Source,
+					Operation:     syslog.Operation,
+					Resource:      syslog.Resource,
+					Data:          syslog.Data,
+					Result:        syslog.Result,
+				}
+
+				knoxLog := plugin.ConvertKubeArmorLogToKnoxSystemLog(&log)
+				knoxLog.ClusterName = syslog.Clustername
+				plugin.KubeArmorKafkaLogsMutex.Lock()
+				plugin.KubeArmorKafkaLogs = append(plugin.KubeArmorKafkaLogs, &knoxLog)
+				plugin.KubeArmorKafkaLogsMutex.Unlock()
 			}
 			cfc.syslogEvents = nil
 			cfc.syslogEvents = make([]types.SystemLogEvent, 0, cfc.eventsBuffer)
@@ -256,26 +301,16 @@ func (cfc *KnoxFeedConsumer) processSystemLogMessage(message []byte) error {
 	return nil
 }
 
-func (cfc *KnoxFeedConsumer) PushSystemLogToDB() bool {
-	if err := libs.InsertSystemLogToDB(cfg.GetCfgDB(), cfc.syslogEvents); err != nil {
-		log.Error().Msgf("InsertSystemLogToDB err: %s", err.Error())
-		return false
-	}
-
-	return true
-}
-
 // =================== //
 // == Consumer Main == //
 // =================== //
 
 func StartConsumer() {
-	numOfConsumers = viper.GetInt("feed-consumer.kafka.number-of-consumers")
-
 	if Status == STATUS_RUNNING {
-		log.Info().Msg("There is already running consumer(s)")
 		return
 	}
+
+	numOfConsumers = viper.GetInt("feed-consumer.kafka.number-of-consumers")
 
 	n := 0
 	log.Info().Msgf("%d Knox feed consumer(s) started", numOfConsumers)

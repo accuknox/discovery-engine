@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Values.labels.app }}
+  name: knoxautopolicy
   labels:
     deployment: knoxautopolicy
 spec:
@@ -15,8 +15,8 @@ spec:
     spec:
       serviceAccountName: knoxautopolicy
       containers:
-      - image: gcr.io/accuknox/snapshot/knoxautopolicy:latest 
-        #image: accuknox/knoxautopolicy:latest
+      - image: accuknox/knoxautopolicy:dev
+        imagePullPolicy: Always
         name: knoxautopolicy
         ports:
         - containerPort: 9089

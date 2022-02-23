@@ -35,19 +35,21 @@ func configure(config Config) *zerolog.Logger {
 	}
 	mw := io.MultiWriter(writers...)
 
-	_logger := zerolog.New(mw).With().Timestamp().Caller().Logger()
+	logger := zerolog.New(mw).With().Timestamp().Caller().Logger()
 
-	_logger.Info().
-		Bool("fileLogging", config.FileLoggingEnabled).
-		Bool("jsonLogOutput", config.EncodeLogsAsJSON).
-		Str("logDirectory", config.Directory).
-		Str("fileName", config.Filename).
-		Int("maxSizeMB", config.MaxSize).
-		Int("maxBackups", config.MaxBackups).
-		Int("maxAgeInDays", config.MaxAge).
-		Msg("logging configured")
+	/*
+		logger.Info().
+			Bool("fileLogging", config.FileLoggingEnabled).
+			Bool("jsonLogOutput", config.EncodeLogsAsJSON).
+			Str("logDirectory", config.Directory).
+			Str("fileName", config.Filename).
+			Int("maxSizeMB", config.MaxSize).
+			Int("maxBackups", config.MaxBackups).
+			Int("maxAgeInDays", config.MaxAge).
+			Msg("logging configured")
+	*/
 
-	return &_logger
+	return &logger
 }
 
 func newRollingFile(config Config) io.Writer {

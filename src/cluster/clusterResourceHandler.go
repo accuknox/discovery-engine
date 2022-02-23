@@ -3,8 +3,8 @@ package cluster
 import (
 	"errors"
 
-	"github.com/accuknox/knoxAutoPolicy/src/config"
-	"github.com/accuknox/knoxAutoPolicy/src/types"
+	"github.com/accuknox/auto-policy-discovery/src/config"
+	"github.com/accuknox/auto-policy-discovery/src/types"
 )
 
 func GetPods(clusterName string) []types.Pod {

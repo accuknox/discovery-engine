@@ -5,13 +5,17 @@ metadata:
   labels:
 {{ toYaml .Values.labels | indent 4 }}
 spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  
   selector:
     matchLabels:
-      container: {{ .Values.labels.app }}
+      app: {{ .Values.labels.app }}
   template:
     metadata:
       labels:
-        container: {{ .Values.labels.app }}
+        app: {{ .Values.labels.app }}
       annotations:
         checksum.helm.kubernetes.io/configmap: {{ include (print $.Chart.Name "/templates/dev-config.yaml") . | sha256sum }}
         checksum.helm.kubernetes.io/secret: {{ include (print $.Chart.Name "/templates/kafka-secret.yaml") . | sha256sum }}
