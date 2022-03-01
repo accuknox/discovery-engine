@@ -140,7 +140,7 @@ func (cfc *KnoxFeedConsumer) HandlePollEvent(ev interface{}) bool {
 	return run
 }
 
-func (cfc *KnoxFeedConsumer) startConsumer(topic string) {
+func (cfc *KnoxFeedConsumer) startConsumer() {
 	defer waitG.Done()
 
 	c, err := kafka.NewConsumer(&cfc.kafkaConfig)
@@ -150,14 +150,13 @@ func (cfc *KnoxFeedConsumer) startConsumer(topic string) {
 	}
 	log.Debug().Msgf("Created Consumer %v", c)
 
-	err = c.Subscribe(topic, nil)
-	// err = c.SubscribeTopics(topic, nil)
+	err = c.SubscribeTopics(cfc.topics, nil)
 	if err != nil {
 		log.Error().Msgf("Failed to subscribe topics: %s", err)
 		return
 	}
 
-	log.Info().Msgf("Starting consumer %d, topic: %v", cfc.id, topic)
+	log.Info().Msgf("Starting consumer %d, topics: %v", cfc.id, cfc.topics)
 
 	run := true
 	for run {
@@ -320,13 +319,10 @@ func StartConsumer() {
 		c := &KnoxFeedConsumer{
 			id: n + 1,
 		}
-		if len(c.topics) > numOfConsumers {
-			log.Error().Msgf("number of topics:%+v are more that numOfConsumers:%d", c.topics, numOfConsumers)
-		}
 
 		c.setupKafkaConfig()
 		consumers = append(consumers, c)
-		go c.startConsumer(c.topics[n%len(c.topics)])
+		go c.startConsumer()
 		waitG.Add(1)
 		n++
 	}
