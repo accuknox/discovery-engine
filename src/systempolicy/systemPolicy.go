@@ -1,6 +1,10 @@
 package systempolicy
 
 import (
+	// md5 is used only for hash creation and the hash is not used as salt for any crypto ops
+	// #nosec G501
+	"crypto/md5"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io/ioutil"
@@ -613,6 +617,11 @@ func mergeFromSource(pols []types.KnoxSystemPolicy) []types.KnoxSystemPolicy {
 func mergeSysPolicies(pols []types.KnoxSystemPolicy) []types.KnoxSystemPolicy {
 	var results []types.KnoxSystemPolicy
 	for _, pol := range pols {
+		// We are using md5 digest just for random creation based on label
+		// strings. This hash is not used in any cryptographic operation.
+		// #nosec G401
+		hash := md5.Sum([]byte(pol.Metadata["labels"]))
+		pol.Metadata["name"] = "autopol-" + pol.Metadata["namespace"] + "-" + pol.Metadata["containername"] + "-" + hex.EncodeToString(hash[:])
 		i := checkIfMetadataMatches(pol, results)
 		if i < 0 {
 			results = append(results, pol)
@@ -639,8 +648,7 @@ func mergeSysPolicies(pols []types.KnoxSystemPolicy) []types.KnoxSystemPolicy {
 			mp := &results[i].Spec.Network.MatchProtocols
 			*mp = append(*mp, pol.Spec.Network.MatchProtocols...)
 		}
-		md5SumB := []byte(pol.Metadata["labels"])
-		results[i].Metadata["name"] = "autopol-" + pol.Metadata["namespace"] + "-" + pol.Metadata["containername"] + string(md5SumB[:])
+		results[i].Metadata["name"] = pol.Metadata["name"]
 	}
 
 	results = mergeFromSource(results)
