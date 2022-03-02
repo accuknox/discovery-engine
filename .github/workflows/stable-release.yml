@@ -7,16 +7,16 @@ on:
     paths:
       - 'STABLE-RELEASE'
 
-name: Knoxautopolicy stable release 
+name: auto-policy-discovery stable release
 
 jobs:
   build:
-    name: Create Knoxautopolicy Release - 18.04
+    name: Create auto-policy-discovery Release - 18.04
     if: github.repository == 'accuknox/auto-policy-discovery'
     runs-on: ubuntu-18.04
     timeout-minutes: 20
     steps:
-      - name: Checkout Knoxautopolicy code
+      - name: Checkout auto-policy-discovery code
         uses: actions/checkout@v2
 
       - name: Pull Docker Hub image
@@ -31,5 +31,5 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_AUTHTOK }}
 
-      - name: Push Knoxautopolicy images to Docker
+      - name: Push auto-policy-discovery images to Docker
         run:  ./src/build/push_knoxautopolicy.sh stable
