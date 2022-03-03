@@ -94,24 +94,21 @@ func addPathSrc(path string, srcs []string, out *types.KnoxSys) {
 }
 
 func TestMergeSysPolicies(t *testing.T) {
-	pol := types.KnoxSystemPolicy{}
+	pol := getKnoxSystemPolicy()
 
-	pol.Metadata = map[string]string{}
-	pol.Metadata["clusterName"] = "default"
-	pol.Metadata["namespace"] = "default"
-	pol.Metadata["containername"] = "kabuntu"
-	pol.Metadata["labels"] = "xyz=abc"
 	addPathSrc("/usr/bin/ls", []string{"/bin/stash"}, &pol.Spec.File)
 	addPathSrc("/usr/abc", []string{"/bin/cash"}, &pol.Spec.File)
 	addPathSrc("/usr/bin/ls", []string{"/bin/bash"}, &pol.Spec.File)
 
-	pol2 := types.KnoxSystemPolicy{}
+	pol2 := getKnoxSystemPolicy()
+	pol2.Metadata["containername"] = "abclmn"
 	addPathSrc("/usr/bin/", []string{"/bin/stash"}, &pol2.Spec.File)
 	addPathSrc("/usr/abc/", []string{"/bin/cash"}, &pol2.Spec.File)
 	addPathSrc("/usr/bin/", []string{"/bin/bash"}, &pol2.Spec.File)
 
 	results := mergeSysPolicies([]types.KnoxSystemPolicy{pol, pol2})
 	res := results[0]
+	// fmt.Println(res.Metadata)
 	assert.Equal(t, res.Spec.File.MatchPaths[0].Path, "/usr/abc")
 	assert.Equal(t, res.Spec.File.MatchPaths[0].FromSource[0].Path, "/bin/cash")
 
@@ -130,7 +127,7 @@ func TestMergeSysPolicies(t *testing.T) {
 
 }
 
-func TestMergeSysPoliciesProcess(t *testing.T) {
+func getKnoxSystemPolicy() types.KnoxSystemPolicy {
 	pol := types.KnoxSystemPolicy{}
 
 	pol.Metadata = map[string]string{}
@@ -138,11 +135,19 @@ func TestMergeSysPoliciesProcess(t *testing.T) {
 	pol.Metadata["namespace"] = "default"
 	pol.Metadata["containername"] = "kabuntu"
 	pol.Metadata["labels"] = "xyz=abc"
+	pol.Metadata["name"] = "autopol-xxasfsfsadas"
+	return pol
+}
+
+func TestMergeSysPoliciesProcess(t *testing.T) {
+	pol := getKnoxSystemPolicy()
+
 	addPathSrc("/usr/bin/ls", []string{"/bin/stash"}, &pol.Spec.Process)
 	addPathSrc("/usr/abc", []string{"/bin/cash"}, &pol.Spec.Process)
 	addPathSrc("/usr/bin/ls", []string{"/bin/bash"}, &pol.Spec.Process)
 
-	pol2 := types.KnoxSystemPolicy{}
+	pol2 := getKnoxSystemPolicy()
+	pol2.Metadata["containername"] = "abclmn"
 	addPathSrc("/usr/bin/", []string{"/bin/stash"}, &pol2.Spec.Process)
 	addPathSrc("/usr/abc/", []string{"/bin/cash"}, &pol2.Spec.Process)
 	addPathSrc("/usr/bin/", []string{"/bin/bash"}, &pol2.Spec.Process)

@@ -499,7 +499,7 @@ func CreateTableSystemPolicyMySQL(cfg types.ConfigDB) error {
 			"	`id` int NOT NULL AUTO_INCREMENT," +
 			"	`apiVersion` varchar(40) DEFAULT NULL," +
 			"	`kind` varchar(20) DEFAULT NULL," +
-			"	`name` varchar(50) DEFAULT NULL," +
+			"	`name` varchar(128) DEFAULT NULL," +
 			"	`clusterName` varchar(50) DEFAULT NULL," +
 			"	`namespace` varchar(50) DEFAULT NULL," +
 			"   `type` varchar(20) NOT NULL," +
