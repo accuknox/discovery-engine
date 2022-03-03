@@ -152,7 +152,7 @@ config:
       security:
         protocol: SSL
       ssl:
-        enabled: true
+        enabled: false
       ca:
         location: /kafka-ssl/ca.pem
       keystore:
