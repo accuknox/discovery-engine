@@ -144,7 +144,7 @@ config:
       broker-address-family: v4
       session-timeout-ms: 6000
       auto-offset-reset: "latest" # earliest | latest
-      bootstrap-servers: "accuknox-kafka-bootstrap.accuknox-kafka.svc.cluster.local:9095"
+      bootstrap-servers: "accuknox-kafka-bootstrap.accuknox-kafka.svc.cluster.local:9092"
       group-id: knoxautopolicy
       topics: 
         - cilium-telemetry-new
