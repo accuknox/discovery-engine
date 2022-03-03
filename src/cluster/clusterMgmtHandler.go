@@ -29,19 +29,19 @@ func init() {
 
 func dumpHttpClient(req *http.Request, rsp *http.Response) {
 	if req != nil {
-		dump, err := httputil.DumpRequestOut(req, true)
+		_, err := httputil.DumpRequestOut(req, true)
 		if err != nil {
 			log.Error().Msgf("Failed to dump request: %s", err.Error())
-		} else {
-			log.Info().Msgf("REQUEST:\n%q", dump)
+			//		} else {
+			//			log.Info().Msgf("REQUEST:\n%q", dump)
 		}
 	}
 	if rsp != nil {
-		dump, err := httputil.DumpResponse(rsp, true)
+		_, err := httputil.DumpResponse(rsp, true)
 		if err != nil {
 			log.Error().Msgf("Failed to dump response: %s", err.Error())
-		} else {
-			log.Info().Msgf("RESPONSE:\n%q", dump)
+			//		} else {
+			//			log.Info().Msgf("RESPONSE:\n%q", dump)
 		}
 	}
 }
