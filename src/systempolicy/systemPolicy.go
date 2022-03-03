@@ -3,11 +3,13 @@ package systempolicy
 import (
 	"encoding/json"
 	"errors"
+	"hash/fnv"
 	"io/ioutil"
 	"os"
 	"reflect"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -610,9 +612,16 @@ func mergeFromSource(pols []types.KnoxSystemPolicy) []types.KnoxSystemPolicy {
 	return results
 }
 
+func hashInt(s string) uint32 {
+	h := fnv.New32a()
+	_, _ = h.Write([]byte(s))
+	return h.Sum32()
+}
+
 func mergeSysPolicies(pols []types.KnoxSystemPolicy) []types.KnoxSystemPolicy {
 	var results []types.KnoxSystemPolicy
 	for _, pol := range pols {
+		pol.Metadata["name"] = "autopol-system-" + strconv.FormatUint(uint64(hashInt(pol.Metadata["labels"])), 10)
 		i := checkIfMetadataMatches(pol, results)
 		if i < 0 {
 			results = append(results, pol)
@@ -639,7 +648,7 @@ func mergeSysPolicies(pols []types.KnoxSystemPolicy) []types.KnoxSystemPolicy {
 			mp := &results[i].Spec.Network.MatchProtocols
 			*mp = append(*mp, pol.Spec.Network.MatchProtocols...)
 		}
-		results[i].Metadata["name"] = "autopol-" + pol.Metadata["namespace"] + "-" + pol.Metadata["containername"]
+		results[i].Metadata["name"] = pol.Metadata["name"]
 	}
 
 	results = mergeFromSource(results)
