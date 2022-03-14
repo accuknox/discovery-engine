@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/accuknox/auto-policy-discovery/src/config"
 	"github.com/accuknox/auto-policy-discovery/src/libs"
 	"github.com/accuknox/auto-policy-discovery/src/types"
 	pb "github.com/kubearmor/KubeArmor/protobuf"
@@ -23,12 +24,21 @@ var KubeArmorKafkaLogsMutex *sync.Mutex
 
 func ConvertKnoxSystemPolicyToKubeArmorPolicy(knoxPolicies []types.KnoxSystemPolicy) []types.KubeArmorPolicy {
 	results := []types.KubeArmorPolicy{}
+	var kubePolicy types.KubeArmorPolicy
 
 	for _, policy := range knoxPolicies {
-		kubePolicy := types.KubeArmorPolicy{
-			APIVersion: "security.kubearmor.com/v1",
-			Kind:       "KubeArmorPolicy",
-			Metadata:   map[string]string{},
+		if config.GetCfgClusterInfoFrom() == "vm" {
+			kubePolicy = types.KubeArmorPolicy{
+				APIVersion: "security.kubearmor.com/v1",
+				Kind:       "KubeArmorHostPolicy",
+				Metadata:   map[string]string{},
+			}
+		} else {
+			kubePolicy = types.KubeArmorPolicy{
+				APIVersion: "security.kubearmor.com/v1",
+				Kind:       "KubeArmorPolicy",
+				Metadata:   map[string]string{},
+			}
 		}
 
 		kubePolicy.Metadata["namespace"] = policy.Metadata["namespace"]
@@ -140,6 +150,12 @@ func ConvertKubeArmorLogToKnoxSystemLog(relayLog *pb.Log) types.KnoxSystemLog {
 		Data:           relayLog.Data,
 		ReadOnly:       readOnly,
 		Result:         relayLog.Result,
+	}
+
+	if relayLog.Type == "HostLog" {
+		knoxSystemLog.ClusterName = relayLog.HostName
+		knoxSystemLog.Namespace = "default"
+		knoxSystemLog.PodName = "default"
 	}
 
 	return knoxSystemLog

@@ -716,11 +716,13 @@ func ConvertWPFSToKnoxSysPolicy(wpfsSet types.ResourceSetMap, pnMap types.Policy
 		policy.Metadata["labels"] = wpfs.Labels
 		policy.Metadata["name"] = pnMap[wpfs]
 
-		labels := strings.Split(wpfs.Labels, ",")
-		for _, label := range labels {
-			k := strings.Split(label, "=")[0]
-			v := strings.Split(label, "=")[1]
-			policy.Spec.Selector.MatchLabels[k] = v
+		if wpfs.Labels != "" {
+			labels := strings.Split(wpfs.Labels, ",")
+			for _, label := range labels {
+				k := strings.Split(label, "=")[0]
+				v := strings.Split(label, "=")[1]
+				policy.Spec.Selector.MatchLabels[k] = v
+			}
 		}
 
 		results = append(results, policy)

@@ -11,6 +11,14 @@ func GetPods(clusterName string) []types.Pod {
 	if config.GetCfgClusterInfoFrom() == "k8sclient" { // get from k8s client api
 		pods := GetPodsFromK8sClient()
 		return pods
+	} else if config.GetCfgClusterInfoFrom() == "vm" { // no cluster available, only vm
+		pods := []types.Pod{}
+		pods = append(pods, types.Pod{
+			Namespace: "default",
+			PodName:   "default",
+			Labels:    nil,
+		})
+		return pods
 	} else {
 		clusterInstance := GetClusterFromClusterName(clusterName)
 		if clusterInstance.ClusterID == 0 { // cluster not onboarded
