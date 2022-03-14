@@ -21,7 +21,7 @@ application:
     system-policy-dir: "./"
     deprecate-old-mode: true
   cluster:
-    cluster-info-from: "k8sclient"            # k8sclient|accuknox|vm # vm is used for VMs/Bare-metals
+    cluster-info-from: "k8sclient"            # k8sclient|accuknox
     #cluster-mgmt-url: "http://cluster-management-service.accuknox-dev-cluster-mgmt.svc.cluster.local/cm"
     cluster-mgmt-url: "http://localhost:8080"
 

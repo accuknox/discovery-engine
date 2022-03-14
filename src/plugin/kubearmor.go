@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/accuknox/auto-policy-discovery/src/config"
 	"github.com/accuknox/auto-policy-discovery/src/libs"
 	"github.com/accuknox/auto-policy-discovery/src/types"
 	pb "github.com/kubearmor/KubeArmor/protobuf"
@@ -24,27 +23,22 @@ var KubeArmorKafkaLogsMutex *sync.Mutex
 
 func ConvertKnoxSystemPolicyToKubeArmorPolicy(knoxPolicies []types.KnoxSystemPolicy) []types.KubeArmorPolicy {
 	results := []types.KubeArmorPolicy{}
-	var kubePolicy types.KubeArmorPolicy
 
 	for _, policy := range knoxPolicies {
-		if config.GetCfgClusterInfoFrom() == "vm" {
-			kubePolicy = types.KubeArmorPolicy{
-				APIVersion: "security.kubearmor.com/v1",
-				Kind:       "KubeArmorHostPolicy",
-				Metadata:   map[string]string{},
-			}
-		} else {
-			kubePolicy = types.KubeArmorPolicy{
-				APIVersion: "security.kubearmor.com/v1",
-				Kind:       "KubeArmorPolicy",
-				Metadata:   map[string]string{},
-			}
+		kubePolicy := types.KubeArmorPolicy{
+			APIVersion: "security.kubearmor.com/v1",
+			Kind:       "KubeArmorPolicy",
+			Metadata:   map[string]string{},
 		}
 
 		kubePolicy.Metadata["namespace"] = policy.Metadata["namespace"]
 		kubePolicy.Metadata["clusterName"] = policy.Metadata["clusterName"]
 		kubePolicy.Metadata["containername"] = policy.Metadata["containername"]
 		kubePolicy.Metadata["name"] = policy.Metadata["name"]
+
+		if policy.Metadata["namespace"] == types.PolicyDiscoveryHost {
+			kubePolicy.Kind = "KubeArmorHostPolicy"
+		}
 
 		kubePolicy.Spec = policy.Spec
 
@@ -153,8 +147,8 @@ func ConvertKubeArmorLogToKnoxSystemLog(relayLog *pb.Log) types.KnoxSystemLog {
 	}
 
 	if relayLog.Type == "HostLog" {
-		knoxSystemLog.ClusterName = relayLog.HostName
-		knoxSystemLog.Namespace = "default"
+		knoxSystemLog.ContainerName = relayLog.HostName
+		knoxSystemLog.Namespace = types.PolicyDiscoveryHost
 		knoxSystemLog.PodName = "default"
 	}
 
