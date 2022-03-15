@@ -32,6 +32,30 @@ var GitBranch string
 var BuildDate string
 var Version string
 
+const (
+	IPProtoUnknown   = -1
+	IPProtocolICMP   = 1
+	IPProtocolTCP    = 6
+	IPProtocolUDP    = 17
+	IPProtocolICMPv6 = 58
+	IPProtocolSCTP   = 132
+)
+
+var protocolMap = map[int]string{
+	IPProtoUnknown:   "Unknown",
+	IPProtocolICMP:   "ICMP",
+	IPProtocolTCP:    "TCP",
+	IPProtocolUDP:    "UDP",
+	IPProtocolICMPv6: "ICMPv6",
+	IPProtocolSCTP:   "SCTP",
+}
+
+// Array for ICMP type which can be considered as ICMP reply packets.
+// TODO: Identity all the ICMP reply types
+var ICMPReplyType = []int{
+	0, // EchoReply
+}
+
 func printBuildDetails() {
 	if GitCommit == "" {
 		return
@@ -210,14 +234,21 @@ func GetExternalIPAddr() string {
 }
 
 func GetProtocol(protocol int) string {
-	protocolMap := map[int]string{
-		1:   "ICMP",
-		6:   "TCP",
-		17:  "UDP",
-		132: "STCP",
-	}
-
 	return protocolMap[protocol]
+}
+
+func IsICMP(protocol int) bool {
+	if protocol == IPProtocolICMP || protocol == IPProtocolICMPv6 {
+		return true
+	}
+	return false
+}
+
+func IsReplyICMP(icmpType int) bool {
+	if ContainsElement(ICMPReplyType, icmpType) {
+		return true
+	}
+	return false
 }
 
 // ============ //

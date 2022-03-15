@@ -110,15 +110,19 @@ func FilterNetworkLogsByConfig(logs []types.KnoxNetworkLog, pods []types.Pod) []
 	for _, log := range logs {
 		filtered := false
 
-		if log.Protocol == 6 && !log.SynFlag { // In case of TCP only handle flows with SYN flag
+		if log.Protocol == libs.IPProtocolTCP && !log.SynFlag { // In case of TCP only handle flows with SYN flag
 			continue
 		}
 
-		if log.Protocol == 17 && log.IsReply && log.DstNamespace == "reserved:world" {
+		if log.Protocol == libs.IPProtocolUDP && log.IsReply && log.DstNamespace == "reserved:world" {
 			/*
 				fmt.Printf("dropping UDP SrcPort:%v DstPort:%v DstNamespace:%v\n",
 					log.SrcPort, log.DstPort, log.DstNamespace)
 			*/
+			continue
+		}
+
+		if libs.IsICMP(log.Protocol) && log.IsReply {
 			continue
 		}
 
@@ -639,15 +643,15 @@ func checkK8sExternalService(log types.KnoxNetworkLog, endpoints []types.Endpoin
 }
 
 func isExposedPort(protocol int, port int) bool {
-	if protocol == 6 { // tcp
+	if protocol == libs.IPProtocolTCP {
 		if libs.ContainsElement(K8sServiceTCPPorts, port) {
 			return true
 		}
-	} else if protocol == 17 { // udp
+	} else if protocol == libs.IPProtocolUDP {
 		if libs.ContainsElement(K8sServiceUDPPorts, port) {
 			return true
 		}
-	} else if protocol == 132 { // sctp
+	} else if protocol == libs.IPProtocolSCTP {
 		if libs.ContainsElement(K8sServiceSCTPPorts, port) {
 			return true
 		}

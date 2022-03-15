@@ -51,14 +51,15 @@ const (
 
 	// discovery rule type
 	MATCH_LABELS  = 1 << 0 // 1
-	TO_PORTS      = 1 << 1 // 2
-	TO_HTTPS      = 1 << 2 // 4
-	TO_CIDRS      = 1 << 3 // 8
-	TO_ENTITIES   = 1 << 4 // 16
-	TO_SERVICES   = 1 << 5 // 32
-	TO_FQDNS      = 1 << 6 // 64
-	FROM_CIDRS    = 1 << 7 // 128
-	FROM_ENTITIES = 1 << 8 // 256
+	TO_ICMPS      = 1 << 1 // 2
+	TO_PORTS      = 1 << 2 // 4
+	TO_HTTPS      = 1 << 3 // 8
+	TO_CIDRS      = 1 << 4 // 16
+	TO_ENTITIES   = 1 << 5 // 32
+	TO_SERVICES   = 1 << 6 // 64
+	TO_FQDNS      = 1 << 7 // 126
+	FROM_CIDRS    = 1 << 8 // 256
+	FROM_ENTITIES = 1 << 9 // 512
 )
 
 // if the target IP is in out-of-cluster
@@ -185,6 +186,7 @@ type Dst struct {
 	MatchLabels string
 	Protocol    int
 	DstPort     int
+	ICMPType    int
 }
 
 type MergedPortDst struct {
@@ -195,6 +197,7 @@ type MergedPortDst struct {
 	Additionals []string
 	MatchLabels string
 	ToPorts     []types.SpecPort
+	ICMPs       []types.SpecICMP
 	HTTPTree    map[string]*Node
 }
 
@@ -211,6 +214,11 @@ type FlowIDTrackingFirst struct {
 type FlowIDTrackingSecond struct {
 	AggreagtedSrc string
 	Dst           Dst
+}
+
+type IcmpPortPair struct {
+	ICMPs []types.SpecICMP
+	Ports []types.SpecPort
 }
 
 // =========================================== //
@@ -265,20 +273,23 @@ func getDst(log types.KnoxNetworkLog, endpoints []types.Endpoint, cidrBits int) 
 			Additional: externalInfo,
 			Protocol:   log.Protocol,
 			DstPort:    log.DstPort,
+			ICMPType:   log.ICMPType,
 		}
 
 		return dst, true
 	}
 
-	// handle pod -> pod or pod -> entity
-	// check dst port number is exposed or not (tcp, udp, or sctp)
-	if isExposedPort(log.Protocol, log.DstPort) {
-		dstPort = log.DstPort
-	}
+	if !libs.IsICMP(log.Protocol) {
+		// handle pod -> pod or pod -> entity
+		// check dst port number is exposed or not (tcp, udp, or sctp)
+		if isExposedPort(log.Protocol, log.DstPort) {
+			dstPort = log.DstPort
+		}
 
-	// if dst port is unexposed and namespace is not reserved, it's invalid
-	if dstPort == 0 && !strings.HasPrefix(log.DstNamespace, "reserved:") {
-		return Dst{}, false
+		// if dst port is unexposed and namespace is not reserved, it's invalid
+		if dstPort == 0 && !strings.HasPrefix(log.DstNamespace, "reserved:") {
+			return Dst{}, false
+		}
 	}
 
 	dst := Dst{
@@ -287,6 +298,7 @@ func getDst(log types.KnoxNetworkLog, endpoints []types.Endpoint, cidrBits int) 
 		Additional: externalInfo,
 		Protocol:   log.Protocol,
 		DstPort:    dstPort,
+		ICMPType:   log.ICMPType,
 	}
 
 	return dst, true
@@ -310,7 +322,7 @@ func groupNetworkLogPerDst(networkLogs []types.KnoxNetworkLog, endpoints []types
 
 	// remove tcp dst which is included in http dst
 	for dst := range perDst {
-		if dst.Protocol == 6 && CheckHTTPMethod(dst.Additional) {
+		if dst.Protocol == libs.IPProtocolTCP && CheckHTTPMethod(dst.Additional) {
 			dstCopy := dst
 
 			dstCopy.Additional = ""
@@ -520,8 +532,8 @@ func mergeCIDR(mergedSrcPerMergedDst map[string][]MergedPortDst) {
 	for aggregatedSrc, dsts := range mergedSrcPerMergedDst {
 		newDsts := []MergedPortDst{}
 
-		// cidrToPortsMap, key: cidr addr, val: toPorts rules
-		cidrToPortsMap := map[string][]types.SpecPort{}
+		// cidrMap, key: cidr addr, val: icmps & toPorts rules
+		cidrMap := map[string]IcmpPortPair{}
 
 		// cidrFlowIDMap key: cidr addr, val: flow ids
 		cidrFlowIDMap := map[string][]int{}
@@ -533,23 +545,24 @@ func mergeCIDR(mergedSrcPerMergedDst map[string][]MergedPortDst) {
 				flowIDs := dst.FlowIDs
 
 				for _, cidrAddr := range dst.Additionals {
-					if exist, ok := cidrToPortsMap[cidrAddr]; !ok {
-						// if not exist, create cidr, and move toPorts
-						if len(dst.ToPorts) > 0 {
-							cidrToPortsMap[cidrAddr] = dst.ToPorts
-						} else {
-							cidrToPortsMap[cidrAddr] = []types.SpecPort{}
-						}
+					if icmpPortPair, ok := cidrMap[cidrAddr]; !ok {
+						// if not exist, create cidr, and move icmps & toPorts
+						cidrMap[cidrAddr] = IcmpPortPair{dst.ICMPs, dst.ToPorts}
 					} else {
 						// if exist, check duplicated toPorts
 						for _, port := range dst.ToPorts {
-							if !libs.ContainsElement(exist, port) {
-								exist = append(exist, port)
+							if !libs.ContainsElement(icmpPortPair.Ports, port) {
+								icmpPortPair.Ports = append(icmpPortPair.Ports, port)
 							}
 						}
-
+						// append icmps
+						for _, icmp := range dst.ICMPs {
+							if !libs.ContainsElement(icmpPortPair.ICMPs, icmp) {
+								icmpPortPair.ICMPs = append(icmpPortPair.ICMPs, icmp)
+							}
+						}
 						// update toPorts
-						cidrToPortsMap[cidrAddr] = exist
+						cidrMap[cidrAddr] = icmpPortPair
 					}
 
 					// update flow ids
@@ -572,14 +585,15 @@ func mergeCIDR(mergedSrcPerMergedDst map[string][]MergedPortDst) {
 		}
 
 		// step 2: update mergedSrcPerMergedDst
-		for cidrAddr, toPorts := range cidrToPortsMap {
-			newDNS := MergedPortDst{
+		for cidrAddr, icmpPortPair := range cidrMap {
+			newDst := MergedPortDst{
 				FlowIDs:     cidrFlowIDMap[cidrAddr],
 				Namespace:   "reserved:cidr",
 				Additionals: []string{cidrAddr},
-				ToPorts:     toPorts,
+				ToPorts:     icmpPortPair.Ports,
+				ICMPs:       icmpPortPair.ICMPs,
 			}
-			newDsts = append(newDsts, newDNS)
+			newDsts = append(newDsts, newDst)
 		}
 
 		mergedSrcPerMergedDst[aggregatedSrc] = newDsts
@@ -591,8 +605,8 @@ func mergeFQDN(mergedSrcPerMergedDst map[string][]MergedPortDst) {
 	for aggregatedSrc, dsts := range mergedSrcPerMergedDst {
 		newDsts := []MergedPortDst{}
 
-		// dnsToPortsMap key: domain name, val: toPorts rules
-		dnsToPortsMap := map[string][]types.SpecPort{}
+		// dnsMap key: domain name, val: icmp & toPorts rules
+		dnsMap := map[string]IcmpPortPair{}
 
 		// dnsFlowIDMap key: domain name, val: flow ids
 		dnsFlowIDMap := map[string][]int{}
@@ -604,23 +618,25 @@ func mergeFQDN(mergedSrcPerMergedDst map[string][]MergedPortDst) {
 				flowIDs := dst.FlowIDs
 
 				for _, domainName := range dst.Additionals {
-					if toPorts, ok := dnsToPortsMap[domainName]; !ok {
+					if icmpPortPair, ok := dnsMap[domainName]; !ok {
 						// if not exist, create dns, and move toPorts
-						if len(dst.ToPorts) > 0 {
-							dnsToPortsMap[domainName] = dst.ToPorts
-						} else {
-							dnsToPortsMap[domainName] = []types.SpecPort{}
-						}
+						dnsMap[domainName] = IcmpPortPair{dst.ICMPs, dst.ToPorts}
+
 					} else {
 						// if exist, check duplicated toPorts
-						for _, toPort := range dst.ToPorts {
-							if !libs.ContainsElement(toPorts, toPort) {
-								toPorts = append(toPorts, toPort)
+						for _, port := range dst.ToPorts {
+							if !libs.ContainsElement(icmpPortPair.Ports, port) {
+								icmpPortPair.Ports = append(icmpPortPair.Ports, port)
 							}
 						}
-
+						// append icmps
+						for _, icmp := range dst.ICMPs {
+							if !libs.ContainsElement(icmpPortPair.ICMPs, icmp) {
+								icmpPortPair.ICMPs = append(icmpPortPair.ICMPs, icmp)
+							}
+						}
 						// update toPorts
-						dnsToPortsMap[domainName] = toPorts
+						dnsMap[domainName] = icmpPortPair
 					}
 
 					// update flow ids
@@ -642,12 +658,13 @@ func mergeFQDN(mergedSrcPerMergedDst map[string][]MergedPortDst) {
 		}
 
 		// step 2: update mergedSrcPerMergedDst
-		for domainName, toPorts := range dnsToPortsMap {
+		for domainName, icmpPortPair := range dnsMap {
 			newDNS := MergedPortDst{
 				FlowIDs:     dnsFlowIDMap[domainName],
 				Namespace:   "reserved:dns",
 				Additionals: []string{domainName},
-				ToPorts:     toPorts,
+				ToPorts:     icmpPortPair.Ports,
+				ICMPs:       icmpPortPair.ICMPs,
 			}
 			newDsts = append(newDsts, newDNS)
 		}
@@ -714,13 +731,26 @@ func mergeProtocolPorts(mergedDsts []MergedPortDst, dst Dst, flowIDs []int) []Me
 
 		// matched, append protocol+port info
 		if simple1 == simple2 {
-			port := types.SpecPort{
-				Protocol: libs.GetProtocol(dst.Protocol),
-				Port:     strconv.Itoa(dst.DstPort)}
+			if libs.IsICMP(dst.Protocol) {
+				family := "IPv4"
+				if dst.Protocol == libs.IPProtocolICMPv6 {
+					family = "IPv6"
+				}
 
-			// append toPorts rules
-			mergedDsts[i].ToPorts = append(mergedDsts[i].ToPorts, port)
+				icmp := types.SpecICMP{
+					Family: family,
+					Type:   uint8(dst.ICMPType),
+				}
 
+				mergedDsts[i].ICMPs = append(mergedDsts[i].ICMPs, icmp)
+			} else {
+				port := types.SpecPort{
+					Protocol: libs.GetProtocol(dst.Protocol),
+					Port:     strconv.Itoa(dst.DstPort)}
+
+				// append toPorts rules
+				mergedDsts[i].ToPorts = append(mergedDsts[i].ToPorts, port)
+			}
 			// append flowIDs
 			for _, id := range flowIDs {
 				if !libs.ContainsElement(mergedDsts[i].FlowIDs, id) {
@@ -732,18 +762,29 @@ func mergeProtocolPorts(mergedDsts []MergedPortDst, dst Dst, flowIDs []int) []Me
 		}
 	}
 
-	// if not matched, create new one,
-	port := types.SpecPort{Protocol: libs.GetProtocol(dst.Protocol),
-		Port: strconv.Itoa(dst.DstPort)}
-
+	// if not matched, create new one
 	mergedDst := MergedPortDst{
 		FlowIDs:     flowIDs,
 		Namespace:   dst.Namespace,
 		PodName:     dst.PodName,
 		Additionals: []string{dst.Additional},
-		ToPorts:     []types.SpecPort{port},
 	}
 
+	if libs.IsICMP(dst.Protocol) {
+		family := "IPv4"
+		if dst.Protocol == libs.IPProtocolICMPv6 {
+			family = "IPv6"
+		}
+		mergedDst.ICMPs = []types.SpecICMP{{
+			Family: family,
+			Type:   uint8(dst.ICMPType),
+		}}
+	} else {
+		mergedDst.ToPorts = []types.SpecPort{{
+			Protocol: libs.GetProtocol(dst.Protocol),
+			Port:     strconv.Itoa(dst.DstPort),
+		}}
+	}
 	mergedDsts = append(mergedDsts, mergedDst)
 
 	return mergedDsts
@@ -1116,6 +1157,12 @@ func buildNewIngressPolicyFromEgressPolicy(egressRule types.Egress, selector typ
 		}
 	}
 
+	if len(egressRule.ICMPs) > 0 {
+		ingress.Metadata["rule"] = ingress.Metadata["rule"] + "+icmps"
+		ingress.Spec.Ingress[0].ICMPs = make([]types.SpecICMP, len(egressRule.ICMPs))
+		copy(ingress.Spec.Ingress[0].ICMPs, egressRule.ICMPs)
+	}
+
 	return ingress
 }
 
@@ -1299,6 +1346,11 @@ func buildNetworkPolicy(namespace string, services []types.Service, aggregatedSr
 					}
 				}
 
+				if len(dst.ICMPs) > 0 && (discoverRuleTypes&TO_ICMPS) > 0 {
+					egressPolicy.Metadata["rule"] = egressPolicy.Metadata["rule"] + "+icmps"
+					egressRule.ICMPs = dst.ICMPs
+				}
+
 				// check egress
 				egressPolicy.Spec.Egress = append(egressPolicy.Spec.Egress, egressRule)
 				if discoverPolicyTypes&EGRESS > 0 {
@@ -1333,6 +1385,11 @@ func buildNetworkPolicy(namespace string, services []types.Service, aggregatedSr
 				if len(dst.ToPorts) > 0 && discoverRuleTypes&TO_PORTS > 0 {
 					egressPolicy.Metadata["rule"] = egressPolicy.Metadata["rule"] + "+toPorts"
 					egressRule.ToPorts = dst.ToPorts
+				}
+
+				if len(dst.ICMPs) > 0 && (discoverRuleTypes&TO_ICMPS) > 0 {
+					egressPolicy.Metadata["rule"] = egressPolicy.Metadata["rule"] + "+icmps"
+					egressRule.ICMPs = dst.ICMPs
 				}
 
 				// check egress
@@ -1375,6 +1432,11 @@ func buildNetworkPolicy(namespace string, services []types.Service, aggregatedSr
 					if len(dst.ToPorts) > 0 {
 						egressPolicy.Metadata["rule"] = egressPolicy.Metadata["rule"] + "+toPorts"
 						egressRule.ToPorts = dst.ToPorts
+					}
+
+					if len(dst.ICMPs) > 0 && (discoverRuleTypes&TO_ICMPS) > 0 {
+						egressPolicy.Metadata["rule"] = egressPolicy.Metadata["rule"] + "+icmps"
+						egressRule.ICMPs = dst.ICMPs
 					}
 
 					egressRule.ToFQDNs = []types.SpecFQDN{fqdn}

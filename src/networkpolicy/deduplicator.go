@@ -344,9 +344,9 @@ func UpdateHTTP(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.Knox
 func UpdateToPorts(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.KnoxNetworkPolicy) (types.KnoxNetworkPolicy, bool) {
 	// case 1: if there is no latest, policy is new one
 	latestPolicies := []types.KnoxNetworkPolicy{}
-	if newPolicy.Metadata["rule"] == "toCIDRs+toPorts" {
+	if strings.Contains(newPolicy.Metadata["rule"], "toCIDRs") {
 		latestPolicies = GetLatestCIDRPolicy(existingPolicies, newPolicy)
-	} else if newPolicy.Metadata["rule"] == "toFQDNs+toPorts" {
+	} else if strings.Contains(newPolicy.Metadata["rule"], "toFQDNs") {
 		latestPolicies = GetLatestFQDNPolicy(existingPolicies, newPolicy)
 	} else {
 		return newPolicy, true
@@ -357,31 +357,46 @@ func UpdateToPorts(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.K
 	}
 
 	newToPorts := []types.SpecPort{}
+	newICMPs := []types.SpecICMP{}
 	if newPolicy.Metadata["type"] == "egress" {
 		newToPorts = newPolicy.Spec.Egress[0].ToPorts
+		newICMPs = newPolicy.Spec.Egress[0].ICMPs
 	} else {
 		newToPorts = newPolicy.Spec.Ingress[0].ToPorts
+		newICMPs = newPolicy.Spec.Ingress[0].ICMPs
 	}
 
 	updated := false
 
 	for _, latestPolicy := range latestPolicies {
 		existToPorts := []types.SpecPort{}
+		existICMPs := []types.SpecICMP{}
 		if newPolicy.Metadata["type"] == "egress" {
 			existToPorts = latestPolicy.Spec.Egress[0].ToPorts
+			existICMPs = latestPolicy.Spec.Egress[0].ICMPs
 		} else {
 			existToPorts = latestPolicy.Spec.Ingress[0].ToPorts
+			existICMPs = latestPolicy.Spec.Ingress[0].ICMPs
 		}
 
-		includeAllRules := true
-		for _, rule := range newToPorts {
-			if !libs.ContainsElement(existToPorts, rule) {
-				includeAllRules = false
+		includedAllPortRules := true
+		for _, port := range newToPorts {
+			if !libs.ContainsElement(existToPorts, port) {
+				includedAllPortRules = false
+				break
 			}
 		}
 
-		// case 2: policy has toPorts, which are all includes in latest one
-		if includeAllRules {
+		includedAllICMPRules := true
+		for _, icmp := range newICMPs {
+			if !libs.ContainsElement(existICMPs, icmp) {
+				includedAllICMPRules = false
+				break
+			}
+		}
+
+		// case 2: policy has toPorts & icmps, which are all included in latest one
+		if includedAllPortRules && includedAllICMPRules {
 			// case 2-1: policy has the lower selector count? outdated
 			if len(newPolicy.Spec.Selector.MatchLabels) < len(latestPolicy.Spec.Selector.MatchLabels) {
 				updateOutdatedPolicy(latestPolicy, &newPolicy)
@@ -391,10 +406,20 @@ func UpdateToPorts(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.K
 			continue // next existPolicy
 		}
 
-		// case 3: policy has toPorts, latest has toPorts or no toPorts --> move to new policy
-		for _, toPort := range existToPorts {
-			if !libs.ContainsElement(newToPorts, toPort) {
-				newToPorts = append(newToPorts, toPort)
+		// case 3: policy has toPorts or icmps which are not included in latest one
+		if !includedAllPortRules {
+			for _, toPort := range existToPorts {
+				if !libs.ContainsElement(newToPorts, toPort) {
+					newToPorts = append(newToPorts, toPort)
+				}
+			}
+		}
+
+		if !includedAllICMPRules {
+			for _, icmp := range existICMPs {
+				if !libs.ContainsElement(newICMPs, icmp) {
+					newICMPs = append(newICMPs, icmp)
+				}
 			}
 		}
 
@@ -407,10 +432,11 @@ func UpdateToPorts(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.K
 	if updated {
 		if newPolicy.Metadata["type"] == "egress" {
 			newPolicy.Spec.Egress[0].ToPorts = newToPorts
+			newPolicy.Spec.Egress[0].ICMPs = newICMPs
 		} else {
 			newPolicy.Spec.Ingress[0].ToPorts = newToPorts
+			newPolicy.Spec.Ingress[0].ICMPs = newICMPs
 		}
-
 		return newPolicy, true
 	}
 
@@ -424,13 +450,16 @@ func UpdateMatchLabels(newPolicy types.KnoxNetworkPolicy, existingPolicies []typ
 		return newPolicy, true
 	}
 
+	newICMPs := []types.SpecICMP{}
 	newToPorts := []types.SpecPort{}
 	newTargetLabelsCount := 0
 	if newPolicy.Metadata["type"] == "egress" {
 		newToPorts = newPolicy.Spec.Egress[0].ToPorts
+		newICMPs = newPolicy.Spec.Egress[0].ICMPs
 		newTargetLabelsCount = len(newPolicy.Spec.Egress[0].MatchLabels)
 	} else {
 		newToPorts = newPolicy.Spec.Ingress[0].ToPorts
+		newICMPs = newPolicy.Spec.Egress[0].ICMPs
 		newTargetLabelsCount = len(newPolicy.Spec.Ingress[0].MatchLabels)
 	}
 
@@ -438,25 +467,37 @@ func UpdateMatchLabels(newPolicy types.KnoxNetworkPolicy, existingPolicies []typ
 
 	for _, latestPolicy := range latestPolicies {
 		existToPorts := []types.SpecPort{}
+		existICMPs := []types.SpecICMP{}
 		existTargetLabelsCount := 0
 
 		if newPolicy.Metadata["type"] == "egress" {
 			existToPorts = latestPolicy.Spec.Egress[0].ToPorts
+			existICMPs = latestPolicy.Spec.Egress[0].ICMPs
 			existTargetLabelsCount = len(latestPolicy.Spec.Egress[0].MatchLabels)
 		} else {
 			existToPorts = latestPolicy.Spec.Ingress[0].ToPorts
+			existICMPs = latestPolicy.Spec.Ingress[0].ICMPs
 			existTargetLabelsCount = len(latestPolicy.Spec.Ingress[0].MatchLabels)
 		}
 
-		includeAllRules := true
+		includedAllPortRules := true
 		for _, rule := range newToPorts {
 			if !libs.ContainsElement(existToPorts, rule) {
-				includeAllRules = false
+				includedAllPortRules = false
+				break
 			}
 		}
 
-		// case 2: policy has toPorts, which are all includes in latest one
-		if includeAllRules {
+		includedAllICMPRules := true
+		for _, icmp := range newICMPs {
+			if !libs.ContainsElement(existICMPs, icmp) {
+				includedAllICMPRules = false
+				break
+			}
+		}
+
+		// case 2: policy has toPorts & icmps, which are all included in latest one
+		if includedAllPortRules && includedAllICMPRules {
 			// case 2-1: policy has the lower selector count? outdated
 			if len(newPolicy.Spec.Selector.MatchLabels) < len(latestPolicy.Spec.Selector.MatchLabels) ||
 				newTargetLabelsCount < existTargetLabelsCount {
@@ -468,10 +509,20 @@ func UpdateMatchLabels(newPolicy types.KnoxNetworkPolicy, existingPolicies []typ
 			continue // next existPolicy
 		}
 
-		// case 3: policy has toPorts, latest has toPorts or no toPorts --> move to new policy
-		for _, toPort := range existToPorts {
-			if !libs.ContainsElement(newToPorts, toPort) {
-				newToPorts = append(newToPorts, toPort)
+		// case 3: policy has toPorts or icmps which are not included in latest one
+		if !includedAllPortRules {
+			for _, toPort := range existToPorts {
+				if !libs.ContainsElement(newToPorts, toPort) {
+					newToPorts = append(newToPorts, toPort)
+				}
+			}
+		}
+
+		if !includedAllICMPRules {
+			for _, icmp := range existICMPs {
+				if !libs.ContainsElement(newICMPs, icmp) {
+					newICMPs = append(newICMPs, icmp)
+				}
 			}
 		}
 
@@ -484,8 +535,9 @@ func UpdateMatchLabels(newPolicy types.KnoxNetworkPolicy, existingPolicies []typ
 	if updated {
 		if newPolicy.Metadata["type"] == "egress" {
 			newPolicy.Spec.Egress[0].ToPorts = newToPorts
+			newPolicy.Spec.Egress[0].ICMPs = newICMPs
 		} else {
-			newPolicy.Spec.Ingress[0].ToPorts = newToPorts
+			newPolicy.Spec.Ingress[0].ICMPs = newICMPs
 		}
 
 		return newPolicy, true
@@ -747,6 +799,30 @@ func updateExistCIDRtoNewFQDN(existingPolicies []types.KnoxNetworkPolicy, newPol
 							}
 						}
 
+						if len(existCIDR.Spec.Egress[0].ICMPs) > 0 {
+							// if cidr has ICMPs also, check duplication as well
+							cidrICMPs := existCIDR.Spec.Egress[0].ICMPs
+							fqdnICMPs := fqdnPolicy.Spec.Egress[0].ICMPs
+							if fqdnICMPs == nil {
+								fqdnICMPs = []types.SpecICMP{}
+							}
+
+							// move cidr's ICMPs -> fqdn's ICMPs
+							for _, icmp := range cidrICMPs {
+								if !libs.ContainsElement(fqdnICMPs, icmp) {
+									fqdnICMPs = append(fqdnICMPs, icmp)
+								}
+							}
+
+							// updated fqdn -> newPolicies
+							fqdnPolicy.Spec.Egress[0].ICMPs = fqdnICMPs
+							for i, exist := range newPolicies {
+								if fqdnPolicy.Metadata["name"] == exist.Metadata["name"] {
+									newPolicies[i] = fqdnPolicy
+								}
+							}
+						}
+
 						libs.UpdateOutdatedNetworkPolicy(CfgDB, existCIDR.Metadata["name"], fqdnPolicy.Metadata["name"])
 					}
 				}
@@ -815,7 +891,7 @@ func UpdateDuplicatedPolicy(existingPolicies []types.KnoxNetworkPolicy, discover
 		}
 
 		// step 5: update existing FQDN+toPorts rules: egress
-		if strings.Contains(policy.Metadata["rule"], "toFQDNs") && policy.Metadata["rule"] == "egress" {
+		if strings.Contains(policy.Metadata["rule"], "toFQDNs") && policy.Metadata["type"] == "egress" {
 			updatedPolicy, updated := UpdateToPorts(namedPolicy, existingPolicies)
 			if updated {
 				namedPolicy = updatedPolicy
@@ -831,7 +907,7 @@ func UpdateDuplicatedPolicy(existingPolicies []types.KnoxNetworkPolicy, discover
 		}
 
 		// step 7: update existing Entities rules: egress
-		if strings.Contains(policy.Metadata["rule"], "toServices") && policy.Metadata["rule"] == "egress" {
+		if strings.Contains(policy.Metadata["rule"], "toServices") && policy.Metadata["type"] == "egress" {
 			updatedPolicy, updated := UpdateService(namedPolicy, existingPolicies)
 			if updated {
 				namedPolicy = updatedPolicy
