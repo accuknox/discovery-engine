@@ -47,7 +47,6 @@ feed-consumer:
     group-id: knoxautopolicy
     topics: 
       - cilium-telemetry-new
-      - cilium-telemetry
       - kubearmor-syslogs
     security:
       protocol: SSL

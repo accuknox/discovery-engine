@@ -14,7 +14,7 @@ require (
 	github.com/confluentinc/confluent-kafka-go v1.6.1
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/google/go-cmp v0.5.5
-	github.com/kubearmor/KubeArmor/protobuf v0.0.0-20220208071833-c368ef54b0f0
+	github.com/kubearmor/KubeArmor/protobuf v0.0.0-20220310101419-a9af4bd8b9f5
 	github.com/robfig/cron v1.2.0
 	github.com/rs/zerolog v1.25.0
 	github.com/spf13/viper v1.6.1
