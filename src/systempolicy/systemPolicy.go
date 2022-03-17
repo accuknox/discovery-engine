@@ -1,17 +1,15 @@
 package systempolicy
 
 import (
-	// md5 is used only for hash creation and the hash is not used as salt for any crypto ops
-	// #nosec G501
-	"crypto/md5"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"hash/fnv"
 	"io/ioutil"
 	"os"
 	"reflect"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -224,8 +222,10 @@ func getSystemLogs() []types.KnoxSystemLog {
 
 		// convert kubearmor relay logs -> knox system logs
 		for _, relayLog := range relayLogs {
-			log := plugin.ConvertKubeArmorLogToKnoxSystemLog(relayLog)
-			systemLogs = append(systemLogs, log)
+			log, err := plugin.ConvertKubeArmorLogToKnoxSystemLog(relayLog)
+			if err == nil {
+				systemLogs = append(systemLogs, log)
+			}
 		}
 	} else if SystemLogFrom == "kafka" {
 		log.Info().Msg("Get system log from kafka consumer")
@@ -614,14 +614,16 @@ func mergeFromSource(pols []types.KnoxSystemPolicy) []types.KnoxSystemPolicy {
 	return results
 }
 
+func hashInt(s string) uint32 {
+	h := fnv.New32a()
+	_, _ = h.Write([]byte(s))
+	return h.Sum32()
+}
+
 func mergeSysPolicies(pols []types.KnoxSystemPolicy) []types.KnoxSystemPolicy {
 	var results []types.KnoxSystemPolicy
 	for _, pol := range pols {
-		// We are using md5 digest just for random creation based on label
-		// strings. This hash is not used in any cryptographic operation.
-		// #nosec G401
-		hash := md5.Sum([]byte(pol.Metadata["labels"]))
-		pol.Metadata["name"] = "autopol-" + pol.Metadata["namespace"] + "-" + pol.Metadata["containername"] + "-" + hex.EncodeToString(hash[:])
+		pol.Metadata["name"] = "autopol-system-" + strconv.FormatUint(uint64(hashInt(pol.Metadata["labels"])), 10)
 		i := checkIfMetadataMatches(pol, results)
 		if i < 0 {
 			results = append(results, pol)
@@ -716,11 +718,13 @@ func ConvertWPFSToKnoxSysPolicy(wpfsSet types.ResourceSetMap, pnMap types.Policy
 		policy.Metadata["labels"] = wpfs.Labels
 		policy.Metadata["name"] = pnMap[wpfs]
 
-		labels := strings.Split(wpfs.Labels, ",")
-		for _, label := range labels {
-			k := strings.Split(label, "=")[0]
-			v := strings.Split(label, "=")[1]
-			policy.Spec.Selector.MatchLabels[k] = v
+		if wpfs.Labels != "" {
+			labels := strings.Split(wpfs.Labels, ",")
+			for _, label := range labels {
+				k := strings.Split(label, "=")[0]
+				v := strings.Split(label, "=")[1]
+				policy.Spec.Selector.MatchLabels[k] = v
+			}
 		}
 
 		results = append(results, policy)
@@ -918,7 +922,6 @@ func InitSysPolicyDiscoveryConfiguration() {
 
 func PopulateSystemPoliciesFromSystemLogs(sysLogs []types.KnoxSystemLog) []types.KnoxSystemPolicy {
 
-	isWpfsDbUpdated := false
 	discoveredSystemPolicies := []types.KnoxSystemPolicy{}
 
 	// delete duplicate logs
@@ -952,6 +955,7 @@ func PopulateSystemPoliciesFromSystemLogs(sysLogs []types.KnoxSystemLog) []types
 			}
 
 			polCnt := 0
+			isWpfsDbUpdated := false
 			// 1. discover file operation system policy
 			if SystemPolicyTypes&SYS_OP_FILE_INT > 0 {
 				fileOpLogs := getOperationLogs(SYS_OP_FILE, perPodlogs)

@@ -3,7 +3,9 @@ package plugin
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -35,6 +37,10 @@ func ConvertKnoxSystemPolicyToKubeArmorPolicy(knoxPolicies []types.KnoxSystemPol
 		kubePolicy.Metadata["clusterName"] = policy.Metadata["clusterName"]
 		kubePolicy.Metadata["containername"] = policy.Metadata["containername"]
 		kubePolicy.Metadata["name"] = policy.Metadata["name"]
+
+		if policy.Metadata["namespace"] == types.PolicyDiscoveryVMNamespace {
+			kubePolicy.Kind = "KubeArmorHostPolicy"
+		}
 
 		kubePolicy.Spec = policy.Spec
 
@@ -107,12 +113,17 @@ func ConvertKubeArmorSystemLogsToKnoxSystemLogs(dbDriver string, docs []map[stri
 	return []types.KnoxSystemLog{}
 }
 
-func ConvertKubeArmorLogToKnoxSystemLog(relayLog *pb.Log) types.KnoxSystemLog {
+func ConvertKubeArmorLogToKnoxSystemLog(relayLog *pb.Log) (types.KnoxSystemLog, error) {
 
 	sources := strings.Split(relayLog.Source, " ")
 	source := ""
 	if len(sources) >= 1 {
 		source = sources[0]
+	}
+
+	// check if source is absolute path and does not terminate in "/"
+	if !filepath.IsAbs(source) || strings.HasSuffix(source, "/") {
+		return types.KnoxSystemLog{}, errors.New("invalid file source")
 	}
 
 	resources := strings.Split(relayLog.Resource, " ")
@@ -121,9 +132,22 @@ func ConvertKubeArmorLogToKnoxSystemLog(relayLog *pb.Log) types.KnoxSystemLog {
 		resource = resources[0]
 	}
 
+	// check if resource is absolute path. "/" is ok.
+	if (relayLog.Operation == "File" || relayLog.Operation == "Process") && !filepath.IsAbs(resource) {
+		return types.KnoxSystemLog{}, errors.New("invalid file resource")
+	}
+
 	readOnly := false
 	if relayLog.Data != "" && strings.Contains(relayLog.Data, "O_RDONLY") {
 		readOnly = true
+	}
+
+	if strings.Contains(source, "runc") {
+		source = ""
+	}
+
+	if strings.Contains(resource, "runc") {
+		resource = ""
 	}
 
 	knoxSystemLog := types.KnoxSystemLog{
@@ -142,7 +166,13 @@ func ConvertKubeArmorLogToKnoxSystemLog(relayLog *pb.Log) types.KnoxSystemLog {
 		Result:         relayLog.Result,
 	}
 
-	return knoxSystemLog
+	if relayLog.Type == "HostLog" {
+		knoxSystemLog.ContainerName = relayLog.HostName
+		knoxSystemLog.Namespace = types.PolicyDiscoveryVMNamespace
+		knoxSystemLog.PodName = types.PolicyDiscoveryVMPodName
+	}
+
+	return knoxSystemLog, nil
 }
 
 // ========================= //
