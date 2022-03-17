@@ -285,7 +285,10 @@ func (cfc *KnoxFeedConsumer) processSystemLogMessage(message []byte) error {
 					Result:        syslog.Result,
 				}
 
-				knoxLog := plugin.ConvertKubeArmorLogToKnoxSystemLog(&log)
+				knoxLog, err := plugin.ConvertKubeArmorLogToKnoxSystemLog(&log)
+				if err != nil {
+					continue
+				}
 				knoxLog.ClusterName = syslog.Clustername
 				plugin.KubeArmorKafkaLogsMutex.Lock()
 				plugin.KubeArmorKafkaLogs = append(plugin.KubeArmorKafkaLogs, &knoxLog)

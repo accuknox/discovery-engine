@@ -222,8 +222,10 @@ func getSystemLogs() []types.KnoxSystemLog {
 
 		// convert kubearmor relay logs -> knox system logs
 		for _, relayLog := range relayLogs {
-			log := plugin.ConvertKubeArmorLogToKnoxSystemLog(relayLog)
-			systemLogs = append(systemLogs, log)
+			log, err := plugin.ConvertKubeArmorLogToKnoxSystemLog(relayLog)
+			if err == nil {
+				systemLogs = append(systemLogs, log)
+			}
 		}
 	} else if SystemLogFrom == "kafka" {
 		log.Info().Msg("Get system log from kafka consumer")
@@ -918,7 +920,6 @@ func InitSysPolicyDiscoveryConfiguration() {
 
 func PopulateSystemPoliciesFromSystemLogs(sysLogs []types.KnoxSystemLog) []types.KnoxSystemPolicy {
 
-	isWpfsDbUpdated := false
 	discoveredSystemPolicies := []types.KnoxSystemPolicy{}
 
 	// delete duplicate logs
@@ -952,6 +953,7 @@ func PopulateSystemPoliciesFromSystemLogs(sysLogs []types.KnoxSystemLog) []types
 			}
 
 			polCnt := 0
+			isWpfsDbUpdated := false
 			// 1. discover file operation system policy
 			if SystemPolicyTypes&SYS_OP_FILE_INT > 0 {
 				fileOpLogs := getOperationLogs(SYS_OP_FILE, perPodlogs)
