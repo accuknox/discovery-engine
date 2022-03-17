@@ -1,6 +1,7 @@
 package types
 
-const PolicyDiscoveryHost = "kubearmor-virtualmachine"
+const PolicyDiscoveryVMNamespace = "accuknox-vm-namespace"
+const PolicyDiscoveryVMPodName = "accuknox-vm-podname"
 
 type ConfigDB struct {
 	DBDriver string `json:"db_driver,omitempty" bson:"db_driver,omitempty"`

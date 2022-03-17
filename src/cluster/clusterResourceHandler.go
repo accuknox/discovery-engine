@@ -8,18 +8,26 @@ import (
 )
 
 func GetPods(clusterName string) []types.Pod {
+	var pods []types.Pod
+
 	if config.GetCfgClusterInfoFrom() == "k8sclient" { // get from k8s client api
-		pods := GetPodsFromK8sClient()
-		return pods
+		pods = GetPodsFromK8sClient()
 	} else {
 		clusterInstance := GetClusterFromClusterName(clusterName)
 		if clusterInstance.ClusterID == 0 { // cluster not onboarded
-			return nil
+			pods = nil
+		} else {
+			pods = GetPodsFromCluster(clusterInstance)
 		}
-
-		pods := GetPodsFromCluster(clusterInstance)
-		return pods
 	}
+
+	// Append VM pod type to pods
+	pods = append(pods, types.Pod{
+		Namespace: types.PolicyDiscoveryVMNamespace,
+		PodName:   types.PolicyDiscoveryVMPodName,
+	})
+
+	return pods
 }
 
 func GetAllClusterResources(cluster string) ([]string, []types.Service, []types.Endpoint, []types.Pod, error) {

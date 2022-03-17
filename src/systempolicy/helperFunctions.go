@@ -115,7 +115,7 @@ func FilterSystemLogsByConfig(logs []types.KnoxSystemLog, pods []types.Pod) []ty
 			}
 
 			// 2. check pod labels
-			if (checkItems&2 > 0) && (log.Namespace == types.PolicyDiscoveryHost || containLabelByConfiguration(filter.Labels, getLabelsFromPod(log.PodName, pods))) {
+			if (checkItems&2 > 0) && (log.Namespace == types.PolicyDiscoveryVMNamespace || containLabelByConfiguration(filter.Labels, getLabelsFromPod(log.PodName, pods))) {
 				checkedItems = checkedItems | 1<<1
 			}
 
