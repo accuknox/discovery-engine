@@ -939,17 +939,6 @@ func PopulateSystemPoliciesFromSystemLogs(sysLogs []types.KnoxSystemLog) []types
 		// get k8s pods
 		pods := cluster.GetPods(clusterName)
 
-		// check for vm type and if exist add default to podname
-		for _, sysLog := range sysLogs {
-			if sysLog.Namespace == types.PolicyDiscoveryHost {
-				pods = append(pods, types.Pod{
-					Namespace: types.PolicyDiscoveryHost,
-					PodName:   "default",
-				})
-				break
-			}
-		}
-
 		// filter system logs from configuration
 		cfgFilteredLogs := FilterSystemLogsByConfig(sysLogs, pods)
 

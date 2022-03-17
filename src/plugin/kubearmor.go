@@ -38,7 +38,7 @@ func ConvertKnoxSystemPolicyToKubeArmorPolicy(knoxPolicies []types.KnoxSystemPol
 		kubePolicy.Metadata["containername"] = policy.Metadata["containername"]
 		kubePolicy.Metadata["name"] = policy.Metadata["name"]
 
-		if policy.Metadata["namespace"] == types.PolicyDiscoveryHost {
+		if policy.Metadata["namespace"] == types.PolicyDiscoveryVMNamespace {
 			kubePolicy.Kind = "KubeArmorHostPolicy"
 		}
 
@@ -168,8 +168,8 @@ func ConvertKubeArmorLogToKnoxSystemLog(relayLog *pb.Log) (types.KnoxSystemLog, 
 
 	if relayLog.Type == "HostLog" {
 		knoxSystemLog.ContainerName = relayLog.HostName
-		knoxSystemLog.Namespace = types.PolicyDiscoveryHost
-		knoxSystemLog.PodName = "default"
+		knoxSystemLog.Namespace = types.PolicyDiscoveryVMNamespace
+		knoxSystemLog.PodName = types.PolicyDiscoveryVMPodName
 	}
 
 	return knoxSystemLog, nil
