@@ -718,11 +718,13 @@ func ConvertWPFSToKnoxSysPolicy(wpfsSet types.ResourceSetMap, pnMap types.Policy
 		policy.Metadata["labels"] = wpfs.Labels
 		policy.Metadata["name"] = pnMap[wpfs]
 
-		labels := strings.Split(wpfs.Labels, ",")
-		for _, label := range labels {
-			k := strings.Split(label, "=")[0]
-			v := strings.Split(label, "=")[1]
-			policy.Spec.Selector.MatchLabels[k] = v
+		if wpfs.Labels != "" {
+			labels := strings.Split(wpfs.Labels, ",")
+			for _, label := range labels {
+				k := strings.Split(label, "=")[0]
+				v := strings.Split(label, "=")[1]
+				policy.Spec.Selector.MatchLabels[k] = v
+			}
 		}
 
 		results = append(results, policy)
@@ -936,6 +938,17 @@ func PopulateSystemPoliciesFromSystemLogs(sysLogs []types.KnoxSystemLog) []types
 
 		// get k8s pods
 		pods := cluster.GetPods(clusterName)
+
+		// check for vm type and if exist add default to podname
+		for _, sysLog := range sysLogs {
+			if sysLog.Namespace == types.PolicyDiscoveryHost {
+				pods = append(pods, types.Pod{
+					Namespace: types.PolicyDiscoveryHost,
+					PodName:   "default",
+				})
+				break
+			}
+		}
 
 		// filter system logs from configuration
 		cfgFilteredLogs := FilterSystemLogsByConfig(sysLogs, pods)
