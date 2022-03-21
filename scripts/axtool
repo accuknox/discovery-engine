@@ -1,0 +1,113 @@
+#!/bin/bash
+
+## Run script command in below format"
+## For dbclear, use below format"
+## ./axtool --req dbclear --clustername default --containername wordpress --namespace wordpress-mysql --labels app=mysql --fromsource apache2 --duration 60(secs)
+## For observability, use below format. Currently observability does not support fromsource and duration
+## ./axtool --clustername default --containername wordpress --namespace wordpress-mysql --labels app=mysql
+
+chk_cmd()
+{
+	if ! command -v $1 &>/dev/null; then
+		echo "<$1> command not found"
+		echo "$2"
+		exit
+	fi
+}
+
+prerequisites()
+{
+	chk_cmd yq "Download from https://github.com/mikefarah/yq"
+	chk_cmd grpcurl "Download from https://github.com/fullstorydev/grpcurl"
+}
+
+usage() 
+{
+	cat << EOF
+Usage: $0 <options>
+
+Options could be:
+--req [observe|dbclear] ... default "observe"
+--mode [summary|detail] ... default the json output is printed
+--clustername <clustername>
+--namespace <namespace>
+--containername <container-name>
+--labels <set-of-labels> ... for e.g. --labels "xyz=123,abc=456"
+--fromsource <binary-path>
+--server <ip:port> ... default localhost:9089 .. this is the address of the discovery service
+--duration <1m|1h|1w>
+EOF
+	exit 1
+}
+
+finish()
+{
+	[[ -d "$TMP" ]] && rm -rf $TMP
+}
+
+set_defaults()
+{
+	trap finish EXIT
+	TMP="/tmp/axtool/$$"
+	mkdir -p $TMP
+	[[ $? -ne 0 ]] && echo "unable to mkdir $TMP." && exit 2
+	JSONDAT="$TMP/data.json"
+	REQUEST="observe"
+	SERVER="localhost:9089"
+}
+
+summary()
+{
+	cat $JSONDAT
+}
+
+parse_args()
+{
+	prerequisites
+	set_defaults
+	OPTS=`getopt -o hs: --long server:,mode:,req:,containername:,clustername:,namespace:,labels:,fromsource:,duration:,help -n 'parse-options' -- "$@"`
+	[[ $? -ne 0 ]] && usage
+	eval set -- "$OPTS"
+	while true; do
+		case "$1" in
+			--req ) REQUEST="$2"; shift 2;;
+			--containername ) CONTAINER_NAME="$2"; shift 2;;
+			--mode ) observemode="$2"; shift 2;;
+			-h | --help ) usage;;
+			--clustername ) CLUSTER_NAME="$2"; shift 2;;
+			--namespace ) NAMESPACE="$2"; shift 2;;
+			--labels ) LABELS="$2"; shift 2;;
+			--fromsource ) FROM_SOURCE="$2"; shift 2;;
+			--duration ) DURATION="$2"; shift 2;;
+			--server ) SERVER="$2"; shift 2;;
+			-- ) shift; break ;;
+			* ) break;;
+		esac
+	done
+	isfunc=`LC_ALL=C type -t $observemode`
+	[[ "$isfunc" != "function" ]] && echo "mode=[$observemode] is not a valid mode" && usage
+}
+
+handle_req()
+{
+	DATA='{"request": "'$REQUEST'", "clusterName": "'$CLUSTER_NAME'", "namespace":"'$NAMESPACE'", "containerName":"'$CONTAINER_NAME'", "labels":"'$LABELS'", "fromSource":"'$FROM_SOURCE'", "duration":"'$DURATION'"}'
+
+	echo "sending to $SERVER ..."
+	grpcurl -plaintext -d "$DATA" $SERVER v1.observability.Observability.SysObservabilityData > $JSONDAT
+	[[ $? -ne 0 ]] && echo "fetching data from discovery service failed" && exit 1
+}
+
+handle_observemode()
+{
+	$observemode	#summary()/detail()
+}
+
+main()
+{
+	handle_req
+	[[ "$REQUEST" != "observe" ]] && exit 0
+	handle_observemode
+}
+
+parse_args $*
+main
