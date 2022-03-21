@@ -4,5 +4,9 @@ metadata:
     name: {{ .Values.labels.app }}-config
     #namespace: {{ .Release.Namespace }} 
 data:
+  {{- if .Values.configmapAutoPolicyDiscovery.enabled -}}
+  conf.yaml: {{ tpl (.Files.Get  .Values.configmapAutoPolicyDiscovery.conf) . | quote }}
+  {{ else }}
   conf.yaml: |-
 {{ toYaml .Values.config | indent 4 }}
+  {{- end }}

@@ -95,6 +95,10 @@ tolerations: []
 
 affinity: {}
 
+configmapAutoPolicyDiscovery:
+  enabled: false
+  conf: "configmapfiles/autopolicydiscovery/conf.yaml"
+  
 # conf.yaml
 config:
   application:
