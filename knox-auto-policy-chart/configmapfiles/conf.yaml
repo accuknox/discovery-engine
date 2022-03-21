@@ -54,9 +54,9 @@ logging:
 
 # kubectl -n kube-system port-forward service/hubble-relay --address 0.0.0.0 --address :: 4245:80
 cilium-hubble:
-  url: hubble-relay.kube-system.svc.cluster.local
+  url: hubble-relay.{{ .Values.cilium_ns }}.svc.cluster.local
   port: 80
 
 kubearmor:
-  url: kubearmor.kube-system.svc.cluster.local
+  url: kubearmor.{{ .Values.kubearmor_ns }}.svc.cluster.local
   port: 32767
