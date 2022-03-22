@@ -1,12 +1,19 @@
+{{- if .Values.configmapAutoPolicyDiscovery.enabled -}}
 apiVersion: v1 
 kind: ConfigMap 
 metadata: 
-    name: {{ .Values.labels.app }}-config
-    #namespace: {{ .Release.Namespace }} 
+  name: {{ .Values.labels.app }}-config
 data:
-  {{- if .Values.configmapAutoPolicyDiscovery.enabled -}}
   conf.yaml: {{ tpl (.Files.Get  .Values.configmapAutoPolicyDiscovery.conf) . | quote }}
-  {{ else }}
+{{- end }}
+
+---
+{{- if not .Values.configmapAutoPolicyDiscovery.enabled -}}
+apiVersion: v1 
+kind: ConfigMap 
+metadata: 
+  name: {{ .Values.labels.app }}-config
+data:
   conf.yaml: |-
 {{ toYaml .Values.config | indent 4 }}
-  {{- end }}
+{{- end }}
