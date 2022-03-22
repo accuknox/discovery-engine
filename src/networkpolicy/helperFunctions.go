@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"math/bits"
+	"net"
 	"os"
 	"reflect"
 	"sort"
@@ -109,6 +110,12 @@ func FilterNetworkLogsByConfig(logs []types.KnoxNetworkLog, pods []types.Pod) []
 
 	for _, log := range logs {
 		filtered := false
+
+		// Ignore flows which have link-local IP addresses
+		if net.ParseIP(log.SrcIP).IsLinkLocalUnicast() ||
+			net.ParseIP(log.DstIP).IsLinkLocalUnicast() {
+			continue
+		}
 
 		if log.Protocol == libs.IPProtocolTCP && !log.SynFlag { // In case of TCP only handle flows with SYN flag
 			continue
