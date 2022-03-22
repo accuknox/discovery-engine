@@ -16,6 +16,10 @@ labels:
 
 namespace: accuknox-dev-knoxautopolicy
 
+#serviceaccountnamespace
+namespace:
+  name: explorer
+
 volumeMounts:
   - mountPath: /conf
     name: config-volume
