@@ -16,6 +16,10 @@ labels:
 
 namespace: accuknox-dev-knoxautopolicy
 
+#serviceaccountnamespace
+namespace:
+  name: explorer
+
 volumeMounts:
   - mountPath: /conf
     name: config-volume
@@ -95,6 +99,10 @@ tolerations: []
 
 affinity: {}
 
+configmapAutoPolicyDiscovery:
+  enabled: false
+  conf: "configmapfiles/autopolicydiscovery/conf.yaml"
+  
 # conf.yaml
 config:
   application:

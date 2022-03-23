@@ -6,3 +6,4 @@ metadata:
 data:
   conf.yaml: |-
 {{ toYaml .Values.config | indent 4 }}
+  {{- end }}
