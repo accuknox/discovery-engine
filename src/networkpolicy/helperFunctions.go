@@ -121,11 +121,7 @@ func FilterNetworkLogsByConfig(logs []types.KnoxNetworkLog, pods []types.Pod) []
 			continue
 		}
 
-		if log.Protocol == libs.IPProtocolUDP && log.IsReply && log.DstNamespace == "reserved:world" {
-			/*
-				fmt.Printf("dropping UDP SrcPort:%v DstPort:%v DstNamespace:%v\n",
-					log.SrcPort, log.DstPort, log.DstNamespace)
-			*/
+		if log.Protocol == libs.IPProtocolUDP && log.IsReply {
 			continue
 		}
 
@@ -635,18 +631,21 @@ func removeDstFromMergedDstSlice(dsts []MergedPortDst, remove MergedPortDst) []M
 // == Kubernetes Services/Endpoints == //
 // =================================== //
 
-func checkK8sExternalService(log types.KnoxNetworkLog, endpoints []types.Endpoint) (types.Endpoint, bool) {
-	for _, endpoint := range endpoints {
-		for _, port := range endpoint.Endpoints {
-			if (libs.GetProtocol(log.Protocol) == strings.ToUpper(port.Protocol)) &&
-				log.DstPort == port.Port &&
-				log.DstIP == port.IP {
-				return endpoint, true
+func checkK8sService(log types.KnoxNetworkLog, services []types.Service) (types.Service, bool) {
+	for _, svc := range services {
+		if log.DstIP == svc.ClusterIP {
+			return svc, true
+		} else if svc.Type == "NodePort" {
+			if libs.ContainsElement(svc.ExternalIPs, log.DstIP) &&
+				svc.NodePort == log.DstPort &&
+				svc.Protocol == libs.GetProtocol(log.Protocol) {
+				return svc, true
 			}
+		} else if libs.ContainsElement(svc.ExternalIPs, log.DstIP) {
+			return svc, true
 		}
 	}
-
-	return types.Endpoint{}, false
+	return types.Service{}, false
 }
 
 func isExposedPort(protocol int, port int) bool {

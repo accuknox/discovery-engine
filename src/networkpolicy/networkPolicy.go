@@ -225,7 +225,9 @@ type IcmpPortPair struct {
 // == Step 1: Grouping Network Logs Per Dst == //
 // =========================================== //
 
-func getDst(log types.KnoxNetworkLog, endpoints []types.Endpoint, cidrBits int) (Dst, bool) {
+func getDst(log types.KnoxNetworkLog, services []types.Service, cidrBits int) (Dst, bool) {
+	var labels []string
+
 	dstPort := 0
 	externalInfo := ""
 
@@ -249,10 +251,12 @@ func getDst(log types.KnoxNetworkLog, endpoints []types.Endpoint, cidrBits int) 
 
 	// check CIDR (out of cluster)
 	if libs.ContainsElement(Externals, log.DstNamespace) && net.ParseIP(log.DstPodName) != nil {
-		if endpoint, valid := checkK8sExternalService(log, endpoints); valid {
-			// 1. check if it is the external service policy
-			log.DstNamespace = endpoint.Namespace
-			externalInfo = endpoint.EndpointName
+		if svc, valid := checkK8sService(log, services); valid {
+			// 1. check if the dst IP belongs to a service
+			log.DstNamespace = svc.Namespace
+			for k, v := range svc.Selector {
+				labels = append(labels, k+"="+v)
+			}
 			/*
 				} else if names, err := net.LookupAddr(log.DstPodName); err == nil {
 					// 2. check if it can be reversed to the domain name,
@@ -269,11 +273,12 @@ func getDst(log types.KnoxNetworkLog, endpoints []types.Endpoint, cidrBits int) 
 		}
 
 		dst := Dst{
-			Namespace:  log.DstNamespace,
-			Additional: externalInfo,
-			Protocol:   log.Protocol,
-			DstPort:    log.DstPort,
-			ICMPType:   log.ICMPType,
+			Namespace:   log.DstNamespace,
+			Additional:  externalInfo,
+			Protocol:    log.Protocol,
+			DstPort:     log.DstPort,
+			ICMPType:    log.ICMPType,
+			MatchLabels: strings.Join(labels, ","),
 		}
 
 		return dst, true
@@ -304,11 +309,11 @@ func getDst(log types.KnoxNetworkLog, endpoints []types.Endpoint, cidrBits int) 
 	return dst, true
 }
 
-func groupNetworkLogPerDst(networkLogs []types.KnoxNetworkLog, endpoints []types.Endpoint, cidrBits int) map[Dst][]types.KnoxNetworkLog {
+func groupNetworkLogPerDst(networkLogs []types.KnoxNetworkLog, services []types.Service, cidrBits int) map[Dst][]types.KnoxNetworkLog {
 	perDst := map[Dst][]types.KnoxNetworkLog{}
 
 	for _, log := range networkLogs {
-		dst, valid := getDst(log, endpoints, cidrBits)
+		dst, valid := getDst(log, services, cidrBits)
 		if !valid {
 			continue
 		}
@@ -767,6 +772,7 @@ func mergeProtocolPorts(mergedDsts []MergedPortDst, dst Dst, flowIDs []int) []Me
 		FlowIDs:     flowIDs,
 		Namespace:   dst.Namespace,
 		PodName:     dst.PodName,
+		MatchLabels: dst.MatchLabels,
 		Additionals: []string{dst.Additional},
 	}
 
@@ -1533,11 +1539,10 @@ func updateLabeledSrcPerDst(labeledSrcsPerDst map[Dst][]SrcSimple) map[Dst][]Src
 func DiscoverNetworkPolicy(namespace string,
 	networkLogs []types.KnoxNetworkLog,
 	services []types.Service,
-	endpoints []types.Endpoint,
 	pods []types.Pod) []types.KnoxNetworkPolicy {
 
 	// step 1: [network logs] -> {dst: [network logs (src+dst)]}
-	originLogsPerDst := groupNetworkLogPerDst(networkLogs, endpoints, CIDRBits)
+	originLogsPerDst := groupNetworkLogPerDst(networkLogs, services, CIDRBits)
 
 	/*
 		step 2: {dst: [network logs (src+dst)]} -> {dst: [srcs (labeled)]}
@@ -1619,7 +1624,7 @@ func PopulateNetworkPoliciesFromNetworkLogs(sysLogs []types.KnoxNetworkLog) []ty
 
 			log.Info().Msgf("DiscoverNetworkPolicy for cluster [%s] namespace [%s]", clusterName, namespace)
 			// discover network policies based on the network logs
-			discoveredNetPolicies := DiscoverNetworkPolicy(namespace, logsPerNamespace, services, endpoints, pods)
+			discoveredNetPolicies := DiscoverNetworkPolicy(namespace, logsPerNamespace, services, pods)
 			discoveredNetworkPolicies = append(discoveredNetworkPolicies, discoveredNetPolicies...)
 
 			log.Info().Msgf("libs.GetNetworkPolicies for cluster [%s] namespace [%s]", clusterName, namespace)
