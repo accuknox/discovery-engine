@@ -3,6 +3,7 @@ package networkpolicy
 import (
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/accuknox/auto-policy-discovery/src/libs"
 	types "github.com/accuknox/auto-policy-discovery/src/types"
@@ -913,6 +914,12 @@ func UpdateDuplicatedPolicy(existingPolicies []types.KnoxNetworkPolicy, discover
 				namedPolicy = updatedPolicy
 			}
 		}
+
+		// step 8: update status
+		namedPolicy.Metadata["status"] = "latest"
+
+		// step 9: update generated time
+		namedPolicy.GeneratedTime = time.Now().Unix()
 
 		newPolicies = append(newPolicies, namedPolicy)
 	}

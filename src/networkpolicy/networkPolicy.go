@@ -1182,14 +1182,16 @@ func buildNewIngressPolicyFromSameSelector(namespace string, selector types.Sele
 	return ingress
 }
 
-func checkIngressEntities(namespace string, mergedSrcPerMergedDst map[string][]MergedPortDst, networkPolicies []types.KnoxNetworkPolicy) []types.KnoxNetworkPolicy {
+func buildIngressFromEntitiesPolicy(namespace string, mergedSrcPerMergedDst map[string][]MergedPortDst, networkPolicies []types.KnoxNetworkPolicy) []types.KnoxNetworkPolicy {
 	for aggregatedSrc, aggregatedMergedDsts := range mergedSrcPerMergedDst {
 		// if src includes "reserved" prefix, it means Ingress Policy
 		if strings.Contains(aggregatedSrc, "reserved") {
 			entity := strings.Split(aggregatedSrc, "=")[1]
 
 			for _, dst := range aggregatedMergedDsts {
-				included := true
+				if dst.MatchLabels == "" {
+					continue
+				}
 
 				ingressPolicy := buildNewKnoxIngressPolicy()
 				ingressPolicy.Metadata["namespace"] = namespace
@@ -1211,14 +1213,25 @@ func checkIngressEntities(namespace string, mergedSrcPerMergedDst map[string][]M
 
 				ingressRule := types.Ingress{}
 				ingressRule.FromEntities = []string{entity}
+
+				for _, toPort := range dst.ToPorts {
+					port := types.SpecPort{Port: toPort.Port, Protocol: toPort.Protocol}
+					ingressRule.ToPorts = append(ingressRule.ToPorts, port)
+				}
+
+				for _, icmp := range dst.ICMPs {
+					i := types.SpecICMP{Family: icmp.Family, Type: icmp.Type}
+					ingressRule.ICMPs = append(ingressRule.ICMPs, i)
+				}
+
 				ingressPolicy.Spec.Ingress = append(ingressPolicy.Spec.Ingress, ingressRule)
 
+				included := false
 				for _, policy := range networkPolicies {
 					if cmp.Equal(&ingressPolicy.Spec.Selector, &policy.Spec.Selector) &&
 						policy.Metadata["rule"] == "fromEntities" {
-
-						if !libs.ContainsElement(policy.Spec.Ingress[0].FromEntities, entity) {
-							included = false
+						if libs.ContainsElement(policy.Spec.Ingress[0].FromEntities, entity) {
+							included = true
 							break
 						}
 					}
@@ -1404,22 +1417,6 @@ func buildNetworkPolicy(namespace string, services []types.Service, aggregatedSr
 					networkPolicies = append(networkPolicies, egressPolicy)
 				}
 
-				// check ingress & fromCIDRs rule
-				if discoverPolicyTypes&INGRESS > 0 && discoverRuleTypes&FROM_CIDRS > 0 {
-					// add ingress policy
-					ingressPolicy := buildNewIngressPolicyFromSameSelector(namespace, egressPolicy.Spec.Selector)
-					ingressPolicy.Metadata["rule"] = "fromCIDRs"
-
-					ingressRule := types.Ingress{}
-
-					fromcidr := types.SpecCIDR{
-						CIDRs: cidrSlice,
-					}
-
-					ingressRule.FromCIDRs = []types.SpecCIDR{fromcidr}
-					ingressPolicy.Spec.Ingress = append(ingressPolicy.Spec.Ingress, ingressRule)
-					networkPolicies = append(networkPolicies, ingressPolicy)
-				}
 			} else if dst.Namespace == "reserved:dns" && len(dst.Additionals) > 0 {
 				egressPolicy.Metadata["rule"] = "toFQDNs"
 
@@ -1465,17 +1462,6 @@ func buildNetworkPolicy(namespace string, services []types.Service, aggregatedSr
 				if discoverPolicyTypes&EGRESS > 0 && discoverRuleTypes&TO_ENTITIES > 0 {
 					networkPolicies = append(networkPolicies, egressPolicy)
 				}
-
-				// check ingress & fromEntities rule
-				if discoverPolicyTypes&INGRESS > 0 && discoverRuleTypes&FROM_ENTITIES > 0 {
-					ingressPolicy := buildNewIngressPolicyFromSameSelector(namespace, egressPolicy.Spec.Selector)
-					ingressPolicy.Metadata["rule"] = "fromEntities"
-					ingressPolicy.FlowIDs = egressPolicy.FlowIDs
-					ingressRule := types.Ingress{}
-					ingressRule.FromEntities = dst.Additionals
-					ingressPolicy.Spec.Ingress = append(ingressPolicy.Spec.Ingress, ingressRule)
-					networkPolicies = append(networkPolicies, ingressPolicy)
-				}
 			} else if len(dst.Additionals) > 0 {
 				egressPolicy.Metadata["rule"] = "toServices"
 
@@ -1498,9 +1484,9 @@ func buildNetworkPolicy(namespace string, services []types.Service, aggregatedSr
 		}
 	}
 
-	// double check ingress entities for dropped packet
+	// build ingress fromEntities policy
 	if discoverPolicyTypes&INGRESS > 0 {
-		networkPolicies = checkIngressEntities(namespace, aggregatedSrcPerAggregatedDst, networkPolicies)
+		networkPolicies = buildIngressFromEntitiesPolicy(namespace, aggregatedSrcPerAggregatedDst, networkPolicies)
 	}
 
 	// update generated time
