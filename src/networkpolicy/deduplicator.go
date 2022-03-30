@@ -460,7 +460,7 @@ func UpdateMatchLabels(newPolicy types.KnoxNetworkPolicy, existingPolicies []typ
 		newTargetLabelsCount = len(newPolicy.Spec.Egress[0].MatchLabels)
 	} else {
 		newToPorts = newPolicy.Spec.Ingress[0].ToPorts
-		newICMPs = newPolicy.Spec.Egress[0].ICMPs
+		newICMPs = newPolicy.Spec.Ingress[0].ICMPs
 		newTargetLabelsCount = len(newPolicy.Spec.Ingress[0].MatchLabels)
 	}
 
@@ -538,6 +538,7 @@ func UpdateMatchLabels(newPolicy types.KnoxNetworkPolicy, existingPolicies []typ
 			newPolicy.Spec.Egress[0].ToPorts = newToPorts
 			newPolicy.Spec.Egress[0].ICMPs = newICMPs
 		} else {
+			newPolicy.Spec.Ingress[0].ToPorts = newToPorts
 			newPolicy.Spec.Ingress[0].ICMPs = newICMPs
 		}
 

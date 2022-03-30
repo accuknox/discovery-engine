@@ -6,11 +6,13 @@ type KnoxNetworkLog struct {
 
 	ClusterName string `json:"cluster_name,omitempty" bson:"cluster_name"`
 
-	SrcNamespace string `json:"src_namespace,omitempty" bson:"src_namespace"`
-	SrcPodName   string `json:"src_pod_name,omitempty" bson:"src_pod_name"`
+	SrcNamespace      string   `json:"src_namespace,omitempty" bson:"src_namespace"`
+	SrcReservedLabels []string `json:"src_reserved_labels,omitempty" bson:"src_reserved_labels"`
+	SrcPodName        string   `json:"src_pod_name,omitempty" bson:"src_pod_name"`
 
-	DstNamespace string `json:"dst_namespace,omitempty" bson:"dst_namespace"`
-	DstPodName   string `json:"dst_pod_name,omitempty" bson:"dst_pod_name"`
+	DstNamespace      string   `json:"dst_namespace,omitempty" bson:"dst_namespace"`
+	DstReservedLabels []string `json:"dst_reserved_labels,omitempty" bson:"dst_reserved_labels"`
+	DstPodName        string   `json:"dst_pod_name,omitempty" bson:"dst_pod_name"`
 
 	EtherType int `json:"ether_type,omitempty" bson:"ether_type"` // not used, we assume all the ipv4
 
