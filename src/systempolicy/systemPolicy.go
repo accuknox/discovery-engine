@@ -248,8 +248,13 @@ func getSystemLogs() []types.KnoxSystemLog {
 	return systemLogs
 }
 
-func populateKnoxSysPolicyFromWPFSDb() []types.KnoxSystemPolicy {
-	res, pnMap, err := libs.GetWorkloadProcessFileSet(CfgDB, types.WorkloadProcessFileSet{})
+func populateKnoxSysPolicyFromWPFSDb(namespace, clustername, labels string) []types.KnoxSystemPolicy {
+	wpfs := types.WorkloadProcessFileSet{
+		Namespace:   namespace,
+		ClusterName: clustername,
+		Labels:      labels,
+	}
+	res, pnMap, err := libs.GetWorkloadProcessFileSet(CfgDB, wpfs)
 	if err != nil {
 		log.Error().Msgf("cudnot fetch WPFS err=%s", err.Error())
 		return nil
@@ -258,8 +263,8 @@ func populateKnoxSysPolicyFromWPFSDb() []types.KnoxSystemPolicy {
 	return ConvertWPFSToKnoxSysPolicy(res, pnMap)
 }
 
-func WriteSystemPoliciesToFile_Ext() {
-	sysPols := populateKnoxSysPolicyFromWPFSDb()
+func WriteSystemPoliciesToFile_Ext(namespace, clustername, labels string) {
+	sysPols := populateKnoxSysPolicyFromWPFSDb(namespace, clustername, labels)
 
 	kubeArmorPolicies := plugin.ConvertKnoxSystemPolicyToKubeArmorPolicy(sysPols)
 	for _, pol := range kubeArmorPolicies {
@@ -270,13 +275,13 @@ func WriteSystemPoliciesToFile_Ext() {
 	}
 }
 
-func WriteSystemPoliciesToFile(namespace string) {
+func WriteSystemPoliciesToFile(namespace, clustername, labels string) {
 	latestPolicies := libs.GetSystemPolicies(CfgDB, namespace, "latest")
 	if len(latestPolicies) > 0 {
 		kubeArmorPolicies := plugin.ConvertKnoxSystemPolicyToKubeArmorPolicy(latestPolicies)
 		libs.WriteKubeArmorPolicyToYamlFile("kubearmor_policies", kubeArmorPolicies)
 	}
-	WriteSystemPoliciesToFile_Ext()
+	WriteSystemPoliciesToFile_Ext(namespace, clustername, labels)
 }
 
 // ============================= //
@@ -876,7 +881,7 @@ func updateSysPolicies() {
 	var locSysPolicies []types.KnoxSystemPolicy
 	var isPolicyExist bool
 
-	wpfsPolicies := populateKnoxSysPolicyFromWPFSDb()
+	wpfsPolicies := populateKnoxSysPolicyFromWPFSDb("", "", "")
 
 	for _, wpfsPolicy := range wpfsPolicies {
 		isPolicyExist = false
@@ -1014,7 +1019,7 @@ func PopulateSystemPoliciesFromSystemLogs(sysLogs []types.KnoxSystemLog) []types
 			}
 
 			if strings.Contains(SystemPolicyTo, "file") {
-				WriteSystemPoliciesToFile(sysKey.Namespace)
+				WriteSystemPoliciesToFile(sysKey.Namespace, "", "")
 			}
 		}
 	}
