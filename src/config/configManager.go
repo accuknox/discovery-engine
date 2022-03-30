@@ -130,7 +130,7 @@ func LoadConfigFromFile() {
 		NetworkPolicyDir: viper.GetString("application.network.network-policy-dir"),
 
 		NetPolicyTypes:     3,
-		NetPolicyRuleTypes: 511,
+		NetPolicyRuleTypes: 1023,
 		NetPolicyCIDRBits:  32,
 
 		NetLogFilters: []types.NetworkLogFilter{},
