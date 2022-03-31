@@ -128,7 +128,7 @@ func getProtocol(l4 *cilium.Layer4) int {
 }
 
 func getReservedLabelsIfExist(labels []string) []string {
-	reservedLabels := []string{}
+	var reservedLabels []string
 	for _, label := range labels {
 		if strings.HasPrefix(label, "reserved:") {
 			reservedLabels = append(reservedLabels, label)
