@@ -123,7 +123,7 @@ func ConvertKubeArmorLogToKnoxSystemLog(relayLog *pb.Log) (types.KnoxSystemLog, 
 
 	// check if source is absolute path and does not terminate in "/"
 	if !filepath.IsAbs(source) || strings.HasSuffix(source, "/") {
-		log.Error().Msgf("invalid source [%s]. ", source)
+		log.Error().Msgf("invalid source [%s]. %+v", source, relayLog)
 		return types.KnoxSystemLog{}, errors.New("invalid file source")
 	}
 
@@ -135,7 +135,7 @@ func ConvertKubeArmorLogToKnoxSystemLog(relayLog *pb.Log) (types.KnoxSystemLog, 
 
 	// check if resource is absolute path. "/" is ok.
 	if (relayLog.Operation == "File" || relayLog.Operation == "Process") && !filepath.IsAbs(resource) {
-		log.Error().Msgf("invalid resource [%s]. ", resource)
+		log.Error().Msgf("invalid resource [%s]. %+v", resource, relayLog)
 		return types.KnoxSystemLog{}, errors.New("invalid file resource")
 	}
 
