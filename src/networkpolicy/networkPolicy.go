@@ -1164,7 +1164,7 @@ func buildIngressFromEntitiesPolicy(namespace string, mergedSrcPerMergedDst map[
 			}
 
 			for _, dst := range aggregatedMergedDsts {
-				if dst.MatchLabels == "" || dst.Namespace == "kube-system" {
+				if dst.MatchLabels == "" {
 					continue
 				}
 
@@ -1362,7 +1362,7 @@ func buildNetworkPolicy(namespace string, services []types.Service, aggregatedSr
 				}
 
 				// check ingress
-				if discoverPolicyTypes&INGRESS > 0 && dst.Namespace != "kube-system" {
+				if discoverPolicyTypes&INGRESS > 0 {
 					ingressPolicy := buildNewIngressPolicyFromEgressPolicy(egressRule, egressPolicy.Spec.Selector)
 					ingressPolicy.Spec.Ingress[0].MatchLabels["k8s:io.kubernetes.pod.namespace"] = namespace
 					ingressPolicy.FlowIDs = egressPolicy.FlowIDs
