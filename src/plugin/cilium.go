@@ -127,14 +127,15 @@ func getProtocol(l4 *cilium.Layer4) int {
 	}
 }
 
-func getReservedLabelIfExist(labels []string) string {
+func getReservedLabelsIfExist(labels []string) []string {
+	var reservedLabels []string
 	for _, label := range labels {
 		if strings.HasPrefix(label, "reserved:") {
-			return label
+			reservedLabels = append(reservedLabels, label)
 		}
 	}
 
-	return ""
+	return reservedLabels
 }
 
 func getHTTP(flow *cilium.Flow) (string, string) {
@@ -179,30 +180,17 @@ func ConvertCiliumFlowToKnoxNetworkLog(ciliumFlow *cilium.Flow) (types.KnoxNetwo
 	log.Direction = ciliumFlow.GetTrafficDirection().String()
 
 	// set namespace
-	if ciliumFlow.Source.Namespace == "" {
-		log.SrcNamespace = getReservedLabelIfExist(ciliumFlow.Source.Labels)
-	} else {
-		log.SrcNamespace = ciliumFlow.Source.Namespace
-	}
-
-	if ciliumFlow.Destination.Namespace == "" {
-		log.DstNamespace = getReservedLabelIfExist(ciliumFlow.Destination.Labels)
-	} else {
-		log.DstNamespace = ciliumFlow.Destination.Namespace
-	}
+	log.SrcNamespace = ciliumFlow.Source.Namespace
+	log.DstNamespace = ciliumFlow.Destination.Namespace
 
 	// set pod
-	if ciliumFlow.Source.PodName == "" {
-		log.SrcPodName = ciliumFlow.IP.Source
-	} else {
-		log.SrcPodName = ciliumFlow.Source.GetPodName()
-	}
+	log.SrcPodName = ciliumFlow.Source.GetPodName()
+	log.DstPodName = ciliumFlow.Destination.GetPodName()
 
-	if ciliumFlow.Destination.PodName == "" {
-		log.DstPodName = ciliumFlow.IP.Destination
-	} else {
-		log.DstPodName = ciliumFlow.Destination.GetPodName()
-	}
+	// copy reservedLabels
+	log.DstReservedLabels = getReservedLabelsIfExist(ciliumFlow.Destination.Labels)
+	log.SrcReservedLabels = getReservedLabelsIfExist(ciliumFlow.Source.Labels)
+
 	log.IsReply = ciliumFlow.GetIsReply().GetValue()
 
 	// get L3
@@ -465,56 +453,11 @@ func ConvertKnoxNetworkPolicyToCiliumPolicy(services []types.Service, inPolicy t
 		for _, knoxEgress := range inPolicy.Spec.Egress {
 			ciliumEgress := types.CiliumEgress{}
 
-			// ====================== //
-			// build label-based rule //
-			// ====================== //
 			if knoxEgress.MatchLabels != nil {
+				// ====================== //
+				// build label-based rule //
+				// ====================== //
 				ciliumEgress.ToEndpoints = []types.CiliumEndpoint{{knoxEgress.MatchLabels}}
-
-				// ================ //
-				// build L4 toPorts //
-				// ================ //
-				for _, toPort := range knoxEgress.ToPorts {
-					if toPort.Port == "" { // if port number is none, skip
-						continue
-					}
-
-					if ciliumEgress.ToPorts == nil {
-						ciliumEgress.ToPorts = []types.CiliumPortList{}
-						ciliumPort := types.CiliumPortList{}
-						ciliumPort.Ports = []types.CiliumPort{}
-						ciliumEgress.ToPorts = append(ciliumEgress.ToPorts, ciliumPort)
-
-						// =============== //
-						// build HTTP rule //
-						// =============== //
-						if len(knoxEgress.ToHTTPs) > 0 {
-							ciliumEgress.ToPorts[0].Rules = map[string][]types.SubRule{}
-
-							httpRules := []types.SubRule{}
-							for _, http := range knoxEgress.ToHTTPs {
-								// matchPattern
-								httpRules = append(httpRules, map[string]string{"method": http.Method,
-									"path": http.Path})
-							}
-							ciliumEgress.ToPorts[0].Rules = map[string][]types.SubRule{"http": httpRules}
-						}
-					}
-
-					port := types.CiliumPort{Port: toPort.Port, Protocol: strings.ToUpper(toPort.Protocol)}
-					ciliumEgress.ToPorts[0].Ports = append(ciliumEgress.ToPorts[0].Ports, port)
-				}
-
-				for _, icmp := range knoxEgress.ICMPs {
-					if ciliumEgress.ICMPs == nil {
-						ciliumEgress.ICMPs = []types.CiliumICMP{{Fields: []types.CiliumICMPField{}}}
-					}
-					newField := types.CiliumICMPField{
-						Family: icmp.Family,
-						Type:   icmp.Type,
-					}
-					ciliumEgress.ICMPs[0].Fields = append(ciliumEgress.ICMPs[0].Fields, newField)
-				}
 			} else if len(knoxEgress.ToCIDRs) > 0 {
 				// =============== //
 				// build CIDR rule //
@@ -523,34 +466,6 @@ func ConvertKnoxNetworkPolicyToCiliumPolicy(services []types.Service, inPolicy t
 					cidrs := []string{}
 					cidrs = append(cidrs, toCIDR.CIDRs...)
 					ciliumEgress.ToCIDRs = cidrs
-
-					// update toPorts if exist
-					for _, toPort := range knoxEgress.ToPorts {
-						if toPort.Port == "" { // if port number is none, skip
-							continue
-						}
-
-						if ciliumEgress.ToPorts == nil {
-							ciliumEgress.ToPorts = []types.CiliumPortList{}
-							ciliumPort := types.CiliumPortList{}
-							ciliumPort.Ports = []types.CiliumPort{}
-							ciliumEgress.ToPorts = append(ciliumEgress.ToPorts, ciliumPort)
-						}
-
-						port := types.CiliumPort{Port: toPort.Port, Protocol: strings.ToUpper(toPort.Protocol)}
-						ciliumEgress.ToPorts[0].Ports = append(ciliumEgress.ToPorts[0].Ports, port)
-					}
-
-					for _, icmp := range knoxEgress.ICMPs {
-						if ciliumEgress.ICMPs == nil {
-							ciliumEgress.ICMPs = []types.CiliumICMP{{Fields: []types.CiliumICMPField{}}}
-						}
-						newField := types.CiliumICMPField{
-							Family: icmp.Family,
-							Type:   icmp.Type,
-						}
-						ciliumEgress.ICMPs[0].Fields = append(ciliumEgress.ICMPs[0].Fields, newField)
-					}
 				}
 			} else if len(knoxEgress.ToEndtities) > 0 {
 				// ================= //
@@ -560,8 +475,26 @@ func ConvertKnoxNetworkPolicyToCiliumPolicy(services []types.Service, inPolicy t
 					if ciliumEgress.ToEntities == nil {
 						ciliumEgress.ToEntities = []string{}
 					}
-
 					ciliumEgress.ToEntities = append(ciliumEgress.ToEntities, entity)
+				}
+			} else if len(knoxEgress.ToFQDNs) > 0 {
+				// Since it is FQDN, allow access to kube-dns
+				egressDns := types.CiliumEgress{}
+				egressDns.ToEndpoints, egressDns.ToPorts = getCoreDNSEndpoint(services)
+				ciliumPolicy.Spec.Egress = append(ciliumPolicy.Spec.Egress, egressDns)
+
+				// =============== //
+				// build FQDN rule //
+				// =============== //
+				for _, fqdn := range knoxEgress.ToFQDNs {
+					if ciliumEgress.ToFQDNs == nil {
+						ciliumEgress.ToFQDNs = []types.CiliumFQDN{}
+					}
+
+					// FQDN (+ToPorts)
+					for _, matchName := range fqdn.MatchNames {
+						ciliumEgress.ToFQDNs = append(ciliumEgress.ToFQDNs, map[string]string{"matchName": matchName})
+					}
 				}
 			} else if len(knoxEgress.ToServices) > 0 {
 				// ================== //
@@ -581,50 +514,51 @@ func ConvertKnoxNetworkPolicyToCiliumPolicy(services []types.Service, inPolicy t
 
 					ciliumEgress.ToServices = append(ciliumEgress.ToServices, ciliumService)
 				}
-			} else if len(knoxEgress.ToFQDNs) > 0 {
-				// =============== //
-				// build FQDN rule //
-				// =============== //
-				for _, fqdn := range knoxEgress.ToFQDNs {
-					// TODO: static core-dns
-					ciliumEgress.ToEndpoints, ciliumEgress.ToPorts = getCoreDNSEndpoint(services)
+			}
 
-					egressFqdn := types.CiliumEgress{}
-
-					if egressFqdn.ToFQDNs == nil {
-						egressFqdn.ToFQDNs = []types.CiliumFQDN{}
-					}
-
-					// FQDN (+ToPorts)
-					for _, matchName := range fqdn.MatchNames {
-						egressFqdn.ToFQDNs = append(egressFqdn.ToFQDNs, map[string]string{"matchName": matchName})
-					}
-
-					for _, port := range knoxEgress.ToPorts {
-						if egressFqdn.ToPorts == nil {
-							egressFqdn.ToPorts = []types.CiliumPortList{}
-							ciliumPort := types.CiliumPortList{}
-							ciliumPort.Ports = []types.CiliumPort{}
-							egressFqdn.ToPorts = append(egressFqdn.ToPorts, ciliumPort)
-						}
-
-						ciliumPort := types.CiliumPort{Port: port.Port, Protocol: strings.ToUpper(port.Protocol)}
-						egressFqdn.ToPorts[0].Ports = append(egressFqdn.ToPorts[0].Ports, ciliumPort)
-					}
-
-					for _, icmp := range knoxEgress.ICMPs {
-						if egressFqdn.ICMPs == nil {
-							egressFqdn.ICMPs = []types.CiliumICMP{{Fields: []types.CiliumICMPField{}}}
-						}
-						newField := types.CiliumICMPField{
-							Family: icmp.Family,
-							Type:   icmp.Type,
-						}
-						egressFqdn.ICMPs[0].Fields = append(egressFqdn.ICMPs[0].Fields, newField)
-					}
-
-					ciliumPolicy.Spec.Egress = append(ciliumPolicy.Spec.Egress, egressFqdn)
+			// ================ //
+			// build L4 toPorts //
+			// ================ //
+			for _, toPort := range knoxEgress.ToPorts {
+				if toPort.Port == "" { // if port number is none, skip
+					continue
 				}
+
+				if ciliumEgress.ToPorts == nil {
+					ciliumEgress.ToPorts = []types.CiliumPortList{{Ports: []types.CiliumPort{}}}
+				}
+
+				// =============== //
+				// build HTTP rule //
+				// =============== //
+				if len(knoxEgress.ToHTTPs) > 0 {
+					ciliumEgress.ToPorts[0].Rules = map[string][]types.SubRule{}
+
+					httpRules := []types.SubRule{}
+					for _, http := range knoxEgress.ToHTTPs {
+						// matchPattern
+						httpRules = append(httpRules, map[string]string{"method": http.Method,
+							"path": http.Path})
+					}
+					ciliumEgress.ToPorts[0].Rules = map[string][]types.SubRule{"http": httpRules}
+				}
+
+				port := types.CiliumPort{Port: toPort.Port, Protocol: strings.ToUpper(toPort.Protocol)}
+				ciliumEgress.ToPorts[0].Ports = append(ciliumEgress.ToPorts[0].Ports, port)
+			}
+
+			// ================ //
+			// build ICMP rule  //
+			// ================ //
+			for _, icmp := range knoxEgress.ICMPs {
+				if ciliumEgress.ICMPs == nil {
+					ciliumEgress.ICMPs = []types.CiliumICMP{{Fields: []types.CiliumICMPField{}}}
+				}
+				newField := types.CiliumICMPField{
+					Family: icmp.Family,
+					Type:   icmp.Type,
+				}
+				ciliumEgress.ICMPs[0].Fields = append(ciliumEgress.ICMPs[0].Fields, newField)
 			}
 
 			ciliumPolicy.Spec.Egress = append(ciliumPolicy.Spec.Egress, ciliumEgress)

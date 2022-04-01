@@ -14,8 +14,8 @@ import (
 	logger "github.com/accuknox/auto-policy-discovery/src/logging"
 	"github.com/accuknox/auto-policy-discovery/src/plugin"
 	"github.com/accuknox/auto-policy-discovery/src/types"
-
 	"github.com/google/go-cmp/cmp"
+
 	"github.com/robfig/cron"
 	"github.com/rs/zerolog"
 )
@@ -63,7 +63,7 @@ const (
 )
 
 // if the target IP is in out-of-cluster
-var Externals = []string{"reserved:world", "external"}
+var ReservedWorld = "reserved:world"
 
 // ====================== //
 // == Global Variables == //
@@ -250,7 +250,7 @@ func getDst(log types.KnoxNetworkLog, services []types.Service, cidrBits int) (D
 	}
 
 	// check CIDR (out of cluster)
-	if libs.ContainsElement(Externals, log.DstNamespace) && net.ParseIP(log.DstPodName) != nil {
+	if libs.ContainsElement(log.DstReservedLabels, ReservedWorld) && log.DstIP != "" {
 		if svc, valid := checkK8sService(log, services); valid {
 			// 1. check if the dst IP belongs to a service
 			log.DstNamespace = svc.Namespace
@@ -267,7 +267,7 @@ func getDst(log types.KnoxNetworkLog, services []types.Service, cidrBits int) (D
 		} else {
 			// 3. else, handle it as cidr policy
 			log.DstNamespace = "reserved:cidr"
-			ipNetwork := log.DstPodName + "/" + strconv.Itoa(cidrBits)
+			ipNetwork := log.DstIP + "/" + strconv.Itoa(cidrBits)
 			_, network, _ := net.ParseCIDR(ipNetwork)
 			externalInfo = network.String()
 		}
@@ -281,6 +281,24 @@ func getDst(log types.KnoxNetworkLog, services []types.Service, cidrBits int) (D
 			MatchLabels: strings.Join(labels, ","),
 		}
 
+		return dst, true
+	}
+
+	// reserved entities -> host, remote-node, kube-apiserver
+	if len(log.DstReservedLabels) > 0 {
+		entities := []string{}
+
+		for _, label := range log.DstReservedLabels {
+			entities = append(entities, strings.TrimPrefix(label, "reserved:"))
+		}
+
+		dst := Dst{
+			Namespace:  "reserved:entities",
+			Additional: strings.Join(entities, ","),
+			Protocol:   log.Protocol,
+			DstPort:    log.DstPort,
+			ICMPType:   log.ICMPType,
+		}
 		return dst, true
 	}
 
@@ -353,15 +371,11 @@ func extractSrcByLabel(labeledSrcsPerDst map[Dst][]SrcSimple, perDst map[Dst][]t
 		for _, log := range logs {
 			src := SrcSimple{}
 
-			// if src is reserved:
-			if strings.Contains(log.SrcNamespace, "reserved:") {
-				k := strings.Split(log.SrcNamespace, ":")[0]
-				v := strings.Split(log.SrcNamespace, ":")[1]
-
+			// if src is reserved
+			if len(log.SrcReservedLabels) > 0 {
 				src = SrcSimple{
-					Namespace:   log.SrcNamespace,
-					PodName:     log.SrcPodName,
-					MatchLabels: k + "=" + v}
+					MatchLabels: strings.Join(log.SrcReservedLabels, ","),
+				}
 			} else {
 				// else get merged and sorted matchlables: "a=b,c=d,e=f"
 				mergedSortedLabels := getMergedSortedLabels(log.SrcNamespace, log.SrcPodName, pods)
@@ -679,121 +693,118 @@ func mergeFQDN(mergedSrcPerMergedDst map[string][]MergedPortDst) {
 }
 
 func mergeEntities(mergedSrcPerMergedDst map[string][]MergedPortDst) {
-	// merge same entities per each aggregated Src
+	// merge entities dst per each merged Src
 	for aggregatedSrc, dsts := range mergedSrcPerMergedDst {
 		newDsts := []MergedPortDst{}
 
-		flowIDs := []int{}
+		// entityMap, key: entities addr, val: icmps & toPorts rules
+		entityMap := map[string]IcmpPortPair{}
 
-		// step 1: get reserved:entities
-		entities := []string{}
+		// entityFlowIDMap key: entities addr, val: flow ids
+		entityFlowIDMap := map[string][]int{}
+
+		// step 1: get entities
 		for _, dst := range dsts {
-			if strings.HasPrefix(dst.Namespace, "reserved:") &&
-				!strings.Contains(dst.Namespace, "cidr") &&
-				!strings.Contains(dst.Namespace, "dns") {
-				entity := strings.Split(dst.Namespace, ":")[1]
+			if dst.Namespace == "reserved:entities" {
+				// get tracked flowIDs
+				flowIDs := dst.FlowIDs
 
-				if !libs.ContainsElement(entities, entity) {
-					entities = append(entities, entity)
-				}
+				entities := strings.Split(dst.Additionals[0], ",")
 
-				for _, id := range dst.FlowIDs {
-					if !libs.ContainsElement(flowIDs, id) {
-						flowIDs = append(flowIDs, id)
+				for _, entity := range entities {
+					if icmpPortPair, ok := entityMap[entity]; !ok {
+						// if not exist, create entities, and move icmps & toPorts
+						entityMap[entity] = IcmpPortPair{dst.ICMPs, dst.ToPorts}
+					} else {
+						// if exist, check duplicated toPorts
+						for _, port := range dst.ToPorts {
+							if !libs.ContainsElement(icmpPortPair.Ports, port) {
+								icmpPortPair.Ports = append(icmpPortPair.Ports, port)
+							}
+						}
+						// append icmps
+						for _, icmp := range dst.ICMPs {
+							if !libs.ContainsElement(icmpPortPair.ICMPs, icmp) {
+								icmpPortPair.ICMPs = append(icmpPortPair.ICMPs, icmp)
+							}
+						}
+						// update toPorts
+						entityMap[entity] = icmpPortPair
+					}
+
+					// update flow ids
+					if existFlowIDs, ok := entityFlowIDMap[entity]; !ok {
+						entityFlowIDMap[entity] = flowIDs
+					} else {
+						for _, id := range existFlowIDs {
+							if !libs.ContainsElement(existFlowIDs, id) {
+								existFlowIDs = append(existFlowIDs, id)
+								entityFlowIDMap[entity] = existFlowIDs
+							}
+						}
 					}
 				}
+
 			} else {
-				// if no reserved:entity
+				// if no reserved:entities
 				newDsts = append(newDsts, dst)
 			}
 		}
 
 		// step 2: update mergedSrcPerMergedDst
-		if len(entities) > 0 {
-			newEntities := MergedPortDst{
-				FlowIDs:     flowIDs,
-				Namespace:   "reserved:entity",
-				Additionals: entities,
+		for entity, icmpPortPair := range entityMap {
+			newDst := MergedPortDst{
+				FlowIDs:     entityFlowIDMap[entity],
+				Namespace:   "reserved:entities",
+				Additionals: []string{entity},
+				ToPorts:     icmpPortPair.Ports,
+				ICMPs:       icmpPortPair.ICMPs,
 			}
-			newDsts = append(newDsts, newEntities)
+			newDsts = append(newDsts, newDst)
 		}
 
 		mergedSrcPerMergedDst[aggregatedSrc] = newDsts
 	}
 }
 
-func mergeProtocolPorts(mergedDsts []MergedPortDst, dst Dst, flowIDs []int) []MergedPortDst {
-	for i, dstPort := range mergedDsts {
-		simple1 := DstSimple{
-			Namespace:  dstPort.Namespace,
-			PodName:    dstPort.PodName,
-			Additional: dstPort.Additionals[0]}
-
-		simple2 := DstSimple{
-			Namespace:  dst.Namespace,
-			PodName:    dst.PodName,
-			Additional: dst.Additional}
-
-		// matched, append protocol+port info
-		if simple1 == simple2 {
-			if libs.IsICMP(dst.Protocol) {
-				family := "IPv4"
-				if dst.Protocol == libs.IPProtocolICMPv6 {
-					family = "IPv6"
-				}
-
-				icmp := types.SpecICMP{
-					Family: family,
-					Type:   uint8(dst.ICMPType),
-				}
-
-				mergedDsts[i].ICMPs = append(mergedDsts[i].ICMPs, icmp)
-			} else {
-				port := types.SpecPort{
-					Protocol: libs.GetProtocol(dst.Protocol),
-					Port:     strconv.Itoa(dst.DstPort)}
-
-				// append toPorts rules
-				mergedDsts[i].ToPorts = append(mergedDsts[i].ToPorts, port)
-			}
-			// append flowIDs
-			for _, id := range flowIDs {
-				if !libs.ContainsElement(mergedDsts[i].FlowIDs, id) {
-					mergedDsts[i].FlowIDs = append(mergedDsts[i].FlowIDs, id)
-				}
-			}
-
-			return mergedDsts
-		}
+func mergeProtocolPorts(src string, dsts []Dst) *MergedPortDst {
+	if len(dsts) == 0 {
+		return nil
 	}
 
-	// if not matched, create new one
 	mergedDst := MergedPortDst{
-		FlowIDs:     flowIDs,
-		Namespace:   dst.Namespace,
-		PodName:     dst.PodName,
-		MatchLabels: dst.MatchLabels,
-		Additionals: []string{dst.Additional},
+		Namespace:   dsts[0].Namespace,
+		PodName:     dsts[0].PodName,
+		MatchLabels: dsts[0].MatchLabels,
+		Additionals: []string{dsts[0].Additional},
 	}
 
-	if libs.IsICMP(dst.Protocol) {
-		family := "IPv4"
-		if dst.Protocol == libs.IPProtocolICMPv6 {
-			family = "IPv6"
+	for _, dst := range dsts {
+		if libs.IsICMP(dst.Protocol) {
+			family := "IPv4"
+			if dst.Protocol == libs.IPProtocolICMPv6 {
+				family = "IPv6"
+			}
+			mergedDst.ICMPs = []types.SpecICMP{{
+				Family: family,
+				Type:   uint8(dst.ICMPType),
+			}}
+		} else {
+			mergedDst.ToPorts = []types.SpecPort{{
+				Protocol: libs.GetProtocol(dst.Protocol),
+				Port:     strconv.Itoa(dst.DstPort),
+			}}
 		}
-		mergedDst.ICMPs = []types.SpecICMP{{
-			Family: family,
-			Type:   uint8(dst.ICMPType),
-		}}
-	} else {
-		mergedDst.ToPorts = []types.SpecPort{{
-			Protocol: libs.GetProtocol(dst.Protocol),
-			Port:     strconv.Itoa(dst.DstPort),
-		}}
-	}
-	mergedDsts = append(mergedDsts, mergedDst)
 
-	return mergedDsts
+		flowIDs := getFlowIDFromTrackMap2(src, dst)
+		for _, id := range flowIDs {
+			if !libs.ContainsElement(mergedDst.FlowIDs, id) {
+				mergedDst.FlowIDs = append(mergedDst.FlowIDs, id)
+			}
+		}
+	}
+
+	return &mergedDst
 }
 
 func mergeDstByProtoPort(aggregatedSrcsPerDst map[Dst][]string) map[string][]MergedPortDst {
@@ -820,70 +831,26 @@ func mergeDstByProtoPort(aggregatedSrcsPerDst map[Dst][]string) map[string][]Mer
 				aggregatedSrcPerMergedDst[aggregatedSrc] = []MergedPortDst{}
 			}
 
-			// convert dst -> dstSimple, and count each dstSimple
-			dstSimpleCounts := map[DstSimple]int{}
+			// convert dst -> dst per dstSimple
+			dstSimpleMap := map[DstSimple][]Dst{}
 
 			for _, dst := range dsts {
 				// dstSimple not include protocol, port number
 				dstSimple := DstSimple{
 					Namespace:  dst.Namespace,
 					PodName:    dst.PodName,
-					Additional: dst.Additional}
-
-				if val, ok := dstSimpleCounts[dstSimple]; !ok {
-					dstSimpleCounts[dstSimple] = 1
-				} else {
-					dstSimpleCounts[dstSimple] = val + 1
+					Additional: dst.Additional,
 				}
+				dstSimpleMap[dstSimple] = append(dstSimpleMap[dstSimple], dst)
 			}
-
-			// sort dstCount by descending order
-			type dstCount struct {
-				DstSimple DstSimple
-				Count     int
-			}
-
-			var dstCounts []dstCount
-			for dst, count := range dstSimpleCounts {
-				dstCounts = append(dstCounts, dstCount{dst, count})
-			}
-
-			sort.Slice(dstCounts, func(i, j int) bool {
-				return dstCounts[i].Count > dstCounts[j].Count
-			})
 
 			// if dst is matched dstSimple, remove it from origin dst list
-			for _, dstCount := range dstCounts {
-				if dstCount.Count >= 2 { // at least match count >= 2
-					for _, dst := range dsts {
-						dstSimple := DstSimple{
-							Namespace:  dst.Namespace,
-							PodName:    dst.PodName,
-							Additional: dst.Additional}
-
-						if dstCount.DstSimple == dstSimple {
-							// get tracked flowIDs
-							flowIDs := getFlowIDFromTrackMap2(aggregatedSrc, dst)
-							// merge protocol + port
-							aggregatedSrcPerMergedDst[aggregatedSrc] = mergeProtocolPorts(aggregatedSrcPerMergedDst[aggregatedSrc], dst, flowIDs)
-							// and then, remove dst
-							dsts = removeDstFromSlice(dsts, dst)
-						}
-					}
+			for _, dests := range dstSimpleMap {
+				mergedDst := mergeProtocolPorts(aggregatedSrc, dests)
+				if mergedDst != nil {
+					aggregatedSrcPerMergedDst[aggregatedSrc] = append(aggregatedSrcPerMergedDst[aggregatedSrc], *mergedDst)
 				}
 			}
-
-			// update dstsPerAggregatedSrc map
-			dstsPerAggregatedSrc[aggregatedSrc] = dsts
-		}
-	}
-
-	// if not merged dsts remains, append it by default
-	for aggregatedSrc, dsts := range dstsPerAggregatedSrc {
-		for _, dst := range dsts {
-			// get tracked flowIDs
-			flowIDs := getFlowIDFromTrackMap2(aggregatedSrc, dst)
-			aggregatedSrcPerMergedDst[aggregatedSrc] = mergeProtocolPorts(aggregatedSrcPerMergedDst[aggregatedSrc], dst, flowIDs)
 		}
 	}
 
@@ -1036,9 +1003,11 @@ func aggregateDstByLabel(aggregatedSrcPerMergedDst map[string][]MergedPortDst, p
 
 		// dstsPerNamespaceMap key: namespace, val: []MergedPortDst
 		dstsPerNamespaceMap := groupDstByNamespace(aggregatedSrcPerMergedDst[aggregatedSrc])
-		for _, mergedDsts := range dstsPerNamespaceMap {
-			// label update
-			mergedDsts = updateDstLabels(mergedDsts, pods)
+		for namespace, mergedDsts := range dstsPerNamespaceMap {
+			if namespace != "reserved:cidr" && namespace != "reserved:entities" {
+				// label update
+				mergedDsts = updateDstLabels(mergedDsts, pods)
+			}
 
 			// if level 2 or 3, aggregate labels
 			if L3DiscoveryLevel >= 2 {
@@ -1185,11 +1154,17 @@ func buildNewIngressPolicyFromSameSelector(namespace string, selector types.Sele
 func buildIngressFromEntitiesPolicy(namespace string, mergedSrcPerMergedDst map[string][]MergedPortDst, networkPolicies []types.KnoxNetworkPolicy) []types.KnoxNetworkPolicy {
 	for aggregatedSrc, aggregatedMergedDsts := range mergedSrcPerMergedDst {
 		// if src includes "reserved" prefix, it means Ingress Policy
-		if strings.Contains(aggregatedSrc, "reserved") {
-			entity := strings.Split(aggregatedSrc, "=")[1]
+		if strings.Contains(aggregatedSrc, "reserved:") {
+			reservedLables := strings.Split(aggregatedSrc, ",")
+
+			entities := []string{}
+			for _, label := range reservedLables {
+				entity := strings.TrimPrefix(label, "reserved:")
+				entities = append(entities, entity)
+			}
 
 			for _, dst := range aggregatedMergedDsts {
-				if dst.MatchLabels == "" {
+				if dst.MatchLabels == "" || dst.Namespace == "kube-system" {
 					continue
 				}
 
@@ -1212,7 +1187,7 @@ func buildIngressFromEntitiesPolicy(namespace string, mergedSrcPerMergedDst map[
 				}
 
 				ingressRule := types.Ingress{}
-				ingressRule.FromEntities = []string{entity}
+				ingressRule.FromEntities = entities
 
 				for _, toPort := range dst.ToPorts {
 					port := types.SpecPort{Port: toPort.Port, Protocol: toPort.Protocol}
@@ -1228,12 +1203,22 @@ func buildIngressFromEntitiesPolicy(namespace string, mergedSrcPerMergedDst map[
 
 				included := false
 				for _, policy := range networkPolicies {
-					if cmp.Equal(&ingressPolicy.Spec.Selector, &policy.Spec.Selector) &&
-						policy.Metadata["rule"] == "fromEntities" {
-						if libs.ContainsElement(policy.Spec.Ingress[0].FromEntities, entity) {
-							included = true
-							break
+					if policy.Metadata["rule"] == "fromEntities" &&
+						cmp.Equal(&ingressPolicy.Spec.Selector, &policy.Spec.Selector) &&
+						cmp.Equal(policy.Spec.Ingress[0].ToPorts, ingressRule.ToPorts) &&
+						cmp.Equal(policy.Spec.Ingress[0].ICMPs, ingressRule.ICMPs) {
+
+						// copy the new entities in the old policy's entity list
+						oldEntities := policy.Spec.Ingress[0].FromEntities
+						for _, entity := range entities {
+							if !libs.ContainsElement(oldEntities, entity) {
+								oldEntities = append(oldEntities, entity)
+							}
 						}
+						policy.Spec.Ingress[0].FromEntities = oldEntities
+
+						included = true
+						break
 					}
 				}
 
@@ -1446,7 +1431,7 @@ func buildNetworkPolicy(namespace string, services []types.Service, aggregatedSr
 					egressPolicy.Spec.Egress = append(egressPolicy.Spec.Egress, egressRule)
 					networkPolicies = append(networkPolicies, egressPolicy)
 				}
-			} else if strings.HasPrefix(dst.Namespace, "reserved:entity") && dst.MatchLabels == "" {
+			} else if dst.Namespace == "reserved:entities" && len(dst.Additionals) > 0 {
 				egressPolicy.Metadata["rule"] = "toEntities"
 
 				// ================= //
@@ -1456,13 +1441,30 @@ func buildNetworkPolicy(namespace string, services []types.Service, aggregatedSr
 
 				// handle for entity policy in Cilium
 				egressRule.ToEndtities = dst.Additionals
+
+				// check toPorts rule
+				if len(dst.ToPorts) > 0 && discoverRuleTypes&TO_PORTS > 0 {
+					egressPolicy.Metadata["rule"] = egressPolicy.Metadata["rule"] + "+toPorts"
+					egressRule.ToPorts = dst.ToPorts
+				}
+
+				if len(dst.ICMPs) > 0 && (discoverRuleTypes&TO_ICMPS) > 0 {
+					egressPolicy.Metadata["rule"] = egressPolicy.Metadata["rule"] + "+icmps"
+					egressRule.ICMPs = dst.ICMPs
+				}
+
 				egressPolicy.Spec.Egress = append(egressPolicy.Spec.Egress, egressRule)
 
 				// check egress & toEntities rule
 				if discoverPolicyTypes&EGRESS > 0 && discoverRuleTypes&TO_ENTITIES > 0 {
 					networkPolicies = append(networkPolicies, egressPolicy)
 				}
-			} else if len(dst.Additionals) > 0 {
+			}
+			// toServices rule will be handled by policies with matchLabel rule
+			// Keeping the below code just as a reference
+			/*********************************************
+			else if len(dst.Additionals) > 0 {
+
 				egressPolicy.Metadata["rule"] = "toServices"
 
 				// ================== //
@@ -1481,6 +1483,7 @@ func buildNetworkPolicy(namespace string, services []types.Service, aggregatedSr
 					networkPolicies = append(networkPolicies, egressPolicy)
 				}
 			}
+			**********************************************/
 		}
 	}
 

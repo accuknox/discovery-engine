@@ -184,17 +184,12 @@ func FilterNetworkLogsByNamespace(targetNamespace string, logs []types.KnoxNetwo
 	filteredLogs := []types.KnoxNetworkLog{}
 
 	for _, log := range logs {
-		// case 1: src namespace == target namespace
 		if log.SrcNamespace == targetNamespace {
+			// Preferred case: group by src namespace
 			filteredLogs = append(filteredLogs, log)
-
-		}
-
-		// case 2: dst namespace == target namespace && src namespace == reserved: or kube-system or cilium
-		if log.DstNamespace == targetNamespace {
-			if strings.Contains(log.SrcNamespace, "reserved:") {
-				filteredLogs = append(filteredLogs, log)
-			}
+		} else if len(log.SrcReservedLabels) > 0 && log.DstNamespace == targetNamespace {
+			// When src is reserved: group by dst namespace
+			filteredLogs = append(filteredLogs, log)
 		}
 	}
 
