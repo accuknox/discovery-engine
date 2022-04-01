@@ -15,8 +15,21 @@ message WorkerRequest {
     string policytype = 1;
     string req = 2;
     string logfile = 3;
+    string namespace = 4;
+    string clustername = 5;
+    string labels = 6;
 }
 
 message WorkerResponse {
     string res = 1;
+    repeated KubeArmorPolicy kubearmorpolicy = 2;
+    repeated CiliumPolicy ciliumpolicy = 3;
+}
+
+message KubeArmorPolicy {
+    bytes Data = 1;
+}
+
+message CiliumPolicy {
+    bytes Data = 1;
 }
