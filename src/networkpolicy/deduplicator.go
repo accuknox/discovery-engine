@@ -282,7 +282,7 @@ func UpdateHTTP(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.Knox
 	}
 
 	newHTTP := []types.SpecHTTP{}
-	if newPolicy.Metadata["type"] == "egress" {
+	if newPolicy.Metadata["type"] == PolicyTypeEgress {
 		newHTTP = newPolicy.Spec.Egress[0].ToHTTPs
 	} else {
 		newHTTP = newPolicy.Spec.Ingress[0].ToHTTPs
@@ -292,7 +292,7 @@ func UpdateHTTP(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.Knox
 
 	for _, latestPolicy := range latestPolicies {
 		existHTTP := []types.SpecHTTP{}
-		if newPolicy.Metadata["type"] == "egress" {
+		if newPolicy.Metadata["type"] == PolicyTypeEgress {
 			existHTTP = latestPolicy.Spec.Egress[0].ToHTTPs
 		} else {
 			existHTTP = latestPolicy.Spec.Ingress[0].ToHTTPs
@@ -330,7 +330,7 @@ func UpdateHTTP(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.Knox
 
 	// at least one updated
 	if updated {
-		if newPolicy.Metadata["type"] == "egress" {
+		if newPolicy.Metadata["type"] == PolicyTypeEgress {
 			newPolicy.Spec.Egress[0].ToHTTPs = newHTTP
 		} else {
 			newPolicy.Spec.Ingress[0].ToHTTPs = newHTTP
@@ -359,7 +359,7 @@ func UpdateToPorts(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.K
 
 	newToPorts := []types.SpecPort{}
 	newICMPs := []types.SpecICMP{}
-	if newPolicy.Metadata["type"] == "egress" {
+	if newPolicy.Metadata["type"] == PolicyTypeEgress {
 		newToPorts = newPolicy.Spec.Egress[0].ToPorts
 		newICMPs = newPolicy.Spec.Egress[0].ICMPs
 	} else {
@@ -372,7 +372,7 @@ func UpdateToPorts(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.K
 	for _, latestPolicy := range latestPolicies {
 		existToPorts := []types.SpecPort{}
 		existICMPs := []types.SpecICMP{}
-		if newPolicy.Metadata["type"] == "egress" {
+		if newPolicy.Metadata["type"] == PolicyTypeEgress {
 			existToPorts = latestPolicy.Spec.Egress[0].ToPorts
 			existICMPs = latestPolicy.Spec.Egress[0].ICMPs
 		} else {
@@ -431,7 +431,7 @@ func UpdateToPorts(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.K
 
 	// at least one updated
 	if updated {
-		if newPolicy.Metadata["type"] == "egress" {
+		if newPolicy.Metadata["type"] == PolicyTypeEgress {
 			newPolicy.Spec.Egress[0].ToPorts = newToPorts
 			newPolicy.Spec.Egress[0].ICMPs = newICMPs
 		} else {
@@ -454,7 +454,7 @@ func UpdateMatchLabels(newPolicy types.KnoxNetworkPolicy, existingPolicies []typ
 	newICMPs := []types.SpecICMP{}
 	newToPorts := []types.SpecPort{}
 	newTargetLabelsCount := 0
-	if newPolicy.Metadata["type"] == "egress" {
+	if newPolicy.Metadata["type"] == PolicyTypeEgress {
 		newToPorts = newPolicy.Spec.Egress[0].ToPorts
 		newICMPs = newPolicy.Spec.Egress[0].ICMPs
 		newTargetLabelsCount = len(newPolicy.Spec.Egress[0].MatchLabels)
@@ -471,7 +471,7 @@ func UpdateMatchLabels(newPolicy types.KnoxNetworkPolicy, existingPolicies []typ
 		existICMPs := []types.SpecICMP{}
 		existTargetLabelsCount := 0
 
-		if newPolicy.Metadata["type"] == "egress" {
+		if newPolicy.Metadata["type"] == PolicyTypeEgress {
 			existToPorts = latestPolicy.Spec.Egress[0].ToPorts
 			existICMPs = latestPolicy.Spec.Egress[0].ICMPs
 			existTargetLabelsCount = len(latestPolicy.Spec.Egress[0].MatchLabels)
@@ -534,7 +534,7 @@ func UpdateMatchLabels(newPolicy types.KnoxNetworkPolicy, existingPolicies []typ
 
 	// at least one updated occurred
 	if updated {
-		if newPolicy.Metadata["type"] == "egress" {
+		if newPolicy.Metadata["type"] == PolicyTypeEgress {
 			newPolicy.Spec.Egress[0].ToPorts = newToPorts
 			newPolicy.Spec.Egress[0].ICMPs = newICMPs
 		} else {
@@ -556,7 +556,7 @@ func UpdateEntity(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.Kn
 	}
 
 	newEntities := []string{}
-	if newPolicy.Metadata["type"] == "egress" {
+	if newPolicy.Metadata["type"] == PolicyTypeEgress {
 		newEntities = newPolicy.Spec.Egress[0].ToEndtities
 	} else {
 		newEntities = newPolicy.Spec.Ingress[0].FromEntities
@@ -566,7 +566,7 @@ func UpdateEntity(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.Kn
 
 	for _, latestPolicy := range latestPolicies {
 		existEntities := []string{}
-		if newPolicy.Metadata["type"] == "egress" {
+		if newPolicy.Metadata["type"] == PolicyTypeEgress {
 			existEntities = latestPolicy.Spec.Egress[0].ToEndtities
 		} else {
 			existEntities = latestPolicy.Spec.Ingress[0].FromEntities
@@ -604,7 +604,7 @@ func UpdateEntity(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.Kn
 
 	// at least one updated
 	if updated {
-		if newPolicy.Metadata["type"] == "egress" {
+		if newPolicy.Metadata["type"] == PolicyTypeEgress {
 			newPolicy.Spec.Egress[0].ToEndtities = newEntities
 		} else {
 			newPolicy.Spec.Ingress[0].FromEntities = newEntities
@@ -624,7 +624,7 @@ func UpdateService(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.K
 	}
 
 	newServices := []types.SpecService{}
-	if newPolicy.Metadata["type"] == "egress" {
+	if newPolicy.Metadata["type"] == PolicyTypeEgress {
 		newServices = newPolicy.Spec.Egress[0].ToServices
 	} else {
 		return newPolicy, true
@@ -634,7 +634,7 @@ func UpdateService(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.K
 
 	for _, latestPolicy := range latestPolicies {
 		existServices := []types.SpecService{}
-		if newPolicy.Metadata["type"] == "egress" {
+		if newPolicy.Metadata["type"] == PolicyTypeEgress {
 			existServices = latestPolicy.Spec.Egress[0].ToServices
 		} else {
 			continue
@@ -672,7 +672,7 @@ func UpdateService(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.K
 
 	// at least one updated
 	if updated {
-		if newPolicy.Metadata["type"] == "egress" {
+		if newPolicy.Metadata["type"] == PolicyTypeEgress {
 			newPolicy.Spec.Egress[0].ToServices = newServices
 		}
 
@@ -893,7 +893,7 @@ func UpdateDuplicatedPolicy(existingPolicies []types.KnoxNetworkPolicy, discover
 		}
 
 		// step 5: update existing FQDN+toPorts rules: egress
-		if strings.Contains(policy.Metadata["rule"], "toFQDNs") && policy.Metadata["type"] == "egress" {
+		if strings.Contains(policy.Metadata["rule"], "toFQDNs") && policy.Metadata["type"] == PolicyTypeEgress {
 			updatedPolicy, updated := UpdateToPorts(namedPolicy, existingPolicies)
 			if updated {
 				namedPolicy = updatedPolicy
@@ -909,7 +909,7 @@ func UpdateDuplicatedPolicy(existingPolicies []types.KnoxNetworkPolicy, discover
 		}
 
 		// step 7: update existing Entities rules: egress
-		if strings.Contains(policy.Metadata["rule"], "toServices") && policy.Metadata["type"] == "egress" {
+		if strings.Contains(policy.Metadata["rule"], "toServices") && policy.Metadata["type"] == PolicyTypeEgress {
 			updatedPolicy, updated := UpdateService(namedPolicy, existingPolicies)
 			if updated {
 				namedPolicy = updatedPolicy

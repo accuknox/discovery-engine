@@ -62,6 +62,11 @@ const (
 	FROM_ENTITIES = 1 << 9 // 512
 )
 
+const (
+	PolicyTypeIngress = "ingress"
+	PolicyTypeEgress  = "egress"
+)
+
 // if the target IP is in out-of-cluster
 var ReservedWorld = "reserved:world"
 
@@ -1082,7 +1087,7 @@ func buildNewKnoxPolicy() types.KnoxNetworkPolicy {
 
 func buildNewKnoxEgressPolicy() types.KnoxNetworkPolicy {
 	policy := buildNewKnoxPolicy()
-	policy.Metadata["type"] = "egress"
+	policy.Metadata["type"] = PolicyTypeEgress
 	policy.Spec.Egress = []types.Egress{}
 
 	return policy
@@ -1090,7 +1095,7 @@ func buildNewKnoxEgressPolicy() types.KnoxNetworkPolicy {
 
 func buildNewKnoxIngressPolicy() types.KnoxNetworkPolicy {
 	policy := buildNewKnoxPolicy()
-	policy.Metadata["type"] = "ingress"
+	policy.Metadata["type"] = PolicyTypeIngress
 	policy.Spec.Ingress = []types.Ingress{}
 
 	return policy
