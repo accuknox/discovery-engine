@@ -557,7 +557,7 @@ func UpdateEntity(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.Kn
 
 	newEntities := []string{}
 	if newPolicy.Metadata["type"] == PolicyTypeEgress {
-		newEntities = newPolicy.Spec.Egress[0].ToEndtities
+		newEntities = newPolicy.Spec.Egress[0].ToEntities
 	} else {
 		newEntities = newPolicy.Spec.Ingress[0].FromEntities
 	}
@@ -567,7 +567,7 @@ func UpdateEntity(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.Kn
 	for _, latestPolicy := range latestPolicies {
 		existEntities := []string{}
 		if newPolicy.Metadata["type"] == PolicyTypeEgress {
-			existEntities = latestPolicy.Spec.Egress[0].ToEndtities
+			existEntities = latestPolicy.Spec.Egress[0].ToEntities
 		} else {
 			existEntities = latestPolicy.Spec.Ingress[0].FromEntities
 		}
@@ -605,7 +605,7 @@ func UpdateEntity(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.Kn
 	// at least one updated
 	if updated {
 		if newPolicy.Metadata["type"] == PolicyTypeEgress {
-			newPolicy.Spec.Egress[0].ToEndtities = newEntities
+			newPolicy.Spec.Egress[0].ToEntities = newEntities
 		} else {
 			newPolicy.Spec.Ingress[0].FromEntities = newEntities
 		}

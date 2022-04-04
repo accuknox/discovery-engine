@@ -1445,7 +1445,7 @@ func buildNetworkPolicy(namespace string, services []types.Service, aggregatedSr
 				sort.Strings(dst.Additionals)
 
 				// handle for entity policy in Cilium
-				egressRule.ToEndtities = dst.Additionals
+				egressRule.ToEntities = dst.Additionals
 
 				// check toPorts rule
 				if len(dst.ToPorts) > 0 && discoverRuleTypes&TO_PORTS > 0 {

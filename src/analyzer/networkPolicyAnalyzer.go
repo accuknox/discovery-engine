@@ -52,7 +52,7 @@ func populatePbNetPolicyFromNetPolicy(KnoxNwPolicy types.KnoxNetworkPolicy) apb.
 			pbToCIDRs = append(pbToCIDRs, &pbToCIDR)
 		}
 
-		pbEgress.ToEndtities = append(pbEgress.ToEndtities, egress.ToEndtities...)
+		pbEgress.ToEndtities = append(pbEgress.ToEndtities, egress.ToEntities...)
 
 		for _, toService := range egress.ToServices {
 			pbToService := apb.SpecService{}
