@@ -8,8 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const ShouldBeEqual = "they should be equal"
-
 func TestGetLatestCIDRs(t *testing.T) {
 	exist1 := types.KnoxNetworkPolicy{
 		Metadata: map[string]string{

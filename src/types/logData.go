@@ -6,11 +6,13 @@ type KnoxNetworkLog struct {
 
 	ClusterName string `json:"cluster_name,omitempty" bson:"cluster_name"`
 
-	SrcNamespace string `json:"src_namespace,omitempty" bson:"src_namespace"`
-	SrcPodName   string `json:"src_pod_name,omitempty" bson:"src_pod_name"`
+	SrcNamespace      string   `json:"src_namespace,omitempty" bson:"src_namespace"`
+	SrcReservedLabels []string `json:"src_reserved_labels,omitempty" bson:"src_reserved_labels"`
+	SrcPodName        string   `json:"src_pod_name,omitempty" bson:"src_pod_name"`
 
-	DstNamespace string `json:"dst_namespace,omitempty" bson:"dst_namespace"`
-	DstPodName   string `json:"dst_pod_name,omitempty" bson:"dst_pod_name"`
+	DstNamespace      string   `json:"dst_namespace,omitempty" bson:"dst_namespace"`
+	DstReservedLabels []string `json:"dst_reserved_labels,omitempty" bson:"dst_reserved_labels"`
+	DstPodName        string   `json:"dst_pod_name,omitempty" bson:"dst_pod_name"`
 
 	EtherType int `json:"ether_type,omitempty" bson:"ether_type"` // not used, we assume all the ipv4
 
@@ -19,6 +21,7 @@ type KnoxNetworkLog struct {
 	DstIP    string `json:"dst_ip,omitempty" bson:"dst_ip"`
 	SrcPort  int    `json:"src_port,omitempty" bson:"src_port"`
 	DstPort  int    `json:"dst_port,omitempty" bson:"dst_port"`
+	ICMPType int    `json:"icmp_type, omitempty" bson:"icmp_type"`
 
 	SynFlag bool `json:"syn_flag,omitempty" bson:"syn_flag"` // for tcp
 	IsReply bool `json:"is_reply,omitempty" bson:"is_reply"` // is_reply

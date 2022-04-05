@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"math/bits"
+	"net"
 	"os"
 	"reflect"
 	"sort"
@@ -111,15 +112,21 @@ func FilterNetworkLogsByConfig(logs []types.KnoxNetworkLog, pods []types.Pod) []
 	for _, log := range logs {
 		filtered := false
 
-		if log.Protocol == 6 && !log.SynFlag { // In case of TCP only handle flows with SYN flag
+		// Ignore flows which have link-local IP addresses
+		if net.ParseIP(log.SrcIP).IsLinkLocalUnicast() ||
+			net.ParseIP(log.DstIP).IsLinkLocalUnicast() {
 			continue
 		}
 
-		if log.Protocol == 17 && log.IsReply && log.DstNamespace == "reserved:world" {
-			/*
-				fmt.Printf("dropping UDP SrcPort:%v DstPort:%v DstNamespace:%v\n",
-					log.SrcPort, log.DstPort, log.DstNamespace)
-			*/
+		if log.Protocol == libs.IPProtocolTCP && !log.SynFlag { // In case of TCP only handle flows with SYN flag
+			continue
+		}
+
+		if log.Protocol == libs.IPProtocolUDP && log.IsReply {
+			continue
+		}
+
+		if libs.IsICMP(log.Protocol) && log.IsReply {
 			continue
 		}
 
@@ -178,17 +185,12 @@ func FilterNetworkLogsByNamespace(targetNamespace string, logs []types.KnoxNetwo
 	filteredLogs := []types.KnoxNetworkLog{}
 
 	for _, log := range logs {
-		// case 1: src namespace == target namespace
 		if log.SrcNamespace == targetNamespace {
+			// Preferred case: group by src namespace
 			filteredLogs = append(filteredLogs, log)
-
-		}
-
-		// case 2: dst namespace == target namespace && src namespace == reserved: or kube-system or cilium
-		if log.DstNamespace == targetNamespace {
-			if strings.Contains(log.SrcNamespace, "reserved:") {
-				filteredLogs = append(filteredLogs, log)
-			}
+		} else if len(log.SrcReservedLabels) > 0 && log.DstNamespace == targetNamespace {
+			// When src is reserved: group by dst namespace
+			filteredLogs = append(filteredLogs, log)
 		}
 	}
 
@@ -625,30 +627,33 @@ func removeDstFromMergedDstSlice(dsts []MergedPortDst, remove MergedPortDst) []M
 // == Kubernetes Services/Endpoints == //
 // =================================== //
 
-func checkK8sExternalService(log types.KnoxNetworkLog, endpoints []types.Endpoint) (types.Endpoint, bool) {
-	for _, endpoint := range endpoints {
-		for _, port := range endpoint.Endpoints {
-			if (libs.GetProtocol(log.Protocol) == strings.ToUpper(port.Protocol)) &&
-				log.DstPort == port.Port &&
-				log.DstIP == port.IP {
-				return endpoint, true
+func checkK8sService(log types.KnoxNetworkLog, services []types.Service) (types.Service, bool) {
+	for _, svc := range services {
+		if log.DstIP == svc.ClusterIP {
+			return svc, true
+		} else if svc.Type == "NodePort" {
+			if libs.ContainsElement(svc.ExternalIPs, log.DstIP) &&
+				svc.NodePort == log.DstPort &&
+				svc.Protocol == libs.GetProtocol(log.Protocol) {
+				return svc, true
 			}
+		} else if libs.ContainsElement(svc.ExternalIPs, log.DstIP) {
+			return svc, true
 		}
 	}
-
-	return types.Endpoint{}, false
+	return types.Service{}, false
 }
 
 func isExposedPort(protocol int, port int) bool {
-	if protocol == 6 { // tcp
+	if protocol == libs.IPProtocolTCP {
 		if libs.ContainsElement(K8sServiceTCPPorts, port) {
 			return true
 		}
-	} else if protocol == 17 { // udp
+	} else if protocol == libs.IPProtocolUDP {
 		if libs.ContainsElement(K8sServiceUDPPorts, port) {
 			return true
 		}
-	} else if protocol == 132 { // sctp
+	} else if protocol == libs.IPProtocolSCTP {
 		if libs.ContainsElement(K8sServiceSCTPPorts, port) {
 			return true
 		}
