@@ -288,7 +288,7 @@ func WriteSystemPoliciesToFile(namespace, clustername, labels string) {
 
 func ViewSystemPolicies() *wpb.WorkerResponse {
 
-	sysPols := populateKnoxSysPolicyFromWPFSDb()
+	sysPols := populateKnoxSysPolicyFromWPFSDb("", "", "")
 	kubearmorPolicies := plugin.ConvertKnoxSystemPolicyToKubeArmorPolicy(sysPols)
 
 	var response wpb.WorkerResponse
