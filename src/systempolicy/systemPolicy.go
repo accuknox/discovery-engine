@@ -292,10 +292,10 @@ func ViewSystemPolicies() *wpb.WorkerResponse {
 	kubearmorPolicies := plugin.ConvertKnoxSystemPolicyToKubeArmorPolicy(sysPols)
 
 	var response wpb.WorkerResponse
-	for _, policy := range kubearmorPolicies {
+	for i := range kubearmorPolicies {
 		kubearmorpolicy := wpb.KubeArmorPolicy{}
 
-		val, err := json.Marshal(&policy)
+		val, err := json.Marshal(&kubearmorPolicies[i])
 		if err != nil {
 			log.Error().Msg(err.Error())
 		}

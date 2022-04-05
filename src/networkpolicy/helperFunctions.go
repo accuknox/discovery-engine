@@ -760,10 +760,10 @@ func ViewNetworkPolicies() *wpb.WorkerResponse {
 	ciliumPolicies := plugin.ConvertKnoxPoliciesToCiliumPolicies(services, latestPolicies)
 
 	var response wpb.WorkerResponse
-	for _, policy := range ciliumPolicies {
+	for i := range ciliumPolicies {
 		ciliumpolicy := wpb.CiliumPolicy{}
 
-		val, err := json.Marshal(&policy)
+		val, err := json.Marshal(&ciliumPolicies[i])
 		if err != nil {
 			log.Error().Msg(err.Error())
 		}
