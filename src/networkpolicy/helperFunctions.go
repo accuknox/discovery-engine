@@ -754,7 +754,7 @@ func WriteNetworkPoliciesToFile(cluster, namespace string, services []types.Serv
 	libs.WriteCiliumPolicyToYamlFile(namespace, ciliumPolicies)
 }
 
-func ViewNetworkPolicies() *wpb.WorkerResponse {
+func GetNetPolicy() *wpb.WorkerResponse {
 	var services []types.Service
 	latestPolicies := libs.GetNetworkPolicies(CfgDB, "", "", "latest")
 	ciliumPolicies := plugin.ConvertKnoxPoliciesToCiliumPolicies(services, latestPolicies)
