@@ -184,7 +184,7 @@ func TestGetLatestEntityPolicy(t *testing.T) {
 
 			Egress: []types.Egress{
 				types.Egress{
-					ToEndtities: []string{"testEntity"},
+					ToEntities: []string{"testEntity"},
 				},
 			},
 		},
@@ -429,7 +429,7 @@ func TestUpdateEntity(t *testing.T) {
 
 			Egress: []types.Egress{
 				types.Egress{
-					ToEndtities: []string{"testEntity"},
+					ToEntities: []string{"testEntity"},
 				},
 			},
 		},
@@ -437,11 +437,11 @@ func TestUpdateEntity(t *testing.T) {
 
 	newPolicy := types.KnoxNetworkPolicy{}
 	libs.DeepCopy(&newPolicy, &existPolicy)
-	newPolicy.Spec.Egress[0].ToEndtities[0] = "newEntity"
+	newPolicy.Spec.Egress[0].ToEntities[0] = "newEntity"
 
 	expected := types.KnoxNetworkPolicy{}
 	libs.DeepCopy(&expected, &newPolicy)
-	expected.Spec.Egress[0].ToEndtities = append(expected.Spec.Egress[0].ToEndtities, "testEntity")
+	expected.Spec.Egress[0].ToEntities = append(expected.Spec.Egress[0].ToEntities, "testEntity")
 
 	existings := []types.KnoxNetworkPolicy{existPolicy}
 

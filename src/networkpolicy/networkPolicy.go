@@ -62,6 +62,11 @@ const (
 	FROM_ENTITIES = 1 << 9 // 512
 )
 
+const (
+	PolicyTypeIngress = "ingress"
+	PolicyTypeEgress  = "egress"
+)
+
 // if the target IP is in out-of-cluster
 var ReservedWorld = "reserved:world"
 
@@ -1082,7 +1087,7 @@ func buildNewKnoxPolicy() types.KnoxNetworkPolicy {
 
 func buildNewKnoxEgressPolicy() types.KnoxNetworkPolicy {
 	policy := buildNewKnoxPolicy()
-	policy.Metadata["type"] = "egress"
+	policy.Metadata["type"] = PolicyTypeEgress
 	policy.Spec.Egress = []types.Egress{}
 
 	return policy
@@ -1090,7 +1095,7 @@ func buildNewKnoxEgressPolicy() types.KnoxNetworkPolicy {
 
 func buildNewKnoxIngressPolicy() types.KnoxNetworkPolicy {
 	policy := buildNewKnoxPolicy()
-	policy.Metadata["type"] = "ingress"
+	policy.Metadata["type"] = PolicyTypeIngress
 	policy.Spec.Ingress = []types.Ingress{}
 
 	return policy
@@ -1164,7 +1169,7 @@ func buildIngressFromEntitiesPolicy(namespace string, mergedSrcPerMergedDst map[
 			}
 
 			for _, dst := range aggregatedMergedDsts {
-				if dst.MatchLabels == "" || dst.Namespace == "kube-system" {
+				if dst.MatchLabels == "" {
 					continue
 				}
 
@@ -1362,7 +1367,7 @@ func buildNetworkPolicy(namespace string, services []types.Service, aggregatedSr
 				}
 
 				// check ingress
-				if discoverPolicyTypes&INGRESS > 0 && dst.Namespace != "kube-system" {
+				if discoverPolicyTypes&INGRESS > 0 {
 					ingressPolicy := buildNewIngressPolicyFromEgressPolicy(egressRule, egressPolicy.Spec.Selector)
 					ingressPolicy.Spec.Ingress[0].MatchLabels["k8s:io.kubernetes.pod.namespace"] = namespace
 					ingressPolicy.FlowIDs = egressPolicy.FlowIDs
@@ -1440,7 +1445,7 @@ func buildNetworkPolicy(namespace string, services []types.Service, aggregatedSr
 				sort.Strings(dst.Additionals)
 
 				// handle for entity policy in Cilium
-				egressRule.ToEndtities = dst.Additionals
+				egressRule.ToEntities = dst.Additionals
 
 				// check toPorts rule
 				if len(dst.ToPorts) > 0 && discoverRuleTypes&TO_PORTS > 0 {
@@ -1566,12 +1571,12 @@ func DiscoverNetworkPolicy(namespace string,
 	return networkPolicies
 }
 
-func PopulateNetworkPoliciesFromNetworkLogs(sysLogs []types.KnoxNetworkLog) []types.KnoxNetworkPolicy {
+func PopulateNetworkPoliciesFromNetworkLogs(networkLogs []types.KnoxNetworkLog) map[string][]types.KnoxNetworkPolicy {
 
-	discoveredNetworkPolicies := []types.KnoxNetworkPolicy{}
+	discoveredNetworkPolicies := map[string][]types.KnoxNetworkPolicy{}
 
 	// get cluster names, iterate each cluster
-	clusteredLogs := clusteringNetworkLogs(sysLogs)
+	clusteredLogs := clusteringNetworkLogs(networkLogs)
 
 	for clusterName, networkLogs := range clusteredLogs {
 		log.Info().Msgf("Network policy discovery started for cluster [%s]", clusterName)
@@ -1614,15 +1619,29 @@ func PopulateNetworkPoliciesFromNetworkLogs(sysLogs []types.KnoxNetworkLog) []ty
 			log.Info().Msgf("DiscoverNetworkPolicy for cluster [%s] namespace [%s]", clusterName, namespace)
 			// discover network policies based on the network logs
 			discoveredNetPolicies := DiscoverNetworkPolicy(namespace, logsPerNamespace, services, pods)
-			discoveredNetworkPolicies = append(discoveredNetworkPolicies, discoveredNetPolicies...)
 
+			// Segregate policies based on policy namespace
+			// Context:
+			// --------
+			// When source and destination of a hubble flow are in different namespaces (A and B),
+			// we will generate the egress policy in a namespace (A) and the associated ingress
+			// policy in a different namespace (B). So it is important to do the segregation
+			// before starting the deduplication process.
+			for _, policy := range discoveredNetPolicies {
+				ns := policy.Metadata["namespace"]
+				discoveredNetworkPolicies[ns] = append(discoveredNetworkPolicies[ns], policy)
+			}
+		}
+
+		// iterate each namespace
+		for _, namespace := range namespaces {
 			log.Info().Msgf("libs.GetNetworkPolicies for cluster [%s] namespace [%s]", clusterName, namespace)
 			// get existing network policies in db
 			existingNetPolicies := libs.GetNetworkPolicies(CfgDB, clusterName, namespace, "latest")
 
 			log.Info().Msgf("UpdateDuplicatedPolicy for cluster [%s] namespace [%s]", clusterName, namespace)
 			// update duplicated policy
-			newNetPolicies := UpdateDuplicatedPolicy(existingNetPolicies, discoveredNetPolicies, DomainToIPs, clusterName)
+			newNetPolicies := UpdateDuplicatedPolicy(existingNetPolicies, discoveredNetworkPolicies[namespace], DomainToIPs, clusterName)
 
 			if len(newNetPolicies) > 0 {
 				// insert discovered policies to db
