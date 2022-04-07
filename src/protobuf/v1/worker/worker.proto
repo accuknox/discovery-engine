@@ -22,4 +22,14 @@ message WorkerRequest {
 
 message WorkerResponse {
     string res = 1;
+    repeated KubeArmorPolicy kubearmorpolicy = 2;
+    repeated CiliumPolicy ciliumpolicy = 3;
+}
+
+message KubeArmorPolicy {
+    bytes Data = 1;
+}
+
+message CiliumPolicy {
+    bytes Data = 1;
 }

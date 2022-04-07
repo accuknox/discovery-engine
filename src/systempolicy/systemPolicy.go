@@ -19,7 +19,9 @@ import (
 	"github.com/accuknox/auto-policy-discovery/src/libs"
 	logger "github.com/accuknox/auto-policy-discovery/src/logging"
 	"github.com/accuknox/auto-policy-discovery/src/plugin"
+	wpb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/worker"
 	types "github.com/accuknox/auto-policy-discovery/src/types"
+
 	"github.com/rs/zerolog"
 
 	"github.com/robfig/cron"
@@ -282,6 +284,29 @@ func WriteSystemPoliciesToFile(namespace, clustername, labels string) {
 		libs.WriteKubeArmorPolicyToYamlFile("kubearmor_policies", kubeArmorPolicies)
 	}
 	WriteSystemPoliciesToFile_Ext(namespace, clustername, labels)
+}
+
+func GetSysPolicy() *wpb.WorkerResponse {
+
+	sysPols := populateKnoxSysPolicyFromWPFSDb("", "", "")
+	kubearmorPolicies := plugin.ConvertKnoxSystemPolicyToKubeArmorPolicy(sysPols)
+
+	var response wpb.WorkerResponse
+	for i := range kubearmorPolicies {
+		kubearmorpolicy := wpb.KubeArmorPolicy{}
+
+		val, err := json.Marshal(&kubearmorPolicies[i])
+		if err != nil {
+			log.Error().Msg(err.Error())
+		}
+		kubearmorpolicy.Data = val
+
+		response.Kubearmorpolicy = append(response.Kubearmorpolicy, &kubearmorpolicy)
+	}
+	response.Res = "OK"
+	response.Ciliumpolicy = nil
+
+	return &response
 }
 
 // ============================= //

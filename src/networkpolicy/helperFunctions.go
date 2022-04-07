@@ -14,6 +14,7 @@ import (
 	"github.com/accuknox/auto-policy-discovery/src/cluster"
 	"github.com/accuknox/auto-policy-discovery/src/libs"
 	"github.com/accuknox/auto-policy-discovery/src/plugin"
+	wpb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/worker"
 	types "github.com/accuknox/auto-policy-discovery/src/types"
 	"github.com/cilium/cilium/api/v1/flow"
 )
@@ -751,6 +752,29 @@ func WriteNetworkPoliciesToFile(cluster, namespace string, services []types.Serv
 
 	// write discovered policies to files
 	libs.WriteCiliumPolicyToYamlFile(namespace, ciliumPolicies)
+}
+
+func GetNetPolicy() *wpb.WorkerResponse {
+	var services []types.Service
+	latestPolicies := libs.GetNetworkPolicies(CfgDB, "", "", "latest")
+	ciliumPolicies := plugin.ConvertKnoxPoliciesToCiliumPolicies(services, latestPolicies)
+
+	var response wpb.WorkerResponse
+	for i := range ciliumPolicies {
+		ciliumpolicy := wpb.CiliumPolicy{}
+
+		val, err := json.Marshal(&ciliumPolicies[i])
+		if err != nil {
+			log.Error().Msg(err.Error())
+		}
+		ciliumpolicy.Data = val
+
+		response.Ciliumpolicy = append(response.Ciliumpolicy, &ciliumpolicy)
+	}
+	response.Res = "OK"
+	response.Kubearmorpolicy = nil
+
+	return &response
 }
 
 // ====================== //
