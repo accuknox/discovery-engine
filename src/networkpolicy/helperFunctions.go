@@ -528,18 +528,19 @@ func updateDNSFlows(networkLogs []types.KnoxNetworkLog) {
 	for _, log := range networkLogs {
 		if log.DNSRes != "" && log.DNSResIPs != nil {
 			domainName := log.DNSRes
+			newDNSIPs := log.DNSResIPs
 
 			// udpate DNS to IPs map
-			if ips, ok := DomainToIPs[domainName]; ok {
-				for _, ip := range ips {
-					if !libs.ContainsElement(ips, ip) {
-						ips = append(ips, ip)
+			if dnsIps, ok := DomainToIPs[domainName]; ok {
+				for _, ip := range newDNSIPs {
+					if !libs.ContainsElement(dnsIps, ip) {
+						dnsIps = append(dnsIps, ip)
 					}
 				}
 
-				DomainToIPs[domainName] = ips
+				DomainToIPs[domainName] = dnsIps
 			} else {
-				DomainToIPs[domainName] = ips
+				DomainToIPs[domainName] = newDNSIPs
 			}
 		}
 	}
@@ -547,7 +548,7 @@ func updateDNSFlows(networkLogs []types.KnoxNetworkLog) {
 	// step 2: update dns query logs
 	for i, log := range networkLogs {
 		// traffic go to the outside of the cluster,
-		if log.DstNamespace == "reserved:world" {
+		if libs.ContainsElement(log.DstReservedLabels, ReservedWorld) {
 			// filter if the ip is from the DNS query
 			dns := getDomainNameFromDNSToIP(log)
 			if dns != "" {
@@ -560,7 +561,7 @@ func updateDNSFlows(networkLogs []types.KnoxNetworkLog) {
 func getDomainNameFromDNSToIP(log types.KnoxNetworkLog) string {
 	for domain, ips := range DomainToIPs {
 		// here, pod name is ip addr (external)
-		if libs.ContainsElement(ips, log.DstPodName) {
+		if libs.ContainsElement(ips, log.DstIP) {
 			return domain
 		}
 	}

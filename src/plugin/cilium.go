@@ -478,11 +478,6 @@ func ConvertKnoxNetworkPolicyToCiliumPolicy(services []types.Service, inPolicy t
 					ciliumEgress.ToEntities = append(ciliumEgress.ToEntities, entity)
 				}
 			} else if len(knoxEgress.ToFQDNs) > 0 {
-				// Since it is FQDN, allow access to kube-dns
-				egressDns := types.CiliumEgress{}
-				egressDns.ToEndpoints, egressDns.ToPorts = getCoreDNSEndpoint(services)
-				ciliumPolicy.Spec.Egress = append(ciliumPolicy.Spec.Egress, egressDns)
-
 				// =============== //
 				// build FQDN rule //
 				// =============== //
