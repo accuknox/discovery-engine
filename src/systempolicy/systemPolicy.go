@@ -250,11 +250,12 @@ func getSystemLogs() []types.KnoxSystemLog {
 	return systemLogs
 }
 
-func populateKnoxSysPolicyFromWPFSDb(namespace, clustername, labels string) []types.KnoxSystemPolicy {
+func populateKnoxSysPolicyFromWPFSDb(namespace, clustername, labels, fromsource string) []types.KnoxSystemPolicy {
 	wpfs := types.WorkloadProcessFileSet{
 		Namespace:   namespace,
 		ClusterName: clustername,
 		Labels:      labels,
+		FromSource:  fromsource,
 	}
 	res, pnMap, err := libs.GetWorkloadProcessFileSet(CfgDB, wpfs)
 	if err != nil {
@@ -266,7 +267,7 @@ func populateKnoxSysPolicyFromWPFSDb(namespace, clustername, labels string) []ty
 }
 
 func WriteSystemPoliciesToFile_Ext(namespace, clustername, labels string) {
-	sysPols := populateKnoxSysPolicyFromWPFSDb(namespace, clustername, labels)
+	sysPols := populateKnoxSysPolicyFromWPFSDb(namespace, clustername, labels, "")
 
 	kubeArmorPolicies := plugin.ConvertKnoxSystemPolicyToKubeArmorPolicy(sysPols)
 	for _, pol := range kubeArmorPolicies {
@@ -286,27 +287,81 @@ func WriteSystemPoliciesToFile(namespace, clustername, labels string) {
 	WriteSystemPoliciesToFile_Ext(namespace, clustername, labels)
 }
 
-func GetSysPolicy(namespace, clustername, labels string) *wpb.WorkerResponse {
+func GetSysPolicy(namespace, clustername, labels, fromsource string) *wpb.WorkerResponse {
 
-	sysPols := populateKnoxSysPolicyFromWPFSDb(namespace, clustername, labels)
-	kubearmorPolicies := plugin.ConvertKnoxSystemPolicyToKubeArmorPolicy(sysPols)
+	kubearmorK8SPolicies := extractK8SSystemPolicies(namespace, clustername, labels)
+	kubearmorVMPolicies := extractVMSystemPolicies(types.PolicyDiscoveryVMNamespace, clustername, labels, fromsource)
 
 	var response wpb.WorkerResponse
-	for i := range kubearmorPolicies {
+
+	// system policy for k8s
+	for i := range kubearmorK8SPolicies {
 		kubearmorpolicy := wpb.KubeArmorPolicy{}
 
-		val, err := json.Marshal(&kubearmorPolicies[i])
+		val, err := json.Marshal(&kubearmorK8SPolicies[i])
 		if err != nil {
-			log.Error().Msg(err.Error())
+			log.Error().Msgf("kubearmorK8SPolicy json marshal failed err=%v", err.Error())
 		}
 		kubearmorpolicy.Data = val
 
 		response.Kubearmorpolicy = append(response.Kubearmorpolicy, &kubearmorpolicy)
 	}
+
+	// system policy for VM
+	for i := range kubearmorVMPolicies {
+		kubearmorpolicy := wpb.KubeArmorPolicy{}
+
+		val, err := json.Marshal(&kubearmorVMPolicies[i])
+		if err != nil {
+			log.Error().Msgf("kubearmorVMPolicy json marshal failed err=%v", err.Error())
+		}
+		kubearmorpolicy.Data = val
+
+		response.Kubearmorpolicy = append(response.Kubearmorpolicy, &kubearmorpolicy)
+	}
+
 	response.Res = "OK"
 	response.Ciliumpolicy = nil
 
 	return &response
+}
+
+func extractK8SSystemPolicies(namespace, clustername, labels string) []types.KubeArmorPolicy {
+	sysPols := populateKnoxSysPolicyFromWPFSDb(namespace, clustername, labels, "")
+	policies := plugin.ConvertKnoxSystemPolicyToKubeArmorPolicy(sysPols)
+
+	var result []types.KubeArmorPolicy
+	for _, pol := range policies {
+		if pol.Metadata["namespace"] != types.PolicyDiscoveryVMNamespace {
+			result = append(result, pol)
+		}
+	}
+	return result
+}
+
+func extractVMSystemPolicies(namespace, clustername, labels, fromSource string) []types.KubeArmorPolicy {
+
+	var frmSrcSlice []string
+
+	if fromSource == "" {
+		frmSrcSlice = GetWPFSSources()
+	} else {
+		frmSrcSlice = append(frmSrcSlice, fromSource)
+	}
+
+	var result []types.KubeArmorPolicy
+
+	for _, fromSource := range frmSrcSlice {
+		sysPols := populateKnoxSysPolicyFromWPFSDb(namespace, clustername, labels, fromSource)
+		policies := plugin.ConvertKnoxSystemPolicyToKubeArmorPolicy(sysPols)
+
+		for _, pol := range policies {
+			if pol.Metadata["namespace"] == types.PolicyDiscoveryVMNamespace {
+				result = append(result, pol)
+			}
+		}
+	}
+	return result
 }
 
 // ============================= //
@@ -906,7 +961,7 @@ func updateSysPolicies() {
 	var locSysPolicies []types.KnoxSystemPolicy
 	var isPolicyExist bool
 
-	wpfsPolicies := populateKnoxSysPolicyFromWPFSDb("", "", "")
+	wpfsPolicies := populateKnoxSysPolicyFromWPFSDb("", "", "", "")
 
 	for _, wpfsPolicy := range wpfsPolicies {
 		isPolicyExist = false

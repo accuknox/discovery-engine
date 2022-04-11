@@ -240,7 +240,6 @@ func getDst(log types.KnoxNetworkLog, services []types.Service, cidrBits int) (D
 	if log.DNSQuery != "" {
 		dst := Dst{
 			Namespace:  "reserved:dns",
-			PodName:    log.DstPodName,
 			Additional: log.DNSQuery,
 			Protocol:   log.Protocol,
 			DstPort:    log.DstPort,
@@ -1009,7 +1008,7 @@ func aggregateDstByLabel(aggregatedSrcPerMergedDst map[string][]MergedPortDst, p
 		// dstsPerNamespaceMap key: namespace, val: []MergedPortDst
 		dstsPerNamespaceMap := groupDstByNamespace(aggregatedSrcPerMergedDst[aggregatedSrc])
 		for namespace, mergedDsts := range dstsPerNamespaceMap {
-			if namespace != "reserved:cidr" && namespace != "reserved:entities" {
+			if namespace != "reserved:dns" && namespace != "reserved:cidr" && namespace != "reserved:entities" {
 				// label update
 				mergedDsts = updateDstLabels(mergedDsts, pods)
 			}

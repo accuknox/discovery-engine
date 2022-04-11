@@ -18,6 +18,7 @@ message WorkerRequest {
     string namespace = 4;
     string clustername = 5;
     string labels = 6;
+    string fromsource = 7;
 }
 
 message WorkerResponse {

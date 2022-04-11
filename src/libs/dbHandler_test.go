@@ -20,7 +20,7 @@ const Unmet = "unmet expectation error: "
 // ==================== //
 
 func TestGetNetworkPolicies(t *testing.T) {
-	// prepare mock mysql
+	// prepare mock sqlite
 	_, mock := NewMock()
 
 	specPtr := &types.Spec{}
@@ -48,7 +48,7 @@ func TestGetNetworkPolicies(t *testing.T) {
 	mock.ExpectQuery("^SELECT (.+) FROM network_policy*").
 		WillReturnRows(rows)
 
-	results := GetNetworkPolicies(types.ConfigDB{DBDriver: "mysql"}, "", "", "")
+	results := GetNetworkPolicies(types.ConfigDB{DBDriver: "sqlite3"}, "", "", "")
 	assert.Equal(t, results[0].Kind, "test")
 
 	if err := mock.ExpectationsWereMet(); err != nil {
@@ -57,7 +57,7 @@ func TestGetNetworkPolicies(t *testing.T) {
 }
 
 func TestInsertNetworkPolicies(t *testing.T) {
-	// prepare mock mysql
+	// prepare mock sqlite
 	_, mock := NewMock()
 
 	policy := types.KnoxNetworkPolicy{}
@@ -91,7 +91,7 @@ func TestInsertNetworkPolicies(t *testing.T) {
 		},
 	}
 
-	err := InsertNetworkPoliciesToMySQL(types.ConfigDB{DBDriver: "mysql"}, nfe)
+	err := InsertNetworkPoliciesToSQLite(types.ConfigDB{DBDriver: "sqlite3"}, nfe)
 	assert.NoError(t, err)
 
 	if err := mock.ExpectationsWereMet(); err != nil {

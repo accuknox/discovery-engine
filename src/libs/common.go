@@ -99,7 +99,7 @@ func SetDefaultConfig() {
 	viper.SetDefault("application.cluster.cluster-info-from", "k8sclient")
 
 	// Database config
-	viper.SetDefault("database.driver", "mysql")
+	viper.SetDefault("database.driver", "sqlite333")
 	viper.SetDefault("database.user", "root")
 	viper.SetDefault("database.dbname", "accuknox")
 	viper.SetDefault("database.host", "127.0.0.1")
