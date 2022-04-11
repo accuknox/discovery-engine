@@ -41,6 +41,11 @@ const (
 	IPProtocolSCTP   = 132
 )
 
+const (
+	L7ProtocolDNS  = "dns"
+	L7ProtocolHTTP = "http"
+)
+
 var protocolMap = map[int]string{
 	IPProtoUnknown:   "Unknown",
 	IPProtocolICMP:   "ICMP",

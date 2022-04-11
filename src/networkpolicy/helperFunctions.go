@@ -118,7 +118,11 @@ func FilterNetworkLogsByConfig(logs []types.KnoxNetworkLog, pods []types.Pod) []
 			continue
 		}
 
-		if log.Protocol == libs.IPProtocolTCP && !log.SynFlag { // In case of TCP only handle flows with SYN flag
+		if log.L7Protocol == libs.L7ProtocolHTTP && log.IsReply {
+			continue
+		}
+
+		if log.L7Protocol != libs.L7ProtocolHTTP && log.Protocol == libs.IPProtocolTCP && !log.SynFlag { // In case of TCP only handle flows with SYN flag
 			continue
 		}
 
@@ -526,7 +530,7 @@ func getFlowIDFromTrackMap2(aggregatedLabel string, dst Dst) []int {
 func updateDNSFlows(networkLogs []types.KnoxNetworkLog) {
 	// step 1: update dnsToIPs map
 	for _, log := range networkLogs {
-		if log.DNSRes != "" && log.DNSResIPs != nil {
+		if log.DNSRes != "" && len(log.DNSResIPs) > 0 {
 			domainName := log.DNSRes
 			newDNSIPs := log.DNSResIPs
 

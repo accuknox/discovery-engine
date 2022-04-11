@@ -125,7 +125,7 @@ func TestGetLastedHTTPPolicy(t *testing.T) {
 
 	existings := []types.KnoxNetworkPolicy{exist1, exist2}
 
-	result := GetLastedHTTPPolicy(existings, httpPolicy)
+	result := GetLatestHTTPPolicy(existings, httpPolicy)
 	assert.Equal(t, result[0], exist1, ShouldBeEqual)
 }
 

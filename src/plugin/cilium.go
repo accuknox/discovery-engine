@@ -230,6 +230,7 @@ func ConvertCiliumFlowToKnoxNetworkLog(ciliumFlow *cilium.Flow) (types.KnoxNetwo
 		if log.HTTPMethod == "" && log.HTTPPath == "" {
 			return log, false
 		}
+		log.L7Protocol = libs.L7ProtocolHTTP
 	}
 
 	// get L7 DNS
@@ -245,8 +246,8 @@ func ConvertCiliumFlowToKnoxNetworkLog(ciliumFlow *cilium.Flow) (types.KnoxNetwo
 			ips := ciliumFlow.L7.GetDns().GetIps()
 
 			log.DNSRes = query
-			log.DNSResIPs = []string{}
-			log.DNSResIPs = append(log.DNSResIPs, ips...)
+			log.DNSResIPs = ips
+			log.L7Protocol = libs.L7ProtocolDNS
 		}
 	}
 
