@@ -295,10 +295,10 @@ func GetSysPolicy(namespace, clustername, labels, fromsource string) *wpb.Worker
 	var response wpb.WorkerResponse
 
 	// system policy for k8s
-	for _, k8spol := range kubearmorK8SPolicies {
+	for i := range kubearmorK8SPolicies {
 		kubearmorpolicy := wpb.KubeArmorPolicy{}
 
-		val, err := json.Marshal(&k8spol)
+		val, err := json.Marshal(&kubearmorK8SPolicies[i])
 		if err != nil {
 			log.Error().Msg(err.Error())
 		}
@@ -308,10 +308,10 @@ func GetSysPolicy(namespace, clustername, labels, fromsource string) *wpb.Worker
 	}
 
 	// system policy for VM
-	for _, vmpol := range kubearmorVMPolicies {
+	for i := range kubearmorVMPolicies {
 		kubearmorpolicy := wpb.KubeArmorPolicy{}
 
-		val, err := json.Marshal(&vmpol)
+		val, err := json.Marshal(&kubearmorVMPolicies[i])
 		if err != nil {
 			log.Error().Msg(err.Error())
 		}
