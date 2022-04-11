@@ -300,7 +300,7 @@ func GetSysPolicy(namespace, clustername, labels, fromsource string) *wpb.Worker
 
 		val, err := json.Marshal(&kubearmorK8SPolicies[i])
 		if err != nil {
-			log.Error().Msg(err.Error())
+			log.Error().Msgf("kubearmorK8SPolicy json marshal failed err=%v", err.Error())
 		}
 		kubearmorpolicy.Data = val
 
@@ -313,7 +313,7 @@ func GetSysPolicy(namespace, clustername, labels, fromsource string) *wpb.Worker
 
 		val, err := json.Marshal(&kubearmorVMPolicies[i])
 		if err != nil {
-			log.Error().Msg(err.Error())
+			log.Error().Msgf("kubearmorVMPolicy json marshal failed err=%v", err.Error())
 		}
 		kubearmorpolicy.Data = val
 

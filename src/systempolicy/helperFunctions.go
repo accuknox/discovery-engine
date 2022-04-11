@@ -160,17 +160,17 @@ func GetWPFSSources() []string {
 		return nil
 	}
 
-	if res != nil {
-		var fromSource []string
-
-		for wpfs, _ := range res {
-			if wpfs.FromSource != "" && wpfs.Namespace == types.PolicyDiscoveryVMNamespace {
-				fromSource = append(fromSource, wpfs.FromSource)
-			}
-		}
-
-		return fromSource
+	if res == nil {
+		return nil
 	}
 
-	return nil
+	var fromSource []string
+
+	for wpfs, _ := range res {
+		if wpfs.FromSource != "" && wpfs.Namespace == types.PolicyDiscoveryVMNamespace {
+			fromSource = append(fromSource, wpfs.FromSource)
+		}
+	}
+
+	return fromSource
 }
