@@ -202,7 +202,7 @@ func getSystemLogs() []types.KnoxSystemLog {
 		}
 
 		// raw json --> knoxSystemLog
-		systemLogs = plugin.ConvertMySQLKubeArmorLogsToKnoxSystemLogs(jsonLogs)
+		systemLogs = plugin.ConvertSQLiteKubeArmorLogsToKnoxSystemLogs(jsonLogs)
 
 		// replace the pod names in prepared-logs with the working pod names
 		pods := cluster.GetPodsFromK8sClient()
@@ -1279,7 +1279,7 @@ func GenFileSetForAllPodsInCluster(clusterName string, pods []types.Pod, settype
 		} else {
 			if !reflect.DeepEqual(mergedfs, out[wpfs]) {
 				log.Info().Msgf("updating wpfs db entry for wpfs=%+v", wpfs)
-				err = libs.UpdateWorkloadProcessFileSetMySQL(CfgDB, wpfs, mergedfs)
+				err = libs.UpdateWorkloadProcessFileSetSQLite(CfgDB, wpfs, mergedfs)
 				status = true
 			}
 		}
