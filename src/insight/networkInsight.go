@@ -207,18 +207,7 @@ func GetNetInsightData(req types.InsightRequest) ([]ipb.NetworkInsightData, erro
 		nwPbSpec.Labels = ""
 		locRes.NetResource = append(locRes.NetResource, &nwPbSpec)
 
-		if req.Labels != "" {
-			if locRes.Labels == req.Labels {
-				networkData = append(networkData, ipb.NetworkInsightData{
-					ClusterName: locRes.ClusterName,
-					Namespace:   locRes.Namespace,
-					Labels:      locRes.Labels,
-					Type:        locRes.Type,
-					Rule:        locRes.Rule,
-					NetResource: locRes.NetResource,
-				})
-			}
-		} else {
+		if (req.Labels == "") || (req.Labels != "" && locRes.Labels == req.Labels) {
 			networkData = append(networkData, ipb.NetworkInsightData{
 				ClusterName: locRes.ClusterName,
 				Namespace:   locRes.Namespace,
