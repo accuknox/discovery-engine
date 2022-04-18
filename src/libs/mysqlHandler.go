@@ -73,7 +73,7 @@ func connectMySQL(cfg types.ConfigDB) (db *sql.DB) {
 // == Network Policy == //
 // ==================== //
 
-func GetNetworkPoliciesFromMySQL(cfg types.ConfigDB, cluster, namespace, status string) ([]types.KnoxNetworkPolicy, error) {
+func GetNetworkPoliciesFromMySQL(cfg types.ConfigDB, cluster, namespace, status, nwtype, rule string) ([]types.KnoxNetworkPolicy, error) {
 	db := connectMySQL(cfg)
 	defer db.Close()
 
@@ -82,22 +82,32 @@ func GetNetworkPoliciesFromMySQL(cfg types.ConfigDB, cluster, namespace, status 
 	var err error
 
 	query := "SELECT apiVersion,kind,flow_ids,name,cluster_name,namespace,type,rule,status,outdated,spec,generatedTime FROM " + TableNetworkPolicy_TableName
-	if cluster != "" && namespace != "" && status != "" {
-		query = query + " WHERE cluster_name = ? and namespace = ? and status = ? "
-		results, err = db.Query(query, cluster, namespace, status)
-	} else if cluster != "" && status != "" {
-		query = query + " WHERE cluster_name = ? and status = ? "
-		results, err = db.Query(query, cluster, status)
-	} else if namespace != "" && status != "" {
-		query = query + " WHERE namespace = ? and status = ? "
-		results, err = db.Query(query, namespace, status)
-	} else if status != "" {
-		query = query + " WHERE status = ? "
-		results, err = db.Query(query, status)
-	} else {
-		results, err = db.Query(query)
+
+	var whereClause string
+	var args []interface{}
+
+	if cluster != "" {
+		concatWhereClause(&whereClause, "cluster_name")
+		args = append(args, cluster)
+	}
+	if namespace != "" {
+		concatWhereClause(&whereClause, "namespace")
+		args = append(args, namespace)
+	}
+	if status != "" {
+		concatWhereClause(&whereClause, "status")
+		args = append(args, status)
+	}
+	if nwtype != "" {
+		concatWhereClause(&whereClause, "type")
+		args = append(args, nwtype)
+	}
+	if rule != "" {
+		concatWhereClause(&whereClause, "rule")
+		args = append(args, rule)
 	}
 
+	results, err = db.Query(query+whereClause, args...)
 	defer results.Close()
 
 	if err != nil {
@@ -434,6 +444,18 @@ func UpdateSystemPolicyToMySQL(cfg types.ConfigDB, policy types.KnoxSystemPolicy
 // =========== //
 // == Table == //
 // =========== //
+
+func ClearNetworkDBTableMySQL(cfg types.ConfigDB) error {
+	db := connectMySQL(cfg)
+	defer db.Close()
+
+	query := "DELETE FROM " + TableNetworkPolicy_TableName
+	if _, err := db.Query(query); err != nil {
+		return err
+	}
+
+	return nil
+}
 
 func ClearDBTablesMySQL(cfg types.ConfigDB) error {
 	db := connectMySQL(cfg)

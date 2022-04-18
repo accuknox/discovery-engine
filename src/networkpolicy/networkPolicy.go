@@ -1636,7 +1636,7 @@ func PopulateNetworkPoliciesFromNetworkLogs(networkLogs []types.KnoxNetworkLog) 
 		for _, namespace := range namespaces {
 			log.Info().Msgf("libs.GetNetworkPolicies for cluster [%s] namespace [%s]", clusterName, namespace)
 			// get existing network policies in db
-			existingNetPolicies := libs.GetNetworkPolicies(CfgDB, clusterName, namespace, "latest")
+			existingNetPolicies := libs.GetNetworkPolicies(CfgDB, clusterName, namespace, "latest", "", "")
 
 			log.Info().Msgf("UpdateDuplicatedPolicy for cluster [%s] namespace [%s]", clusterName, namespace)
 			// update duplicated policy
