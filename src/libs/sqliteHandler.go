@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"fmt"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/accuknox/auto-policy-discovery/src/types"
@@ -55,9 +54,7 @@ func connectSQLite(cfg types.ConfigDB) (db *sql.DB) {
 	}
 
 	dbconn := cfg.DBUser + ":" + cfg.DBPass + "@tcp(" + cfg.DBHost + ":" + cfg.DBPort + ")/" + cfg.DBName
-	fmt.Println(dbconn)
-	//db, err := sql.Open(cfg.DBDriver, dbconn)
-	db, err := sql.Open(cfg.DBDriver, "/home/vagrant/accuknox.db")
+	db, err := sql.Open(cfg.DBDriver, cfg.SQLiteDBPath)
 	for err != nil {
 		log.Error().Msgf("sqlite driver:%s, user:%s, host:%s, port:%s, dbname:%s conn-error:%s",
 			cfg.DBDriver, cfg.DBUser, cfg.DBHost, cfg.DBPort, cfg.DBName, err.Error())
