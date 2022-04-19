@@ -6,8 +6,8 @@ on:
 
 jobs:
   push-docker-img:
-    name: Create auto-policy-discovery img
-    if: github.repository == 'accuknox/auto-policy-discovery'
+    name: Create discovery engine img
+    if: github.repository == 'accuknox/discovery-engine'
     runs-on: ubuntu-18.04
     timeout-minutes: 20
     steps:

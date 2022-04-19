@@ -9,16 +9,16 @@ on:
     branches:
       - 'v*'
 
-name: Create auto-policy-discovery release after testing the image
+name: Create discovery engine release after testing the image
 
 jobs:
   build:
-    name: Create auto-policy-discovery Release
-    if: github.repository == 'accuknox/auto-policy-discovery'
+    name: Create discovery engine Release
+    if: github.repository == 'accuknox/discovery-engine'
     runs-on: ubuntu-18.04
     timeout-minutes: 20
     steps:
-      - name: Checkout auto-policy-discovery code
+      - name: Checkout discovery engine code
         uses: actions/checkout@v2
 
       - name: Setup Enviroment
@@ -34,17 +34,17 @@ jobs:
           ./k3s/install_k3s.sh
 
 
-      - name: Generate auto-policy-discovery artifacts
+      - name: Generate discovery engine artifacts
         run: |
             GITHUB_SHA=$GITHUB_SHA ./src/build/build_knoxautopolicy.sh ${{ steps.vars.outputs.tag }}
 
-      - name: Run auto-policy-discovery
+      - name: Run discovery engine
         run: |
             kubectl apply -f deployments/k8s/ && kubectl wait --for=condition=ready --timeout=5m -n default pod -l container=knoxautopolicy
             kubectl get pods -A
 
 #TODO: add the following tests after they are fixed
-      # - name: Test auto-policy-discovery
+      # - name: Test discovery engine
       #   run: |
       #       ./tests/test-scenarios-local.sh ${{ steps.vars.outputs.tag }}
 
@@ -54,6 +54,6 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_AUTHTOK }}
 
-      - name: Push auto-policy-discovery images to Docker
+      - name: Push discovery engine images to Docker
         run: |
             ./src/build/push_knoxautopolicy.sh ${{ steps.vars.outputs.tag }}
