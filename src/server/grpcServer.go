@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"errors"
 
 	"github.com/rs/zerolog"
 
@@ -14,10 +13,11 @@ import (
 	networker "github.com/accuknox/auto-policy-discovery/src/networkpolicy"
 	sysworker "github.com/accuknox/auto-policy-discovery/src/systempolicy"
 
+	"github.com/accuknox/auto-policy-discovery/src/insight"
 	"github.com/accuknox/auto-policy-discovery/src/libs"
 	apb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/analyzer"
 	fpb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/consumer"
-	opb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/observability"
+	ipb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/insight"
 	wpb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/worker"
 	"github.com/accuknox/auto-policy-discovery/src/types"
 
@@ -105,10 +105,12 @@ func (s *workerServer) Convert(ctx context.Context, in *wpb.WorkerRequest) (*wpb
 	if in.GetPolicytype() == "network" {
 		log.Info().Msg("Convert network policy called")
 		networker.InitNetPolicyDiscoveryConfiguration()
+		networker.WriteNetworkPoliciesToFile("", "", []types.Service{})
 		return networker.GetNetPolicy(in.Clustername, in.Namespace), nil
 	} else if in.GetPolicytype() == "system" {
 		log.Info().Msg("Convert system policy called")
 		sysworker.InitSysPolicyDiscoveryConfiguration()
+		sysworker.WriteSystemPoliciesToFile(in.GetNamespace(), in.GetClustername(), in.GetLabels())
 		return sysworker.GetSysPolicy(in.Namespace, in.Clustername, in.Labels, in.Fromsource), nil
 	} else {
 		log.Info().Msg("Convert policy called, but no policy type")
@@ -162,35 +164,28 @@ func (s *analyzerServer) GetSystemPolicies(ctx context.Context, in *apb.SystemLo
 	return &pbSystemPolicies, nil
 }
 
-// =================== //
-// == Observability == //
-// =================== //
+// ============= //
+// == Insight == //
+// ============= //
 
-type observabilityServer struct {
-	opb.ObservabilityServer
+type insightServer struct {
+	ipb.InsightServer
 }
 
-func (s *observabilityServer) SysObservabilityData(ctx context.Context, in *opb.Data) (*opb.Response, error) {
-
-	var wpfs types.WorkloadProcessFileSet
-
-	wpfs.ContainerName = in.ContainerName
-	wpfs.ClusterName = in.ClusterName
-	wpfs.FromSource = in.FromSource
-	wpfs.Namespace = in.Namespace
-	wpfs.Labels = in.Labels
-
-	if in.Request == "observe" {
-		wpfs.FromSource = "" // Forcing wpfs.FromSource to "" as it is not a search string
-		resp, err := sysworker.GetSystemObsData(wpfs)
-		return &resp, err
-	}
-	if in.Request == "dbclear" {
-		err := sysworker.ClearSysDb(wpfs, in.Duration)
-		return &opb.Response{}, err
-	}
-
-	return nil, errors.New("not a valid request, use observe/dbclear")
+func (s *insightServer) GetInsightData(ctx context.Context, in *ipb.Request) (*ipb.Response, error) {
+	resp, err := insight.GetInsightData(types.InsightRequest{
+		Request:       in.Request,
+		Source:        in.Source,
+		ClusterName:   in.ClusterName,
+		Namespace:     in.Namespace,
+		ContainerName: in.ContainerName,
+		Labels:        in.Labels,
+		FromSource:    in.FromSource,
+		Duration:      in.Duration,
+		Type:          in.Type,
+		Rule:          in.Rule,
+	})
+	return &resp, err
 }
 
 // ================= //
@@ -207,13 +202,13 @@ func GetNewServer() *grpc.Server {
 	workerServer := &workerServer{}
 	consumerServer := &consumerServer{}
 	analyzerServer := &analyzerServer{}
-	observabilityServer := &observabilityServer{}
+	insightServer := &insightServer{}
 
 	// register gRPC servers
 	wpb.RegisterWorkerServer(s, workerServer)
 	fpb.RegisterConsumerServer(s, consumerServer)
 	apb.RegisterAnalyzerServer(s, analyzerServer)
-	opb.RegisterObservabilityServer(s, observabilityServer)
+	ipb.RegisterInsightServer(s, insightServer)
 
 	if cfg.GetCurrentCfg().ConfigClusterMgmt.ClusterInfoFrom != "k8sclient" {
 		// start consumer automatically

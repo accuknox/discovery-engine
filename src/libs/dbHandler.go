@@ -17,11 +17,11 @@ var LastFlowID int64 = 0
 // == Network Policy == //
 // ==================== //
 
-func GetNetworkPolicies(cfg types.ConfigDB, cluster, namespace, status string) []types.KnoxNetworkPolicy {
+func GetNetworkPolicies(cfg types.ConfigDB, cluster, namespace, status, nwtype, rule string) []types.KnoxNetworkPolicy {
 	results := []types.KnoxNetworkPolicy{}
 
 	if cfg.DBDriver == "mysql" {
-		docs, err := GetNetworkPoliciesFromMySQL(cfg, cluster, namespace, status)
+		docs, err := GetNetworkPoliciesFromMySQL(cfg, cluster, namespace, status, nwtype, rule)
 		if err != nil {
 			return results
 		}
@@ -41,7 +41,7 @@ func GetNetworkPoliciesBySelector(cfg types.ConfigDB, cluster, namespace, status
 	results := []types.KnoxNetworkPolicy{}
 
 	if cfg.DBDriver == "mysql" {
-		docs, err := GetNetworkPoliciesFromMySQL(cfg, cluster, namespace, status)
+		docs, err := GetNetworkPoliciesFromMySQL(cfg, cluster, namespace, status, "", "")
 		if err != nil {
 			return nil, err
 		}
@@ -222,6 +222,14 @@ func ClearDBTables(cfg types.ConfigDB) {
                         log.Error().Msg(err.Error())
                 }
         }
+}
+
+func ClearNetworkDBTable(cfg types.ConfigDB) {
+	if cfg.DBDriver == "mysql" {
+		if err := ClearNetworkDBTableMySQL(cfg); err != nil {
+			log.Error().Msg(err.Error())
+		}
+	}
 }
 
 func CreateTablesIfNotExist(cfg types.ConfigDB) {

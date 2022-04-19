@@ -492,7 +492,7 @@ func WriteKubeArmorPolicyToYamlFile(fname string, policies []types.KubeArmorPoli
 	}
 }
 
-func WriteSysObsDataToJsonFile(obsData types.SysObsResponseData) {
+func WriteSysObsDataToJsonFile(obsData types.SysInsightResponseData) {
 	fileName := GetEnv("POLICY_DIR", "./")
 	fileName = fileName + "sys_observability_data" + ".json"
 
