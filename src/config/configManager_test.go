@@ -49,7 +49,7 @@ feed-consumer:
       buffer: 50
 
 database:
-  driver: mysql
+  driver: sqlite3
   host: 127.0.0.1
   port: 3306
   user: root

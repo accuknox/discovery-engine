@@ -50,6 +50,61 @@ func ConvertKnoxSystemPolicyToKubeArmorPolicy(knoxPolicies []types.KnoxSystemPol
 	return results
 }
 
+func ConvertSQLiteKubeArmorLogsToKnoxSystemLogs(docs []map[string]interface{}) []types.KnoxSystemLog {
+	results := []types.KnoxSystemLog{}
+
+	for _, doc := range docs {
+		syslog := types.SystemLogEvent{}
+
+		b, err := json.Marshal(doc)
+		if err != nil {
+			log.Error().Msg(err.Error())
+			continue
+		}
+
+		if err := json.Unmarshal(b, &syslog); err != nil {
+			log.Error().Msg(err.Error())
+		}
+
+		sources := strings.Split(syslog.Source, " ")
+		source := ""
+		if len(sources) >= 1 {
+			source = sources[0]
+		}
+
+		resources := strings.Split(syslog.Resource, " ")
+		resource := ""
+		if len(resources) >= 1 {
+			resource = resources[0]
+		}
+
+		readOnly := false
+		if syslog.Data != "" && strings.Contains(syslog.Data, "O_RDONLY") {
+			readOnly = true
+		}
+
+		knoxSysLog := types.KnoxSystemLog{
+			ClusterName:    syslog.ClusterName,
+			HostName:       syslog.HostName,
+			Namespace:      syslog.NamespaceName,
+			ContainerName:  syslog.ContainerName,
+			PodName:        syslog.PodName,
+			Source:         source,
+			SourceOrigin:   syslog.Source,
+			Operation:      syslog.Operation,
+			ResourceOrigin: syslog.Resource,
+			Resource:       resource,
+			Data:           syslog.Data,
+			ReadOnly:       readOnly,
+			Result:         syslog.Result,
+		}
+
+		results = append(results, knoxSysLog)
+	}
+
+	return results
+}
+
 func ConvertMySQLKubeArmorLogsToKnoxSystemLogs(docs []map[string]interface{}) []types.KnoxSystemLog {
 	results := []types.KnoxSystemLog{}
 
@@ -108,7 +163,9 @@ func ConvertMySQLKubeArmorLogsToKnoxSystemLogs(docs []map[string]interface{}) []
 func ConvertKubeArmorSystemLogsToKnoxSystemLogs(dbDriver string, docs []map[string]interface{}) []types.KnoxSystemLog {
 	if dbDriver == "mysql" {
 		return ConvertMySQLKubeArmorLogsToKnoxSystemLogs(docs)
-	}
+	} else if dbDriver == "sqlite3" {
+                return ConvertSQLiteKubeArmorLogsToKnoxSystemLogs(docs)
+        }
 
 	return []types.KnoxSystemLog{}
 }

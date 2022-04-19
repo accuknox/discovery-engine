@@ -26,6 +26,12 @@ func GetNetworkPolicies(cfg types.ConfigDB, cluster, namespace, status, nwtype, 
 			return results
 		}
 		results = docs
+	} else if cfg.DBDriver == "sqlite3" {
+docs, err := GetNetworkPoliciesFromSQLite(cfg, cluster, namespace, status)
+                if err != nil {
+                        return results
+                }
+                results = docs
 	}
 
 	return results
@@ -40,7 +46,13 @@ func GetNetworkPoliciesBySelector(cfg types.ConfigDB, cluster, namespace, status
 			return nil, err
 		}
 		results = docs
-	} else {
+	} else if cfg.DBDriver == "sqlite3" {
+                docs, err := GetNetworkPoliciesFromSQLite(cfg, cluster, namespace, status)
+                if err != nil {
+                        return nil, err
+                }
+                results = docs
+        } else {
 		return results, nil
 	}
 
@@ -68,7 +80,11 @@ func UpdateOutdatedNetworkPolicy(cfg types.ConfigDB, outdatedPolicy string, late
 		if err := UpdateOutdatedNetworkPolicyFromMySQL(cfg, outdatedPolicy, latestPolicy); err != nil {
 			log.Error().Msg(err.Error())
 		}
-	}
+	} else if cfg.DBDriver == "sqlite3" {
+                if err := UpdateOutdatedNetworkPolicyFromSQLite(cfg, outdatedPolicy, latestPolicy); err != nil {
+                        log.Error().Msg(err.Error())
+                }
+        }
 }
 
 func InsertNetworkPolicies(cfg types.ConfigDB, policies []types.KnoxNetworkPolicy) {
@@ -76,7 +92,11 @@ func InsertNetworkPolicies(cfg types.ConfigDB, policies []types.KnoxNetworkPolic
 		if err := InsertNetworkPoliciesToMySQL(cfg, policies); err != nil {
 			log.Error().Msg(err.Error())
 		}
-	}
+	} else if cfg.DBDriver == "sqlite3" {
+                if err := InsertNetworkPoliciesToSQLite(cfg, policies); err != nil {
+                        log.Error().Msg(err.Error())
+                }
+        }
 }
 
 // ================ //
@@ -102,7 +122,11 @@ func UpdateOutdatedSystemPolicy(cfg types.ConfigDB, outdatedPolicy string, lates
 		if err := UpdateOutdatedNetworkPolicyFromMySQL(cfg, outdatedPolicy, latestPolicy); err != nil {
 			log.Error().Msg(err.Error())
 		}
-	}
+	} else if cfg.DBDriver == "sqlite3" {
+                if err := UpdateOutdatedNetworkPolicyFromSQLite(cfg, outdatedPolicy, latestPolicy); err != nil {
+                        log.Error().Msg(err.Error())
+                }
+        }
 }
 
 func GetSystemPolicies(cfg types.ConfigDB, namespace, status string) []types.KnoxSystemPolicy {
@@ -114,7 +138,13 @@ func GetSystemPolicies(cfg types.ConfigDB, namespace, status string) []types.Kno
 			return results
 		}
 		results = docs
-	}
+	} else if cfg.DBDriver == "sqlite3" {
+                docs, err := GetSystemPoliciesFromSQLite(cfg, namespace, status)
+                if err != nil {
+                        return results
+                }
+                results = docs
+        }
 
 	return results
 }
@@ -124,7 +154,11 @@ func InsertSystemPolicies(cfg types.ConfigDB, policies []types.KnoxSystemPolicy)
 		if err := InsertSystemPoliciesToMySQL(cfg, policies); err != nil {
 			log.Error().Msg(err.Error())
 		}
-	}
+	} else if cfg.DBDriver == "sqlite3" {
+                if err := InsertSystemPoliciesToSQLite(cfg, policies); err != nil {
+                        log.Error().Msg(err.Error())
+                }
+        }
 }
 
 func UpdateSystemPolicy(cfg types.ConfigDB, policy types.KnoxSystemPolicy) {
@@ -132,7 +166,11 @@ func UpdateSystemPolicy(cfg types.ConfigDB, policy types.KnoxSystemPolicy) {
 		if err := UpdateSystemPolicyToMySQL(cfg, policy); err != nil {
 			log.Error().Msg(err.Error())
 		}
-	}
+	} else if cfg.DBDriver == "sqlite3" {
+                if err := UpdateSystemPolicyToSQLite(cfg, policy); err != nil {
+                        log.Error().Msg(err.Error())
+                }
+        }
 }
 
 func GetWorkloadProcessFileSet(cfg types.ConfigDB, wpfs types.WorkloadProcessFileSet) (map[types.WorkloadProcessFileSet][]string, types.PolicyNameMap, error) {
@@ -142,21 +180,31 @@ func GetWorkloadProcessFileSet(cfg types.ConfigDB, wpfs types.WorkloadProcessFil
 			log.Error().Msg(err.Error())
 		}
 		return res, pnMap, err
-	}
+	} else if cfg.DBDriver == "sqlite3" {
+                res, pnMap, err := GetWorkloadProcessFileSetSQLite(cfg, wpfs)
+                if err != nil {
+                        log.Error().Msg(err.Error())
+                }
+                return res, pnMap, err
+        }
 	return nil, nil, errors.New("no db driver")
 }
 
 func InsertWorkloadProcessFileSet(cfg types.ConfigDB, wpfs types.WorkloadProcessFileSet, fs []string) error {
 	if cfg.DBDriver == "mysql" {
 		return InsertWorkloadProcessFileSetMySQL(cfg, wpfs, fs)
-	}
+	} else if cfg.DBDriver == "sqlite3" {
+                return InsertWorkloadProcessFileSetSQLite(cfg, wpfs, fs)
+        }
 	return errors.New("no db driver")
 }
 
 func ClearWPFSDb(cfg types.ConfigDB, wpfs types.WorkloadProcessFileSet, duration int64) error {
 	if cfg.DBDriver == "mysql" {
 		return ClearWPFSDbMySQL(cfg, wpfs, duration)
-	}
+	} else if cfg.DBDriver == "sqlite3" {
+                return ClearWPFSDbSQLite(cfg, wpfs, duration)
+        }
 	return errors.New("no db driver")
 }
 
@@ -169,7 +217,11 @@ func ClearDBTables(cfg types.ConfigDB) {
 		if err := ClearDBTablesMySQL(cfg); err != nil {
 			log.Error().Msg(err.Error())
 		}
-	}
+	} else if cfg.DBDriver == "sqlite3" {
+                if err := ClearDBTablesSQLite(cfg); err != nil {
+                        log.Error().Msg(err.Error())
+                }
+        }
 }
 
 func ClearNetworkDBTable(cfg types.ConfigDB) {
@@ -191,5 +243,15 @@ func CreateTablesIfNotExist(cfg types.ConfigDB) {
 		if err := CreateTableWorkLoadProcessFileSetMySQL(cfg); err != nil {
 			log.Error().Msg(err.Error())
 		}
-	}
+	} else if cfg.DBDriver == "sqlite3" {
+                if err := CreateTableNetworkPolicySQLite(cfg); err != nil {
+                        log.Error().Msg(err.Error())
+                }
+                if err := CreateTableSystemPolicySQLite(cfg); err != nil {
+                        log.Error().Msg(err.Error())
+                }
+                if err := CreateTableWorkLoadProcessFileSetSQLite(cfg); err != nil {
+                        log.Error().Msg(err.Error())
+                }
+        }
 }

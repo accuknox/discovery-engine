@@ -253,6 +253,97 @@ func ConvertCiliumFlowToKnoxNetworkLog(ciliumFlow *cilium.Flow) (types.KnoxNetwo
 	return log, true
 }
 
+func ConvertSQLiteCiliumLogsToKnoxNetworkLogs(docs []map[string]interface{}) []types.KnoxNetworkLog {
+	logs := []types.KnoxNetworkLog{}
+
+	for _, doc := range docs {
+		ciliumFlow := &cilium.Flow{}
+		var err error
+
+		primitiveDoc := map[string]interface{}{
+			"traffic_direction": convertTrafficDirectionToInt(doc["traffic_direction"]),
+			"verdict":           convertVerdictToInt(doc["verdict"]),
+			"policy_match_type": doc["policy_match_type"],
+			"drop_reason":       doc["drop_reason"],
+		}
+
+		flowByte, err := json.Marshal(primitiveDoc)
+		if err != nil {
+			log.Error().Msg("Error while unmarshing primitives :" + err.Error())
+			continue
+		}
+
+		err = json.Unmarshal(flowByte, ciliumFlow)
+		if err != nil {
+			log.Error().Msg("Error while unmarshing primitives :" + err.Error())
+			continue
+		}
+
+		if doc["event_type"] != nil {
+			err = json.Unmarshal(doc["event_type"].([]byte), &ciliumFlow.EventType)
+			if err != nil {
+				log.Error().Msg("Error while unmarshing event type :" + err.Error())
+				continue
+			}
+		}
+
+		if doc["source"] != nil {
+			err = json.Unmarshal(doc["source"].([]byte), &ciliumFlow.Source)
+			if err != nil {
+				log.Error().Msg("Error while unmarshing source :" + err.Error())
+				continue
+			}
+		}
+
+		if doc["destination"] != nil {
+			err = json.Unmarshal(doc["destination"].([]byte), &ciliumFlow.Destination)
+			if err != nil {
+				log.Error().Msg("Error while unmarshing destination :" + err.Error())
+				continue
+			}
+		}
+
+		if doc["ip"] != nil {
+			err = json.Unmarshal(doc["ip"].([]byte), &ciliumFlow.IP)
+			if err != nil {
+				log.Error().Msg("Error while unmarshing ip :" + err.Error())
+				continue
+			}
+		}
+
+		if doc["l4"] != nil {
+			err = json.Unmarshal(doc["l4"].([]byte), &ciliumFlow.L4)
+			if err != nil {
+				log.Error().Msg("Error while unmarshing l4 :" + err.Error())
+				continue
+			}
+		}
+
+		if doc["l7"] != nil {
+			l7Byte := doc["l7"].([]byte)
+			if len(l7Byte) != 0 {
+				err = json.Unmarshal(l7Byte, &ciliumFlow.L7)
+				if err != nil {
+					log.Error().Msg("Error while unmarshing l7 :" + err.Error())
+					continue
+				}
+			}
+		}
+
+		if log, valid := ConvertCiliumFlowToKnoxNetworkLog(ciliumFlow); valid {
+			// get flow id
+			log.FlowID = int(doc["id"].(uint32))
+
+			// get cluster name
+			log.ClusterName = doc["cluster_name"].(string)
+
+			logs = append(logs, log)
+		}
+	}
+
+	return logs
+}
+
 func ConvertMySQLCiliumLogsToKnoxNetworkLogs(docs []map[string]interface{}) []types.KnoxNetworkLog {
 	logs := []types.KnoxNetworkLog{}
 
@@ -366,7 +457,9 @@ func ConvertMongodCiliumLogsToKnoxNetworkLogs(docs []map[string]interface{}) []t
 func ConvertCiliumNetworkLogsToKnoxNetworkLogs(dbDriver string, docs []map[string]interface{}) []types.KnoxNetworkLog {
 	if dbDriver == "mysql" {
 		return ConvertMySQLCiliumLogsToKnoxNetworkLogs(docs)
-	} else if dbDriver == "mongo" {
+	} else if dbDriver == "sqlite3" {
+                return ConvertSQLiteCiliumLogsToKnoxNetworkLogs(docs)
+        } else if dbDriver == "mongo" {
 		return ConvertMongodCiliumLogsToKnoxNetworkLogs(docs)
 	} else {
 		return []types.KnoxNetworkLog{}

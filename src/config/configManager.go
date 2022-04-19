@@ -56,6 +56,7 @@ func LoadConfigDB() types.ConfigDB {
 	cfgDB.DBPass = viper.GetString("database.password")
 	cfgDB.DBName = viper.GetString("database.dbname")
 
+	cfgDB.SQLiteDBPath = viper.GetString("database.sqlite-db-path")
 	cfgDB.DBHost = viper.GetString("database.host")
 	/*
 		fix for #405
