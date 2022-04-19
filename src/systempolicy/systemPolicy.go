@@ -171,6 +171,7 @@ type SysPath struct {
 // ================ //
 
 func getSystemLogs() []types.KnoxSystemLog {
+	cfgDB := types.ConfigDB{}
 	systemLogs := []types.KnoxSystemLog{}
 
 	if SystemLogFrom == "file" {
@@ -202,7 +203,11 @@ func getSystemLogs() []types.KnoxSystemLog {
 		}
 
 		// raw json --> knoxSystemLog
-		systemLogs = plugin.ConvertMySQLKubeArmorLogsToKnoxSystemLogs(jsonLogs)
+		if cfgDB.DBDriver == "mysql" {
+			systemLogs = plugin.ConvertMySQLKubeArmorLogsToKnoxSystemLogs(jsonLogs)
+		} else if cfgDB.DBDriver == "sqlite3" {
+			systemLogs = plugin.ConvertSQLiteKubeArmorLogsToKnoxSystemLogs(jsonLogs)
+		}
 
 		// replace the pod names in prepared-logs with the working pod names
 		pods := cluster.GetPodsFromK8sClient()
@@ -1222,6 +1227,7 @@ func removeDuplicates(arr []string) []string {
 
 // GenFileSetForAllPodsInCluster Generate process specific fileset across all pods in a cluster
 func GenFileSetForAllPodsInCluster(clusterName string, pods []types.Pod, settype string, slogs []types.KnoxSystemLog) bool {
+	cfgDB := types.ConfigDB{}
 	res := types.ResourceSetMap{} // key: WorkloadProcess - val: Accesss File Set
 	wpfs := types.WorkloadProcessFileSet{}
 	isNetworkOp := false
@@ -1279,8 +1285,13 @@ func GenFileSetForAllPodsInCluster(clusterName string, pods []types.Pod, settype
 		} else {
 			if !reflect.DeepEqual(mergedfs, out[wpfs]) {
 				log.Info().Msgf("updating wpfs db entry for wpfs=%+v", wpfs)
-				err = libs.UpdateWorkloadProcessFileSetMySQL(CfgDB, wpfs, mergedfs)
-				status = true
+				if cfgDB.DBDriver == "mysql" {
+					err = libs.UpdateWorkloadProcessFileSetMySQL(CfgDB, wpfs, mergedfs)
+                                        status = true
+				} else if cfgDB.DBDriver == "sqlite3" {
+					err = libs.UpdateWorkloadProcessFileSetSQLite(CfgDB, wpfs, mergedfs)
+					status = true
+				}
 			}
 		}
 		if err != nil {

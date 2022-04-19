@@ -57,6 +57,7 @@ func LoadConfigDB() types.ConfigDB {
 	cfgDB.DBName = viper.GetString("database.dbname")
 
 	cfgDB.DBHost = viper.GetString("database.host")
+	cfgDB.SQLiteDBPath = viper.GetString("database.sqlite-db-path")
 	/*
 		fix for #405
 		dbAddr, err := net.LookupIP(cfgDB.DBHost)
