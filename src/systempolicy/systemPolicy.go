@@ -1105,7 +1105,7 @@ func PopulateSystemPoliciesFromSystemLogs(sysLogs []types.KnoxSystemLog) []types
 			}
 
 			if strings.Contains(SystemPolicyTo, "file") {
-				WriteSystemPoliciesToFile(sysKey.Namespace, "", "")
+				WriteSystemPoliciesToFile(sysKey.Namespace, "", "", "")
 			}
 		}
 	}
