@@ -275,9 +275,10 @@ func WriteSystemPoliciesToFile_Ext(namespace, clustername, labels, fromsource st
 		libs.WriteKubeArmorPolicyToYamlFile(fname, []types.KubeArmorPolicy{pol})
 	}
 
-	kubearmorVMPolicies := extractVMSystemPolicies(types.PolicyDiscoveryVMNamespace, clustername, labels, fromsource)
-	for _, pol := range kubearmorVMPolicies {
-		fname := "kubearmor_policies_" + pol.Metadata["clusterName"] + "_" + pol.Metadata["namespace"] + "_" + pol.Metadata["containername"] + "_" + libs.RandSeq(8)
+	kubearmorVMPolicies, sources := extractVMSystemPolicies(types.PolicyDiscoveryVMNamespace, clustername, labels, fromsource)
+	for index, pol := range kubearmorVMPolicies {
+		locSrc := strings.ReplaceAll(sources[index], "/", "-")
+		fname := "kubearmor_policies_" + pol.Metadata["namespace"] + "_" + pol.Metadata["containername"] + locSrc
 		delete(pol.Metadata, "clusterName")
 		delete(pol.Metadata, "containername")
 		libs.WriteKubeArmorPolicyToYamlFile(fname, []types.KubeArmorPolicy{pol})
@@ -296,7 +297,7 @@ func WriteSystemPoliciesToFile(namespace, clustername, labels, fromsource string
 func GetSysPolicy(namespace, clustername, labels, fromsource string) *wpb.WorkerResponse {
 
 	kubearmorK8SPolicies := extractK8SSystemPolicies(namespace, clustername, labels)
-	kubearmorVMPolicies := extractVMSystemPolicies(types.PolicyDiscoveryVMNamespace, clustername, labels, fromsource)
+	kubearmorVMPolicies, _ := extractVMSystemPolicies(types.PolicyDiscoveryVMNamespace, clustername, labels, fromsource)
 
 	var response wpb.WorkerResponse
 
@@ -345,9 +346,10 @@ func extractK8SSystemPolicies(namespace, clustername, labels string) []types.Kub
 	return result
 }
 
-func extractVMSystemPolicies(namespace, clustername, labels, fromSource string) []types.KubeArmorPolicy {
+func extractVMSystemPolicies(namespace, clustername, labels, fromSource string) ([]types.KubeArmorPolicy, []string) {
 
 	var frmSrcSlice []string
+	var resFromSrc []string
 
 	if fromSource == "" {
 		frmSrcSlice = GetWPFSSources()
@@ -364,10 +366,11 @@ func extractVMSystemPolicies(namespace, clustername, labels, fromSource string) 
 		for _, pol := range policies {
 			if pol.Metadata["namespace"] == types.PolicyDiscoveryVMNamespace {
 				result = append(result, pol)
+				resFromSrc = append(resFromSrc, fromSource)
 			}
 		}
 	}
-	return result
+	return result, resFromSrc
 }
 
 // ============================= //
