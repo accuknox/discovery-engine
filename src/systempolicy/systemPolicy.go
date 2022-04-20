@@ -266,11 +266,17 @@ func populateKnoxSysPolicyFromWPFSDb(namespace, clustername, labels, fromsource 
 	return ConvertWPFSToKnoxSysPolicy(res, pnMap)
 }
 
-func WriteSystemPoliciesToFile_Ext(namespace, clustername, labels string) {
-	sysPols := populateKnoxSysPolicyFromWPFSDb(namespace, clustername, labels, "")
+func WriteSystemPoliciesToFile_Ext(namespace, clustername, labels, fromsource string) {
+	kubearmorK8SPolicies := extractK8SSystemPolicies(namespace, clustername, labels)
+	for _, pol := range kubearmorK8SPolicies {
+		fname := "kubearmor_policies_" + pol.Metadata["clusterName"] + "_" + pol.Metadata["namespace"] + "_" + pol.Metadata["containername"] + "_" + libs.RandSeq(8)
+		delete(pol.Metadata, "clusterName")
+		delete(pol.Metadata, "containername")
+		libs.WriteKubeArmorPolicyToYamlFile(fname, []types.KubeArmorPolicy{pol})
+	}
 
-	kubeArmorPolicies := plugin.ConvertKnoxSystemPolicyToKubeArmorPolicy(sysPols)
-	for _, pol := range kubeArmorPolicies {
+	kubearmorVMPolicies := extractVMSystemPolicies(types.PolicyDiscoveryVMNamespace, clustername, labels, fromsource)
+	for _, pol := range kubearmorVMPolicies {
 		fname := "kubearmor_policies_" + pol.Metadata["clusterName"] + "_" + pol.Metadata["namespace"] + "_" + pol.Metadata["containername"] + "_" + libs.RandSeq(8)
 		delete(pol.Metadata, "clusterName")
 		delete(pol.Metadata, "containername")
@@ -278,13 +284,13 @@ func WriteSystemPoliciesToFile_Ext(namespace, clustername, labels string) {
 	}
 }
 
-func WriteSystemPoliciesToFile(namespace, clustername, labels string) {
+func WriteSystemPoliciesToFile(namespace, clustername, labels, fromsource string) {
 	latestPolicies := libs.GetSystemPolicies(CfgDB, namespace, "latest")
 	if len(latestPolicies) > 0 {
 		kubeArmorPolicies := plugin.ConvertKnoxSystemPolicyToKubeArmorPolicy(latestPolicies)
 		libs.WriteKubeArmorPolicyToYamlFile("kubearmor_policies", kubeArmorPolicies)
 	}
-	WriteSystemPoliciesToFile_Ext(namespace, clustername, labels)
+	WriteSystemPoliciesToFile_Ext(namespace, clustername, labels, fromsource)
 }
 
 func GetSysPolicy(namespace, clustername, labels, fromsource string) *wpb.WorkerResponse {
