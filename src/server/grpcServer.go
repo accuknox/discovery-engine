@@ -105,12 +105,12 @@ func (s *workerServer) Convert(ctx context.Context, in *wpb.WorkerRequest) (*wpb
 	if in.GetPolicytype() == "network" {
 		log.Info().Msg("Convert network policy called")
 		networker.InitNetPolicyDiscoveryConfiguration()
-		networker.WriteNetworkPoliciesToFile("", "", []types.Service{})
+		networker.WriteNetworkPoliciesToFile(in.GetClustername(), in.GetNamespace(), []types.Service{})
 		return networker.GetNetPolicy(in.Clustername, in.Namespace), nil
 	} else if in.GetPolicytype() == "system" {
 		log.Info().Msg("Convert system policy called")
 		sysworker.InitSysPolicyDiscoveryConfiguration()
-		sysworker.WriteSystemPoliciesToFile(in.GetNamespace(), in.GetClustername(), in.GetLabels())
+		sysworker.WriteSystemPoliciesToFile(in.GetNamespace(), in.GetClustername(), in.GetLabels(), in.GetFromsource())
 		return sysworker.GetSysPolicy(in.Namespace, in.Clustername, in.Labels, in.Fromsource), nil
 	} else {
 		log.Info().Msg("Convert policy called, but no policy type")
