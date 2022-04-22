@@ -42,4 +42,4 @@ done
 
 DATA='{"request": "'$REQUEST'", "clusterName": "'$CLUSTER_NAME'", "namespace":"'$NAMESPACE'", "containerName":"'$CONTAINER_NAME'", "labels":"'$LABELS'", "fromSource":"'$FROM_SOURCE'", "duration":"'$DURATION'"}'
 
-grpcurl -plaintext -d "$DATA" localhost:9089 v1.observability.Observability.SysObservabilityData
+grpcurl -plaintext -d "$DATA" localhost:9089 v1.insight.Insight.GetInsightData
