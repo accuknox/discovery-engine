@@ -10,6 +10,7 @@ type ConfigDB struct {
 	DBUser   string `json:"db_user,omitempty" bson:"db_user,omitempty"`
 	DBPass   string `json:"db_pass,omitempty" bson:"db_pass,omitempty"`
 	DBName   string `json:"db_name,omitempty" bson:"db_name,omitempty"`
+	SQLiteDBPath   string `json:"sqlite_db_path,omitempty" bson:"sqlite_db_path,omitempty"`
 }
 
 type ConfigCiliumHubble struct {

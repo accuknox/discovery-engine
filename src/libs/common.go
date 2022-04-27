@@ -104,6 +104,7 @@ func SetDefaultConfig() {
 	viper.SetDefault("database.dbname", "accuknox")
 	viper.SetDefault("database.host", "127.0.0.1")
 	viper.SetDefault("database.port", "3306")
+	viper.SetDefault("database.sqlite-db-path","./accuknox.db")
 	viper.SetDefault("database.table-network-policy", "network_policy")
 	viper.SetDefault("database.table-system-policy", "system_policy")
 

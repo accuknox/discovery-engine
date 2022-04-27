@@ -32,6 +32,7 @@ database:
   user: root
   password: password
   dbname: accuknox
+  sqlite-db-path: ./accuknox.db
   table-network-log: network_log
   table-network-policy: network_policy
   table-system-log: system_log
