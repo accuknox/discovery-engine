@@ -189,9 +189,10 @@ type Dst struct {
 	PodName     string
 	Additional  string
 	MatchLabels string
+	ICMPType    int
 	Protocol    int
 	DstPort     int
-	ICMPType    int
+	HTTP        string
 }
 
 type MergedPortDst struct {
@@ -203,7 +204,7 @@ type MergedPortDst struct {
 	MatchLabels string
 	ToPorts     []types.SpecPort
 	ICMPs       []types.SpecICMP
-	HTTPTree    map[string]*Node
+	ToHTTPs     []types.SpecHTTP
 }
 
 type LabelCount struct {
@@ -231,10 +232,13 @@ type IcmpPortPair struct {
 // =========================================== //
 
 func getDst(log types.KnoxNetworkLog, services []types.Service, cidrBits int) (Dst, bool) {
+	var httpInfo string
 	var labels []string
 
-	dstPort := 0
-	externalInfo := ""
+	// check HTTP
+	if log.HTTPMethod != "" && log.HTTPPath != "" {
+		httpInfo = log.HTTPMethod + "|" + log.HTTPPath
+	}
 
 	// check DNS
 	if log.DNSQuery != "" {
@@ -243,89 +247,77 @@ func getDst(log types.KnoxNetworkLog, services []types.Service, cidrBits int) (D
 			Additional: log.DNSQuery,
 			Protocol:   log.Protocol,
 			DstPort:    log.DstPort,
+			HTTP:       httpInfo,
 		}
 
 		return dst, true
 	}
 
-	// check HTTP
-	if log.HTTPMethod != "" && log.HTTPPath != "" {
-		externalInfo = log.HTTPMethod + "|" + log.HTTPPath
-	}
-
-	// check CIDR (out of cluster)
-	if libs.ContainsElement(log.DstReservedLabels, ReservedWorld) && log.DstIP != "" {
-		if svc, valid := checkK8sService(log, services); valid {
-			// 1. check if the dst IP belongs to a service
-			log.DstNamespace = svc.Namespace
-			for k, v := range svc.Selector {
-				labels = append(labels, k+"="+v)
+	if log.DstPodName == "" {
+		// check CIDR (out of cluster)
+		if libs.ContainsElement(log.DstReservedLabels, ReservedWorld) && log.DstIP != "" {
+			cidr := ""
+			if svc, valid := checkK8sService(log, services); valid {
+				// 1. check if the dst IP belongs to a service
+				log.DstNamespace = svc.Namespace
+				for k, v := range svc.Selector {
+					labels = append(labels, k+"="+v)
+				}
+			} else {
+				// 3. else, handle it as cidr policy
+				log.DstNamespace = "reserved:cidr"
+				ipNetwork := log.DstIP + "/" + strconv.Itoa(cidrBits)
+				_, network, _ := net.ParseCIDR(ipNetwork)
+				cidr = network.String()
 			}
-			/*
-				} else if names, err := net.LookupAddr(log.DstPodName); err == nil {
-					// 2. check if it can be reversed to the domain name,
-					log.DstNamespace = "reserved:dns"
-					dnsname := strings.TrimSuffix(names[0], ".")
-					externalInfo = dnsname
-			*/
-		} else {
-			// 3. else, handle it as cidr policy
-			log.DstNamespace = "reserved:cidr"
-			ipNetwork := log.DstIP + "/" + strconv.Itoa(cidrBits)
-			_, network, _ := net.ParseCIDR(ipNetwork)
-			externalInfo = network.String()
+
+			dst := Dst{
+				Namespace:   log.DstNamespace,
+				Additional:  cidr,
+				Protocol:    log.Protocol,
+				DstPort:     log.DstPort,
+				ICMPType:    log.ICMPType,
+				MatchLabels: strings.Join(labels, ","),
+				HTTP:        httpInfo,
+			}
+
+			return dst, true
 		}
 
-		dst := Dst{
-			Namespace:   log.DstNamespace,
-			Additional:  externalInfo,
-			Protocol:    log.Protocol,
-			DstPort:     log.DstPort,
-			ICMPType:    log.ICMPType,
-			MatchLabels: strings.Join(labels, ","),
+		// reserved entities -> host, remote-node, kube-apiserver
+		if len(log.DstReservedLabels) > 0 {
+			entities := []string{}
+
+			for _, label := range log.DstReservedLabels {
+				entities = append(entities, strings.TrimPrefix(label, "reserved:"))
+			}
+
+			dst := Dst{
+				Namespace:  "reserved:entities",
+				Additional: strings.Join(entities, ","),
+				Protocol:   log.Protocol,
+				DstPort:    log.DstPort,
+				ICMPType:   log.ICMPType,
+				HTTP:       httpInfo,
+			}
+			return dst, true
 		}
-
-		return dst, true
-	}
-
-	// reserved entities -> host, remote-node, kube-apiserver
-	if len(log.DstReservedLabels) > 0 {
-		entities := []string{}
-
-		for _, label := range log.DstReservedLabels {
-			entities = append(entities, strings.TrimPrefix(label, "reserved:"))
-		}
-
-		dst := Dst{
-			Namespace:  "reserved:entities",
-			Additional: strings.Join(entities, ","),
-			Protocol:   log.Protocol,
-			DstPort:    log.DstPort,
-			ICMPType:   log.ICMPType,
-		}
-		return dst, true
 	}
 
 	if !libs.IsICMP(log.Protocol) {
-		// handle pod -> pod or pod -> entity
-		// check dst port number is exposed or not (tcp, udp, or sctp)
-		if isExposedPort(log.Protocol, log.DstPort) {
-			dstPort = log.DstPort
-		}
-
 		// if dst port is unexposed and namespace is not reserved, it's invalid
-		if dstPort == 0 && !strings.HasPrefix(log.DstNamespace, "reserved:") {
+		if !isExposedPort(log.Protocol, log.DstPort) && !strings.HasPrefix(log.DstNamespace, "reserved:") {
 			return Dst{}, false
 		}
 	}
 
 	dst := Dst{
-		Namespace:  log.DstNamespace,
-		PodName:    log.DstPodName,
-		Additional: externalInfo,
-		Protocol:   log.Protocol,
-		DstPort:    dstPort,
-		ICMPType:   log.ICMPType,
+		Namespace: log.DstNamespace,
+		PodName:   log.DstPodName,
+		Protocol:  log.Protocol,
+		DstPort:   log.DstPort,
+		ICMPType:  log.ICMPType,
+		HTTP:      httpInfo,
 	}
 
 	return dst, true
@@ -349,10 +341,10 @@ func groupNetworkLogPerDst(networkLogs []types.KnoxNetworkLog, services []types.
 
 	// remove tcp dst which is included in http dst
 	for dst := range perDst {
-		if dst.Protocol == libs.IPProtocolTCP && CheckHTTPMethod(dst.Additional) {
+		if dst.Protocol == libs.IPProtocolTCP && CheckHTTPMethod(dst.HTTP) {
 			dstCopy := dst
 
-			dstCopy.Additional = ""
+			dstCopy.HTTP = ""
 			for tcp := range perDst {
 				if dstCopy == tcp {
 					delete(perDst, tcp)
@@ -771,12 +763,17 @@ func mergeEntities(mergedSrcPerMergedDst map[string][]MergedPortDst) {
 	}
 }
 
-func mergeProtocolPorts(src string, dsts []Dst) *MergedPortDst {
+func mergeProtocolPorts(src string, dsts []Dst) []MergedPortDst {
 	if len(dsts) == 0 {
 		return nil
 	}
 
-	mergedDst := MergedPortDst{
+	l7MergedDsts := map[int]MergedPortDst{}
+
+	l4DstExists := false
+	l7DstExists := false
+
+	l4MergedDst := MergedPortDst{
 		Namespace:   dsts[0].Namespace,
 		PodName:     dsts[0].PodName,
 		MatchLabels: dsts[0].MatchLabels,
@@ -784,31 +781,77 @@ func mergeProtocolPorts(src string, dsts []Dst) *MergedPortDst {
 	}
 
 	for _, dst := range dsts {
-		if libs.IsICMP(dst.Protocol) {
-			family := "IPv4"
-			if dst.Protocol == libs.IPProtocolICMPv6 {
-				family = "IPv6"
-			}
-			mergedDst.ICMPs = []types.SpecICMP{{
-				Family: family,
-				Type:   uint8(dst.ICMPType),
-			}}
-		} else {
-			mergedDst.ToPorts = []types.SpecPort{{
-				Protocol: libs.GetProtocol(dst.Protocol),
-				Port:     strconv.Itoa(dst.DstPort),
-			}}
-		}
+		if !CheckHTTPMethod(dst.HTTP) {
+			// L4 dst
+			// Merged all the L4 dsts into one dst
 
-		flowIDs := getFlowIDFromTrackMap2(src, dst)
-		for _, id := range flowIDs {
-			if !libs.ContainsElement(mergedDst.FlowIDs, id) {
-				mergedDst.FlowIDs = append(mergedDst.FlowIDs, id)
+			l4DstExists = true
+
+			if libs.IsICMP(dst.Protocol) {
+				family := "IPv4"
+				if dst.Protocol == libs.IPProtocolICMPv6 {
+					family = "IPv6"
+				}
+				l4MergedDst.ICMPs = []types.SpecICMP{{
+					Family: family,
+					Type:   uint8(dst.ICMPType),
+				}}
+			} else {
+				l4MergedDst.ToPorts = []types.SpecPort{{
+					Protocol: libs.GetProtocol(dst.Protocol),
+					Port:     strconv.Itoa(dst.DstPort),
+				}}
 			}
+
+			flowIDs := getFlowIDFromTrackMap2(src, dst)
+			for _, id := range flowIDs {
+				if !libs.ContainsElement(l4MergedDst.FlowIDs, id) {
+					l4MergedDst.FlowIDs = append(l4MergedDst.FlowIDs, id)
+				}
+			}
+		} else if dst.Protocol == libs.IPProtocolTCP {
+			// L7 dst
+			// Group the L7 (http) dsts based on TCP port
+			// Create one MergedDst per group (combine http path/method together)
+
+			l7DstExists = true
+
+			mergedDst, ok := l7MergedDsts[dst.DstPort]
+			if !ok {
+				toPort := []types.SpecPort{{
+					Protocol: libs.GetProtocol(dst.Protocol),
+					Port:     strconv.Itoa(dst.DstPort),
+				}}
+
+				mergedDst = MergedPortDst{
+					Namespace:   dst.Namespace,
+					PodName:     dst.PodName,
+					MatchLabels: dst.MatchLabels,
+					Additionals: []string{dst.Additional},
+					ToPorts:     toPort,
+				}
+			}
+
+			method, path := strings.Split(dst.HTTP, "|")[0], strings.Split(dst.HTTP, "|")[1]
+			toHTTP := types.SpecHTTP{
+				Method: method,
+				Path:   path,
+			}
+			mergedDst.ToHTTPs = append(mergedDst.ToHTTPs, toHTTP)
+			l7MergedDsts[dst.DstPort] = mergedDst
 		}
 	}
 
-	return &mergedDst
+	l47Dsts := []MergedPortDst{}
+	if l4DstExists {
+		l47Dsts = append(l47Dsts, l4MergedDst)
+	}
+	if l7DstExists {
+		for _, l7Dst := range l7MergedDsts {
+			l47Dsts = append(l47Dsts, l7Dst)
+		}
+	}
+	return l47Dsts
 }
 
 func mergeDstByProtoPort(aggregatedSrcsPerDst map[Dst][]string) map[string][]MergedPortDst {
@@ -839,7 +882,11 @@ func mergeDstByProtoPort(aggregatedSrcsPerDst map[Dst][]string) map[string][]Mer
 			dstSimpleMap := map[DstSimple][]Dst{}
 
 			for _, dst := range dsts {
-				// dstSimple not include protocol, port number
+				// 1) Group dsts based on Namespace, Podname and Additionals
+				// 2) For L4 dsts within a group, merge the L4 protocol/port
+				//    and create a single MergedDst
+				// 3) For L7 dsts within a group, merge the HTTP path/method
+				//    if the TCP port of two dsts are the same.
 				dstSimple := DstSimple{
 					Namespace:  dst.Namespace,
 					PodName:    dst.PodName,
@@ -848,26 +895,14 @@ func mergeDstByProtoPort(aggregatedSrcsPerDst map[Dst][]string) map[string][]Mer
 				dstSimpleMap[dstSimple] = append(dstSimpleMap[dstSimple], dst)
 			}
 
-			// if dst is matched dstSimple, remove it from origin dst list
 			for _, dests := range dstSimpleMap {
 				mergedDst := mergeProtocolPorts(aggregatedSrc, dests)
-				if mergedDst != nil {
-					aggregatedSrcPerMergedDst[aggregatedSrc] = append(aggregatedSrcPerMergedDst[aggregatedSrc], *mergedDst)
+				if len(mergedDst) > 0 {
+					aggregatedSrcPerMergedDst[aggregatedSrc] = append(aggregatedSrcPerMergedDst[aggregatedSrc], mergedDst...)
 				}
 			}
 		}
 	}
-
-	if L4DiscoveryLevel == 1 {
-		// fqdn merging
-		mergeFQDN(aggregatedSrcPerMergedDst)
-
-		// cidr merging
-		mergeCIDR(aggregatedSrcPerMergedDst)
-	}
-
-	// entities merged (for Cilium)
-	mergeEntities(aggregatedSrcPerMergedDst)
 
 	return aggregatedSrcPerMergedDst
 }
@@ -1275,16 +1310,33 @@ func buildNetworkPolicy(namespace string, services []types.Service, aggregatedSr
 
 			egressRule := types.Egress{}
 
-			// ==================== //
-			// build L3 label-based //
-			// ==================== //
+			// check toPorts rule
+			if len(dst.ToPorts) > 0 && discoverRuleTypes&TO_PORTS > 0 {
+				egressPolicy.Metadata["rule"] = egressPolicy.Metadata["rule"] + "+toPorts"
+				egressRule.ToPorts = dst.ToPorts
+
+				// check toHTTPs rule
+				if len(dst.ToHTTPs) > 0 && discoverRuleTypes&TO_HTTPS > 0 {
+					egressPolicy.Metadata["rule"] = egressPolicy.Metadata["rule"] + "+toHTTPs"
+					egressRule.ToHTTPs = dst.ToHTTPs
+				}
+			}
+
+			if len(dst.ICMPs) > 0 && (discoverRuleTypes&TO_ICMPS) > 0 {
+				egressPolicy.Metadata["rule"] = egressPolicy.Metadata["rule"] + "+icmps"
+				egressRule.ICMPs = dst.ICMPs
+			}
+
 			if dst.MatchLabels != "" {
-				// check matchLabels rule
+				// ========================== //
+				// build label-based policies //
+				// ========================== //
+
 				if discoverRuleTypes&MATCH_LABELS == 0 {
 					continue
 				}
 
-				egressPolicy.Metadata["rule"] = "matchLabels"
+				egressPolicy.Metadata["rule"] = egressPolicy.Metadata["rule"] + "+matchLabels"
 
 				egressRule.MatchLabels = map[string]string{}
 
@@ -1301,64 +1353,6 @@ func buildNetworkPolicy(namespace string, services []types.Service, aggregatedSr
 				// although src and dst have same namespace, speficy namespace for clarity
 				egressRule.MatchLabels["k8s:io.kubernetes.pod.namespace"] = dst.Namespace
 
-				// ===================== //
-				// build L4 toPorts rule //
-				// ===================== //
-				if dst.ToPorts != nil && len(dst.ToPorts) > 0 {
-					for i, toPort := range dst.ToPorts {
-						if toPort.Port == "0" {
-							dst.ToPorts[i].Port = ""
-						}
-
-						// =============== //
-						// build HTTP rule //
-						// =============== //
-						if toPort.Protocol == "tcp" && CheckSpecHTTP(dst.Additionals) {
-							egressRule.ToHTTPs = []types.SpecHTTP{}
-
-							sort.Strings(dst.Additionals)
-
-							for _, http := range dst.Additionals {
-								method, path := strings.Split(http, "|")[0], strings.Split(http, "|")[1]
-								httpRule := types.SpecHTTP{
-									Method: method,
-									Path:   path,
-								}
-
-								// if path includes wild card (.*), check aggreagted
-								if strings.Contains(path, "*") {
-									httpRule.Aggregated = true
-								} else {
-									httpRule.Aggregated = false
-								}
-
-								if !strings.Contains(egressPolicy.Metadata["rule"], "toHTTPs") {
-									egressPolicy.Metadata["rule"] = egressPolicy.Metadata["rule"] + "+toHTTPs"
-								}
-
-								// check toHTTPs rule
-								if discoverRuleTypes&TO_HTTPS > 0 {
-									egressRule.ToHTTPs = append(egressRule.ToHTTPs, httpRule)
-								}
-							}
-						}
-					}
-
-					if !strings.Contains(egressPolicy.Metadata["rule"], "toPorts") {
-						egressPolicy.Metadata["rule"] = egressPolicy.Metadata["rule"] + "+toPorts"
-					}
-
-					// check toPorts rule
-					if discoverRuleTypes&TO_PORTS > 0 {
-						egressRule.ToPorts = dst.ToPorts
-					}
-				}
-
-				if len(dst.ICMPs) > 0 && (discoverRuleTypes&TO_ICMPS) > 0 {
-					egressPolicy.Metadata["rule"] = egressPolicy.Metadata["rule"] + "+icmps"
-					egressRule.ICMPs = dst.ICMPs
-				}
-
 				// check egress
 				egressPolicy.Spec.Egress = append(egressPolicy.Spec.Egress, egressRule)
 				if discoverPolicyTypes&EGRESS > 0 {
@@ -1373,8 +1367,6 @@ func buildNetworkPolicy(namespace string, services []types.Service, aggregatedSr
 					networkPolicies = append(networkPolicies, ingressPolicy)
 				}
 			} else if dst.Namespace == "reserved:cidr" && len(dst.Additionals) > 0 {
-				egressPolicy.Metadata["rule"] = "toCIDRs"
-
 				// =============== //
 				// build CIDR rule //
 				// =============== //
@@ -1386,18 +1378,8 @@ func buildNetworkPolicy(namespace string, services []types.Service, aggregatedSr
 
 				// check toCIDRs rule
 				if discoverRuleTypes&TO_CIDRS > 0 {
+					egressPolicy.Metadata["rule"] = egressPolicy.Metadata["rule"] + "+toCIDRs"
 					egressRule.ToCIDRs = []types.SpecCIDR{cidr}
-				}
-
-				// check toPorts rule
-				if len(dst.ToPorts) > 0 && discoverRuleTypes&TO_PORTS > 0 {
-					egressPolicy.Metadata["rule"] = egressPolicy.Metadata["rule"] + "+toPorts"
-					egressRule.ToPorts = dst.ToPorts
-				}
-
-				if len(dst.ICMPs) > 0 && (discoverRuleTypes&TO_ICMPS) > 0 {
-					egressPolicy.Metadata["rule"] = egressPolicy.Metadata["rule"] + "+icmps"
-					egressRule.ICMPs = dst.ICMPs
 				}
 
 				// check egress
@@ -1407,28 +1389,17 @@ func buildNetworkPolicy(namespace string, services []types.Service, aggregatedSr
 				}
 
 			} else if dst.Namespace == "reserved:dns" && len(dst.Additionals) > 0 {
-				egressPolicy.Metadata["rule"] = "toFQDNs"
-
 				// =============== //
 				// build FQDN rule //
 				// =============== //
 
 				// check egress & toFQDNs rule
 				if discoverPolicyTypes&EGRESS > 0 && discoverRuleTypes&TO_FQDNS > 0 {
+					egressPolicy.Metadata["rule"] = egressPolicy.Metadata["rule"] + "+toFQDNs"
 
 					sort.Strings(dst.Additionals)
 					fqdn := types.SpecFQDN{
 						MatchNames: dst.Additionals,
-					}
-
-					if len(dst.ToPorts) > 0 {
-						egressPolicy.Metadata["rule"] = egressPolicy.Metadata["rule"] + "+toPorts"
-						egressRule.ToPorts = dst.ToPorts
-					}
-
-					if len(dst.ICMPs) > 0 && (discoverRuleTypes&TO_ICMPS) > 0 {
-						egressPolicy.Metadata["rule"] = egressPolicy.Metadata["rule"] + "+icmps"
-						egressRule.ICMPs = dst.ICMPs
 					}
 
 					egressRule.ToFQDNs = []types.SpecFQDN{fqdn}
@@ -1436,8 +1407,6 @@ func buildNetworkPolicy(namespace string, services []types.Service, aggregatedSr
 					networkPolicies = append(networkPolicies, egressPolicy)
 				}
 			} else if dst.Namespace == "reserved:entities" && len(dst.Additionals) > 0 {
-				egressPolicy.Metadata["rule"] = "toEntities"
-
 				// ================= //
 				// build Entity rule //
 				// ================= //
@@ -1446,21 +1415,11 @@ func buildNetworkPolicy(namespace string, services []types.Service, aggregatedSr
 				// handle for entity policy in Cilium
 				egressRule.ToEntities = dst.Additionals
 
-				// check toPorts rule
-				if len(dst.ToPorts) > 0 && discoverRuleTypes&TO_PORTS > 0 {
-					egressPolicy.Metadata["rule"] = egressPolicy.Metadata["rule"] + "+toPorts"
-					egressRule.ToPorts = dst.ToPorts
-				}
-
-				if len(dst.ICMPs) > 0 && (discoverRuleTypes&TO_ICMPS) > 0 {
-					egressPolicy.Metadata["rule"] = egressPolicy.Metadata["rule"] + "+icmps"
-					egressRule.ICMPs = dst.ICMPs
-				}
-
 				egressPolicy.Spec.Egress = append(egressPolicy.Spec.Egress, egressRule)
 
 				// check egress & toEntities rule
 				if discoverPolicyTypes&EGRESS > 0 && discoverRuleTypes&TO_ENTITIES > 0 {
+					egressPolicy.Metadata["rule"] = egressPolicy.Metadata["rule"] + "+toEntities"
 					networkPolicies = append(networkPolicies, egressPolicy)
 				}
 			}
@@ -1511,13 +1470,7 @@ func buildNetworkPolicy(namespace string, services []types.Service, aggregatedSr
 func updateLabeledSrcPerDst(labeledSrcsPerDst map[Dst][]SrcSimple) map[Dst][]SrcSimple {
 	// only maintains pod-to-pod in cluster
 	for dst := range labeledSrcsPerDst {
-		// remove cidr because cidr can be outdated
-		if dst.Namespace == "reserved:cidr" {
-			delete(labeledSrcsPerDst, dst)
-		}
-
-		// remove additional is not "", which means.. http,fqdn, ....
-		if dst.Additional != "" {
+		if strings.HasPrefix(dst.Namespace, "reserved") || dst.HTTP != "" {
 			delete(labeledSrcsPerDst, dst)
 		}
 	}
@@ -1558,8 +1511,10 @@ func DiscoverNetworkPolicy(namespace string,
 	// step 5: {aggregated_src: [dsts (merged proto/port + aggregated_label)]
 	aggregatedSrcPerAggregatedDst := aggregateDstByLabel(aggregatedSrcPerMergedDst, pods)
 
+	// TODO: This needs to be revisited after issues with L7 policies are fixed
+	// -----
 	// step 6: aggregate HTTP rule (method+path)
-	AggregateHTTPRule(aggregatedSrcPerAggregatedDst)
+	// AggregateHTTPRule(aggregatedSrcPerAggregatedDst)
 
 	// step 7: building network policies
 	networkPolicies := buildNetworkPolicy(namespace, services, aggregatedSrcPerAggregatedDst)

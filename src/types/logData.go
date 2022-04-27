@@ -26,6 +26,8 @@ type KnoxNetworkLog struct {
 	SynFlag bool `json:"syn_flag,omitempty" bson:"syn_flag"` // for tcp
 	IsReply bool `json:"is_reply,omitempty" bson:"is_reply"` // is_reply
 
+	L7Protocol string `json:"l7_protocol,omitempty" bson:"l7_protocol"`
+
 	DNSQuery  string   `json:"dns_query,omitempty" bson:"dns_query"`       // for L7 dns
 	DNSRes    string   `json:"dns_response,omitempty" bson:"dns_response"` // for L7 dns
 	DNSResIPs []string `json:"dns_res_ips,omitempty" bson:"dns_res_ips"`   // for L7 dns

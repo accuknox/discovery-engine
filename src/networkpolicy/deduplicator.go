@@ -82,7 +82,7 @@ func GetLatestFQDNPolicy(existingPolicies []types.KnoxNetworkPolicy, policy type
 				continue
 			}
 
-			// check cidr list
+			// check FQDN list
 			matchFQDN := true
 			for _, dns := range policy.Spec.Egress[0].ToFQDNs[0].MatchNames {
 				for _, existDNS := range exist.Spec.Egress[0].ToFQDNs[0].MatchNames {
@@ -101,17 +101,20 @@ func GetLatestFQDNPolicy(existingPolicies []types.KnoxNetworkPolicy, policy type
 	return latestPolicies
 }
 
-func GetLastedHTTPPolicy(existingPolicies []types.KnoxNetworkPolicy, policy types.KnoxNetworkPolicy) []types.KnoxNetworkPolicy {
+func GetLatestHTTPPolicy(existingPolicies []types.KnoxNetworkPolicy, policy types.KnoxNetworkPolicy) []types.KnoxNetworkPolicy {
 	latestPolicies := []types.KnoxNetworkPolicy{}
 
 	for _, exist := range existingPolicies {
-		existPolicyType := exist.Metadata["type"]
-		existRule := exist.Metadata["rule"]
+		namespace := exist.Metadata["namespace"]
+		policyType := exist.Metadata["type"]
+		rule := exist.Metadata["rule"]
+		status := exist.Metadata["status"]
 
-		if exist.Metadata["namespace"] == policy.Metadata["namespace"] &&
-			existPolicyType == policy.Metadata["type"] &&
-			strings.Contains(existRule, "toHTTPs") &&
-			exist.Metadata["status"] == "latest" {
+		if namespace == policy.Metadata["namespace"] &&
+			policyType == policy.Metadata["type"] &&
+			rule == policy.Metadata["rule"] &&
+			strings.Contains(rule, "toHTTPs") &&
+			status == "latest" {
 
 			// check selector matchLabels, if not matched, next existing rule
 			if !includeSelectorLabels(policy.Spec.Selector.MatchLabels, exist.Spec.Selector.MatchLabels) {
@@ -120,55 +123,115 @@ func GetLastedHTTPPolicy(existingPolicies []types.KnoxNetworkPolicy, policy type
 
 			// check matchLabels & toPorts
 			newMatchLabels := map[string]string{}
+			newCIDRs := []string{}
+			newFQDNs := []string{}
+			newEntities := []string{}
 			newToPorts := []types.SpecPort{}
 
 			existMatchLabels := map[string]string{}
+			existCIDRs := []string{}
+			existFQDNs := []string{}
+			existEntities := []string{}
 			existToPorts := []types.SpecPort{}
 
-			if existPolicyType == "egress" {
+			if policyType == PolicyTypeEgress {
 				newMatchLabels = policy.Spec.Egress[0].MatchLabels
+				if strings.Contains(rule, "toCIDRs") {
+					newCIDRs = policy.Spec.Egress[0].ToCIDRs[0].CIDRs
+				}
+				if strings.Contains(rule, "toFQDNs") {
+					newFQDNs = policy.Spec.Egress[0].ToFQDNs[0].MatchNames
+				}
+				newEntities = policy.Spec.Egress[0].ToEntities
 				newToPorts = policy.Spec.Egress[0].ToPorts
 
 				existMatchLabels = exist.Spec.Egress[0].MatchLabels
+				if strings.Contains(rule, "toCIDRs") {
+					existCIDRs = exist.Spec.Egress[0].ToCIDRs[0].CIDRs
+				}
+				if strings.Contains(rule, "toFQDNs") {
+					existFQDNs = exist.Spec.Egress[0].ToFQDNs[0].MatchNames
+				}
+				existEntities = exist.Spec.Egress[0].ToEntities
 				existToPorts = exist.Spec.Egress[0].ToPorts
 			} else {
 				newMatchLabels = policy.Spec.Ingress[0].MatchLabels
+				newEntities = policy.Spec.Ingress[0].FromEntities
 				newToPorts = policy.Spec.Ingress[0].ToPorts
 
 				existMatchLabels = exist.Spec.Ingress[0].MatchLabels
+				existEntities = exist.Spec.Ingress[0].FromEntities
 				existToPorts = exist.Spec.Ingress[0].ToPorts
 			}
 
-			// 1. check matchLabels
-			matchLabels := true
-			for k, v := range newMatchLabels {
-
-				if existMatchLabels[k] != v {
-					matchLabels = false
-					break
+			if strings.Contains(rule, "matchLabels") {
+				// check matchLabels
+				matchLabels := true
+				for k, v := range newMatchLabels {
+					if existMatchLabels[k] != v {
+						matchLabels = false
+						break
+					}
 				}
+				if !matchLabels {
+					continue
+				}
+			} else if strings.Contains(rule, "toCIDRs") && policyType == PolicyTypeEgress {
+				// check CIDRs
+				matchCIDRs := true
+				for _, cidr := range newCIDRs {
+					if !libs.ContainsElement(existCIDRs, cidr) {
+						matchCIDRs = false
+						break
+					}
+				}
+				if !matchCIDRs {
+					continue
+				}
+			} else if strings.Contains(rule, "toFQDNs") && policyType == PolicyTypeEgress {
+				// check FQDNs
+				matchFQDNs := true
+				for _, fqdn := range newFQDNs {
+					if !libs.ContainsElement(existFQDNs, fqdn) {
+						matchFQDNs = false
+						break
+					}
+				}
+				if !matchFQDNs {
+					continue
+				}
+			} else if strings.Contains(rule, "toEntities") || strings.Contains(rule, "fromEntities") {
+				// check From/To Entities
+				matchEntities := true
+				for _, entity := range newEntities {
+					if !libs.ContainsElement(existEntities, entity) {
+						matchEntities = false
+						break
+					}
+				}
+				if !matchEntities {
+					continue
+				}
+			} else {
+				// unknown type
+				continue
 			}
 
-			// 2. check toPorts
+			// check toPorts
 			matchToPorts := true
 			for _, toPort := range newToPorts {
-				if existToPorts == nil && len(existToPorts) == 0 {
-					matchToPorts = false
-					break
-				}
-
 				if !libs.ContainsElement(existToPorts, toPort) {
 					matchToPorts = false
 					break
 				}
 			}
-
-			if matchLabels && matchToPorts {
-				latestPolicies = append(latestPolicies, exist)
+			if !matchToPorts {
+				continue
 			}
+
+			latestPolicies = append(latestPolicies, exist)
 		}
 	}
-
 	return latestPolicies
 }
 
@@ -276,50 +339,48 @@ func includedHTTPPath(httpRules []types.SpecHTTP, targetRule types.SpecHTTP) boo
 
 func UpdateHTTP(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.KnoxNetworkPolicy) (types.KnoxNetworkPolicy, bool) {
 	// case 1: if there is no latest, policy is new one
-	latestPolicies := GetLastedHTTPPolicy(existingPolicies, newPolicy)
+	latestPolicies := GetLatestHTTPPolicy(existingPolicies, newPolicy)
 	if len(latestPolicies) == 0 {
 		return newPolicy, true
 	}
 
-	newHTTP := []types.SpecHTTP{}
+	newHTTPs := []types.SpecHTTP{}
 	if newPolicy.Metadata["type"] == PolicyTypeEgress {
-		newHTTP = newPolicy.Spec.Egress[0].ToHTTPs
+		newHTTPs = newPolicy.Spec.Egress[0].ToHTTPs
 	} else {
-		newHTTP = newPolicy.Spec.Ingress[0].ToHTTPs
+		newHTTPs = newPolicy.Spec.Ingress[0].ToHTTPs
 	}
 
 	updated := false
 
 	for _, latestPolicy := range latestPolicies {
-		existHTTP := []types.SpecHTTP{}
+		existHTTPs := []types.SpecHTTP{}
 		if newPolicy.Metadata["type"] == PolicyTypeEgress {
-			existHTTP = latestPolicy.Spec.Egress[0].ToHTTPs
+			existHTTPs = latestPolicy.Spec.Egress[0].ToHTTPs
 		} else {
-			existHTTP = latestPolicy.Spec.Ingress[0].ToHTTPs
+			existHTTPs = latestPolicy.Spec.Ingress[0].ToHTTPs
 		}
 
 		// case 2: policy has toHTTPs, which are all includes in latest
-		includeAllRules := true
-		for _, rule := range newHTTP {
-			if !includedHTTPPath(existHTTP, rule) {
-				includeAllRules = false
+		includedAllRules := true
+		for _, rule := range newHTTPs {
+			if !includedHTTPPath(existHTTPs, rule) {
+				includedAllRules = false
+				break
 			}
 		}
 
-		if includeAllRules {
-			// case 2-1: policy has the lower selector count? outdated
-			if len(newPolicy.Spec.Selector.MatchLabels) < len(latestPolicy.Spec.Selector.MatchLabels) {
-				updateOutdatedPolicy(latestPolicy, &newPolicy)
-				updated = true
-			}
-
-			continue
+		// case 2: policy has toHTTPs which are all included in latest one
+		if includedAllRules {
+			continue // next existPolicy
 		}
 
-		// case 3: if policy has no toHTTPs, append it
-		for _, rule := range existHTTP {
-			if !includedHTTPPath(newHTTP, rule) {
-				newHTTP = append(newHTTP, rule)
+		// case 3: policy has toHTTPs which are not included in latest one
+		if !includedAllRules {
+			for _, http := range existHTTPs {
+				if !libs.ContainsElement(newHTTPs, http) {
+					newHTTPs = append(newHTTPs, http)
+				}
 			}
 		}
 
@@ -331,9 +392,9 @@ func UpdateHTTP(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.Knox
 	// at least one updated
 	if updated {
 		if newPolicy.Metadata["type"] == PolicyTypeEgress {
-			newPolicy.Spec.Egress[0].ToHTTPs = newHTTP
+			newPolicy.Spec.Egress[0].ToHTTPs = newHTTPs
 		} else {
-			newPolicy.Spec.Ingress[0].ToHTTPs = newHTTP
+			newPolicy.Spec.Ingress[0].ToHTTPs = newHTTPs
 		}
 
 		return newPolicy, true
@@ -398,12 +459,6 @@ func UpdateToPorts(newPolicy types.KnoxNetworkPolicy, existingPolicies []types.K
 
 		// case 2: policy has toPorts & icmps, which are all included in latest one
 		if includedAllPortRules && includedAllICMPRules {
-			// case 2-1: policy has the lower selector count? outdated
-			if len(newPolicy.Spec.Selector.MatchLabels) < len(latestPolicy.Spec.Selector.MatchLabels) {
-				updateOutdatedPolicy(latestPolicy, &newPolicy)
-				updated = true
-			}
-
 			continue // next existPolicy
 		}
 
@@ -883,62 +938,64 @@ func UpdateDuplicatedPolicy(existingPolicies []types.KnoxNetworkPolicy, discover
 		// step 2: generate policy name
 		namedPolicy := GeneratePolicyName(policyNamesMap, policy, clusterName)
 
-		// step 3-1: update existing HTTP rules: egress or ingress
+		// step 3: update existing HTTP rules: egress or ingress
 		if strings.Contains(policy.Metadata["rule"], "toHTTPs") {
 			updatedPolicy, updated := UpdateHTTP(namedPolicy, existingPolicies)
 			if updated {
 				namedPolicy = updatedPolicy
 			}
-		} else if strings.Contains(policy.Metadata["rule"], "matchLabels") {
-			// step 3-2: update existing matchLabels+toPorts rules: egress or ingress
-			updatedPolicy, updated := UpdateMatchLabels(policy, existingPolicies)
-			if updated {
-				namedPolicy = updatedPolicy
+		} else {
+			// step 4: update existing matchLabels+toPorts rules: egress or ingress
+			if strings.Contains(policy.Metadata["rule"], "matchLabels") {
+				updatedPolicy, updated := UpdateMatchLabels(policy, existingPolicies)
+				if updated {
+					namedPolicy = updatedPolicy
+				}
+			}
+
+			// step 5: update existing CIDR(+toPorts) rules: egress
+			if strings.Contains(policy.Metadata["rule"], "toCIDRs") && policy.Metadata["type"] == PolicyTypeEgress {
+				updatedPolicy, updated := UpdateToPorts(namedPolicy, existingPolicies)
+				if updated {
+					namedPolicy = updatedPolicy
+				}
+			}
+
+			// step 6: update existing FQDN+toPorts rules: egress
+			if strings.Contains(policy.Metadata["rule"], "toFQDNs") && policy.Metadata["type"] == PolicyTypeEgress {
+				updatedPolicy, updated := UpdateToPorts(namedPolicy, existingPolicies)
+				if updated {
+					namedPolicy = updatedPolicy
+				}
+			}
+
+			// step 7: update existing Entities rules: egress or ingress
+			if strings.Contains(policy.Metadata["rule"], "Entities") {
+				updatedPolicy, updated := UpdateEntity(namedPolicy, existingPolicies)
+				if updated {
+					namedPolicy = updatedPolicy
+				}
+			}
+
+			// step 8: update existing Entities rules: egress
+			if strings.Contains(policy.Metadata["rule"], "toServices") && policy.Metadata["type"] == PolicyTypeEgress {
+				updatedPolicy, updated := UpdateService(namedPolicy, existingPolicies)
+				if updated {
+					namedPolicy = updatedPolicy
+				}
 			}
 		}
 
-		// step 4: update existing CIDR(+toPorts) rules: egress or ingress
-		if strings.Contains(policy.Metadata["rule"], "toCIDRs") {
-			updatedPolicy, updated := UpdateToPorts(namedPolicy, existingPolicies)
-			if updated {
-				namedPolicy = updatedPolicy
-			}
-		}
-
-		// step 5: update existing FQDN+toPorts rules: egress
-		if strings.Contains(policy.Metadata["rule"], "toFQDNs") && policy.Metadata["type"] == PolicyTypeEgress {
-			updatedPolicy, updated := UpdateToPorts(namedPolicy, existingPolicies)
-			if updated {
-				namedPolicy = updatedPolicy
-			}
-		}
-
-		// step 6: update existing Entities rules: egress or ingress
-		if strings.Contains(policy.Metadata["rule"], "Entities") {
-			updatedPolicy, updated := UpdateEntity(namedPolicy, existingPolicies)
-			if updated {
-				namedPolicy = updatedPolicy
-			}
-		}
-
-		// step 7: update existing Entities rules: egress
-		if strings.Contains(policy.Metadata["rule"], "toServices") && policy.Metadata["type"] == PolicyTypeEgress {
-			updatedPolicy, updated := UpdateService(namedPolicy, existingPolicies)
-			if updated {
-				namedPolicy = updatedPolicy
-			}
-		}
-
-		// step 8: update status
+		// step 9: update status
 		namedPolicy.Metadata["status"] = "latest"
 
-		// step 9: update generated time
+		// step 10: update generated time
 		namedPolicy.GeneratedTime = time.Now().Unix()
 
 		newPolicies = append(newPolicies, namedPolicy)
 	}
 
-	// step 8: check if existing cidr matchs new fqdn
+	// step 11: check if existing cidr matchs new fqdn
 	updateExistCIDRtoNewFQDN(existingPolicies, newPolicies, dnsToIPs)
 
 	sort.Slice(newPolicies, func(i, j int) bool {
