@@ -14,6 +14,7 @@ require (
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/google/go-cmp v0.5.5
 	github.com/kubearmor/KubeArmor/protobuf v0.0.0-20220310101419-a9af4bd8b9f5
+	github.com/mattn/go-sqlite3 v1.14.12
 	github.com/robfig/cron v1.2.0
 	github.com/rs/zerolog v1.25.0
 	github.com/spf13/viper v1.7.1
