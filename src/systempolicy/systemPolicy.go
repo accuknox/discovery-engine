@@ -312,7 +312,6 @@ func GetSysPolicy(namespace, clustername, labels, fromsource string) *wpb.Worker
 
 		delete(kubearmorK8SPolicies[i].Metadata, "clusterName")
 		delete(kubearmorK8SPolicies[i].Metadata, "containername")
-		delete(kubearmorK8SPolicies[i].Metadata, "namespace")
 
 		val, err := json.Marshal(&kubearmorK8SPolicies[i])
 		if err != nil {
@@ -329,7 +328,6 @@ func GetSysPolicy(namespace, clustername, labels, fromsource string) *wpb.Worker
 
 		delete(kubearmorVMPolicies[i].Metadata, "clusterName")
 		delete(kubearmorVMPolicies[i].Metadata, "containername")
-		delete(kubearmorVMPolicies[i].Metadata, "namespace")
 
 		val, err := json.Marshal(&kubearmorVMPolicies[i])
 		if err != nil {
