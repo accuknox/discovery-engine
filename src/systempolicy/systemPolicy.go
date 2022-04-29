@@ -9,7 +9,6 @@ import (
 	"reflect"
 	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -310,6 +309,9 @@ func GetSysPolicy(namespace, clustername, labels, fromsource string) *wpb.Worker
 	for i := range kubearmorK8SPolicies {
 		kubearmorpolicy := wpb.KubeArmorPolicy{}
 
+		delete(kubearmorK8SPolicies[i].Metadata, "clusterName")
+		delete(kubearmorK8SPolicies[i].Metadata, "containername")
+
 		val, err := json.Marshal(&kubearmorK8SPolicies[i])
 		if err != nil {
 			log.Error().Msgf("kubearmorK8SPolicy json marshal failed err=%v", err.Error())
@@ -322,6 +324,9 @@ func GetSysPolicy(namespace, clustername, labels, fromsource string) *wpb.Worker
 	// system policy for VM
 	for i := range kubearmorVMPolicies {
 		kubearmorpolicy := wpb.KubeArmorPolicy{}
+
+		delete(kubearmorVMPolicies[i].Metadata, "clusterName")
+		delete(kubearmorVMPolicies[i].Metadata, "containername")
 
 		val, err := json.Marshal(&kubearmorVMPolicies[i])
 		if err != nil {
@@ -722,7 +727,6 @@ func hashInt(s string) uint32 {
 func mergeSysPolicies(pols []types.KnoxSystemPolicy) []types.KnoxSystemPolicy {
 	var results []types.KnoxSystemPolicy
 	for _, pol := range pols {
-		pol.Metadata["name"] = "autopol-system-" + strconv.FormatUint(uint64(hashInt(pol.Metadata["labels"])), 10)
 		i := checkIfMetadataMatches(pol, results)
 		if i < 0 {
 			results = append(results, pol)
@@ -1296,7 +1300,7 @@ func GenFileSetForAllPodsInCluster(clusterName string, pods []types.Pod, settype
 				log.Info().Msgf("updating wpfs db entry for wpfs=%+v", wpfs)
 				if cfgDB.DBDriver == "mysql" {
 					err = libs.UpdateWorkloadProcessFileSetMySQL(CfgDB, wpfs, mergedfs)
-                                        status = true
+					status = true
 				} else if cfgDB.DBDriver == "sqlite3" {
 					err = libs.UpdateWorkloadProcessFileSetSQLite(CfgDB, wpfs, mergedfs)
 					status = true
