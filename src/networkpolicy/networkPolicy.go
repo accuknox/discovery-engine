@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/accuknox/auto-policy-discovery/src/cluster"
+	"github.com/accuknox/auto-policy-discovery/src/config"
 	cfg "github.com/accuknox/auto-policy-discovery/src/config"
 	"github.com/accuknox/auto-policy-discovery/src/feedconsumer"
 	"github.com/accuknox/auto-policy-discovery/src/libs"
@@ -1525,6 +1526,28 @@ func DiscoverNetworkPolicy(namespace string,
 	return networkPolicies
 }
 
+func applyPolicyFilter(discoveredPolicies map[string][]types.KnoxNetworkPolicy) map[string][]types.KnoxNetworkPolicy {
+
+	nsFilter := config.CurrentCfg.ConfigNetPolicy.NsFilter
+	nsNotFilter := config.CurrentCfg.ConfigNetPolicy.NsNotFilter
+
+	if len(nsFilter) > 0 {
+		for ns := range discoveredPolicies {
+			if !libs.ContainsElement(nsFilter, ns) {
+				delete(discoveredPolicies, ns)
+			}
+		}
+	} else if len(nsNotFilter) > 0 {
+		for ns := range discoveredPolicies {
+			if libs.ContainsElement(nsNotFilter, ns) {
+				delete(discoveredPolicies, ns)
+			}
+		}
+	}
+
+	return discoveredPolicies
+}
+
 func PopulateNetworkPoliciesFromNetworkLogs(networkLogs []types.KnoxNetworkLog) map[string][]types.KnoxNetworkPolicy {
 
 	discoveredNetworkPolicies := map[string][]types.KnoxNetworkPolicy{}
@@ -1587,15 +1610,23 @@ func PopulateNetworkPoliciesFromNetworkLogs(networkLogs []types.KnoxNetworkLog) 
 			}
 		}
 
+		// filter discovered policies
+		discoveredNetworkPolicies = applyPolicyFilter(discoveredNetworkPolicies)
+
 		// iterate each namespace
 		for _, namespace := range namespaces {
+			discoveredPolicies := discoveredNetworkPolicies[namespace]
+			if len(discoveredPolicies) == 0 {
+				continue
+			}
+
 			log.Info().Msgf("libs.GetNetworkPolicies for cluster [%s] namespace [%s]", clusterName, namespace)
 			// get existing network policies in db
 			existingNetPolicies := libs.GetNetworkPolicies(CfgDB, clusterName, namespace, "latest", "", "")
 
 			log.Info().Msgf("UpdateDuplicatedPolicy for cluster [%s] namespace [%s]", clusterName, namespace)
 			// update duplicated policy
-			newNetPolicies := UpdateDuplicatedPolicy(existingNetPolicies, discoveredNetworkPolicies[namespace], DomainToIPs, clusterName)
+			newNetPolicies := UpdateDuplicatedPolicy(existingNetPolicies, discoveredPolicies, DomainToIPs, clusterName)
 
 			if len(newNetPolicies) > 0 {
 				// insert discovered policies to db

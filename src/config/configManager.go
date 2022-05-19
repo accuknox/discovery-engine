@@ -143,6 +143,18 @@ func LoadConfigFromFile() {
 		NetSkipCertVerification: viper.GetBool("application.network.skip-cert-verification"),
 	}
 
+	var ns, notNs []string
+	namespaces := viper.GetStringSlice("application.network.namespace-filter")
+	for _, n := range namespaces {
+		if n[0] == '!' {
+			notNs = append(notNs, n[1:])
+		} else {
+			ns = append(ns, n)
+		}
+	}
+	CurrentCfg.ConfigNetPolicy.NsFilter = ns
+	CurrentCfg.ConfigNetPolicy.NsNotFilter = notNs
+
 	// load system policy discovery
 	CurrentCfg.ConfigSysPolicy = types.ConfigSystemPolicy{
 		OperationMode:           viper.GetInt("application.system.operation-mode"),
