@@ -4,13 +4,13 @@ const PolicyDiscoveryVMNamespace = "accuknox-vm-namespace"
 const PolicyDiscoveryVMPodName = "accuknox-vm-podname"
 
 type ConfigDB struct {
-	DBDriver string `json:"db_driver,omitempty" bson:"db_driver,omitempty"`
-	DBHost   string `json:"db_host,omitempty" bson:"db_host,omitempty"`
-	DBPort   string `json:"db_port,omitempty" bson:"db_port,omitempty"`
-	DBUser   string `json:"db_user,omitempty" bson:"db_user,omitempty"`
-	DBPass   string `json:"db_pass,omitempty" bson:"db_pass,omitempty"`
-	DBName   string `json:"db_name,omitempty" bson:"db_name,omitempty"`
-	SQLiteDBPath   string `json:"sqlite_db_path,omitempty" bson:"sqlite_db_path,omitempty"`
+	DBDriver     string `json:"db_driver,omitempty" bson:"db_driver,omitempty"`
+	DBHost       string `json:"db_host,omitempty" bson:"db_host,omitempty"`
+	DBPort       string `json:"db_port,omitempty" bson:"db_port,omitempty"`
+	DBUser       string `json:"db_user,omitempty" bson:"db_user,omitempty"`
+	DBPass       string `json:"db_pass,omitempty" bson:"db_pass,omitempty"`
+	DBName       string `json:"db_name,omitempty" bson:"db_name,omitempty"`
+	SQLiteDBPath string `json:"sqlite_db_path,omitempty" bson:"sqlite_db_path,omitempty"`
 }
 
 type ConfigCiliumHubble struct {
@@ -43,6 +43,9 @@ type ConfigNetworkPolicy struct {
 	NetworkLogFile   string `json:"network_log_file,omitempty" bson:"network_log_file,omitempty"`
 	NetworkPolicyTo  string `json:"network_policy_to,omitempty" bson:"network_policy_to,omitempty"`
 	NetworkPolicyDir string `json:"network_policy_dir,omitempty" bson:"network_policy_dir,omitempty"`
+
+	NsFilter    []string `json:"network_policy_ns_filter,omitempty" bson:"network_policy_ns_filter,omitempty"`
+	NsNotFilter []string `json:"network_policy_ns_not_filter,omitempty" bson:"network_policy_ns_not_filter,omitempty"`
 
 	NetPolicyTypes     int `json:"network_policy_types,omitempty" bson:"network_policy_types,omitempty"`
 	NetPolicyRuleTypes int `json:"network_policy_rule_types,omitempty" bson:"network_policy_rule_types,omitempty"`
