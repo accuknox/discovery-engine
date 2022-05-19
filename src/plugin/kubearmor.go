@@ -164,8 +164,8 @@ func ConvertKubeArmorSystemLogsToKnoxSystemLogs(dbDriver string, docs []map[stri
 	if dbDriver == "mysql" {
 		return ConvertMySQLKubeArmorLogsToKnoxSystemLogs(docs)
 	} else if dbDriver == "sqlite3" {
-                return ConvertSQLiteKubeArmorLogsToKnoxSystemLogs(docs)
-        }
+		return ConvertSQLiteKubeArmorLogsToKnoxSystemLogs(docs)
+	}
 
 	return []types.KnoxSystemLog{}
 }
@@ -201,11 +201,11 @@ func ConvertKubeArmorLogToKnoxSystemLog(relayLog *pb.Log) (types.KnoxSystemLog, 
 		readOnly = true
 	}
 
-	if strings.Contains(source, "runc") {
+	if strings.Contains(source, "runc") && relayLog.Operation == "Process" {
 		source = ""
 	}
 
-	if strings.Contains(resource, "runc") {
+	if strings.Contains(resource, "runc") && relayLog.Operation == "Process" {
 		resource = ""
 	}
 
