@@ -273,7 +273,7 @@ func populateKnoxSysPolicyFromWPFSDb(namespace, clustername, labels, fromsource 
 func WriteSystemPoliciesToFile_Ext(namespace, clustername, labels, fromsource string) {
 	kubearmorK8SPolicies := extractK8SSystemPolicies(namespace, clustername, labels)
 	for _, pol := range kubearmorK8SPolicies {
-		fname := "kubearmor_policies_" + pol.Metadata["clusterName"] + "_" + pol.Metadata["namespace"] + "_" + pol.Metadata["containername"] + "_" + libs.RandSeq(8)
+		fname := "kubearmor_policies_" + pol.Metadata["clusterName"] + "_" + pol.Metadata["namespace"] + "_" + pol.Metadata["containername"] + "_" + pol.Metadata["name"]
 		delete(pol.Metadata, "clusterName")
 		delete(pol.Metadata, "containername")
 		libs.WriteKubeArmorPolicyToYamlFile(fname, []types.KubeArmorPolicy{pol})
