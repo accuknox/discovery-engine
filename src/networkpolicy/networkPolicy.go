@@ -1414,7 +1414,13 @@ func buildNetworkPolicy(namespace string, services []types.Service, aggregatedSr
 				sort.Strings(dst.Additionals)
 
 				// handle for entity policy in Cilium
-				egressRule.ToEntities = dst.Additionals
+				for _, additionals := range dst.Additionals {
+					if strings.Contains(additionals, ",") {
+						egressRule.ToEntities = append(egressRule.ToEntities, strings.Split(additionals, ",")...)
+					} else {
+						egressRule.ToEntities = append(egressRule.ToEntities, additionals)
+					}
+				}
 
 				egressPolicy.Spec.Egress = append(egressPolicy.Spec.Egress, egressRule)
 

@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -273,7 +274,7 @@ func populateKnoxSysPolicyFromWPFSDb(namespace, clustername, labels, fromsource 
 func WriteSystemPoliciesToFile_Ext(namespace, clustername, labels, fromsource string) {
 	kubearmorK8SPolicies := extractK8SSystemPolicies(namespace, clustername, labels)
 	for _, pol := range kubearmorK8SPolicies {
-		fname := "kubearmor_policies_" + pol.Metadata["clusterName"] + "_" + pol.Metadata["namespace"] + "_" + pol.Metadata["containername"] + "_" + libs.RandSeq(8)
+		fname := "kubearmor_policies_" + pol.Metadata["clusterName"] + "_" + pol.Metadata["namespace"] + "_" + pol.Metadata["containername"] + "_" + pol.Metadata["name"]
 		delete(pol.Metadata, "clusterName")
 		delete(pol.Metadata, "containername")
 		libs.WriteKubeArmorPolicyToYamlFile(fname, []types.KubeArmorPolicy{pol})
@@ -727,6 +728,7 @@ func hashInt(s string) uint32 {
 func mergeSysPolicies(pols []types.KnoxSystemPolicy) []types.KnoxSystemPolicy {
 	var results []types.KnoxSystemPolicy
 	for _, pol := range pols {
+		pol.Metadata["name"] = "autopol-system-" + strconv.FormatUint(uint64(hashInt(pol.Metadata["labels"]+pol.Metadata["namespace"]+pol.Metadata["clustername"])), 10)
 		i := checkIfMetadataMatches(pol, results)
 		if i < 0 {
 			results = append(results, pol)
