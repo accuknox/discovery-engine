@@ -3,7 +3,6 @@ package libs
 import (
 	"bytes"
 	"crypto/rand"
-	"encoding/json"
 	"flag"
 	"math/big"
 	"net"
@@ -15,12 +14,14 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/clarketm/json"
+
 	logger "github.com/accuknox/auto-policy-discovery/src/logging"
 	"github.com/accuknox/auto-policy-discovery/src/types"
 	"github.com/rs/zerolog"
 	"github.com/spf13/viper"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"gopkg.in/yaml.v2"
+	"sigs.k8s.io/yaml"
 )
 
 var log *zerolog.Logger
@@ -109,7 +110,7 @@ func SetDefaultConfig() {
 	viper.SetDefault("database.dbname", "accuknox")
 	viper.SetDefault("database.host", "127.0.0.1")
 	viper.SetDefault("database.port", "3306")
-	viper.SetDefault("database.sqlite-db-path","./accuknox.db")
+	viper.SetDefault("database.sqlite-db-path", "./accuknox.db")
 	viper.SetDefault("database.table-network-policy", "network_policy")
 	viper.SetDefault("database.table-system-policy", "system_policy")
 
@@ -457,11 +458,17 @@ func WriteCiliumPolicyToYamlFile(namespace string, policies []types.CiliumNetwor
 	}
 
 	for i := range policies {
-		b, err := yaml.Marshal(&policies[i])
+		jsonBytes, err := json.Marshal(&policies[i])
 		if err != nil {
 			log.Error().Msg(err.Error())
+			continue
 		}
-		writeYamlByte(f, b)
+		yamlBytes, err := yaml.JSONToYAML(jsonBytes)
+		if err != nil {
+			log.Error().Msg(err.Error())
+			continue
+		}
+		writeYamlByte(f, yamlBytes)
 	}
 
 	if err := f.Close(); err != nil {
@@ -486,11 +493,17 @@ func WriteKubeArmorPolicyToYamlFile(fname string, policies []types.KubeArmorPoli
 	}
 
 	for i := range policies {
-		b, err := yaml.Marshal(&policies[i])
+		jsonBytes, err := json.Marshal(&policies[i])
 		if err != nil {
 			log.Error().Msg(err.Error())
+			continue
 		}
-		writeYamlByte(f, b)
+		yamlBytes, err := yaml.JSONToYAML(jsonBytes)
+		if err != nil {
+			log.Error().Msg(err.Error())
+			continue
+		}
+		writeYamlByte(f, yamlBytes)
 	}
 
 	if err := f.Close(); err != nil {

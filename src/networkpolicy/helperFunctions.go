@@ -1,7 +1,6 @@
 package networkpolicy
 
 import (
-	"encoding/json"
 	"io/ioutil"
 	"math/bits"
 	"net"
@@ -10,6 +9,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/clarketm/json"
 
 	"github.com/accuknox/auto-policy-discovery/src/cluster"
 	"github.com/accuknox/auto-policy-discovery/src/libs"
