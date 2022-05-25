@@ -458,7 +458,10 @@ func WriteCiliumPolicyToYamlFile(namespace string, policies []types.CiliumNetwor
 	}
 
 	for i := range policies {
-		jsonBytes := json.Marshal(&policies[i])
+		jsonBytes, err := json.Marshal(&policies[i])
+		if err != nil {
+			log.Error().Msg(err.Error())
+		}
 		yamlBytes, err := yaml.JSONToYAML(jsonBytes)
 		if err != nil {
 			log.Error().Msg(err.Error())
@@ -488,7 +491,10 @@ func WriteKubeArmorPolicyToYamlFile(fname string, policies []types.KubeArmorPoli
 	}
 
 	for i := range policies {
-		jsonBytes := json.Marshal(&policies[i])
+		jsonBytes, err := json.Marshal(&policies[i])
+		if err != nil {
+			log.Error().Msg(err.Error())
+		}
 		yamlBytes, err := yaml.JSONToYAML(jsonBytes)
 		if err != nil {
 			log.Error().Msg(err.Error())
