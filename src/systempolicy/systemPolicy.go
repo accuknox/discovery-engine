@@ -1,7 +1,6 @@
 package systempolicy
 
 import (
-	"encoding/json"
 	"errors"
 	"hash/fnv"
 	"io/ioutil"
@@ -12,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/clarketm/json"
 
 	"github.com/accuknox/auto-policy-discovery/src/cluster"
 	cfg "github.com/accuknox/auto-policy-discovery/src/config"
