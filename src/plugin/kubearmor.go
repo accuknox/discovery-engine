@@ -164,8 +164,8 @@ func ConvertKubeArmorSystemLogsToKnoxSystemLogs(dbDriver string, docs []map[stri
 	if dbDriver == "mysql" {
 		return ConvertMySQLKubeArmorLogsToKnoxSystemLogs(docs)
 	} else if dbDriver == "sqlite3" {
-                return ConvertSQLiteKubeArmorLogsToKnoxSystemLogs(docs)
-        }
+		return ConvertSQLiteKubeArmorLogsToKnoxSystemLogs(docs)
+	}
 
 	return []types.KnoxSystemLog{}
 }
@@ -348,6 +348,7 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 
 				log := pb.Log{
 					ClusterName:   res.ClusterName,
+					ContainerName: res.ContainerName,
 					HostName:      res.HostName,
 					NamespaceName: res.NamespaceName,
 					PodName:       res.PodName,
