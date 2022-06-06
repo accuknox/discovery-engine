@@ -1,11 +1,15 @@
 package types
 
 const (
-	// Kubearmor VM
+	// KubeArmor VM
 	PolicyDiscoveryVMNamespace = "accuknox-vm-namespace"
 	PolicyDiscoveryVMPodName   = "accuknox-vm-podname"
 
-	// Kubearmor k8s
+	// KubeArmor container
+	PolicyDiscoveryContainerNamespace = "container_namespace"
+	PolicyDiscoveryContainerPodName   = "container_podname"
+
+	// KubeArmor k8s
 	PreConfiguredKubearmorRule = "/lib/x86_64-linux-gnu/"
 
 	// RecordSeparator - DB separator flag

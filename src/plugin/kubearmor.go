@@ -293,6 +293,12 @@ func ConvertKubeArmorLogToKnoxSystemLog(relayLog *pb.Log) (types.KnoxSystemLog, 
 		knoxSystemLog.PodName = types.PolicyDiscoveryVMPodName
 	}
 
+	if relayLog.Type == "ContainerLog" {
+		knoxSystemLog.ContainerName = relayLog.ContainerName
+		knoxSystemLog.Namespace = types.PolicyDiscoveryContainerNamespace
+		knoxSystemLog.PodName = types.PolicyDiscoveryContainerPodName
+	}
+
 	return knoxSystemLog, nil
 }
 
