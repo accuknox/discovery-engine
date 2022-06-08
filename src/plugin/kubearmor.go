@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/accuknox/auto-policy-discovery/src/libs"
+	obs "github.com/accuknox/auto-policy-discovery/src/observability"
 	"github.com/accuknox/auto-policy-discovery/src/types"
 	pb "github.com/kubearmor/KubeArmor/protobuf"
 	"google.golang.org/grpc"
@@ -316,6 +317,7 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 				}
 
 				KubeArmorRelayLogsMutex.Lock()
+				obs.ProcessKubearmorLog(res)
 				KubeArmorRelayLogs = append(KubeArmorRelayLogs, res)
 				KubeArmorRelayLogsMutex.Unlock()
 			}
@@ -360,6 +362,7 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 				}
 
 				KubeArmorRelayLogsMutex.Lock()
+				obs.ProcessKubearmorAlert(&log)
 				KubeArmorRelayLogs = append(KubeArmorRelayLogs, &log)
 				KubeArmorRelayLogsMutex.Unlock()
 			}

@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package v1.observability;
+
+option go_package = "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/observability";
+
+service Summary {
+    rpc FetchLogs (LogsRequest) returns (stream LogsResponse);
+}
+
+message LogsRequest {
+    string type = 1;
+    string label = 2;
+    string namespace = 3;
+}
+
+message LogsResponse {
+    string podDetail = 1;
+    string namespace = 2;
+    repeated ListOfSource listOfProcess = 3;
+    repeated ListOfSource listOfFile = 4; 
+    repeated ListOfSource listOfNetwork = 5;
+    repeated ListOfConnection ingress = 6;
+    repeated ListOfConnection egress = 7; 
+}
+
+message ListOfSource {
+    string source = 1;
+    repeated ListOfDestination listOfDestination = 2;
+}
+
+message ListOfConnection {
+    string destinationLabels = 1;
+    string destinationNamespace = 2;
+    string protocol = 3;
+    uint32 port = 4;
+    int32 count = 5;
+    string status = 6;
+    int64 lastUpdatedTime = 7;
+}
+
+message ListOfDestination {
+    string destination = 1;
+    int32 count = 2;
+    string status = 3;
+    int64 lastUpdatedTime = 4;
+}

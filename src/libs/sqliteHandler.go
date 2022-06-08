@@ -16,6 +16,8 @@ import (
 const WorkloadProcessFileSetSQLite_TableName = "workload_process_fileset"
 const TableNetworkPolicySQLite_TableName = "network_policy"
 const TableSystemPolicySQLite_TableName = "system_policy"
+const TableSystemLogsSQLite_TableName = "system_logs"
+const TableNetworkLogsSQLite_TableName = "network_logs"
 
 // ================ //
 // == Connection == //
@@ -543,6 +545,97 @@ func CreateTableWorkLoadProcessFileSetSQLite(cfg types.ConfigDB) error {
 	return err
 }
 
+func CreateTableSystemLogsSQLite(cfg types.ConfigDB) error {
+	db := connectSQLite(cfg)
+	defer db.Close()
+
+	tableName := TableSystemLogsSQLite_TableName
+
+	query :=
+		"CREATE TABLE IF NOT EXISTS `" + tableName + "` (" +
+			"	`id` integer NOT NULL PRIMARY KEY AUTO_INCREMENT," +
+			"	`cluster_name` varchar(50) DEFAULT NULL," +
+			"	`host_name` varchar(50) DEFAULT NULL," +
+			"	`namespace_name` varchar(50) DEFAULT NULL," +
+			"	`pod_name` varchar(50) DEFAULT NULL," +
+			"	`container_id` varchar(100) DEFAULT NULL," +
+			"	`container_name` varchar(100) DEFAULT NULL," +
+			"	`uid` INTEGER," +
+			"	`type` varchar(50) DEFAULT NULL," +
+			"	`source` varchar(250) DEFAULT NULL," +
+			"	`operation` varchar(250) DEFAULT NULL," +
+			"	`resource` varchar(250) DEFAULT NULL," +
+			"	`labels` varchar(250) DEFAULT NULL," +
+			"	`data` varchar(250) DEFAULT NULL," +
+			"	`category` varchar(50) DEFAULT NULL," +
+			"	`action` varchar(50) DEFAULT NULL," +
+			"	`start_time` bigint DEFAULT NULL," +
+			"	`updated_time` bigint DEFAULT NULL," +
+			"	`result` varchar(100) DEFAULT NULL," +
+			"	`total` INTEGER	" +
+			"  );"
+
+	_, err := db.Query(query)
+	return err
+}
+
+func CreateTableNetworkLogsSQLite(cfg types.ConfigDB) error {
+	db := connectSQLite(cfg)
+	defer db.Close()
+
+	tableName := TableNetworkLogsSQLite_TableName
+
+	query :=
+		"CREATE TABLE IF NOT EXISTS `" + tableName + "` (" +
+			"	`id` integer NOT NULL PRIMARY KEY AUTO_INCREMENT," +
+			"	`verdict` varchar(50) DEFAULT NULL," +
+			"	`ip_source` varchar(100) DEFAULT NULL," +
+			"	`ip_destination` varchar(100) DEFAULT NULL," +
+			"	`ip_version` varchar(50) DEFAULT NULL," +
+			"	`ip_encrypted` BOOLEAN," +
+			"	`l4_tcp_source_port` INTEGER," +
+			"	`l4_tcp_destination_port` INTEGER," +
+			"	`l4_udp_source_port` INTEGER," +
+			"	`l4_udp_destination_port` INTEGER," +
+			"	`l4_icmpv4_type` INTEGER," +
+			"	`l4_icmpv4_code` INTEGER," +
+			"	`l4_icmpv6_type` INTEGER," +
+			"	`l4_icmpv6_code` INTEGER," +
+			"	`source_namespace` varchar(100) DEFAULT NULL," +
+			"	`source_labels` varchar(250) DEFAULT NULL," +
+			"	`source_pod_name` varchar(100) DEFAULT NULL," +
+			"	`destination_namespace` varchar(100) DEFAULT NULL," +
+			"	`destination_labels` varchar(250) DEFAULT NULL," +
+			"	`destination_pod_name` varchar(100) DEFAULT NULL," +
+			"	`type` varchar(50) DEFAULT NULL," +
+			"	`node_name` varchar(100) DEFAULT NULL," +
+			"	`l7_type` varchar(100) DEFAULT NULL," +
+			"	`l7_dns_cnames` varchar(100) DEFAULT NULL," +
+			"	`l7_dns_observation_source` varchar(150) DEFAULT NULL," +
+			"	`l7_http_code` INTEGER," +
+			"	`l7_http_method` varchar(100) DEFAULT NULL," +
+			"	`l7_http_url` varchar(250) DEFAULT NULL," +
+			"	`l7_http_protocol` varchar(50) DEFAULT NULL," +
+			"	`l7_http_headers` varchar(250) DEFAULT NULL," +
+			"	`event_type_type` INTEGER," +
+			"	`event_type_sub_type` INTEGER," +
+			"	`source_service_name` varchar(100) DEFAULT NULL," +
+			"	`source_service_namespace` varchar(100) DEFAULT NULL," +
+			"	`destination_service_name` varchar(100) DEFAULT NULL," +
+			"	`destination_service_namespace` varchar(100) DEFAULT NULL," +
+			"	`traffic_direction` varchar(100) DEFAULT NULL," +
+			"	`trace_observation_point` varchar(100) DEFAULT NULL," +
+			"	`drop_reason_desc` INTEGER," +
+			"	`is_reply` BOOLEAN," +
+			"	`start_time` bigint NOT NULL," +
+			"	`updated_time` bigint NOT NULL," +
+			"	`total` INTEGER" +
+			" 	);"
+
+	_, err := db.Query(query)
+	return err
+}
+
 func concatWhereClauseSQLite(whereClause *string, field string) {
 	if *whereClause == "" {
 		*whereClause = " WHERE "
@@ -741,5 +834,279 @@ func UpdateWorkloadProcessFileSetSQLite(cfg types.ConfigDB, wpfs types.WorkloadP
 			log.Info().Msgf("UPDATE rows affected:%d", a)
 		}
 	*/
+	return err
+}
+
+// InsertKubearmorLogsAlertsSQLite : Insert new kubearmor log/alert into DB
+func InsertKubearmorLogsAlertsSQLite(cfg types.ConfigDB, log types.KubeArmorLogAlert) error {
+	db := connectSQLite(cfg)
+	defer db.Close()
+
+	queryString := `(cluster_name,host_name,namespace_name,pod_name,container_id,container_name,
+		uid,type,source,operation,resource,labels,data,category,action,start_time,
+		updated_time,result,total) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+
+	stmt, err := db.Prepare("INSERT INTO " + TableSystemLogs_TableName + queryString)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(
+		log.ClusterName,
+		log.HostName,
+		log.NamespaceName,
+		log.PodName,
+		log.ContainerID,
+		log.ContainerName,
+		log.UID,
+		log.Type,
+		log.Source,
+		log.Operation,
+		log.Resource,
+		log.Labels,
+		log.Data,
+		log.Category,
+		log.Action,
+		log.Timestamp,
+		log.Timestamp,
+		log.Result,
+		1)
+	return err
+}
+
+// UpdateKubearmorLogsAlertsSQLite -- Update existing log/alert with time and count
+func UpdateKubearmorLogsAlertsSQLite(cfg types.ConfigDB, kubearmorlog types.KubeArmorLogAlert) error {
+	db := connectSQLite(cfg)
+	defer db.Close()
+
+	var err error
+	updateQuery := `cluster_name = ? and host_name = ? and namespace_name = ? and pod_name = ? and container_id = ? and 
+					container_name = ? and uid = ? and type = ? and source = ? and operation = ? and resource = ? and 
+					labels = ? and data = ? and category = ? and action = ? and result = ? `
+
+	// set status -> outdated
+	stmt, err := db.Prepare("UPDATE " + TableSystemLogs_TableName + " SET total=total+1, updated_time=? WHERE " + updateQuery + " ")
+	if err != nil {
+		return err
+	}
+
+	_, err = stmt.Exec(
+		kubearmorlog.Timestamp,
+		kubearmorlog.ClusterName,
+		kubearmorlog.HostName,
+		kubearmorlog.NamespaceName,
+		kubearmorlog.PodName,
+		kubearmorlog.ContainerID,
+		kubearmorlog.ContainerName,
+		kubearmorlog.UID,
+		kubearmorlog.Type,
+		kubearmorlog.Source,
+		kubearmorlog.Operation,
+		kubearmorlog.Resource,
+		kubearmorlog.Labels,
+		kubearmorlog.Data,
+		kubearmorlog.Category,
+		kubearmorlog.Action,
+		kubearmorlog.Result,
+	)
+
+	return err
+}
+
+// GetKubearmorLogsAlertsMySQL
+func GetSystemLogsSQLite(cfg types.ConfigDB, filterLog types.KubeArmorLogAlert) ([]types.KubeArmorLogAlert, []uint32, error) {
+	db := connectSQLite(cfg)
+	defer db.Close()
+
+	resLog := []types.KubeArmorLogAlert{}
+	resTotal := []uint32{}
+
+	var results *sql.Rows
+	var err error
+
+	queryString := `cluster_name,host_name,namespace_name,pod_name,container_id,container_name,
+		uid,type,source,operation,resource,labels,data,category,action,start_time,updated_time,result,total`
+
+	query := "SELECT " + queryString + " FROM " + TableSystemLogs_TableName + " "
+
+	var whereClause string
+	var args []interface{}
+
+	if filterLog.ClusterName != "" {
+		concatWhereClause(&whereClause, "cluster_name")
+		args = append(args, filterLog.ClusterName)
+	}
+	if filterLog.HostName != "" {
+		concatWhereClause(&whereClause, "host_name")
+		args = append(args, filterLog.HostName)
+	}
+	if filterLog.NamespaceName != "" {
+		concatWhereClause(&whereClause, "namespace_name")
+		args = append(args, filterLog.NamespaceName)
+	}
+	if filterLog.PodName != "" {
+		concatWhereClause(&whereClause, "pod_name")
+		args = append(args, filterLog.PodName)
+	}
+	if filterLog.ContainerID != "" {
+		concatWhereClause(&whereClause, "container_id")
+		args = append(args, filterLog.ContainerID)
+	}
+	if filterLog.ContainerName != "" {
+		concatWhereClause(&whereClause, "container_name")
+		args = append(args, filterLog.ContainerName)
+	}
+	if filterLog.UID != 0 {
+		concatWhereClause(&whereClause, "uid")
+		args = append(args, filterLog.UID)
+	}
+	if filterLog.Type != "" {
+		concatWhereClause(&whereClause, "type")
+		args = append(args, filterLog.Type)
+	}
+	if filterLog.Source != "" {
+		concatWhereClause(&whereClause, "source")
+		args = append(args, filterLog.Source)
+	}
+	if filterLog.Operation != "" {
+		concatWhereClause(&whereClause, "operation")
+		args = append(args, filterLog.Operation)
+	}
+	if filterLog.Resource != "" {
+		concatWhereClause(&whereClause, "resource")
+		args = append(args, filterLog.Resource)
+	}
+	if filterLog.Labels != "" {
+		concatWhereClause(&whereClause, "labels")
+		args = append(args, filterLog.Labels)
+	}
+	if filterLog.Data != "" {
+		concatWhereClause(&whereClause, "data")
+		args = append(args, filterLog.Data)
+	}
+	if filterLog.Category != "" {
+		concatWhereClause(&whereClause, "category")
+		args = append(args, filterLog.Category)
+	}
+	if filterLog.Action != "" {
+		concatWhereClause(&whereClause, "action")
+		args = append(args, filterLog.Action)
+	}
+	if filterLog.Timestamp != 0 {
+		concatWhereClause(&whereClause, "start_time")
+		args = append(args, filterLog.Timestamp)
+	}
+	if filterLog.UpdatedTime != 0 {
+		concatWhereClause(&whereClause, "updated_time")
+		args = append(args, filterLog.UpdatedTime)
+	}
+	if filterLog.Result != "" {
+		concatWhereClause(&whereClause, "result")
+		args = append(args, filterLog.Result)
+	}
+
+	results, err = db.Query(query+whereClause, args...)
+
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return nil, nil, err
+	}
+	defer results.Close()
+
+	for results.Next() {
+		var loc_log types.KubeArmorLogAlert
+		var loc_total uint32
+		if err := results.Scan(
+			&loc_log.ClusterName,
+			&loc_log.HostName,
+			&loc_log.NamespaceName,
+			&loc_log.PodName,
+			&loc_log.ContainerID,
+			&loc_log.ContainerName,
+			&loc_log.UID,
+			&loc_log.Type,
+			&loc_log.Source,
+			&loc_log.Operation,
+			&loc_log.Resource,
+			&loc_log.Labels,
+			&loc_log.Data,
+			&loc_log.Category,
+			&loc_log.Action,
+			&loc_log.Timestamp,
+			&loc_log.UpdatedTime,
+			&loc_log.Result,
+			&loc_total,
+		); err != nil {
+			return nil, nil, err
+		}
+		resLog = append(resLog, loc_log)
+		resTotal = append(resTotal, loc_total)
+	}
+
+	return resLog, resTotal, err
+}
+
+func InsertCiliumLogsSQLite(cfg types.ConfigDB, log types.CiliumLog) error {
+	db := connectSQLite(cfg)
+	defer db.Close()
+
+	statement := `verdict, ip_source,ip_destination,ip_version,ip_encrypted,l4_tcp_source_port,l4_tcp_destination_port,
+		l4_udp_source_port,l4_udp_destination_port,l4_icmpv4_type,l4_icmpv4_code,l4_icmpv6_type,l4_icmpv6_code,
+		source_namespace,source_labels,source_pod_name,destination_namespace,destination_labels,destination_pod_name,
+		type,node_name,l7_type,l7_dns_cnames,l7_dns_observation_source,l7_http_code,l7_http_method,l7_http_url,l7_http_protocol,l7_http_headers,
+		event_type_type,event_type_sub_type,source_service_name,source_service_namespace,destination_service_name,destination_service_namespace,
+		traffic_direction,trace_observation_point,drop_reason_desc,is_reply,start_time,updated_time,total) 
+		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+
+	stmt, err := db.Prepare("INSERT INTO " + TableNetworkLogs_TableName + statement)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(
+		log.Verdict,
+		log.IpSource,
+		log.IpDestination,
+		log.IpVersion,
+		log.IpEncrypted,
+		log.L4TCPSourcePort,
+		log.L4TCPDestinationPort,
+		log.L4UDPSourcePort,
+		log.L4UDPDestinationPort,
+		log.L4ICMPv4Type,
+		log.L4ICMPv4Code,
+		log.L4ICMPv6Type,
+		log.L4ICMPv6Code,
+		log.SourceNamespace,
+		log.SourceLabels,
+		log.SourcePodName,
+		log.DestinationNamespace,
+		log.DestinationLabels,
+		log.DestinationPodName,
+		log.Type,
+		log.NodeName,
+		log.L7Type,
+		log.L7DnsCnames,
+		log.L7DnsObservationsource,
+		log.L7HttpCode,
+		log.L7HttpMethod,
+		log.L7HttpUrl,
+		log.L7HttpProtocol,
+		log.L7HttpHeaders,
+		log.EventTypeType,
+		log.EventTypeSubType,
+		log.SourceServiceName,
+		log.SourceServiceNamespace,
+		log.DestinationServiceName,
+		log.DestinationServiceNamespace,
+		log.TrafficDirection,
+		log.TraceObservationPoint,
+		log.DropReasonDesc,
+		log.IsReply,
+		log.StartTime,
+		log.UpdatedTime,
+		1)
 	return err
 }
