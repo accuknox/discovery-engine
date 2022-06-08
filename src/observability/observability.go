@@ -31,7 +31,7 @@ func GetSummaryLogs(pbRequest *opb.LogsRequest, stream opb.Summary_FetchLogsServ
 	systemPods := make(map[string][]types.SystemSummary)
 	networkPods := make(map[string][]types.NetworkSummary)
 	//Fetch network Logs
-	networkLogs, networkTotal, err := libs.GetNetworkLogsMySQL(CfgDB, types.CiliumLog{
+	networkLogs, networkTotal, err := libs.GetCiliumLogsMySQL(CfgDB, types.CiliumLog{
 		SourceLabels:    pbRequest.Label,
 		SourceNamespace: pbRequest.Namespace,
 	})
@@ -60,7 +60,7 @@ func GetSummaryLogs(pbRequest *opb.LogsRequest, stream opb.Summary_FetchLogsServ
 	}
 
 	//Fetch System Logs
-	systemLogs, systemTotal, err := libs.GetSystemLogs(CfgDB, types.KubeArmorLogAlert{
+	systemLogs, systemTotal, err := libs.GetKubearmorLogs(CfgDB, types.KubeArmorLogAlert{
 		Labels:        pbRequest.Label,
 		NamespaceName: pbRequest.Namespace,
 	})

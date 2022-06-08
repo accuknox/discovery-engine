@@ -273,35 +273,56 @@ func CreateTablesIfNotExist(cfg types.ConfigDB) {
 // =================== //
 // == Observability == //
 // =================== //
-func InsertKubearmorLogsAlerts(cfg types.ConfigDB, logAlert types.KubeArmorLogAlert) error {
+func InsertKubearmorLogs(cfg types.ConfigDB, kubearmorLog types.KubeArmorLogAlert) error {
 	var err error
 	if cfg.DBDriver == "mysql" {
-		err = InsertKubearmorLogsAlertsMySQL(cfg, logAlert)
+		err = InsertKubearmorLogsMySQL(cfg, kubearmorLog)
 	} else if cfg.DBDriver == "sqlite3" {
-		err = InsertKubearmorLogsAlertsSQLite(cfg, logAlert)
+		err = InsertKubearmorLogsSQLite(cfg, kubearmorLog)
 	}
 	return err
 }
 
-func UpdateKubearmorLogsAlerts(cfg types.ConfigDB, kubearmorlog types.KubeArmorLogAlert) error {
+func UpdateKubearmorLogs(cfg types.ConfigDB, kubearmorLog types.KubeArmorLogAlert) error {
 	var err error
 	if cfg.DBDriver == "mysql" {
-		err = UpdateKubearmorLogsAlertsMySQL(cfg, kubearmorlog)
+		err = UpdateKubearmorLogsMySQL(cfg, kubearmorLog)
 	} else if cfg.DBDriver == "sqlite3" {
-		err = UpdateKubearmorLogsAlertsSQLite(cfg, kubearmorlog)
+		err = UpdateKubearmorLogsSQLite(cfg, kubearmorLog)
 	}
 	return err
 }
 
-func GetSystemLogs(cfg types.ConfigDB, filterLog types.KubeArmorLogAlert) ([]types.KubeArmorLogAlert, []uint32, error) {
-	logAlert := []types.KubeArmorLogAlert{}
+func GetKubearmorLogs(cfg types.ConfigDB, filterLog types.KubeArmorLogAlert) ([]types.KubeArmorLogAlert, []uint32, error) {
+	kubearmorLog := []types.KubeArmorLogAlert{}
 	totalCount := []uint32{}
 	var err error
-
 	if cfg.DBDriver == "mysql" {
-		logAlert, totalCount, err = GetSystemLogsMySQL(cfg, filterLog)
+		kubearmorLog, totalCount, err = GetSystemLogsMySQL(cfg, filterLog)
 	} else if cfg.DBDriver == "sqlite3" {
-		logAlert, totalCount, err = GetSystemLogsSQLite(cfg, filterLog)
+		kubearmorLog, totalCount, err = GetSystemLogsSQLite(cfg, filterLog)
 	}
-	return logAlert, totalCount, err
+	return kubearmorLog, totalCount, err
+}
+
+func InsertCiliumLogs(cfg types.ConfigDB, ciliumLog types.CiliumLog) error {
+	var err error
+	if cfg.DBDriver == "mysql" {
+		err = InsertCiliumLogsMySQL(cfg, ciliumLog)
+	} else if cfg.DBDriver == "sqlite3" {
+		err = InsertCiliumLogsSQLite(cfg, ciliumLog)
+	}
+	return err
+}
+
+func GetCiliumLogs(cfg types.ConfigDB, ciliumFilter types.CiliumLog) ([]types.CiliumLog, []uint32, error) {
+	ciliumLogs := []types.CiliumLog{}
+	ciliumTotalCount := []uint32{}
+	var err error
+	if cfg.DBDriver == "mysql" {
+		ciliumLogs, ciliumTotalCount, err = GetCiliumLogsMySQL(cfg, ciliumFilter)
+	} else if cfg.DBDriver == "sqlite3" {
+		ciliumLogs, ciliumTotalCount, err = GetCiliumLogsSQLite(cfg, ciliumFilter)
+	}
+	return ciliumLogs, ciliumTotalCount, err
 }

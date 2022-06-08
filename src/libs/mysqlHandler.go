@@ -859,8 +859,8 @@ func UpdateWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadPr
 	return err
 }
 
-// InsertKubearmorLogsAlertsMySQL : Insert new kubearmor log/alert into DB
-func InsertKubearmorLogsAlertsMySQL(cfg types.ConfigDB, log types.KubeArmorLogAlert) error {
+// InsertKubearmorLogsMySQL : Insert new kubearmor log/alert into DB
+func InsertKubearmorLogsMySQL(cfg types.ConfigDB, log types.KubeArmorLogAlert) error {
 	db := connectMySQL(cfg)
 	defer db.Close()
 
@@ -868,7 +868,9 @@ func InsertKubearmorLogsAlertsMySQL(cfg types.ConfigDB, log types.KubeArmorLogAl
 		uid,type,source,operation,resource,labels,data,category,action,start_time,
 		updated_time,result,total) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
 
-	stmt, err := db.Prepare("INSERT INTO " + TableSystemLogs_TableName + queryString)
+	query := "INSERT INTO " + TableSystemLogs_TableName + queryString
+
+	stmt, err := db.Prepare(query)
 	if err != nil {
 		return err
 	}
@@ -897,18 +899,19 @@ func InsertKubearmorLogsAlertsMySQL(cfg types.ConfigDB, log types.KubeArmorLogAl
 	return err
 }
 
-// UpdateKubearmorLogsAlertsMySQL -- Update existing log/alert with time and count
-func UpdateKubearmorLogsAlertsMySQL(cfg types.ConfigDB, kubearmorlog types.KubeArmorLogAlert) error {
+// UpdateKubearmorLogsMySQL -- Update existing log/alert with time and count
+func UpdateKubearmorLogsMySQL(cfg types.ConfigDB, kubearmorlog types.KubeArmorLogAlert) error {
 	db := connectMySQL(cfg)
 	defer db.Close()
 
 	var err error
-	updateQuery := `cluster_name = ? and host_name = ? and namespace_name = ? and pod_name = ? and container_id = ? and 
+	queryString := `cluster_name = ? and host_name = ? and namespace_name = ? and pod_name = ? and container_id = ? and 
 					container_name = ? and uid = ? and type = ? and source = ? and operation = ? and resource = ? and 
 					labels = ? and data = ? and category = ? and action = ? and result = ? `
 
-	// set status -> outdated
-	stmt, err := db.Prepare("UPDATE " + TableSystemLogs_TableName + " SET total=total+1, updated_time=? WHERE " + updateQuery + " ")
+	query := "UPDATE " + TableSystemLogs_TableName + " SET total=total+1, updated_time=? WHERE " + queryString + " "
+
+	stmt, err := db.Prepare(query)
 	if err != nil {
 		return err
 	}
@@ -1073,7 +1076,7 @@ func InsertCiliumLogsMySQL(cfg types.ConfigDB, log types.CiliumLog) error {
 	db := connectMySQL(cfg)
 	defer db.Close()
 
-	statement := `(verdict,ip_source,ip_destination,ip_version,ip_encrypted,l4_tcp_source_port,l4_tcp_destination_port,
+	queryString := `(verdict,ip_source,ip_destination,ip_version,ip_encrypted,l4_tcp_source_port,l4_tcp_destination_port,
 		l4_udp_source_port,l4_udp_destination_port,l4_icmpv4_type,l4_icmpv4_code,l4_icmpv6_type,l4_icmpv6_code,
 		source_namespace,source_labels,source_pod_name,destination_namespace,destination_labels,destination_pod_name,
 		type,node_name,l7_type,l7_dns_cnames,l7_dns_observation_source,l7_http_code,l7_http_method,l7_http_url,l7_http_protocol,l7_http_headers,
@@ -1081,7 +1084,9 @@ func InsertCiliumLogsMySQL(cfg types.ConfigDB, log types.CiliumLog) error {
 		traffic_direction,trace_observation_point,drop_reason_desc,is_reply,start_time,updated_time,total) 
 		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
 
-	stmt, err := db.Prepare("INSERT INTO " + TableNetworkLogs_TableName + statement)
+	query := "INSERT INTO " + TableNetworkLogs_TableName + queryString
+
+	stmt, err := db.Prepare(query)
 	if err != nil {
 		return err
 	}
@@ -1133,8 +1138,8 @@ func InsertCiliumLogsMySQL(cfg types.ConfigDB, log types.CiliumLog) error {
 	return err
 }
 
-// GetNetworkLogsMySQL
-func GetNetworkLogsMySQL(cfg types.ConfigDB, filterLog types.CiliumLog) ([]types.CiliumLog, []uint32, error) {
+// GetCiliumLogsMySQL
+func GetCiliumLogsMySQL(cfg types.ConfigDB, filterLog types.CiliumLog) ([]types.CiliumLog, []uint32, error) {
 	db := connectMySQL(cfg)
 	defer db.Close()
 
@@ -1390,7 +1395,7 @@ func UpdateCiliumLogsMySQL(cfg types.ConfigDB, ciliumlog types.CiliumLog) error 
 	defer db.Close()
 
 	var err error
-	updateQuery := `verdict = ? and ip_source = ? and ip_destination = ? and ip_version = ? and ip_encrypted = ? and l4_tcp_source_port = ? and 
+	queryString := `verdict = ? and ip_source = ? and ip_destination = ? and ip_version = ? and ip_encrypted = ? and l4_tcp_source_port = ? and 
 					l4_tcp_destination_port = ? and l4_udp_source_port = ? and l4_udp_destination_port = ? and l4_icmpv4_type = ? and 
 					l4_icmpv4_code = ? and l4_icmpv6_type = ? and l4_icmpv6_code = ? and source_namespace = ? and source_labels = ? and 
 					source_pod_name = ? and destination_namespace = ? and destination_labels = ? and destination_pod_name = ? and type = ? and 
@@ -1399,7 +1404,9 @@ func UpdateCiliumLogsMySQL(cfg types.ConfigDB, ciliumlog types.CiliumLog) error 
 					event_type_sub_type = ? and source_service_name = ? and source_service_namespace = ? and destination_service_name = ? and 
 					destination_service_namespace = ? and traffic_direction = ? and trace_observation_point = ? and drop_reason_desc = ? and is_reply = ? `
 
-	stmt, err := db.Prepare("UPDATE " + TableNetworkLogs_TableName + " SET total=total+1, updated_time=? WHERE " + updateQuery + " ")
+	query := "UPDATE " + TableNetworkLogs_TableName + " SET total=total+1, updated_time=? WHERE " + queryString + " "
+
+	stmt, err := db.Prepare(query)
 	if err != nil {
 		return err
 	}

@@ -837,8 +837,8 @@ func UpdateWorkloadProcessFileSetSQLite(cfg types.ConfigDB, wpfs types.WorkloadP
 	return err
 }
 
-// InsertKubearmorLogsAlertsSQLite : Insert new kubearmor log/alert into DB
-func InsertKubearmorLogsAlertsSQLite(cfg types.ConfigDB, log types.KubeArmorLogAlert) error {
+// InsertKubearmorLogsAlertsMySQL : Insert new kubearmor log/alert into DB
+func InsertKubearmorLogsSQLite(cfg types.ConfigDB, log types.KubeArmorLogAlert) error {
 	db := connectSQLite(cfg)
 	defer db.Close()
 
@@ -846,7 +846,9 @@ func InsertKubearmorLogsAlertsSQLite(cfg types.ConfigDB, log types.KubeArmorLogA
 		uid,type,source,operation,resource,labels,data,category,action,start_time,
 		updated_time,result,total) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
 
-	stmt, err := db.Prepare("INSERT INTO " + TableSystemLogs_TableName + queryString)
+	query := "INSERT INTO " + TableSystemLogs_TableName + queryString
+
+	stmt, err := db.Prepare(query)
 	if err != nil {
 		return err
 	}
@@ -869,24 +871,25 @@ func InsertKubearmorLogsAlertsSQLite(cfg types.ConfigDB, log types.KubeArmorLogA
 		log.Category,
 		log.Action,
 		log.Timestamp,
-		log.Timestamp,
+		log.UpdatedTime,
 		log.Result,
 		1)
 	return err
 }
 
-// UpdateKubearmorLogsAlertsSQLite -- Update existing log/alert with time and count
-func UpdateKubearmorLogsAlertsSQLite(cfg types.ConfigDB, kubearmorlog types.KubeArmorLogAlert) error {
+// UpdateKubearmorLogsAlertsMySQL -- Update existing log/alert with time and count
+func UpdateKubearmorLogsSQLite(cfg types.ConfigDB, kubearmorlog types.KubeArmorLogAlert) error {
 	db := connectSQLite(cfg)
 	defer db.Close()
 
 	var err error
-	updateQuery := `cluster_name = ? and host_name = ? and namespace_name = ? and pod_name = ? and container_id = ? and 
+	queryString := `cluster_name = ? and host_name = ? and namespace_name = ? and pod_name = ? and container_id = ? and 
 					container_name = ? and uid = ? and type = ? and source = ? and operation = ? and resource = ? and 
 					labels = ? and data = ? and category = ? and action = ? and result = ? `
 
-	// set status -> outdated
-	stmt, err := db.Prepare("UPDATE " + TableSystemLogs_TableName + " SET total=total+1, updated_time=? WHERE " + updateQuery + " ")
+	query := "UPDATE " + TableSystemLogs_TableName + " SET total=total+1, updated_time=? WHERE " + queryString + " "
+
+	stmt, err := db.Prepare(query)
 	if err != nil {
 		return err
 	}
@@ -914,7 +917,7 @@ func UpdateKubearmorLogsAlertsSQLite(cfg types.ConfigDB, kubearmorlog types.Kube
 	return err
 }
 
-// GetKubearmorLogsAlertsMySQL
+// GetSystemLogsMySQL
 func GetSystemLogsSQLite(cfg types.ConfigDB, filterLog types.KubeArmorLogAlert) ([]types.KubeArmorLogAlert, []uint32, error) {
 	db := connectSQLite(cfg)
 	defer db.Close()
@@ -1051,7 +1054,7 @@ func InsertCiliumLogsSQLite(cfg types.ConfigDB, log types.CiliumLog) error {
 	db := connectSQLite(cfg)
 	defer db.Close()
 
-	statement := `verdict, ip_source,ip_destination,ip_version,ip_encrypted,l4_tcp_source_port,l4_tcp_destination_port,
+	queryString := `(verdict,ip_source,ip_destination,ip_version,ip_encrypted,l4_tcp_source_port,l4_tcp_destination_port,
 		l4_udp_source_port,l4_udp_destination_port,l4_icmpv4_type,l4_icmpv4_code,l4_icmpv6_type,l4_icmpv6_code,
 		source_namespace,source_labels,source_pod_name,destination_namespace,destination_labels,destination_pod_name,
 		type,node_name,l7_type,l7_dns_cnames,l7_dns_observation_source,l7_http_code,l7_http_method,l7_http_url,l7_http_protocol,l7_http_headers,
@@ -1059,7 +1062,9 @@ func InsertCiliumLogsSQLite(cfg types.ConfigDB, log types.CiliumLog) error {
 		traffic_direction,trace_observation_point,drop_reason_desc,is_reply,start_time,updated_time,total) 
 		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
 
-	stmt, err := db.Prepare("INSERT INTO " + TableNetworkLogs_TableName + statement)
+	query := "INSERT INTO " + TableNetworkLogs_TableName + queryString
+
+	stmt, err := db.Prepare(query)
 	if err != nil {
 		return err
 	}
@@ -1108,5 +1113,324 @@ func InsertCiliumLogsSQLite(cfg types.ConfigDB, log types.CiliumLog) error {
 		log.StartTime,
 		log.UpdatedTime,
 		1)
+	return err
+}
+
+// GetNetworkLogsMySQL
+func GetCiliumLogsSQLite(cfg types.ConfigDB, filterLog types.CiliumLog) ([]types.CiliumLog, []uint32, error) {
+	db := connectSQLite(cfg)
+	defer db.Close()
+
+	resLog := []types.CiliumLog{}
+	resTotal := []uint32{}
+
+	var results *sql.Rows
+	var err error
+
+	queryString := ` verdict,ip_source,ip_destination,ip_version,ip_encrypted,l4_tcp_source_port,l4_tcp_destination_port,
+	l4_udp_source_port,l4_udp_destination_port,l4_icmpv4_type,l4_icmpv4_code,l4_icmpv6_type,l4_icmpv6_code,
+	source_namespace,source_labels,source_pod_name,destination_namespace,destination_labels,destination_pod_name,
+	type,node_name,l7_type,l7_dns_cnames,l7_dns_observation_source,l7_http_code,l7_http_method,l7_http_url,l7_http_protocol,l7_http_headers,
+	event_type_type,event_type_sub_type,source_service_name,source_service_namespace,destination_service_name,destination_service_namespace,
+	traffic_direction,trace_observation_point,drop_reason_desc,is_reply,start_time,updated_time,total`
+
+	query := "SELECT " + queryString + " FROM " + TableNetworkLogs_TableName + " "
+
+	var whereClause string
+	var args []interface{}
+
+	if filterLog.Verdict != "" {
+		concatWhereClause(&whereClause, "verdict")
+		args = append(args, filterLog.Verdict)
+	}
+	if filterLog.IpSource != "" {
+		concatWhereClause(&whereClause, "ip_source")
+		args = append(args, filterLog.IpSource)
+	}
+	if filterLog.IpDestination != "" {
+		concatWhereClause(&whereClause, "ip_destination")
+		args = append(args, filterLog.IpDestination)
+	}
+	if filterLog.IpVersion != "" {
+		concatWhereClause(&whereClause, "ip_version")
+		args = append(args, filterLog.IpVersion)
+	}
+	if filterLog.IpEncrypted {
+		concatWhereClause(&whereClause, "ip_encrypted")
+		args = append(args, filterLog.IpEncrypted)
+	}
+	if filterLog.L4TCPSourcePort != 0 {
+		concatWhereClause(&whereClause, "l4_tcp_source_port")
+		args = append(args, filterLog.L4TCPSourcePort)
+	}
+	if filterLog.L4TCPDestinationPort != 0 {
+		concatWhereClause(&whereClause, "l4_tcp_destination_port")
+		args = append(args, filterLog.L4TCPDestinationPort)
+	}
+	if filterLog.L4UDPSourcePort != 0 {
+		concatWhereClause(&whereClause, "l4_udp_source_port")
+		args = append(args, filterLog.L4UDPSourcePort)
+	}
+	if filterLog.L4UDPDestinationPort != 0 {
+		concatWhereClause(&whereClause, "l4_udp_destination_port")
+		args = append(args, filterLog.L4UDPDestinationPort)
+	}
+	if filterLog.L4ICMPv4Type != 0 {
+		concatWhereClause(&whereClause, "l4_icmpv4_type")
+		args = append(args, filterLog.L4ICMPv4Type)
+	}
+	if filterLog.L4ICMPv4Code != 0 {
+		concatWhereClause(&whereClause, "l4_icmpv4_code")
+		args = append(args, filterLog.L4ICMPv4Code)
+	}
+	if filterLog.L4ICMPv6Type != 0 {
+		concatWhereClause(&whereClause, "l4_icmpv6_type")
+		args = append(args, filterLog.L4ICMPv6Type)
+	}
+	if filterLog.L4ICMPv6Code != 0 {
+		concatWhereClause(&whereClause, "l4_icmpv6_code")
+		args = append(args, filterLog.L4ICMPv6Code)
+	}
+	if filterLog.SourceNamespace != "" {
+		concatWhereClause(&whereClause, "source_namespace")
+		args = append(args, filterLog.SourceNamespace)
+	}
+	if filterLog.SourceLabels != "" {
+		concatWhereClause(&whereClause, "source_labels")
+		args = append(args, filterLog.SourceLabels)
+	}
+	if filterLog.SourcePodName != "" {
+		concatWhereClause(&whereClause, "source_pod_name")
+		args = append(args, filterLog.SourcePodName)
+	}
+	if filterLog.DestinationNamespace != "" {
+		concatWhereClause(&whereClause, "destination_namespace")
+		args = append(args, filterLog.DestinationNamespace)
+	}
+	if filterLog.DestinationLabels != "" {
+		concatWhereClause(&whereClause, "destination_labels")
+		args = append(args, filterLog.DestinationLabels)
+	}
+	if filterLog.Type != "" {
+		concatWhereClause(&whereClause, "type")
+		args = append(args, filterLog.Type)
+	}
+	if filterLog.NodeName != "" {
+		concatWhereClause(&whereClause, "node_name")
+		args = append(args, filterLog.NodeName)
+	}
+	if filterLog.L7Type != "" {
+		concatWhereClause(&whereClause, "l7_type")
+		args = append(args, filterLog.L7Type)
+	}
+	if filterLog.L7DnsCnames != "" {
+		concatWhereClause(&whereClause, "l7_dns_cnames")
+		args = append(args, filterLog.L7DnsCnames)
+	}
+	if filterLog.L7DnsObservationsource != "" {
+		concatWhereClause(&whereClause, "l7_dns_observation_source")
+		args = append(args, filterLog.L7DnsObservationsource)
+	}
+	if filterLog.L7HttpCode != 0 {
+		concatWhereClause(&whereClause, "l7_http_code")
+		args = append(args, filterLog.L7HttpCode)
+	}
+	if filterLog.L7HttpMethod != "" {
+		concatWhereClause(&whereClause, "l7_http_method")
+		args = append(args, filterLog.L7HttpMethod)
+	}
+	if filterLog.L7HttpUrl != "" {
+		concatWhereClause(&whereClause, "l7_http_url")
+		args = append(args, filterLog.L7HttpUrl)
+	}
+	if filterLog.L7HttpProtocol != "" {
+		concatWhereClause(&whereClause, "l7_http_protocol")
+		args = append(args, filterLog.L7HttpProtocol)
+	}
+	if filterLog.L7HttpHeaders != "" {
+		concatWhereClause(&whereClause, "l7_http_headers")
+		args = append(args, filterLog.L7HttpHeaders)
+	}
+	if filterLog.EventTypeType != 0 {
+		concatWhereClause(&whereClause, "event_type_type")
+		args = append(args, filterLog.EventTypeType)
+	}
+	if filterLog.EventTypeSubType != 0 {
+		concatWhereClause(&whereClause, "event_type_sub_type")
+		args = append(args, filterLog.EventTypeSubType)
+	}
+	if filterLog.SourceServiceName != "" {
+		concatWhereClause(&whereClause, "source_service_name")
+		args = append(args, filterLog.SourceServiceName)
+	}
+	if filterLog.SourceServiceNamespace != "" {
+		concatWhereClause(&whereClause, "source_service_namespace")
+		args = append(args, filterLog.SourceServiceNamespace)
+	}
+	if filterLog.DestinationServiceName != "" {
+		concatWhereClause(&whereClause, "destination_service_name")
+		args = append(args, filterLog.DestinationServiceName)
+	}
+	if filterLog.DestinationServiceNamespace != "" {
+		concatWhereClause(&whereClause, "destination_service_namespace")
+		args = append(args, filterLog.DestinationServiceNamespace)
+	}
+	if filterLog.TrafficDirection != "" {
+		concatWhereClause(&whereClause, "traffic_direction")
+		args = append(args, filterLog.TrafficDirection)
+	}
+	if filterLog.TraceObservationPoint != "" {
+		concatWhereClause(&whereClause, "trace_observation_point")
+		args = append(args, filterLog.TraceObservationPoint)
+	}
+	if filterLog.DropReasonDesc != "" {
+		concatWhereClause(&whereClause, "drop_reason_desc")
+		args = append(args, filterLog.DropReasonDesc)
+	}
+	if filterLog.IsReply {
+		concatWhereClause(&whereClause, "is_reply")
+		args = append(args, filterLog.IsReply)
+	}
+	if filterLog.StartTime != 0 {
+		concatWhereClause(&whereClause, "start_time")
+		args = append(args, filterLog.StartTime)
+	}
+	if filterLog.UpdatedTime != 0 {
+		concatWhereClause(&whereClause, "updated_time")
+		args = append(args, filterLog.UpdatedTime)
+	}
+	if filterLog.Total != 0 {
+		concatWhereClause(&whereClause, "total")
+		args = append(args, filterLog.Total)
+	}
+
+	results, err = db.Query(query+whereClause, args...)
+
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return nil, nil, err
+	}
+	defer results.Close()
+
+	for results.Next() {
+		var loc_log types.CiliumLog
+		var loc_total uint32
+		if err := results.Scan(
+			&loc_log.Verdict,
+			&loc_log.IpSource,
+			&loc_log.IpDestination,
+			&loc_log.IpVersion,
+			&loc_log.IpEncrypted,
+			&loc_log.L4TCPSourcePort,
+			&loc_log.L4TCPDestinationPort,
+			&loc_log.L4UDPSourcePort,
+			&loc_log.L4UDPDestinationPort,
+			&loc_log.L4ICMPv4Type,
+			&loc_log.L4ICMPv4Code,
+			&loc_log.L4ICMPv6Type,
+			&loc_log.L4ICMPv6Code,
+			&loc_log.SourceNamespace,
+			&loc_log.SourceLabels,
+			&loc_log.SourcePodName,
+			&loc_log.DestinationNamespace,
+			&loc_log.DestinationLabels,
+			&loc_log.DestinationPodName,
+			&loc_log.Type,
+			&loc_log.NodeName,
+			&loc_log.L7Type,
+			&loc_log.L7DnsCnames,
+			&loc_log.L7DnsObservationsource,
+			&loc_log.L7HttpCode,
+			&loc_log.L7HttpMethod,
+			&loc_log.L7HttpUrl,
+			&loc_log.L7HttpProtocol,
+			&loc_log.L7HttpHeaders,
+			&loc_log.EventTypeType,
+			&loc_log.EventTypeSubType,
+			&loc_log.SourceServiceName,
+			&loc_log.SourceServiceNamespace,
+			&loc_log.DestinationServiceName,
+			&loc_log.DestinationServiceNamespace,
+			&loc_log.TrafficDirection,
+			&loc_log.TraceObservationPoint,
+			&loc_log.DropReasonDesc,
+			&loc_log.IsReply,
+			&loc_log.StartTime,
+			&loc_log.UpdatedTime,
+			&loc_total,
+		); err != nil {
+			return nil, nil, err
+		}
+		resLog = append(resLog, loc_log)
+		resTotal = append(resTotal, loc_total)
+	}
+	return resLog, resTotal, err
+}
+
+// UpdateCiliumLogsMySQL -- Update existing log with time and count
+func UpdateCiliumLogsMySQLite(cfg types.ConfigDB, ciliumlog types.CiliumLog) error {
+	db := connectSQLite(cfg)
+	defer db.Close()
+
+	var err error
+	queryString := `verdict = ? and ip_source = ? and ip_destination = ? and ip_version = ? and ip_encrypted = ? and l4_tcp_source_port = ? and 
+					l4_tcp_destination_port = ? and l4_udp_source_port = ? and l4_udp_destination_port = ? and l4_icmpv4_type = ? and 
+					l4_icmpv4_code = ? and l4_icmpv6_type = ? and l4_icmpv6_code = ? and source_namespace = ? and source_labels = ? and 
+					source_pod_name = ? and destination_namespace = ? and destination_labels = ? and destination_pod_name = ? and type = ? and 
+					node_name = ? and l7_type = ? and l7_dns_cnames = ? and l7_dns_observation_source = ? and l7_http_code = ? and 
+					l7_http_method = ? and l7_http_url = ? and l7_http_protocol = ? and l7_http_headers = ? and event_type_type = ? and 
+					event_type_sub_type = ? and source_service_name = ? and source_service_namespace = ? and destination_service_name = ? and 
+					destination_service_namespace = ? and traffic_direction = ? and trace_observation_point = ? and drop_reason_desc = ? and is_reply = ? `
+
+	query := "UPDATE " + TableNetworkLogs_TableName + " SET total=total+1, updated_time=? WHERE " + queryString + " "
+
+	stmt, err := db.Prepare(query)
+	if err != nil {
+		return err
+	}
+
+	_, err = stmt.Exec(
+		ciliumlog.UpdatedTime,
+		ciliumlog.Verdict,
+		ciliumlog.IpSource,
+		ciliumlog.IpDestination,
+		ciliumlog.IpVersion,
+		ciliumlog.IpEncrypted,
+		ciliumlog.L4TCPSourcePort,
+		ciliumlog.L4TCPDestinationPort,
+		ciliumlog.L4UDPSourcePort,
+		ciliumlog.L4UDPDestinationPort,
+		ciliumlog.L4ICMPv4Type,
+		ciliumlog.L4ICMPv4Code,
+		ciliumlog.L4ICMPv6Type,
+		ciliumlog.L4ICMPv6Code,
+		ciliumlog.SourceNamespace,
+		ciliumlog.SourceLabels,
+		ciliumlog.SourcePodName,
+		ciliumlog.DestinationNamespace,
+		ciliumlog.DestinationLabels,
+		ciliumlog.DestinationPodName,
+		ciliumlog.Type,
+		ciliumlog.NodeName,
+		ciliumlog.L7Type,
+		ciliumlog.L7DnsCnames,
+		ciliumlog.L7DnsObservationsource,
+		ciliumlog.L7HttpCode,
+		ciliumlog.L7HttpMethod,
+		ciliumlog.L7HttpUrl,
+		ciliumlog.L7HttpProtocol,
+		ciliumlog.L7HttpHeaders,
+		ciliumlog.EventTypeType,
+		ciliumlog.EventTypeSubType,
+		ciliumlog.SourceServiceName,
+		ciliumlog.SourceServiceNamespace,
+		ciliumlog.DestinationServiceName,
+		ciliumlog.DestinationServiceNamespace,
+		ciliumlog.TrafficDirection,
+		ciliumlog.TraceObservationPoint,
+		ciliumlog.DropReasonDesc,
+		ciliumlog.IsReply,
+	)
+
 	return err
 }

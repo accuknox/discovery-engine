@@ -169,7 +169,7 @@ func checkIfNetworkLogExist(netLog types.CiliumLog) (bool, error) {
 	netLog.UpdatedTime = 0
 	netLog.Total = 0
 
-	if networkLogs, _, err = libs.GetNetworkLogsMySQL(CfgDB, netLog); err != nil {
+	if networkLogs, _, err = libs.GetCiliumLogsMySQL(CfgDB, netLog); err != nil {
 		return false, err
 	}
 

@@ -63,11 +63,11 @@ func ProcessKubearmorLog(kubearmorLog *pb.Log) {
 
 	if isEntryExist {
 		resAlertLog.Timestamp = locAlertLog.Timestamp
-		if err := libs.UpdateKubearmorLogsAlerts(CfgDB, resAlertLog); err != nil {
+		if err := libs.UpdateKubearmorLogs(CfgDB, resAlertLog); err != nil {
 			log.Error().Msg(err.Error())
 		}
 	} else {
-		if err := libs.InsertKubearmorLogsAlerts(CfgDB, locAlertLog); err != nil {
+		if err := libs.InsertKubearmorLogs(CfgDB, locAlertLog); err != nil {
 			log.Error().Msg(err.Error())
 		}
 	}
@@ -91,11 +91,11 @@ func ProcessKubearmorAlert(kubearmorAlert *pb.Log) {
 
 	if isEntryExist {
 		resAlertLog.Timestamp = locAlertLog.Timestamp
-		if err := libs.UpdateKubearmorLogsAlerts(CfgDB, resAlertLog); err != nil {
+		if err := libs.UpdateKubearmorLogs(CfgDB, resAlertLog); err != nil {
 			log.Error().Msg(err.Error())
 		}
 	} else {
-		if err := libs.InsertKubearmorLogsAlerts(CfgDB, locAlertLog); err != nil {
+		if err := libs.InsertKubearmorLogs(CfgDB, locAlertLog); err != nil {
 			log.Error().Msg(err.Error())
 		}
 	}
@@ -133,7 +133,7 @@ func checkIfSystemLogExist(logAlert types.KubeArmorLogAlert) (bool, types.KubeAr
 	locLogAlert.Action = logAlert.Action
 	locLogAlert.Result = logAlert.Result
 
-	destLogAlert, _, err := libs.GetSystemLogs(CfgDB, locLogAlert)
+	destLogAlert, _, err := libs.GetKubearmorLogs(CfgDB, locLogAlert)
 	if err != nil {
 		log.Error().Msg(err.Error())
 		return false, types.KubeArmorLogAlert{}, err
