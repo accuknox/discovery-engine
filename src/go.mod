@@ -9,7 +9,7 @@ replace (
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.0
-	github.com/cilium/cilium v1.11.4
+	github.com/cilium/cilium v1.10.0
 	github.com/clarketm/json v1.17.1
 	github.com/confluentinc/confluent-kafka-go v1.6.1
 	github.com/go-sql-driver/mysql v1.5.0
