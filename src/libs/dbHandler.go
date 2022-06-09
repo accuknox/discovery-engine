@@ -274,7 +274,7 @@ func CreateTablesIfNotExist(cfg types.ConfigDB) {
 // == Observability == //
 // =================== //
 func InsertKubearmorLogs(cfg types.ConfigDB, kubearmorLog types.KubeArmorLogAlert) error {
-	var err error
+	var err = errors.New("unknown db driver")
 	if cfg.DBDriver == "mysql" {
 		err = InsertKubearmorLogsMySQL(cfg, kubearmorLog)
 	} else if cfg.DBDriver == "sqlite3" {
@@ -284,7 +284,7 @@ func InsertKubearmorLogs(cfg types.ConfigDB, kubearmorLog types.KubeArmorLogAler
 }
 
 func UpdateKubearmorLogs(cfg types.ConfigDB, kubearmorLog types.KubeArmorLogAlert) error {
-	var err error
+	var err = errors.New("unknown db driver")
 	if cfg.DBDriver == "mysql" {
 		err = UpdateKubearmorLogsMySQL(cfg, kubearmorLog)
 	} else if cfg.DBDriver == "sqlite3" {
@@ -296,7 +296,7 @@ func UpdateKubearmorLogs(cfg types.ConfigDB, kubearmorLog types.KubeArmorLogAler
 func GetKubearmorLogs(cfg types.ConfigDB, filterLog types.KubeArmorLogAlert) ([]types.KubeArmorLogAlert, []uint32, error) {
 	kubearmorLog := []types.KubeArmorLogAlert{}
 	totalCount := []uint32{}
-	var err error
+	var err = errors.New("unknown db driver")
 	if cfg.DBDriver == "mysql" {
 		kubearmorLog, totalCount, err = GetSystemLogsMySQL(cfg, filterLog)
 	} else if cfg.DBDriver == "sqlite3" {
@@ -306,7 +306,7 @@ func GetKubearmorLogs(cfg types.ConfigDB, filterLog types.KubeArmorLogAlert) ([]
 }
 
 func InsertCiliumLogs(cfg types.ConfigDB, ciliumLog types.CiliumLog) error {
-	var err error
+	var err = errors.New("unknown db driver")
 	if cfg.DBDriver == "mysql" {
 		err = InsertCiliumLogsMySQL(cfg, ciliumLog)
 	} else if cfg.DBDriver == "sqlite3" {
@@ -315,10 +315,20 @@ func InsertCiliumLogs(cfg types.ConfigDB, ciliumLog types.CiliumLog) error {
 	return err
 }
 
+func UpdateCiliumLogs(cfg types.ConfigDB, ciliumLog types.CiliumLog) error {
+	var err = errors.New("unknown db driver")
+	if cfg.DBDriver == "mysql" {
+		err = UpdateCiliumLogsMySQL(cfg, ciliumLog)
+	} else if cfg.DBDriver == "sqlite3" {
+		err = UpdateCiliumLogsSQLite(cfg, ciliumLog)
+	}
+	return err
+}
+
 func GetCiliumLogs(cfg types.ConfigDB, ciliumFilter types.CiliumLog) ([]types.CiliumLog, []uint32, error) {
 	ciliumLogs := []types.CiliumLog{}
 	ciliumTotalCount := []uint32{}
-	var err error
+	var err = errors.New("unknown db driver")
 	if cfg.DBDriver == "mysql" {
 		ciliumLogs, ciliumTotalCount, err = GetCiliumLogsMySQL(cfg, ciliumFilter)
 	} else if cfg.DBDriver == "sqlite3" {

@@ -1368,7 +1368,7 @@ func GetCiliumLogsSQLite(cfg types.ConfigDB, filterLog types.CiliumLog) ([]types
 }
 
 // UpdateCiliumLogsMySQL -- Update existing log with time and count
-func UpdateCiliumLogsMySQLite(cfg types.ConfigDB, ciliumlog types.CiliumLog) error {
+func UpdateCiliumLogsSQLite(cfg types.ConfigDB, ciliumlog types.CiliumLog) error {
 	db := connectSQLite(cfg)
 	defer db.Close()
 
