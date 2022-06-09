@@ -11,6 +11,7 @@ import (
 	"github.com/accuknox/auto-policy-discovery/src/feedconsumer"
 	logger "github.com/accuknox/auto-policy-discovery/src/logging"
 	networker "github.com/accuknox/auto-policy-discovery/src/networkpolicy"
+	obs "github.com/accuknox/auto-policy-discovery/src/observability"
 	sysworker "github.com/accuknox/auto-policy-discovery/src/systempolicy"
 
 	"github.com/accuknox/auto-policy-discovery/src/insight"
@@ -18,6 +19,7 @@ import (
 	apb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/analyzer"
 	fpb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/consumer"
 	ipb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/insight"
+	opb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/observability"
 	wpb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/worker"
 	"github.com/accuknox/auto-policy-discovery/src/types"
 
@@ -188,6 +190,21 @@ func (s *insightServer) GetInsightData(ctx context.Context, in *ipb.Request) (*i
 	return &resp, err
 }
 
+// =================== //
+// == Observability == //
+// =================== //
+type summaryServer struct {
+	opb.SummaryServer
+}
+
+//FetchLogs -  Service to fetch summary logs based on Pod level
+func (s *summaryServer) FetchLogs(in *opb.LogsRequest, stream opb.Summary_FetchLogsServer) error {
+	if err := obs.GetSummaryLogs(in, stream); err != nil {
+		return err
+	}
+	return nil
+}
+
 // ================= //
 // == gRPC server == //
 // ================= //
@@ -203,12 +220,14 @@ func GetNewServer() *grpc.Server {
 	consumerServer := &consumerServer{}
 	analyzerServer := &analyzerServer{}
 	insightServer := &insightServer{}
+	summaryServer := &summaryServer{}
 
 	// register gRPC servers
 	wpb.RegisterWorkerServer(s, workerServer)
 	fpb.RegisterConsumerServer(s, consumerServer)
 	apb.RegisterAnalyzerServer(s, analyzerServer)
 	ipb.RegisterInsightServer(s, insightServer)
+	opb.RegisterSummaryServer(s, summaryServer)
 
 	if cfg.GetCurrentCfg().ConfigClusterMgmt.ClusterInfoFrom != "k8sclient" {
 		// start consumer automatically
@@ -220,6 +239,9 @@ func GetNewServer() *grpc.Server {
 
 	// start sys worker automatically
 	sysworker.StartSystemWorker()
+
+	// start observability
+	obs.InitObservability()
 
 	return s
 }
