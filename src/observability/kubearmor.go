@@ -13,7 +13,7 @@ func convertKubearmorPbLogToKubearmorLog(pbLog pb.Log) types.KubeArmorLogAlert {
 	return types.KubeArmorLogAlert{
 		ClusterName:       pbLog.ClusterName,
 		HostName:          pbLog.HostName,
-		NamespaceName:     pbLog.ClusterName,
+		NamespaceName:     pbLog.NamespaceName,
 		PodName:           pbLog.PodName,
 		Labels:            pbLog.Labels,
 		ContainerID:       pbLog.ContainerID,
