@@ -188,32 +188,28 @@ func checkIfNetworkLogExist(netLog types.CiliumLog) (bool, error) {
 	return false, nil
 }
 
-func ProcessCiliumFlow(flowLog *flow.Flow) error {
+func ProcessCiliumFlow(flowLog *flow.Flow) {
 	var isEntryExist bool
-	var err error = nil
 
 	netLog, err := convertFlowLogToCiliumLog(flowLog)
 	if err != nil {
 		log.Error().Msg(err.Error())
-		return err
-	}
-
-	if isEntryExist, err = checkIfNetworkLogExist(netLog); err != nil {
-		log.Error().Msg(err.Error())
-		return err
-	}
-
-	if isEntryExist {
-		if err := libs.UpdateCiliumLogs(CfgDB, netLog); err != nil {
-			log.Error().Msg(err.Error())
-		}
 	} else {
-		if err := libs.InsertCiliumLogs(CfgDB, netLog); err != nil {
+
+		if isEntryExist, err = checkIfNetworkLogExist(netLog); err != nil {
 			log.Error().Msg(err.Error())
 		}
-	}
 
-	return err
+		if isEntryExist {
+			if err := libs.UpdateCiliumLogs(CfgDB, netLog); err != nil {
+				log.Error().Msg(err.Error())
+			}
+		} else {
+			if err := libs.InsertCiliumLogs(CfgDB, netLog); err != nil {
+				log.Error().Msg(err.Error())
+			}
+		}
+	}
 }
 
 func compareSrcDestFlow(src, dest types.CiliumLog) bool {
