@@ -35,7 +35,9 @@ func generateProcessPaths(fromSrc []types.KnoxFromSource) []string {
 
 func ConvertKnoxSystemPolicyToKubeArmorPolicy(knoxPolicies []types.KnoxSystemPolicy) []types.KubeArmorPolicy {
 	results := []types.KubeArmorPolicy{}
+	filePathsFromSrc := []string{}
 	processPaths := []string{}
+	resPath := []string{}
 
 	for _, policy := range knoxPolicies {
 		kubePolicy := types.KubeArmorPolicy{
@@ -55,16 +57,36 @@ func ConvertKnoxSystemPolicyToKubeArmorPolicy(knoxPolicies []types.KnoxSystemPol
 
 		kubePolicy.Spec = policy.Spec
 
+		for _, procpath := range kubePolicy.Spec.Process.MatchPaths {
+			processPaths = append(processPaths, procpath.Path)
+		}
+
 		for _, matchpaths := range kubePolicy.Spec.File.MatchPaths {
-			processPaths = append(processPaths, generateProcessPaths(matchpaths.FromSource)...)
+			filePathsFromSrc = append(filePathsFromSrc, generateProcessPaths(matchpaths.FromSource)...)
 		}
 		for _, matchpaths := range kubePolicy.Spec.File.MatchDirectories {
-			processPaths = append(processPaths, generateProcessPaths(matchpaths.FromSource)...)
+			filePathsFromSrc = append(filePathsFromSrc, generateProcessPaths(matchpaths.FromSource)...)
 		}
 
-		finalProcessPath := common.StringDeDuplication(processPaths)
+		filePathsFromSrc := common.StringDeDuplication(filePathsFromSrc)
+		procPaths := common.StringDeDuplication(processPaths)
 
-		for _, path := range finalProcessPath {
+		//resPath := append(resPath, procPaths...)
+
+		for _, file := range filePathsFromSrc {
+			isPathExist := false
+			for _, proc := range procPaths {
+				if proc == file {
+					isPathExist = true
+					continue
+				}
+			}
+			if !isPathExist {
+				resPath = append(resPath, file)
+			}
+		}
+
+		for _, path := range resPath {
 			kubePolicy.Spec.Process.MatchPaths = append(kubePolicy.Spec.Process.MatchPaths, types.KnoxMatchPaths{
 				Path: path,
 			})
