@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/accuknox/auto-policy-discovery/src/common"
 	"github.com/accuknox/auto-policy-discovery/src/libs"
 	obs "github.com/accuknox/auto-policy-discovery/src/observability"
 	"github.com/accuknox/auto-policy-discovery/src/types"
@@ -24,8 +25,17 @@ var KubeArmorRelayLogsMutex *sync.Mutex
 var KubeArmorKafkaLogs []*types.KnoxSystemLog
 var KubeArmorKafkaLogsMutex *sync.Mutex
 
+func generateProcessPaths(fromSrc []types.KnoxFromSource) []string {
+	var processpaths []string
+	for _, locfrmsrc := range fromSrc {
+		processpaths = append(processpaths, locfrmsrc.Path)
+	}
+	return processpaths
+}
+
 func ConvertKnoxSystemPolicyToKubeArmorPolicy(knoxPolicies []types.KnoxSystemPolicy) []types.KubeArmorPolicy {
 	results := []types.KubeArmorPolicy{}
+	processPaths := []string{}
 
 	for _, policy := range knoxPolicies {
 		kubePolicy := types.KubeArmorPolicy{
@@ -44,6 +54,21 @@ func ConvertKnoxSystemPolicyToKubeArmorPolicy(knoxPolicies []types.KnoxSystemPol
 		}
 
 		kubePolicy.Spec = policy.Spec
+
+		for _, matchpaths := range kubePolicy.Spec.File.MatchPaths {
+			processPaths = append(processPaths, generateProcessPaths(matchpaths.FromSource)...)
+		}
+		for _, matchpaths := range kubePolicy.Spec.File.MatchDirectories {
+			processPaths = append(processPaths, generateProcessPaths(matchpaths.FromSource)...)
+		}
+
+		finalProcessPath := common.StringDeDuplication(processPaths)
+
+		for _, path := range finalProcessPath {
+			kubePolicy.Spec.Process.MatchPaths = append(kubePolicy.Spec.Process.MatchPaths, types.KnoxMatchPaths{
+				Path: path,
+			})
+		}
 
 		results = append(results, kubePolicy)
 	}
