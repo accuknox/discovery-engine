@@ -21,7 +21,9 @@ message LogsResponse {
     repeated ListOfSource listOfFile = 4; 
     repeated ListOfSource listOfNetwork = 5;
     repeated ListOfConnection ingress = 6;
-    repeated ListOfConnection egress = 7; 
+    repeated ListOfConnection egress = 7;
+    repeated IncomingServerConnections inServerConn = 8;
+    repeated OutgoingServerConnections outServerConn = 9;
 }
 
 message ListOfSource {
@@ -44,4 +46,14 @@ message ListOfDestination {
     int32 count = 2;
     string status = 3;
     int64 lastUpdatedTime = 4;
+}
+
+message IncomingServerConnections {
+    string addressFamily = 1;
+    string path = 2;
+}
+
+message OutgoingServerConnections {
+    string addressFamily = 1;
+    string path = 2;
 }
