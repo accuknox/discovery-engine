@@ -71,8 +71,6 @@ func ConvertKnoxSystemPolicyToKubeArmorPolicy(knoxPolicies []types.KnoxSystemPol
 		filePathsFromSrc := common.StringDeDuplication(filePathsFromSrc)
 		procPaths := common.StringDeDuplication(processPaths)
 
-		//resPath := append(resPath, procPaths...)
-
 		for _, file := range filePathsFromSrc {
 			isPathExist := false
 			for _, proc := range procPaths {
@@ -85,6 +83,8 @@ func ConvertKnoxSystemPolicyToKubeArmorPolicy(knoxPolicies []types.KnoxSystemPol
 				resPath = append(resPath, file)
 			}
 		}
+
+		resPath = common.StringDeDuplication(resPath)
 
 		for _, path := range resPath {
 			kubePolicy.Spec.Process.MatchPaths = append(kubePolicy.Spec.Process.MatchPaths, types.KnoxMatchPaths{
