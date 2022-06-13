@@ -22,8 +22,8 @@ message LogsResponse {
     repeated ListOfSource listOfNetwork = 5;
     repeated ListOfConnection ingress = 6;
     repeated ListOfConnection egress = 7;
-    repeated IncomingServerConnections inServerConn = 8;
-    repeated OutgoingServerConnections outServerConn = 9;
+    repeated ServerConnections inServerConn = 8;
+    repeated ServerConnections outServerConn = 9;
 }
 
 message ListOfSource {
@@ -48,7 +48,7 @@ message ListOfDestination {
     int64 lastUpdatedTime = 4;
 }
 
-message IncomingServerConnections {
+message ServerConnections {
     string addressFamily = 1;
     string path = 2;
 }
