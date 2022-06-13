@@ -1,6 +1,7 @@
 package observability
 
 import (
+	"errors"
 	"regexp"
 	"strings"
 
@@ -25,11 +26,57 @@ func InitObservability() {
 	CfgDB = cfg.GetCfgDB()
 }
 
+func fetchSysServerConnDetail(data string, res string) (types.SysNwConnDetail, error) {
+	conn := types.SysNwConnDetail{}
+
+	// get Syscall
+	if strings.Contains(data, "SYS_CONNECT") {
+		conn.InOut = "OUT"
+	} else if strings.Contains(data, "SYS_ACCEPT") {
+		conn.InOut = "IN"
+	} else {
+		return conn, errors.New("not a valid incoming/outgoing connection")
+	}
+
+	// get AF detail
+	if strings.Contains(res, "AF_INET") {
+		conn.AddFamily = "AF_INET"
+	} else if strings.Contains(res, "AF_UNIX") {
+		conn.AddFamily = "AF_UNIX"
+	} else {
+		return conn, errors.New("not a valid incoming/outgoing connection")
+	}
+
+	if conn.AddFamily == "AF_INET" {
+		resslice := strings.Split(res, " ")
+		for _, locres := range resslice {
+			if strings.Contains(locres, "sin_addr") {
+				conn.Path = strings.Split(locres, "=")[1]
+			}
+			if strings.Contains(locres, "sin_port") {
+				conn.Path = conn.Path + ":" + strings.Split(locres, "=")[1]
+			}
+		}
+	} else if conn.AddFamily == "AF_UNIX" {
+		resslice := strings.Split(res, " ")
+		for _, locres := range resslice {
+			if strings.Contains(locres, "sun_path") {
+				conn.Path = strings.Split(locres, "=")[1]
+			}
+		}
+	}
+
+	return conn, nil
+}
+
 //GetSummaryLogs - Give Summary logs of Pod based on Label and Namespace Input
 func GetSummaryLogs(pbRequest *opb.LogsRequest, stream opb.Summary_FetchLogsServer) error {
 	log.Info().Msg("Get Summary Log Called")
 	systemPods := make(map[string][]types.SystemSummary)
 	networkPods := make(map[string][]types.NetworkSummary)
+	// Thsi type is used for comparison
+	nilSysNwConnDetail := types.SysNwConnDetail{}
+
 	//Fetch network Logs
 	networkLogs, networkTotal, err := libs.GetCiliumLogsMySQL(CfgDB, types.CiliumLog{
 		SourceLabels:    pbRequest.Label,
@@ -68,11 +115,16 @@ func GetSummaryLogs(pbRequest *opb.LogsRequest, stream opb.Summary_FetchLogsServ
 		return err
 	}
 	for sysindex, locSysLog := range systemLogs {
+		nwConnDetail := types.SysNwConnDetail{}
+		if locSysLog.Operation == "Network" {
+			nwConnDetail, err = fetchSysServerConnDetail(locSysLog.Data, locSysLog.Resource)
+		}
 		systemPods[locSysLog.PodName] = append(systemPods[locSysLog.PodName], types.SystemSummary{
 			Operation:   locSysLog.Operation,
 			Source:      locSysLog.Source,
 			Resource:    locSysLog.Resource,
 			Action:      locSysLog.Action,
+			ServerConn:  nwConnDetail,
 			UpdatedTime: locSysLog.UpdatedTime,
 			Count:       int32(systemTotal[sysindex]),
 		})
@@ -82,6 +134,8 @@ func GetSummaryLogs(pbRequest *opb.LogsRequest, stream opb.Summary_FetchLogsServ
 	for podName, sysLogs := range systemPods {
 
 		var listOfFile, listOfProcess, listOfNetwork []*opb.ListOfSource
+		var inServerConn []*opb.IncomingServerConnections
+		var outServerConn []*opb.OutgoingServerConnections
 		//System Block
 		fileSource := make(map[string][]*opb.ListOfDestination)
 		processSource := make(map[string][]*opb.ListOfDestination)
@@ -132,6 +186,22 @@ func GetSummaryLogs(pbRequest *opb.LogsRequest, stream opb.Summary_FetchLogsServ
 				networkEgress = convertNetworkConnection(netLog, networkEgress)
 			}
 		}
+
+		// ServerConnection
+		for _, syslog := range sysLogs {
+			if syslog.ServerConn != nilSysNwConnDetail && syslog.ServerConn.InOut == "IN" {
+				inServerConn = append(inServerConn, &opb.IncomingServerConnections{
+					AddressFamily: syslog.ServerConn.AddFamily,
+					Path:          syslog.ServerConn.Path,
+				})
+			} else if syslog.ServerConn != nilSysNwConnDetail && syslog.ServerConn.InOut == "OUT" {
+				outServerConn = append(outServerConn, &opb.OutgoingServerConnections{
+					AddressFamily: syslog.ServerConn.AddFamily,
+					Path:          syslog.ServerConn.Path,
+				})
+			}
+		}
+
 		//Stream Block
 		if err := stream.Send(&opb.LogsResponse{
 			PodDetail:     podName,
@@ -141,6 +211,8 @@ func GetSummaryLogs(pbRequest *opb.LogsRequest, stream opb.Summary_FetchLogsServ
 			ListOfNetwork: listOfNetwork,
 			Ingress:       networkIngress,
 			Egress:        networkEgress,
+			InServerConn:  inServerConn,
+			OutServerConn: outServerConn,
 		}); err != nil {
 			log.Error().Msg("Error in Streaming Summary Logs : " + err.Error())
 		}
