@@ -26,6 +26,19 @@ func InitObservability() {
 	CfgDB = cfg.GetCfgDB()
 }
 
+func deDuplicateServerInOutConn(connList []types.SysNwConnDetail) []types.SysNwConnDetail {
+	occurred := map[types.SysNwConnDetail]bool{}
+	result := []types.SysNwConnDetail{}
+	for index := range connList {
+		if occurred[connList[index]] != true {
+			occurred[connList[index]] = true
+			// Append to result slice.
+			result = append(result, connList[index])
+		}
+	}
+	return result
+}
+
 func fetchSysServerConnDetail(data string, res string) (types.SysNwConnDetail, error) {
 	conn := types.SysNwConnDetail{}
 
@@ -75,7 +88,7 @@ func GetSummaryLogs(pbRequest *opb.LogsRequest, stream opb.Summary_FetchLogsServ
 	systemPods := make(map[string][]types.SystemSummary)
 	networkPods := make(map[string][]types.NetworkSummary)
 	// Thsi type is used for comparison
-	nilSysNwConnDetail := types.SysNwConnDetail{}
+	syserverconn := []types.SysNwConnDetail{}
 
 	//Fetch network Logs
 	networkLogs, networkTotal, err := libs.GetCiliumLogsMySQL(CfgDB, types.CiliumLog{
@@ -134,8 +147,7 @@ func GetSummaryLogs(pbRequest *opb.LogsRequest, stream opb.Summary_FetchLogsServ
 	for podName, sysLogs := range systemPods {
 
 		var listOfFile, listOfProcess, listOfNetwork []*opb.ListOfSource
-		var inServerConn []*opb.IncomingServerConnections
-		var outServerConn []*opb.OutgoingServerConnections
+		var inServerConn, outServerConn []*opb.ServerConnections
 		//System Block
 		fileSource := make(map[string][]*opb.ListOfDestination)
 		processSource := make(map[string][]*opb.ListOfDestination)
@@ -187,17 +199,23 @@ func GetSummaryLogs(pbRequest *opb.LogsRequest, stream opb.Summary_FetchLogsServ
 			}
 		}
 
-		// ServerConnection
 		for _, syslog := range sysLogs {
-			if syslog.ServerConn != nilSysNwConnDetail && syslog.ServerConn.InOut == "IN" {
-				inServerConn = append(inServerConn, &opb.IncomingServerConnections{
-					AddressFamily: syslog.ServerConn.AddFamily,
-					Path:          syslog.ServerConn.Path,
+			syserverconn = append(syserverconn, syslog.ServerConn)
+		}
+
+		syserverconn = deDuplicateServerInOutConn(syserverconn)
+
+		// ServerConnection
+		for _, servConn := range syserverconn {
+			if servConn.InOut == "IN" && servConn.AddFamily != "" && servConn.Path != "" {
+				inServerConn = append(inServerConn, &opb.ServerConnections{
+					AddressFamily: servConn.AddFamily,
+					Path:          servConn.Path,
 				})
-			} else if syslog.ServerConn != nilSysNwConnDetail && syslog.ServerConn.InOut == "OUT" {
-				outServerConn = append(outServerConn, &opb.OutgoingServerConnections{
-					AddressFamily: syslog.ServerConn.AddFamily,
-					Path:          syslog.ServerConn.Path,
+			} else if servConn.InOut == "OUT" && servConn.AddFamily != "" && servConn.Path != "" {
+				outServerConn = append(outServerConn, &opb.ServerConnections{
+					AddressFamily: servConn.AddFamily,
+					Path:          servConn.Path,
 				})
 			}
 		}
