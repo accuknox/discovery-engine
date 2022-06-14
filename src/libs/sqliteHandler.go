@@ -553,7 +553,7 @@ func CreateTableSystemLogsSQLite(cfg types.ConfigDB) error {
 
 	query :=
 		"CREATE TABLE IF NOT EXISTS `" + tableName + "` (" +
-			"	`id` integer NOT NULL PRIMARY KEY AUTO_INCREMENT," +
+			"	`id` INTEGER AUTO_INCREMENT," +
 			"	`cluster_name` varchar(50) DEFAULT NULL," +
 			"	`host_name` varchar(50) DEFAULT NULL," +
 			"	`namespace_name` varchar(50) DEFAULT NULL," +
@@ -569,13 +569,14 @@ func CreateTableSystemLogsSQLite(cfg types.ConfigDB) error {
 			"	`data` varchar(250) DEFAULT NULL," +
 			"	`category` varchar(50) DEFAULT NULL," +
 			"	`action` varchar(50) DEFAULT NULL," +
-			"	`start_time` bigint DEFAULT NULL," +
-			"	`updated_time` bigint DEFAULT NULL," +
+			"	`start_time` bigint NOT NULL," +
+			"	`updated_time` bigint NOT NULL," +
 			"	`result` varchar(100) DEFAULT NULL," +
-			"	`total` INTEGER	" +
+			"	`total` INTEGER, " +
+			"	PRIMARY KEY (`id`)" +
 			"  );"
 
-	_, err := db.Query(query)
+	_, err := db.Exec(query)
 	return err
 }
 
@@ -587,11 +588,11 @@ func CreateTableNetworkLogsSQLite(cfg types.ConfigDB) error {
 
 	query :=
 		"CREATE TABLE IF NOT EXISTS `" + tableName + "` (" +
-			"	`id` integer NOT NULL PRIMARY KEY AUTO_INCREMENT," +
-			"	`verdict` varchar(50) DEFAULT NULL," +
+			"	`id` INTEGER AUTO_INCREMENT," +
+			"	`verdict` varchar(100) DEFAULT NULL," +
 			"	`ip_source` varchar(100) DEFAULT NULL," +
 			"	`ip_destination` varchar(100) DEFAULT NULL," +
-			"	`ip_version` varchar(50) DEFAULT NULL," +
+			"	`ip_version` varchar(100) DEFAULT NULL," +
 			"	`ip_encrypted` BOOLEAN," +
 			"	`l4_tcp_source_port` INTEGER," +
 			"	`l4_tcp_destination_port` INTEGER," +
@@ -602,37 +603,38 @@ func CreateTableNetworkLogsSQLite(cfg types.ConfigDB) error {
 			"	`l4_icmpv6_type` INTEGER," +
 			"	`l4_icmpv6_code` INTEGER," +
 			"	`source_namespace` varchar(100) DEFAULT NULL," +
-			"	`source_labels` varchar(250) DEFAULT NULL," +
+			"	`source_labels` varchar(200) DEFAULT NULL," +
 			"	`source_pod_name` varchar(100) DEFAULT NULL," +
 			"	`destination_namespace` varchar(100) DEFAULT NULL," +
-			"	`destination_labels` varchar(250) DEFAULT NULL," +
+			"	`destination_labels` varchar(200) DEFAULT NULL," +
 			"	`destination_pod_name` varchar(100) DEFAULT NULL," +
-			"	`type` varchar(50) DEFAULT NULL," +
+			"	`type` varchar(100) DEFAULT NULL," +
 			"	`node_name` varchar(100) DEFAULT NULL," +
 			"	`l7_type` varchar(100) DEFAULT NULL," +
 			"	`l7_dns_cnames` varchar(100) DEFAULT NULL," +
 			"	`l7_dns_observation_source` varchar(150) DEFAULT NULL," +
 			"	`l7_http_code` INTEGER," +
 			"	`l7_http_method` varchar(100) DEFAULT NULL," +
-			"	`l7_http_url` varchar(250) DEFAULT NULL," +
+			"	`l7_http_url` varchar(200) DEFAULT NULL," +
 			"	`l7_http_protocol` varchar(50) DEFAULT NULL," +
-			"	`l7_http_headers` varchar(250) DEFAULT NULL," +
+			"	`l7_http_headers` varchar(200) DEFAULT NULL," +
 			"	`event_type_type` INTEGER," +
 			"	`event_type_sub_type` INTEGER," +
-			"	`source_service_name` varchar(100) DEFAULT NULL," +
+			"	`source_service_name` varchar(150) DEFAULT NULL," +
 			"	`source_service_namespace` varchar(100) DEFAULT NULL," +
 			"	`destination_service_name` varchar(100) DEFAULT NULL," +
 			"	`destination_service_namespace` varchar(100) DEFAULT NULL," +
 			"	`traffic_direction` varchar(100) DEFAULT NULL," +
 			"	`trace_observation_point` varchar(100) DEFAULT NULL," +
-			"	`drop_reason_desc` INTEGER," +
+			"	`drop_reason_desc` varchar(100) DEFAULT NULL," +
 			"	`is_reply` BOOLEAN," +
 			"	`start_time` bigint NOT NULL," +
 			"	`updated_time` bigint NOT NULL," +
-			"	`total` INTEGER" +
-			" 	);"
+			"	`total` INTEGER, " +
+			"	PRIMARY KEY (`id`)" +
+			"  );"
 
-	_, err := db.Query(query)
+	_, err := db.Exec(query)
 	return err
 }
 

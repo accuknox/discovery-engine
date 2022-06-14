@@ -91,7 +91,7 @@ func GetSummaryLogs(pbRequest *opb.LogsRequest, stream opb.Summary_FetchLogsServ
 	syserverconn := []types.SysNwConnDetail{}
 
 	//Fetch network Logs
-	networkLogs, networkTotal, err := libs.GetCiliumLogsMySQL(CfgDB, types.CiliumLog{
+	networkLogs, networkTotal, err := libs.GetCiliumLogs(CfgDB, types.CiliumLog{
 		SourceLabels:    pbRequest.Label,
 		SourceNamespace: pbRequest.Namespace,
 	})
