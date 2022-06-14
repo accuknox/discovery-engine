@@ -28,7 +28,7 @@ data:
         cluster-info-from: "k8sclient"            # k8sclient|accuknox
 
     database:
-      driver: mysql
+      driver: sqlite3
       host: mysql.explorer.svc.cluster.local
       port: 3306
       user: root
