@@ -10,47 +10,23 @@ The engine leverages the rich visibility provided by [KubeArmor](https://github.
 <p align="center"> <img src="./getting-started/resources/k8s-auto-disco.png" width="75%"/> </p>
 
 ## Quick Install
+```
+kubectl apply -f https://raw.githubusercontent.com/accuknox/discovery-engine/dev/deployments/k8s/deployment.yaml
+```
+The discovery engine will automatically connect to the kubearmor and cilium agents installed in `kube-system` namespace. Discovery engine can connect to either or both the engines and provide necessary insights into the workloads.
 
-### Install
-```
-curl -s https://raw.githubusercontent.com/accuknox/tools/main/install.sh | bash
-```
-If Cilium or KubeArmor is already installed in `kube-system` namespace then the corresponding installation is skipped.
+## Get the discovered policies
+Use `karmor discover --help` to check all the options. To install karmor cli tool follow the link [here](https://github.com/kubearmor/kubearmor-client/#from-script).
 
-### Get discovered policies
+Example, Get policies discovered for deployment having label `"app=wordpress"` in `wordpress-mysql` namespace.
 ```
-curl -s https://raw.githubusercontent.com/accuknox/tools/main/get_discovered_yamls.sh | bash
+karmor discover -n wordpress-mysql -l "app=wordpress" -f yaml > wordpress.yaml
 ```
-
-### Uninstall
-```
-curl -s https://raw.githubusercontent.com/accuknox/tools/main/uninstall.sh | bash
-```
-
-[Original Ref](https://help.accuknox.com/open-source/quick_start_guide/)
-
-<details> <summary>Install/Uninstall (option 2) </summary>
-
-### Install
-Assumes that KubeArmor + Cilium is already installed in the k8s cluster in the `kube-system` namespace.
-```
-helm install --wait mysql bitnami/mysql --version 8.6.1 \
-		--namespace explorer --set auth.user="test-user" --set auth.password="password" \
-		--set auth.rootPassword="password" --set auth.database="knoxautopolicy"
-
-kubectl apply -f deployments/k8s/ --namespace explorer
-```
-Note that the namespace and the DB parameters are set based on above values in the default config. If you change any parameter please ensure to change in [deployments/k8s/dev-config.yaml](deployments/k8s/dev-config.yaml) file as well before deploying.
-
-### Get the discovered policies
-```
-curl -s https://raw.githubusercontent.com/accuknox/tools/main/get_discovered_yamls.sh | bash
-```
+The `wordpress.yaml` can then be used to enforce policies using kubearmor by using `kubectl apply -f wordpress.yaml`.
 
 ### Uninstall
 ```
-helm uninstall mysql --namespace explorer
-kubectl delete -f deployments/k8s/ --namespace explorer
+kubectl delete -f https://raw.githubusercontent.com/accuknox/discovery-engine/dev/deployments/k8s/deployment.yaml
 ```
 </details>
 
