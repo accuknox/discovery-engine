@@ -10,7 +10,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/accuknox/auto-policy-discovery/src/common"
 	"github.com/accuknox/auto-policy-discovery/src/libs"
 	obs "github.com/accuknox/auto-policy-discovery/src/observability"
 	"github.com/accuknox/auto-policy-discovery/src/types"
@@ -68,8 +67,8 @@ func ConvertKnoxSystemPolicyToKubeArmorPolicy(knoxPolicies []types.KnoxSystemPol
 			filePathsFromSrc = append(filePathsFromSrc, generateProcessPaths(matchpaths.FromSource)...)
 		}
 
-		filePathsFromSrc := common.StringDeDuplication(filePathsFromSrc)
-		procPaths := common.StringDeDuplication(processPaths)
+		filePathsFromSrc := libs.StringDeDuplication(filePathsFromSrc)
+		procPaths := libs.StringDeDuplication(processPaths)
 
 		for _, file := range filePathsFromSrc {
 			isPathExist := false
@@ -84,7 +83,7 @@ func ConvertKnoxSystemPolicyToKubeArmorPolicy(knoxPolicies []types.KnoxSystemPol
 			}
 		}
 
-		resPath = common.StringDeDuplication(resPath)
+		resPath = libs.StringDeDuplication(resPath)
 
 		for _, path := range resPath {
 			kubePolicy.Spec.Process.MatchPaths = append(kubePolicy.Spec.Process.MatchPaths, types.KnoxMatchPaths{

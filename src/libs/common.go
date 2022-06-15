@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"flag"
+	"fmt"
 	"math/big"
 	"net"
 	"os"
@@ -16,6 +17,8 @@ import (
 
 	"github.com/clarketm/json"
 
+	cfg "github.com/accuknox/auto-policy-discovery/src/config"
+	"github.com/accuknox/auto-policy-discovery/src/constants"
 	logger "github.com/accuknox/auto-policy-discovery/src/logging"
 	"github.com/accuknox/auto-policy-discovery/src/types"
 	"github.com/rs/zerolog"
@@ -438,7 +441,16 @@ func WriteKnoxNetPolicyToYamlFile(namespace string, policies []types.KnoxNetwork
 }
 
 func WriteCiliumPolicyToYamlFile(namespace string, policies []types.CiliumNetworkPolicy) {
-	fileName := GetEnv("POLICY_DIR", "./")
+
+	policyDir := cfg.CurrentCfg.ConfigNetPolicy.NetworkPolicyDir
+	var fileName string
+
+	if policyDir != "./" {
+		fileName = GetEnv("POLICY_DIR", "./")
+	} else {
+		fileName = policyDir
+	}
+
 	if namespace != "" {
 		fileName = fileName + "cilium_policies_" + namespace + ".yaml"
 	} else {
@@ -477,7 +489,16 @@ func WriteCiliumPolicyToYamlFile(namespace string, policies []types.CiliumNetwor
 }
 
 func WriteKubeArmorPolicyToYamlFile(fname string, policies []types.KubeArmorPolicy) {
-	fileName := GetEnv("POLICY_DIR", "./")
+
+	policyDir := cfg.CurrentCfg.ConfigSysPolicy.SystemPolicyDir
+	var fileName string
+
+	if policyDir != "./" {
+		fileName = GetEnv("POLICY_DIR", "./")
+	} else {
+		fileName = policyDir
+	}
+
 	fileName = fileName + fname + ".yaml"
 
 	if err := os.Remove(fileName); err != nil {
@@ -564,4 +585,51 @@ func ConvertStrToUnixTime(strTime string) int64 {
 
 	t, _ := time.Parse(TimeFormSimple, strTime)
 	return t.UTC().Unix()
+}
+
+//ConvertArrayToString - Convert Array of string to String
+func ConvertArrayToString(arr []string) string {
+	var str string
+	for _, label := range arr {
+		if !strings.HasPrefix(label, "k8s:io.cilium.") {
+			if !strings.HasPrefix(label, "k8s:io.kubernetes.") {
+				tstr := strings.TrimPrefix(label, "k8s:")
+				if str != "" {
+					str += constants.COMMA
+				}
+				str += tstr
+			}
+		}
+	}
+	return str
+
+}
+
+//ConvertStringToArray - Convert String to Array of string
+func ConvertStringToArray(str string) []string {
+	return strings.Split(str, ",")
+}
+
+func ConvertFilterString(filter []string) string {
+	var query string
+	//Create the filter query
+	for i, value := range filter {
+		query = query + constants.BACK_SLASH + fmt.Sprint(value) + constants.BACK_SLASH
+		if len(filter) > i+1 {
+			query += constants.COMMA
+		}
+	}
+	return query
+}
+
+func StringDeDuplication(strSlice []string) []string {
+	keys := make(map[string]bool)
+	list := []string{}
+	for _, entry := range strSlice {
+		if _, value := keys[entry]; !value {
+			keys[entry] = true
+			list = append(list, entry)
+		}
+	}
+	return list
 }

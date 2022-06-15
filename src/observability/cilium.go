@@ -4,7 +4,6 @@ import (
 	"errors"
 	"reflect"
 
-	"github.com/accuknox/auto-policy-discovery/src/common"
 	"github.com/accuknox/auto-policy-discovery/src/libs"
 	"github.com/accuknox/auto-policy-discovery/src/types"
 	"github.com/cilium/cilium/api/v1/flow"
@@ -84,7 +83,7 @@ func convertFlowLogToCiliumLog(flowLog *flow.Flow) (types.CiliumLog, error) {
 					headers = append(headers, header.Key+"="+header.Value)
 				}
 				//convert http Header into string format
-				l7HTTPHeaders = common.ConvertArrayToString(headers)
+				l7HTTPHeaders = libs.ConvertArrayToString(headers)
 			}
 		}
 	}
@@ -133,15 +132,15 @@ func convertFlowLogToCiliumLog(flowLog *flow.Flow) (types.CiliumLog, error) {
 	ciliumLog.L4ICMPv6Type = l4ICMPv6.Type
 	ciliumLog.L4ICMPv6Code = l4ICMPv6.Code
 	ciliumLog.SourceNamespace = source.Namespace
-	ciliumLog.SourceLabels = common.ConvertArrayToString(source.Labels)
+	ciliumLog.SourceLabels = libs.ConvertArrayToString(source.Labels)
 	ciliumLog.SourcePodName = source.PodName
 	ciliumLog.DestinationNamespace = destination.Namespace
-	ciliumLog.DestinationLabels = common.ConvertArrayToString(destination.Labels)
+	ciliumLog.DestinationLabels = libs.ConvertArrayToString(destination.Labels)
 	ciliumLog.DestinationPodName = destination.PodName
 	ciliumLog.Type = flowLog.GetType().Enum().String()
 	ciliumLog.NodeName = flowLog.NodeName
 	ciliumLog.L7Type = l7Type
-	ciliumLog.L7DnsCnames = common.ConvertArrayToString(l7DNS.Cnames)
+	ciliumLog.L7DnsCnames = libs.ConvertArrayToString(l7DNS.Cnames)
 	ciliumLog.L7DnsObservationsource = l7DNS.ObservationSource
 	ciliumLog.L7HttpCode = l7HTTP.Code
 	ciliumLog.L7HttpMethod = l7HTTP.Method
