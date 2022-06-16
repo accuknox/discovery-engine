@@ -751,7 +751,7 @@ func WriteNetworkPoliciesToFile(cluster, namespace string, services []types.Serv
 	latestPolicies := libs.GetNetworkPolicies(CfgDB, cluster, namespace, "latest", "", "")
 
 	// write discovered policies to files
-	libs.WriteKnoxNetPolicyToYamlFile(namespace, latestPolicies)
+	// libs.WriteKnoxNetPolicyToYamlFile(namespace, latestPolicies)
 
 	// convert knoxPolicy to CiliumPolicy
 	ciliumPolicies := plugin.ConvertKnoxPoliciesToCiliumPolicies(services, latestPolicies)
