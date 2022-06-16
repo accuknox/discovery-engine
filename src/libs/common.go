@@ -380,9 +380,8 @@ func GetCommandOutput(cmd string, args []string) string {
 func getPolicyDir(cfgPath string) string {
 	if cfgPath == "" {
 		return GetEnv("POLICY_DIR", "./")
-	} else {
-		return cfgPath
 	}
+	return cfgPath
 }
 
 func writeYamlByte(f *os.File, b []byte) {
