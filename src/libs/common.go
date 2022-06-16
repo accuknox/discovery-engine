@@ -16,6 +16,7 @@ import (
 
 	"github.com/clarketm/json"
 
+	cfg "github.com/accuknox/auto-policy-discovery/src/config"
 	logger "github.com/accuknox/auto-policy-discovery/src/logging"
 	"github.com/accuknox/auto-policy-discovery/src/types"
 	"github.com/rs/zerolog"
@@ -376,6 +377,14 @@ func GetCommandOutput(cmd string, args []string) string {
 // == File I/O == //
 // ============== //
 
+func getPolicyDir(cfgPath string) string {
+	if cfgPath == "" {
+		return GetEnv("POLICY_DIR", "./")
+	} else {
+		return cfgPath
+	}
+}
+
 func writeYamlByte(f *os.File, b []byte) {
 	if _, err := f.Write(b); err != nil {
 		log.Error().Msg(err.Error())
@@ -401,7 +410,7 @@ func writeJsonByte(f *os.File, b []byte) {
 }
 
 func WriteKnoxNetPolicyToYamlFile(namespace string, policies []types.KnoxNetworkPolicy) {
-	fileName := GetEnv("POLICY_DIR", "./")
+	fileName := getPolicyDir(cfg.CurrentCfg.ConfigNetPolicy.NetworkPolicyDir)
 	if namespace != "" {
 		fileName = fileName + "knox_net_policies_" + namespace + ".yaml"
 	} else {
@@ -438,7 +447,7 @@ func WriteKnoxNetPolicyToYamlFile(namespace string, policies []types.KnoxNetwork
 }
 
 func WriteCiliumPolicyToYamlFile(namespace string, policies []types.CiliumNetworkPolicy) {
-	fileName := GetEnv("POLICY_DIR", "./")
+	fileName := getPolicyDir(cfg.CurrentCfg.ConfigNetPolicy.NetworkPolicyDir)
 	if namespace != "" {
 		fileName = fileName + "cilium_policies_" + namespace + ".yaml"
 	} else {
@@ -477,7 +486,7 @@ func WriteCiliumPolicyToYamlFile(namespace string, policies []types.CiliumNetwor
 }
 
 func WriteKubeArmorPolicyToYamlFile(fname string, policies []types.KubeArmorPolicy) {
-	fileName := GetEnv("POLICY_DIR", "./")
+	fileName := getPolicyDir(cfg.CurrentCfg.ConfigSysPolicy.SystemPolicyDir)
 	fileName = fileName + fname + ".yaml"
 
 	if err := os.Remove(fileName); err != nil {
@@ -512,7 +521,7 @@ func WriteKubeArmorPolicyToYamlFile(fname string, policies []types.KubeArmorPoli
 }
 
 func WriteSysObsDataToJsonFile(obsData types.SysInsightResponseData) {
-	fileName := GetEnv("POLICY_DIR", "./")
+	fileName := getPolicyDir(cfg.CurrentCfg.ConfigSysPolicy.SystemPolicyDir)
 	fileName = fileName + "sys_observability_data" + ".json"
 
 	if err := os.Remove(fileName); err != nil {
