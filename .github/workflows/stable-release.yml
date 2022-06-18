@@ -11,7 +11,7 @@ name: discovery engine stable release
 
 jobs:
   build:
-    name: Create discovery engine Release - 18.04
+    name: Create discovery engine stable release
     if: github.repository == 'accuknox/discovery-engine'
     runs-on: ubuntu-18.04
     timeout-minutes: 20
