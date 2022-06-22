@@ -890,7 +890,8 @@ func updateSysPolicySpec(opType string, policy types.KnoxSystemPolicy, src strin
 			path = path + "/"
 		}
 		matchDirs := types.KnoxMatchDirectories{
-			Dir: path,
+			Dir:       path,
+			Recursive: true,
 		}
 
 		if opType == SYS_OP_FILE {

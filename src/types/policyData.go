@@ -189,9 +189,8 @@ type CiliumNetworkPolicy struct {
 
 // KnoxFromSource Structure
 type KnoxFromSource struct {
-	Path      string `json:"path,omitempty" yaml:"path,omitempty"`
-	Dir       string `json:"dir,omitempty" yaml:"dir,omitempty"`
-	Recursive bool   `json:"resursive,omitempty" yaml:"resursive,omitempty"`
+	Path string `json:"path,omitempty" yaml:"path,omitempty"`
+	Dir  string `json:"dir,omitempty" yaml:"dir,omitempty"`
 }
 
 // KnoxMatchPaths Structure
@@ -205,6 +204,7 @@ type KnoxMatchPaths struct {
 // KnoxMatchDirectories Structure
 type KnoxMatchDirectories struct {
 	Dir        string           `json:"dir,omitempty" yaml:"dir,omitempty"`
+	Recursive  bool             `json:"recursive,omitempty" yaml:"resursive,omitempty"`
 	ReadOnly   bool             `json:"readOnly,omitempty" yaml:"readOnly,omitempty"`
 	OwnerOnly  bool             `json:"ownerOnly,omitempty" yaml:"ownerOnly,omitempty"`
 	FromSource []KnoxFromSource `json:"fromSource,omitempty" yaml:"fromSource,omitempty"`
