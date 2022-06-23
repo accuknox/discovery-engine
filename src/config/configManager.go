@@ -117,6 +117,9 @@ func LoadConfigFromFile() {
 
 	CurrentCfg.Status = 1 // 1: active 0: inactive
 
+	// Observability module
+	CurrentCfg.Observability = viper.GetBool("observability")
+
 	// load network policy discovery
 	CurrentCfg.ConfigNetPolicy = types.ConfigNetworkPolicy{
 		OperationMode:           viper.GetInt("application.network.operation-mode"),
@@ -206,6 +209,10 @@ func SetLogFile(file string) {
 
 func GetCurrentCfg() types.Configuration {
 	return CurrentCfg
+}
+
+func IsObservabilityEnabled() bool {
+	return CurrentCfg.Observability
 }
 
 func GetCfgDB() types.ConfigDB {

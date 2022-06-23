@@ -81,6 +81,10 @@ func init() {
 // =================== //
 
 func SetDefaultConfig() {
+
+	// Observability module
+	viper.SetDefault("observability", false)
+
 	// Application->Network config
 	viper.SetDefault("application.network.operation-mode", 1)
 	viper.SetDefault("application.network.operation-trigger", 100)

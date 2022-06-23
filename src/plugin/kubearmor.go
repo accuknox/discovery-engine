@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/accuknox/auto-policy-discovery/src/common"
+	"github.com/accuknox/auto-policy-discovery/src/config"
 	"github.com/accuknox/auto-policy-discovery/src/libs"
 	obs "github.com/accuknox/auto-policy-discovery/src/observability"
 	"github.com/accuknox/auto-policy-discovery/src/types"
@@ -364,9 +365,12 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 				}
 
 				KubeArmorRelayLogsMutex.Lock()
-				obs.ProcessKubearmorLog(res)
 				KubeArmorRelayLogs = append(KubeArmorRelayLogs, res)
 				KubeArmorRelayLogsMutex.Unlock()
+
+				if config.IsObservabilityEnabled() {
+					obs.ProcessKubearmorLog(res)
+				}
 			}
 		}
 	}(client)
@@ -409,9 +413,12 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 				}
 
 				KubeArmorRelayLogsMutex.Lock()
-				obs.ProcessKubearmorAlert(&log)
 				KubeArmorRelayLogs = append(KubeArmorRelayLogs, &log)
 				KubeArmorRelayLogsMutex.Unlock()
+
+				if config.IsObservabilityEnabled() {
+					obs.ProcessKubearmorAlert(&log)
+				}
 			}
 		}
 	}()

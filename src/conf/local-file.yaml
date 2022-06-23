@@ -27,6 +27,8 @@ application:
     #cluster-mgmt-url: "http://cluster-management-service.accuknox-dev-cluster-mgmt.svc.cluster.local/cm"
     cluster-mgmt-url: "http://localhost:8080"
 
+observability: false
+
 database:
   driver: sqlite3
   host: 127.0.0.1
