@@ -1,7 +1,6 @@
 package networkpolicy
 
 import (
-	"net"
 	"sort"
 	"strconv"
 	"strings"
@@ -234,7 +233,6 @@ type IcmpPortPair struct {
 
 func getDst(log types.KnoxNetworkLog, services []types.Service, cidrBits int) (Dst, bool) {
 	var httpInfo string
-	var labels []string
 
 	// check HTTP
 	if log.HTTPMethod != "" && log.HTTPPath != "" {
@@ -255,35 +253,37 @@ func getDst(log types.KnoxNetworkLog, services []types.Service, cidrBits int) (D
 	}
 
 	if log.DstPodName == "" {
-		// check CIDR (out of cluster)
-		if libs.ContainsElement(log.DstReservedLabels, ReservedWorld) && log.DstIP != "" {
-			cidr := ""
-			if svc, valid := checkK8sService(log, services); valid {
-				// 1. check if the dst IP belongs to a service
-				log.DstNamespace = svc.Namespace
-				for k, v := range svc.Selector {
-					labels = append(labels, k+"="+v)
+		/*
+			// check CIDR (out of cluster)
+			if libs.ContainsElement(log.DstReservedLabels, ReservedWorld) && log.DstIP != "" {
+				cidr := ""
+				if svc, valid := checkK8sService(log, services); valid {
+					// 1. check if the dst IP belongs to a service
+					log.DstNamespace = svc.Namespace
+					for k, v := range svc.Selector {
+						labels = append(labels, k+"="+v)
+					}
+				} else {
+					// 3. else, handle it as cidr policy
+					log.DstNamespace = "reserved:cidr"
+					ipNetwork := log.DstIP + "/" + strconv.Itoa(cidrBits)
+					_, network, _ := net.ParseCIDR(ipNetwork)
+					cidr = network.String()
 				}
-			} else {
-				// 3. else, handle it as cidr policy
-				log.DstNamespace = "reserved:cidr"
-				ipNetwork := log.DstIP + "/" + strconv.Itoa(cidrBits)
-				_, network, _ := net.ParseCIDR(ipNetwork)
-				cidr = network.String()
-			}
 
-			dst := Dst{
-				Namespace:   log.DstNamespace,
-				Additional:  cidr,
-				Protocol:    log.Protocol,
-				DstPort:     log.DstPort,
-				ICMPType:    log.ICMPType,
-				MatchLabels: strings.Join(labels, ","),
-				HTTP:        httpInfo,
-			}
+				dst := Dst{
+					Namespace:   log.DstNamespace,
+					Additional:  cidr,
+					Protocol:    log.Protocol,
+					DstPort:     log.DstPort,
+					ICMPType:    log.ICMPType,
+					MatchLabels: strings.Join(labels, ","),
+					HTTP:        httpInfo,
+				}
 
-			return dst, true
-		}
+				return dst, true
+			}
+		*/
 
 		// reserved entities -> host, remote-node, kube-apiserver
 		if len(log.DstReservedLabels) > 0 {
