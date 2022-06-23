@@ -59,6 +59,8 @@ data:
       cluster:
         cluster-info-from: "k8sclient"            # k8sclient|accuknox
 
+    observability: false
+
     database:
       driver: sqlite3
       host: mysql.explorer.svc.cluster.local

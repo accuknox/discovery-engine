@@ -99,6 +99,8 @@ type Configuration struct {
 	ConfigName string `json:"config_name,omitempty" bson:"config_name,omitempty"`
 	Status     int    `json:"status,omitempty" bson:"status,omitempty"`
 
+	Observability bool `json:"observability,omitempty" bson:"observability,omitempty"`
+
 	ConfigDB             ConfigDB             `json:"config_db,omitempty" bson:"config_db,omitempty"`
 	ConfigCiliumHubble   ConfigCiliumHubble   `json:"config_cilium_hubble,omitempty" bson:"config_cilium_hubble,omitempty"`
 	ConfigKubeArmorRelay ConfigKubeArmorRelay `json:"config_kubearmor_relay,omitempty" bson:"config_kubearmor_relay,omitempty"`
