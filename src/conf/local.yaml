@@ -24,7 +24,7 @@ application:
     cluster-mgmt-url: "http://localhost:8080"
 
 database:
-  driver: mysql
+  driver: sqlite3
   host: 127.0.0.1
   port: 3306
   user: root
@@ -47,8 +47,8 @@ feed-consumer:
     bootstrap-servers: "dev-kafka-kafka-external-bootstrap.accuknox-dev-kafka.svc.cluster.local:9095"
     group-id: knoxautopolicy
     topics: 
-      - cilium-telemetry-new
-      - kubearmor-syslogs
+      - cilium-alerts
+      - kubearmor-alerts
     security:
       protocol: SSL
     ssl:

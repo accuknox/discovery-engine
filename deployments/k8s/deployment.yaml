@@ -82,8 +82,8 @@ data:
         bootstrap-servers: "dev-kafka-kafka-bootstrap.accuknox-dev-kafka.svc.cluster.local:9092"
         group-id: policy.cilium
         topics:
-          - cilium-telemetry-new
-          - kubearmor-syslogs
+          - cilium-alerts
+          - kubearmor-alerts
         ssl:
           enabled: false
         events:
