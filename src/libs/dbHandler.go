@@ -273,7 +273,7 @@ func CreateTablesIfNotExist(cfg types.ConfigDB) {
 // =================== //
 // == Observability == //
 // =================== //
-func InsertKubearmorLogs(cfg types.ConfigDB, kubearmorLog types.KubeArmorLogAlert) error {
+func InsertKubearmorLogs(cfg types.ConfigDB, kubearmorLog types.KubeArmorLog) error {
 	var err = errors.New("unknown db driver")
 	if cfg.DBDriver == "mysql" {
 		err = InsertKubearmorLogsMySQL(cfg, kubearmorLog)
@@ -283,7 +283,7 @@ func InsertKubearmorLogs(cfg types.ConfigDB, kubearmorLog types.KubeArmorLogAler
 	return err
 }
 
-func UpdateKubearmorLogs(cfg types.ConfigDB, kubearmorLog types.KubeArmorLogAlert) error {
+func UpdateKubearmorLogs(cfg types.ConfigDB, kubearmorLog types.KubeArmorLog) error {
 	var err = errors.New("unknown db driver")
 	if cfg.DBDriver == "mysql" {
 		err = UpdateKubearmorLogsMySQL(cfg, kubearmorLog)
@@ -293,8 +293,8 @@ func UpdateKubearmorLogs(cfg types.ConfigDB, kubearmorLog types.KubeArmorLogAler
 	return err
 }
 
-func GetKubearmorLogs(cfg types.ConfigDB, filterLog types.KubeArmorLogAlert) ([]types.KubeArmorLogAlert, []uint32, error) {
-	kubearmorLog := []types.KubeArmorLogAlert{}
+func GetKubearmorLogs(cfg types.ConfigDB, filterLog types.KubeArmorLog) ([]types.KubeArmorLog, []uint32, error) {
+	kubearmorLog := []types.KubeArmorLog{}
 	totalCount := []uint32{}
 	var err = errors.New("unknown db driver")
 	if cfg.DBDriver == "mysql" {

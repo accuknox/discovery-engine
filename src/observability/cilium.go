@@ -188,28 +188,44 @@ func checkIfNetworkLogExist(netLog types.CiliumLog) (bool, error) {
 	return false, nil
 }
 
-func ProcessCiliumFlow(flowLog *flow.Flow) {
+func ProcessNetworkLogs() {
 	var isEntryExist bool
 
-	netLog, err := convertFlowLogToCiliumLog(flowLog)
-	if err != nil {
-		log.Error().Msg(err.Error())
-	} else {
+	if len(NetworkLogs) > 0 {
 
-		if isEntryExist, err = checkIfNetworkLogExist(netLog); err != nil {
-			log.Error().Msg(err.Error())
-		}
+		NetworkLogsMutex.Lock()
+		locNetLogs := NetworkLogs
+		NetworkLogs = []*flow.Flow{} //reset
+		NetworkLogsMutex.Unlock()
 
-		if isEntryExist {
-			if err := libs.UpdateCiliumLogs(CfgDB, netLog); err != nil {
+		for _, flowLog := range locNetLogs {
+
+			netLog, err := convertFlowLogToCiliumLog(flowLog)
+			if err != nil {
 				log.Error().Msg(err.Error())
-			}
-		} else {
-			if err := libs.InsertCiliumLogs(CfgDB, netLog); err != nil {
-				log.Error().Msg(err.Error())
+			} else {
+				if isEntryExist, err = checkIfNetworkLogExist(netLog); err != nil {
+					log.Error().Msg(err.Error())
+				}
+
+				if isEntryExist {
+					if err := libs.UpdateCiliumLogs(CfgDB, netLog); err != nil {
+						log.Error().Msg(err.Error())
+					}
+				} else {
+					if err := libs.InsertCiliumLogs(CfgDB, netLog); err != nil {
+						log.Error().Msg(err.Error())
+					}
+				}
 			}
 		}
 	}
+}
+
+func ProcessCiliumFlow(flowLog *flow.Flow) {
+	NetworkLogsMutex.Lock()
+	NetworkLogs = append(NetworkLogs, flowLog)
+	NetworkLogsMutex.Unlock()
 }
 
 func compareSrcDestFlow(src, dest types.CiliumLog) bool {

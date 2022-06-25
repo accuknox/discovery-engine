@@ -105,7 +105,7 @@ type SystemSummary struct {
 	Count       int32           `json:"Count,omitempty"`
 }
 
-type KubeArmorLogAlert struct {
+type KubeArmorLog struct {
 	Timestamp         int64  `json:"Timestamp,omitempty"`
 	UpdatedTime       int64  `json:"UpdatedTime,omitempty"`
 	ClusterName       string `json:"ClusterName,omitempty"`

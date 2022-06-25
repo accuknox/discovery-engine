@@ -840,7 +840,7 @@ func UpdateWorkloadProcessFileSetSQLite(cfg types.ConfigDB, wpfs types.WorkloadP
 }
 
 // InsertKubearmorLogsAlertsMySQL : Insert new kubearmor log/alert into DB
-func InsertKubearmorLogsSQLite(cfg types.ConfigDB, log types.KubeArmorLogAlert) error {
+func InsertKubearmorLogsSQLite(cfg types.ConfigDB, log types.KubeArmorLog) error {
 	db := connectSQLite(cfg)
 	defer db.Close()
 
@@ -880,7 +880,7 @@ func InsertKubearmorLogsSQLite(cfg types.ConfigDB, log types.KubeArmorLogAlert) 
 }
 
 // UpdateKubearmorLogsAlertsMySQL -- Update existing log/alert with time and count
-func UpdateKubearmorLogsSQLite(cfg types.ConfigDB, kubearmorlog types.KubeArmorLogAlert) error {
+func UpdateKubearmorLogsSQLite(cfg types.ConfigDB, kubearmorlog types.KubeArmorLog) error {
 	db := connectSQLite(cfg)
 	defer db.Close()
 
@@ -920,11 +920,11 @@ func UpdateKubearmorLogsSQLite(cfg types.ConfigDB, kubearmorlog types.KubeArmorL
 }
 
 // GetSystemLogsMySQL
-func GetSystemLogsSQLite(cfg types.ConfigDB, filterLog types.KubeArmorLogAlert) ([]types.KubeArmorLogAlert, []uint32, error) {
+func GetSystemLogsSQLite(cfg types.ConfigDB, filterLog types.KubeArmorLog) ([]types.KubeArmorLog, []uint32, error) {
 	db := connectSQLite(cfg)
 	defer db.Close()
 
-	resLog := []types.KubeArmorLogAlert{}
+	resLog := []types.KubeArmorLog{}
 	resTotal := []uint32{}
 
 	var results *sql.Rows
@@ -1020,7 +1020,7 @@ func GetSystemLogsSQLite(cfg types.ConfigDB, filterLog types.KubeArmorLogAlert) 
 	defer results.Close()
 
 	for results.Next() {
-		var loc_log types.KubeArmorLogAlert
+		var loc_log types.KubeArmorLog
 		var loc_total uint32
 		if err := results.Scan(
 			&loc_log.ClusterName,
