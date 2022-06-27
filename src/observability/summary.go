@@ -32,7 +32,7 @@ func fetchSysServerConnDetail(data string, res string) (types.SysNwConnDetail, e
 	} else if strings.Contains(data, "SYS_ACCEPT") {
 		conn.InOut = "IN"
 	} else {
-		return conn, errors.New("not a valid incoming/outgoing connection")
+		return types.SysNwConnDetail{}, errors.New("not a valid incoming/outgoing connection")
 	}
 
 	// get AF detail
@@ -41,7 +41,7 @@ func fetchSysServerConnDetail(data string, res string) (types.SysNwConnDetail, e
 	} else if strings.Contains(res, "AF_UNIX") {
 		conn.AddFamily = "AF_UNIX"
 	} else {
-		return conn, errors.New("not a valid incoming/outgoing connection")
+		return types.SysNwConnDetail{}, errors.New("not a valid incoming/outgoing connection")
 	}
 
 	if conn.AddFamily == "AF_INET" {
@@ -49,9 +49,13 @@ func fetchSysServerConnDetail(data string, res string) (types.SysNwConnDetail, e
 		for _, locres := range resslice {
 			if strings.Contains(locres, "sin_addr") {
 				conn.Path = strings.Split(locres, "=")[1]
+			} else {
+				return types.SysNwConnDetail{}, errors.New("address empty")
 			}
 			if strings.Contains(locres, "sin_port") {
 				conn.Path = conn.Path + ":" + strings.Split(locres, "=")[1]
+			} else {
+				return types.SysNwConnDetail{}, errors.New("port empty")
 			}
 		}
 	} else if conn.AddFamily == "AF_UNIX" {
