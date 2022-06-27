@@ -410,6 +410,7 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 					Resource:      res.Resource,
 					Data:          res.Data,
 					Result:        res.Result,
+					Type:          res.Type,
 				}
 
 				KubeArmorRelayLogsMutex.Lock()

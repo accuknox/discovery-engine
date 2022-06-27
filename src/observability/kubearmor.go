@@ -9,8 +9,8 @@ import (
 	pb "github.com/kubearmor/KubeArmor/protobuf"
 )
 
-func convertKubearmorPbLogToKubearmorLog(pbLog pb.Log) types.KubeArmorLogAlert {
-	return types.KubeArmorLogAlert{
+func convertKubearmorPbLogToKubearmorLog(pbLog pb.Log) types.KubeArmorLog {
+	return types.KubeArmorLog{
 		ClusterName:       pbLog.ClusterName,
 		HostName:          pbLog.HostName,
 		NamespaceName:     pbLog.NamespaceName,
@@ -37,71 +37,70 @@ func convertKubearmorPbLogToKubearmorLog(pbLog pb.Log) types.KubeArmorLogAlert {
 	}
 }
 
-func ProcessKubearmorLog(kubearmorLog *pb.Log) {
+func ProcessSystemLogs() {
 	var isEntryExist bool
 	var err error
 
-	locPbLog := pb.Log{}
+	if len(SystemLogs) > 0 {
 
-	locAlertLog := types.KubeArmorLogAlert{}
-	resAlertLog := types.KubeArmorLogAlert{}
+		//SystemLogsMutex.Lock()
+		locSysLogs := SystemLogs
+		SystemLogs = []*pb.Log{} //reset
+		//SystemLogsMutex.Unlock()
 
-	jsonLog, _ := json.Marshal(kubearmorLog)
-	if err := json.Unmarshal(jsonLog, &locPbLog); err != nil {
-		log.Error().Msg(err.Error())
-		return
-	}
+		for _, kubearmorLog := range locSysLogs {
 
-	locAlertLog = convertKubearmorPbLogToKubearmorLog(locPbLog)
-	locAlertLog.Action = "Allow"
-	locAlertLog.Category = "Log"
+			locPbLog := pb.Log{}
 
-	if isEntryExist, resAlertLog, err = checkIfSystemLogExist(locAlertLog); err != nil {
-		log.Error().Msg(err.Error())
-		return
-	}
+			var locLog, resLog types.KubeArmorLog
 
-	if isEntryExist {
-		resAlertLog.Timestamp = locAlertLog.Timestamp
-		if err := libs.UpdateKubearmorLogs(CfgDB, resAlertLog); err != nil {
-			log.Error().Msg(err.Error())
+			jsonLog, _ := json.Marshal(kubearmorLog)
+			if err := json.Unmarshal(jsonLog, &locPbLog); err != nil {
+				log.Error().Msg(err.Error())
+				return
+			}
+
+			locLog = convertKubearmorPbLogToKubearmorLog(locPbLog)
+
+			if locLog.Type == "MatchedPolicy" || locLog.Type == "MatchedHostPolicy" {
+				locLog.Category = "Alert"
+			} else {
+				locLog.Action = "Allow"
+				locLog.Category = "Log"
+			}
+
+			if isEntryExist, resLog, err = checkIfSystemLogExist(locLog); err != nil {
+				log.Error().Msg(err.Error())
+				return
+			}
+
+			if isEntryExist {
+				resLog.Timestamp = locLog.Timestamp
+				if err := libs.UpdateKubearmorLogs(CfgDB, resLog); err != nil {
+					log.Error().Msg(err.Error())
+				}
+			} else {
+				if err := libs.InsertKubearmorLogs(CfgDB, locLog); err != nil {
+					log.Error().Msg(err.Error())
+				}
+			}
 		}
-	} else {
-		if err := libs.InsertKubearmorLogs(CfgDB, locAlertLog); err != nil {
-			log.Error().Msg(err.Error())
-		}
 	}
+}
+
+func ProcessKubearmorLog(kubearmorLog *pb.Log) {
+	SystemLogsMutex.Lock()
+	SystemLogs = append(SystemLogs, kubearmorLog)
+	SystemLogsMutex.Unlock()
 }
 
 func ProcessKubearmorAlert(kubearmorAlert *pb.Log) {
-	var isEntryExist bool
-	var err error
-
-	locPbLog := pb.Log{}
-	locAlertLog := types.KubeArmorLogAlert{}
-	resAlertLog := types.KubeArmorLogAlert{}
-
-	jsonLog, _ := json.Marshal(kubearmorAlert)
-	if err = json.Unmarshal(jsonLog, &locPbLog); err != nil {
-		log.Error().Msg(err.Error())
-		return
-	}
-	locAlertLog = convertKubearmorPbLogToKubearmorLog(locPbLog)
-	locAlertLog.Action = "Alert"
-
-	if isEntryExist {
-		resAlertLog.Timestamp = locAlertLog.Timestamp
-		if err := libs.UpdateKubearmorLogs(CfgDB, resAlertLog); err != nil {
-			log.Error().Msg(err.Error())
-		}
-	} else {
-		if err := libs.InsertKubearmorLogs(CfgDB, locAlertLog); err != nil {
-			log.Error().Msg(err.Error())
-		}
-	}
+	SystemLogsMutex.Lock()
+	SystemLogs = append(SystemLogs, kubearmorAlert)
+	SystemLogsMutex.Unlock()
 }
 
-func compareSrcDestLogAlert(src types.KubeArmorLogAlert, dest types.KubeArmorLogAlert) bool {
+func compareSrcDestLogAlert(src types.KubeArmorLog, dest types.KubeArmorLog) bool {
 	if src.ClusterName == dest.ClusterName && src.HostName == dest.HostName && src.NamespaceName == dest.NamespaceName &&
 		src.PodName == dest.PodName && src.ContainerID == dest.ContainerID && src.ContainerName == dest.ContainerName &&
 		src.UID == dest.UID && src.Type == dest.Type && src.Source == dest.Source && src.Operation == dest.Operation &&
@@ -113,8 +112,8 @@ func compareSrcDestLogAlert(src types.KubeArmorLogAlert, dest types.KubeArmorLog
 	}
 }
 
-func checkIfSystemLogExist(logAlert types.KubeArmorLogAlert) (bool, types.KubeArmorLogAlert, error) {
-	locLogAlert := types.KubeArmorLogAlert{}
+func checkIfSystemLogExist(logAlert types.KubeArmorLog) (bool, types.KubeArmorLog, error) {
+	locLogAlert := types.KubeArmorLog{}
 
 	locLogAlert.ClusterName = logAlert.ClusterName
 	locLogAlert.HostName = logAlert.HostName
@@ -136,7 +135,7 @@ func checkIfSystemLogExist(logAlert types.KubeArmorLogAlert) (bool, types.KubeAr
 	destLogAlert, _, err := libs.GetKubearmorLogs(CfgDB, locLogAlert)
 	if err != nil {
 		log.Error().Msg(err.Error())
-		return false, types.KubeArmorLogAlert{}, err
+		return false, types.KubeArmorLog{}, err
 	}
 
 	for _, locDestLogAlert := range destLogAlert {
@@ -145,5 +144,5 @@ func checkIfSystemLogExist(logAlert types.KubeArmorLogAlert) (bool, types.KubeAr
 		}
 	}
 
-	return false, types.KubeArmorLogAlert{}, nil
+	return false, types.KubeArmorLog{}, nil
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/accuknox/auto-policy-discovery/src/feedconsumer"
 	"github.com/accuknox/auto-policy-discovery/src/libs"
 	logger "github.com/accuknox/auto-policy-discovery/src/logging"
+	"github.com/accuknox/auto-policy-discovery/src/observability"
 	"github.com/accuknox/auto-policy-discovery/src/plugin"
 	"github.com/accuknox/auto-policy-discovery/src/types"
 	"github.com/google/go-cmp/cmp"
@@ -1704,6 +1705,13 @@ func StartNetworkCronJob() {
 	if err != nil {
 		log.Error().Msg(err.Error())
 		return
+	}
+	if cfg.CurrentCfg.Observability {
+		err := NetworkCronJob.AddFunc(cfg.GetCfgSysCronJobTime(), observability.NetworkLogCronJob) // time interval
+		if err != nil {
+			log.Error().Msg(err.Error())
+			return
+		}
 	}
 	NetworkCronJob.Start()
 

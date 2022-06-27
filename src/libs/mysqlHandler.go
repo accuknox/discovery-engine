@@ -860,7 +860,7 @@ func UpdateWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadPr
 }
 
 // InsertKubearmorLogsMySQL : Insert new kubearmor log/alert into DB
-func InsertKubearmorLogsMySQL(cfg types.ConfigDB, log types.KubeArmorLogAlert) error {
+func InsertKubearmorLogsMySQL(cfg types.ConfigDB, log types.KubeArmorLog) error {
 	db := connectMySQL(cfg)
 	defer db.Close()
 
@@ -900,7 +900,7 @@ func InsertKubearmorLogsMySQL(cfg types.ConfigDB, log types.KubeArmorLogAlert) e
 }
 
 // UpdateKubearmorLogsMySQL -- Update existing log/alert with time and count
-func UpdateKubearmorLogsMySQL(cfg types.ConfigDB, kubearmorlog types.KubeArmorLogAlert) error {
+func UpdateKubearmorLogsMySQL(cfg types.ConfigDB, kubearmorlog types.KubeArmorLog) error {
 	db := connectMySQL(cfg)
 	defer db.Close()
 
@@ -940,11 +940,11 @@ func UpdateKubearmorLogsMySQL(cfg types.ConfigDB, kubearmorlog types.KubeArmorLo
 }
 
 // GetSystemLogsMySQL
-func GetSystemLogsMySQL(cfg types.ConfigDB, filterLog types.KubeArmorLogAlert) ([]types.KubeArmorLogAlert, []uint32, error) {
+func GetSystemLogsMySQL(cfg types.ConfigDB, filterLog types.KubeArmorLog) ([]types.KubeArmorLog, []uint32, error) {
 	db := connectMySQL(cfg)
 	defer db.Close()
 
-	resLog := []types.KubeArmorLogAlert{}
+	resLog := []types.KubeArmorLog{}
 	resTotal := []uint32{}
 
 	var results *sql.Rows
@@ -1040,7 +1040,7 @@ func GetSystemLogsMySQL(cfg types.ConfigDB, filterLog types.KubeArmorLogAlert) (
 	defer results.Close()
 
 	for results.Next() {
-		var loc_log types.KubeArmorLogAlert
+		var loc_log types.KubeArmorLog
 		var loc_total uint32
 		if err := results.Scan(
 			&loc_log.ClusterName,
