@@ -41,8 +41,8 @@ feed-consumer:
     bootstrap-servers: "dev-kafka-kafka-bootstrap.accuknox-dev-kafka.svc.cluster.local:9092"
     group-id: policy.cilium
     topics: 
-      - cilium-telemetry-test
-      - kubearmor-syslogs
+      - cilium-alerts
+      - kubearmor-alerts
     ssl:
       enabled: false
     events:
