@@ -299,7 +299,7 @@ func GetSystemPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) ([
 	var results *sql.Rows
 	var err error
 
-	query := "SELECT apiVersion,kind,name,clusterName,namespace,type,status,outdated,spec,generatedTime FROM " + TableSystemPolicy_TableName
+	query := "SELECT apiVersion,kind,name,clusterName,namespace,type,status,outdated,spec,generatedTime,updatedTime,latest FROM " + TableSystemPolicy_TableName
 
 	if namespace != "" && status != "" {
 		query = query + " WHERE namespace = ? and status = ? "
@@ -339,6 +339,8 @@ func GetSystemPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) ([
 			&policy.Outdated,
 			&specByte,
 			&policy.GeneratedTime,
+			&policy.UpdatedTime,
+			&policy.Latest,
 		); err != nil {
 			return nil, err
 		}
@@ -364,7 +366,7 @@ func GetSystemPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) ([
 }
 
 func insertSystemPolicy(cfg types.ConfigDB, db *sql.DB, policy types.KnoxSystemPolicy) error {
-	stmt, err := db.Prepare("INSERT INTO " + TableSystemPolicy_TableName + "(apiVersion,kind,name,clusterName,namespace,type,status,outdated,spec,generatedTime) values(?,?,?,?,?,?,?,?,?,?)")
+	stmt, err := db.Prepare("INSERT INTO " + TableSystemPolicy_TableName + "(apiVersion,kind,name,clusterName,namespace,type,status,outdated,spec,generatedTime,updatedTime,latest) values(?,?,?,?,?,?,?,?,?,?,?,?)")
 	if err != nil {
 		return err
 	}
@@ -386,7 +388,9 @@ func insertSystemPolicy(cfg types.ConfigDB, db *sql.DB, policy types.KnoxSystemP
 		policy.Metadata["status"],
 		policy.Outdated,
 		spec,
-		policy.GeneratedTime)
+		ConvertStrToUnixTime("now"),
+		ConvertStrToUnixTime("now"),
+		true)
 	if err != nil {
 		return err
 	}
@@ -413,7 +417,7 @@ func UpdateSystemPolicyToMySQL(cfg types.ConfigDB, policy types.KnoxSystemPolicy
 
 	// set status -> outdated
 	stmt, err := db.Prepare("UPDATE " + TableSystemPolicy_TableName +
-		" SET apiVersion=?,kind=?,clusterName=?,namespace=?,type=?,status=?,outdated=?,spec=?,generatedTime=? WHERE name = ?")
+		" SET apiVersion=?,kind=?,clusterName=?,namespace=?,type=?,status=?,outdated=?,spec=?,updatedTime=?,latest=? WHERE name = ?")
 	if err != nil {
 		return err
 	}
@@ -434,7 +438,8 @@ func UpdateSystemPolicyToMySQL(cfg types.ConfigDB, policy types.KnoxSystemPolicy
 		policy.Metadata["status"],
 		policy.Outdated,
 		spec,
-		policy.GeneratedTime,
+		ConvertStrToUnixTime("now"),
+		true,
 		policy.Metadata["name"])
 	if err != nil {
 		return err
@@ -530,7 +535,9 @@ func CreateTableSystemPolicyMySQL(cfg types.ConfigDB) error {
 			"	`status` varchar(10) DEFAULT NULL," +
 			"	`outdated` varchar(50) DEFAULT NULL," +
 			"	`spec` JSON DEFAULT NULL," +
-			"	`generatedTime` int DEFAULT NULL," +
+			"	`generatedTime` bigint NOT NULL," +
+			"	`updatedTime` bigint NOT NULL," +
+			"	`latest` BOOLEAN," +
 			"	PRIMARY KEY (`id`)" +
 			"  );"
 
