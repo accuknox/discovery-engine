@@ -371,7 +371,6 @@ func insertSystemPolicy(cfg types.ConfigDB, db *sql.DB, policy types.KnoxSystemP
 		return err
 	}
 	defer stmt.Close()
-	time := ConvertStrToUnixTime("now")
 
 	specPointer := &policy.Spec
 	spec, err := json.Marshal(specPointer)
@@ -389,8 +388,8 @@ func insertSystemPolicy(cfg types.ConfigDB, db *sql.DB, policy types.KnoxSystemP
 		policy.Metadata["status"],
 		policy.Outdated,
 		spec,
-		time,
-		time,
+		ConvertStrToUnixTime("now"),
+		ConvertStrToUnixTime("now"),
 		true)
 	if err != nil {
 		return err
@@ -536,8 +535,8 @@ func CreateTableSystemPolicyMySQL(cfg types.ConfigDB) error {
 			"	`status` varchar(10) DEFAULT NULL," +
 			"	`outdated` varchar(50) DEFAULT NULL," +
 			"	`spec` JSON DEFAULT NULL," +
-			"	`generatedTime` bigint DEFAULT NULL," +
-			"	`updatedTime` bigint DEFAULT NULL," +
+			"	`generatedTime` bigint NOT NULL," +
+			"	`updatedTime` bigint NOT NULL," +
 			"	`latest` BOOLEAN," +
 			"	PRIMARY KEY (`id`)" +
 			"  );"

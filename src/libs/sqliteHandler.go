@@ -361,7 +361,6 @@ func insertSystemPolicySQLite(cfg types.ConfigDB, db *sql.DB, policy types.KnoxS
 		return err
 	}
 	defer stmt.Close()
-	time := ConvertStrToUnixTime("now")
 
 	specPointer := &policy.Spec
 	spec, err := json.Marshal(specPointer)
@@ -379,8 +378,8 @@ func insertSystemPolicySQLite(cfg types.ConfigDB, db *sql.DB, policy types.KnoxS
 		policy.Metadata["status"],
 		policy.Outdated,
 		spec,
-		time,
-		time,
+		ConvertStrToUnixTime("now"),
+		ConvertStrToUnixTime("now"),
 		true)
 	if err != nil {
 		return err
@@ -514,8 +513,8 @@ func CreateTableSystemPolicySQLite(cfg types.ConfigDB) error {
 			"	`status` varchar(10) DEFAULT NULL," +
 			"	`outdated` varchar(50) DEFAULT NULL," +
 			"	`spec` JSON DEFAULT NULL," +
-			"	`generatedTime` bigint DEFAULT NULL," +
-			"	`updatedTime` bigint DEFAULT NULL," +
+			"	`generatedTime` bigint NOT NULL," +
+			"	`updatedTime` bigint NOT NULL," +
 			"	`latest` BOOLEAN," +
 			"	PRIMARY KEY (`id`)" +
 			"  );"
