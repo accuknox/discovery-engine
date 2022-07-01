@@ -253,6 +253,8 @@ type KnoxSystemPolicy struct {
 	Spec KnoxSystemSpec `json:"spec,omitempty" yaml:"spec,omitempty" bson:"spec,omitempty"`
 
 	GeneratedTime int64 `json:"generatedTime,omitempty" yaml:"generatedTime,omitempty" bson:"generatedTime,omitempty"`
+	UpdatedTime   int64 `json:"updatedTime,omitempty" yaml:"updatedTime,omitempty" bson:"updatedTime,omitempty"`
+	Latest        int64 `json:"latest,omitempty" yaml:"latest,omitempty" bson:"latest,omitempty"`
 }
 
 // ============================= //
