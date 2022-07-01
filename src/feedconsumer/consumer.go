@@ -115,11 +115,11 @@ func (cfc *KnoxFeedConsumer) HandlePollEvent(ev interface{}) bool {
 	run := true
 	switch e := ev.(type) {
 	case *kafka.Message:
-		if *e.TopicPartition.Topic != "kubearmor-syslogs" { // cilium-hubble
+		if *e.TopicPartition.Topic != "kubearmor-alerts" { // cilium-hubble
 			if err := cfc.processNetworkLogMessage(e.Value); err != nil {
 				log.Error().Msg(err.Error())
 			}
-		} else { // kubearmor-syslogs
+		} else { // kubearmor-alerts
 			if err := cfc.processSystemLogMessage(e.Value); err != nil {
 				log.Error().Msg(err.Error())
 			}

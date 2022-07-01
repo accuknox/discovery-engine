@@ -1038,11 +1038,11 @@ func PopulateSystemPoliciesFromSystemLogs(sysLogs []types.KnoxSystemLog) []types
 	// get cluster names, iterate each cluster
 	clusteredLogs := clusteringSystemLogsByCluster(sysLogs)
 
+	existingPolicies := libs.GetSystemPolicies(CfgDB, "", "")
+	log.Info().Msgf("len(tot-syslogs):%d len(existingPolicies):%d", len(sysLogs), len(existingPolicies))
 	for clusterName, sysLogs := range clusteredLogs {
 		// get existing system policies in db
-		existingPolicies := libs.GetSystemPolicies(CfgDB, "", "")
-		log.Info().Msgf("System policy discovery started for cluster [%s] len(existingPolicies):%d len(sysLogs):%d",
-			clusterName, len(existingPolicies), len(sysLogs))
+		log.Info().Msgf("system policy discovery cluster [%s] len(sysLogs):%d", clusterName, len(sysLogs))
 
 		// get k8s pods
 		pods := cluster.GetPods(clusterName)
