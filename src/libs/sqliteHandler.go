@@ -83,7 +83,7 @@ func GetNetworkPoliciesFromSQLite(cfg types.ConfigDB, cluster, namespace, status
 	var results *sql.Rows
 	var err error
 
-	query := "SELECT apiVersion,kind,flow_ids,name,cluster_name,namespace,type,rule,status,outdated,spec,generatedTime FROM " + TableNetworkPolicySQLite_TableName
+	query := "SELECT apiVersion,kind,flow_ids,name,cluster_name,namespace,type,rule,status,outdated,spec,generatedTime,updatedTime,latest FROM " + TableNetworkPolicySQLite_TableName
 	if cluster != "" && namespace != "" && status != "" {
 		query = query + " WHERE cluster_name = ? and namespace = ? and status = ? "
 		results, err = db.Query(query, cluster, namespace, status)
@@ -130,6 +130,8 @@ func GetNetworkPoliciesFromSQLite(cfg types.ConfigDB, cluster, namespace, status
 			&policy.Outdated,
 			&specByte,
 			&policy.GeneratedTime,
+			&policy.UpdatedTime,
+			&policy.Latest,
 		); err != nil {
 			return nil, err
 		}
@@ -194,7 +196,7 @@ func UpdateOutdatedNetworkPolicyFromSQLite(cfg types.ConfigDB, outdatedPolicy st
 }
 
 func insertNetworkPolicySQLite(cfg types.ConfigDB, db *sql.DB, policy types.KnoxNetworkPolicy) error {
-	stmt, err := db.Prepare("INSERT INTO " + TableNetworkPolicySQLite_TableName + "(apiVersion,kind,flow_ids,name,cluster_name,namespace,type,rule,status,outdated,spec,generatedTime) values(?,?,?,?,?,?,?,?,?,?,?,?)")
+	stmt, err := db.Prepare("INSERT INTO " + TableNetworkPolicySQLite_TableName + "(apiVersion,kind,flow_ids,name,cluster_name,namespace,type,rule,status,outdated,spec,generatedTime,updatedTime,latest) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
 	if err != nil {
 		return err
 	}
@@ -223,7 +225,9 @@ func insertNetworkPolicySQLite(cfg types.ConfigDB, db *sql.DB, policy types.Knox
 		policy.Metadata["status"],
 		policy.Outdated,
 		spec,
-		policy.GeneratedTime)
+		ConvertStrToUnixTime("now"),
+		ConvertStrToUnixTime("now"),
+		true)
 	if err != nil {
 		return err
 	}
@@ -289,7 +293,7 @@ func GetSystemPoliciesFromSQLite(cfg types.ConfigDB, namespace, status string) (
 	var results *sql.Rows
 	var err error
 
-	query := "SELECT apiVersion,kind,name,clusterName,namespace,type,status,outdated,spec,generatedTime FROM " + TableSystemPolicySQLite_TableName
+	query := "SELECT apiVersion,kind,name,clusterName,namespace,type,status,outdated,spec,generatedTime,updatedTime,latest FROM " + TableSystemPolicySQLite_TableName
 
 	if namespace != "" && status != "" {
 		query = query + " WHERE namespace = ? and status = ? "
@@ -329,6 +333,8 @@ func GetSystemPoliciesFromSQLite(cfg types.ConfigDB, namespace, status string) (
 			&policy.Outdated,
 			&specByte,
 			&policy.GeneratedTime,
+			&policy.UpdatedTime,
+			&policy.Latest,
 		); err != nil {
 			return nil, err
 		}
@@ -354,7 +360,7 @@ func GetSystemPoliciesFromSQLite(cfg types.ConfigDB, namespace, status string) (
 }
 
 func insertSystemPolicySQLite(cfg types.ConfigDB, db *sql.DB, policy types.KnoxSystemPolicy) error {
-	stmt, err := db.Prepare("INSERT INTO " + TableSystemPolicySQLite_TableName + "(apiVersion,kind,name,clusterName,namespace,type,status,outdated,spec,generatedTime) values(?,?,?,?,?,?,?,?,?,?)")
+	stmt, err := db.Prepare("INSERT INTO " + TableSystemPolicySQLite_TableName + "(apiVersion,kind,name,clusterName,namespace,type,status,outdated,spec,generatedTime,updatedTime,latest) values(?,?,?,?,?,?,?,?,?,?,?,?)")
 	if err != nil {
 		return err
 	}
@@ -376,7 +382,9 @@ func insertSystemPolicySQLite(cfg types.ConfigDB, db *sql.DB, policy types.KnoxS
 		policy.Metadata["status"],
 		policy.Outdated,
 		spec,
-		policy.GeneratedTime)
+		ConvertStrToUnixTime("now"),
+		ConvertStrToUnixTime("now"),
+		true)
 	if err != nil {
 		return err
 	}
@@ -403,7 +411,7 @@ func UpdateSystemPolicyToSQLite(cfg types.ConfigDB, policy types.KnoxSystemPolic
 
 	// set status -> outdated
 	stmt, err := db.Prepare("UPDATE " + TableSystemPolicySQLite_TableName +
-		" SET apiVersion=?,kind=?,clusterName=?,namespace=?,type=?,status=?,outdated=?,spec=?,generatedTime=? WHERE name = ?")
+		" SET apiVersion=?,kind=?,clusterName=?,namespace=?,type=?,status=?,outdated=?,spec=?,updatedTime=?,latest=? WHERE name = ?")
 	if err != nil {
 		return err
 	}
@@ -424,7 +432,8 @@ func UpdateSystemPolicyToSQLite(cfg types.ConfigDB, policy types.KnoxSystemPolic
 		policy.Metadata["status"],
 		policy.Outdated,
 		spec,
-		policy.GeneratedTime,
+		ConvertStrToUnixTime("now"),
+		true,
 		policy.Metadata["name"])
 	if err != nil {
 		return err
@@ -479,7 +488,9 @@ func CreateTableNetworkPolicySQLite(cfg types.ConfigDB) error {
 			"	`status` varchar(10) DEFAULT NULL," +
 			"	`outdated` varchar(50) DEFAULT NULL," +
 			"	`spec` JSON DEFAULT NULL," +
-			"	`generatedTime` int DEFAULT NULL," +
+			"	`generatedTime` bigint NOT NULL," +
+			"	`updatedTime` bigint NOT NULL," +
+			"	`latest` BOOLEAN," +
 			"	PRIMARY KEY (`id`)" +
 			"  );"
 
@@ -508,7 +519,9 @@ func CreateTableSystemPolicySQLite(cfg types.ConfigDB) error {
 			"	`status` varchar(10) DEFAULT NULL," +
 			"	`outdated` varchar(50) DEFAULT NULL," +
 			"	`spec` JSON DEFAULT NULL," +
-			"	`generatedTime` int DEFAULT NULL," +
+			"	`generatedTime` bigint NOT NULL," +
+			"	`updatedTime` bigint NOT NULL," +
+			"	`latest` BOOLEAN," +
 			"	PRIMARY KEY (`id`)" +
 			"  );"
 
