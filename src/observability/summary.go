@@ -25,6 +25,7 @@ func deDuplicateServerInOutConn(connList []types.SysNwConnDetail) []types.SysNwC
 
 func fetchSysServerConnDetail(data string, res string) (types.SysNwConnDetail, error) {
 	conn := types.SysNwConnDetail{}
+	err := errors.New("not a valid incoming/outgoing connection")
 
 	// get Syscall
 	if strings.Contains(data, "SYS_CONNECT") {
@@ -32,35 +33,39 @@ func fetchSysServerConnDetail(data string, res string) (types.SysNwConnDetail, e
 	} else if strings.Contains(data, "SYS_ACCEPT") {
 		conn.InOut = "IN"
 	} else {
-		return conn, errors.New("not a valid incoming/outgoing connection")
+		return types.SysNwConnDetail{}, err
 	}
 
 	// get AF detail
 	if strings.Contains(res, "AF_INET") {
+		var ip, port string
 		conn.AddFamily = "AF_INET"
-	} else if strings.Contains(res, "AF_UNIX") {
-		conn.AddFamily = "AF_UNIX"
-	} else {
-		return conn, errors.New("not a valid incoming/outgoing connection")
-	}
-
-	if conn.AddFamily == "AF_INET" {
 		resslice := strings.Split(res, " ")
 		for _, locres := range resslice {
 			if strings.Contains(locres, "sin_addr") {
-				conn.Path = strings.Split(locres, "=")[1]
+				ip = strings.Split(locres, "=")[1]
 			}
 			if strings.Contains(locres, "sin_port") {
-				conn.Path = conn.Path + ":" + strings.Split(locres, "=")[1]
+				port = strings.Split(locres, "=")[1]
+			}
+			if ip == "" && port == "" {
+				return types.SysNwConnDetail{}, err
+			} else {
+				conn.Path = ip + ":" + port
 			}
 		}
-	} else if conn.AddFamily == "AF_UNIX" {
+	} else if strings.Contains(res, "AF_UNIX") {
+		conn.AddFamily = "AF_UNIX"
 		resslice := strings.Split(res, " ")
 		for _, locres := range resslice {
 			if strings.Contains(locres, "sun_path") {
 				conn.Path = strings.Split(locres, "=")[1]
+			} else {
+				return types.SysNwConnDetail{}, err
 			}
 		}
+	} else {
+		return types.SysNwConnDetail{}, err
 	}
 
 	return conn, nil
@@ -114,7 +119,7 @@ func GetSummaryLogs(pbRequest *opb.LogsRequest, stream opb.Summary_FetchLogsServ
 	for sysindex, locSysLog := range systemLogs {
 		nwConnDetail := types.SysNwConnDetail{}
 		if locSysLog.Operation == "Network" {
-			nwConnDetail, err = fetchSysServerConnDetail(locSysLog.Data, locSysLog.Resource)
+			nwConnDetail, _ = fetchSysServerConnDetail(locSysLog.Data, locSysLog.Resource)
 		}
 		systemPods[locSysLog.PodName] = append(systemPods[locSysLog.PodName], types.SystemSummary{
 			Operation:   locSysLog.Operation,
