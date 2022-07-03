@@ -2,6 +2,7 @@ package observability
 
 import (
 	"errors"
+	"net"
 	"regexp"
 	"strings"
 
@@ -51,7 +52,7 @@ func fetchSysServerConnDetail(data string, res string) (types.SysNwConnDetail, e
 			if ip == "" && port == "" {
 				return types.SysNwConnDetail{}, err
 			} else {
-				conn.Path = ip + ":" + port
+				conn.Path = net.JoinHostPort(GetPodName(ip), port)
 			}
 		}
 	} else if strings.Contains(res, "AF_UNIX") {

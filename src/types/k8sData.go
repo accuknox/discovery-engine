@@ -1,5 +1,7 @@
 package types
 
+import v1 "k8s.io/api/core/v1"
+
 // Mapping Structure
 type Mapping struct {
 	Protocol string `json:"protocol" bson:"protocol"`
@@ -41,4 +43,11 @@ type Pod struct {
 	Namespace string   `json:"namespace" bson:"namespace"`
 	PodName   string   `json:"pod_name" bson:"pod_name"`
 	Labels    []string `json:"labels" bson:"labels"`
+	IP        string   `json:"ip" bson:"ip"`
+}
+
+// K8sPodEvent Structure
+type K8sPodEvent struct {
+	Type   string `json:"type"`
+	Object v1.Pod `json:"object"`
 }

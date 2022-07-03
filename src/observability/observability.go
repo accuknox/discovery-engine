@@ -3,6 +3,7 @@ package observability
 import (
 	"sync"
 
+	"github.com/accuknox/auto-policy-discovery/src/cluster"
 	cfg "github.com/accuknox/auto-policy-discovery/src/config"
 	logger "github.com/accuknox/auto-policy-discovery/src/logging"
 	"github.com/accuknox/auto-policy-discovery/src/types"
@@ -24,6 +25,8 @@ var (
 	// Hubble relay logs
 	NetworkLogs      []*flow.Flow
 	NetworkLogsMutex *sync.Mutex
+	// Pods
+	Pods []types.Pod
 )
 
 // =================== //
@@ -37,6 +40,16 @@ func InitObservability() {
 	// Init Mutex
 	SystemLogsMutex = &sync.Mutex{}
 	NetworkLogsMutex = &sync.Mutex{}
+
+	// update pod list from existing pods
+	pods := cluster.GetPodsFromK8sClient()
+	for _, pod := range pods {
+		if pod.IP != "" && pod.PodName != "" {
+			addPodToList(pod)
+		}
+	}
+
+	go WatchK8sPods()
 }
 
 func SystemLogCronJob() {

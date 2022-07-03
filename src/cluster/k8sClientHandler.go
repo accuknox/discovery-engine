@@ -23,7 +23,33 @@ import (
 var parsed bool = false
 var kubeconfig *string
 
-func isInCluster() bool {
+func GetK8sClientConfig() (string, string, string) {
+	var host, port, token string
+
+	if val, ok := os.LookupEnv("KUBERNETES_SERVICE_HOST"); ok {
+		host = val
+	} else {
+		host = "127.0.0.1"
+	}
+
+	if val, ok := os.LookupEnv("KUBERNETES_PORT_443_TCP_PORT"); ok {
+		port = val
+	} else {
+		port = "6443"
+	}
+
+	read, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/token")
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return "", "", ""
+	}
+
+	token = string(read)
+
+	return host, port, token
+}
+
+func IsInCluster() bool {
 	if _, ok := os.LookupEnv("KUBERNETES_PORT"); ok {
 		return true
 	}
@@ -32,7 +58,7 @@ func isInCluster() bool {
 }
 
 func ConnectK8sClient() *kubernetes.Clientset {
-	if isInCluster() {
+	if IsInCluster() {
 		return ConnectInClusterAPIClient()
 	}
 
@@ -81,29 +107,8 @@ func ConnectLocalAPIClient() *kubernetes.Clientset {
 }
 
 func ConnectInClusterAPIClient() *kubernetes.Clientset {
-	host := ""
-	port := ""
-	token := ""
 
-	if val, ok := os.LookupEnv("KUBERNETES_SERVICE_HOST"); ok {
-		host = val
-	} else {
-		host = "127.0.0.1"
-	}
-
-	if val, ok := os.LookupEnv("KUBERNETES_PORT_443_TCP_PORT"); ok {
-		port = val
-	} else {
-		port = "6443"
-	}
-
-	read, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/token")
-	if err != nil {
-		log.Error().Msg(err.Error())
-		return nil
-	}
-
-	token = string(read)
+	host, port, token := GetK8sClientConfig()
 
 	// create the configuration by token
 	kubeConfig := &rest.Config{
@@ -181,6 +186,7 @@ func GetPodsFromK8sClient() []types.Pod {
 			Namespace: pod.Namespace,
 			PodName:   pod.Name,
 			Labels:    []string{},
+			IP:        pod.Status.PodIP,
 		}
 
 		for k, v := range pod.Labels {
