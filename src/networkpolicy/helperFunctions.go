@@ -746,7 +746,7 @@ func clearTrackFlowIDMaps() {
 // == File Outputs == //
 // ================== //
 
-func WriteNetworkPoliciesToFile(cluster, namespace string, services []types.Service) {
+func WriteNetworkPoliciesToFile(cluster, namespace string) {
 	// retrieve the latest policies from the db
 	latestPolicies := libs.GetNetworkPolicies(CfgDB, cluster, namespace, "latest", "", "")
 
@@ -754,16 +754,16 @@ func WriteNetworkPoliciesToFile(cluster, namespace string, services []types.Serv
 	// libs.WriteKnoxNetPolicyToYamlFile(namespace, latestPolicies)
 
 	// convert knoxPolicy to CiliumPolicy
-	ciliumPolicies := plugin.ConvertKnoxPoliciesToCiliumPolicies(services, latestPolicies)
+	ciliumPolicies := plugin.ConvertKnoxPoliciesToCiliumPolicies(latestPolicies)
 
 	// write discovered policies to files
 	libs.WriteCiliumPolicyToYamlFile(namespace, ciliumPolicies)
 }
 
 func GetNetPolicy(cluster, namespace string) *wpb.WorkerResponse {
-	var services []types.Service
 	latestPolicies := libs.GetNetworkPolicies(CfgDB, cluster, namespace, "latest", "", "")
-	ciliumPolicies := plugin.ConvertKnoxPoliciesToCiliumPolicies(services, latestPolicies)
+	log.Info().Msgf("No. of latestPolicies - %d", len(latestPolicies))
+	ciliumPolicies := plugin.ConvertKnoxPoliciesToCiliumPolicies(latestPolicies)
 
 	var response wpb.WorkerResponse
 	for i := range ciliumPolicies {
