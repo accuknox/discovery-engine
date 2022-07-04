@@ -73,9 +73,8 @@ func WatchK8sPods() {
 func GetPodName(ip string) string {
 	for _, pod := range Pods {
 		if pod.IP == ip {
-			return pod.IP
+			return pod.PodName
 		}
 	}
-
 	return ip
 }
