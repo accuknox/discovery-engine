@@ -537,7 +537,7 @@ func buildNewCiliumNetworkPolicy(inPolicy types.KnoxNetworkPolicy) types.CiliumN
 	return ciliumPolicy
 }
 
-func ConvertKnoxNetworkPolicyToCiliumPolicy(services []types.Service, inPolicy types.KnoxNetworkPolicy) types.CiliumNetworkPolicy {
+func ConvertKnoxNetworkPolicyToCiliumPolicy(inPolicy types.KnoxNetworkPolicy) types.CiliumNetworkPolicy {
 	ciliumPolicy := buildNewCiliumNetworkPolicy(inPolicy)
 
 	// ====== //
@@ -738,11 +738,11 @@ func ConvertKnoxNetworkPolicyToCiliumPolicy(services []types.Service, inPolicy t
 	return ciliumPolicy
 }
 
-func ConvertKnoxPoliciesToCiliumPolicies(services []types.Service, policies []types.KnoxNetworkPolicy) []types.CiliumNetworkPolicy {
+func ConvertKnoxPoliciesToCiliumPolicies(policies []types.KnoxNetworkPolicy) []types.CiliumNetworkPolicy {
 	ciliumPolicies := []types.CiliumNetworkPolicy{}
 
 	for _, policy := range policies {
-		ciliumPolicy := ConvertKnoxNetworkPolicyToCiliumPolicy(services, policy)
+		ciliumPolicy := ConvertKnoxNetworkPolicyToCiliumPolicy(policy)
 		ciliumPolicies = append(ciliumPolicies, ciliumPolicy)
 	}
 

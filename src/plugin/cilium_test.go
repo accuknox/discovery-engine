@@ -177,9 +177,7 @@ func TestConvertKnoxPolicyToCiliumPolicy(t *testing.T) {
 	expected := &types.CiliumNetworkPolicy{}
 	json.Unmarshal(ciliumBytes, expected)
 
-	svcs := []types.Service{}
-
-	actual := ConvertKnoxNetworkPolicyToCiliumPolicy(svcs, *knoxPolicy)
+	actual := ConvertKnoxNetworkPolicyToCiliumPolicy(*knoxPolicy)
 	if !cmp.Equal(*expected, actual) {
 		t.Errorf("they should be equal %v %v", expected, actual)
 	}

@@ -1643,7 +1643,7 @@ func PopulateNetworkPoliciesFromNetworkLogs(networkLogs []types.KnoxNetworkLog) 
 
 				// write discovered policies to file
 				if strings.Contains(NetworkPolicyTo, "file") {
-					WriteNetworkPoliciesToFile(clusterName, namespace, services)
+					WriteNetworkPoliciesToFile(clusterName, namespace)
 				}
 
 				log.Info().Msgf("-> Network policy discovery done for namespace: [%s], [%d] policies discovered", namespace, len(newNetPolicies))
