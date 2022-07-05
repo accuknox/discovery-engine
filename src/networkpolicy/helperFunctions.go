@@ -127,6 +127,10 @@ func FilterNetworkLogsByConfig(logs []types.KnoxNetworkLog, pods []types.Pod) []
 			continue
 		}
 
+		if log.Protocol == libs.IPProtocolUDP && log.Direction == "TRAFFIC_DIRECTION_UNKNOWN" {
+			continue
+		}
+
 		if log.Protocol == libs.IPProtocolUDP && log.IsReply {
 			continue
 		}

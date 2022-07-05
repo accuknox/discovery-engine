@@ -41,9 +41,10 @@ func TestGetNetworkPolicies(t *testing.T) {
 		"status",        // str
 		"outdated",      // str
 		"spec",          // []byte
-		"generatedTime", // int
+		"generatedTime", // uint64
+		"updatedTime",   // uint64
 	}).
-		AddRow("", "test", flowID, "", "", "", "", "", "", "", spec, 0)
+		AddRow("", "test", flowID, "", "", "", "", "", "", "", spec, 0, 0)
 
 	mock.ExpectQuery("^SELECT (.+) FROM network_policy*").
 		WillReturnRows(rows)
@@ -71,18 +72,19 @@ func TestInsertNetworkPolicies(t *testing.T) {
 	prep := mock.ExpectPrepare("INSERT INTO network_policy")
 	prep.ExpectExec().
 		WithArgs(
-			"",     // str
-			"kind", // str
-			flowID, // []byte
-			"",     // str
-			"",     // str
-			"",     // str
-			"",     // str
-			"",     // str
-			"",     // str
-			"",     // str
-			spec,   // []byte
-			0,      // int
+			"",               // str
+			"kind",           // str
+			flowID,           // []byte
+			"",               // str
+			"",               // str
+			"",               // str
+			"",               // str
+			"",               // str
+			"",               // str
+			"",               // str
+			spec,             // []byte
+			sqlmock.AnyArg(), // uint64
+			sqlmock.AnyArg(), // uint64
 		).WillReturnResult(sqlmock.NewResult(0, 1))
 
 	nfe := []types.KnoxNetworkPolicy{
@@ -100,44 +102,45 @@ func TestInsertNetworkPolicies(t *testing.T) {
 }
 
 func TestInsertNetworkPoliciesSQLite(t *testing.T) {
-        // prepare mock sqlite
-        _, mock := NewMock()
+	// prepare mock sqlite
+	_, mock := NewMock()
 
-        policy := types.KnoxNetworkPolicy{}
+	policy := types.KnoxNetworkPolicy{}
 
-        specPtr := &policy.Spec
-        spec, _ := json.Marshal(specPtr)
+	specPtr := &policy.Spec
+	spec, _ := json.Marshal(specPtr)
 
-        flowIDsPrt := &policy.FlowIDs
-        flowID, _ := json.Marshal(flowIDsPrt)
+	flowIDsPrt := &policy.FlowIDs
+	flowID, _ := json.Marshal(flowIDsPrt)
 
-        prep := mock.ExpectPrepare("INSERT INTO network_policy")
-        prep.ExpectExec().
-                WithArgs(
-                        "",     // str
-                        "kind", // str
-                        flowID, // []byte
-                        "",     // str
-                        "",     // str
-                        "",     // str
-                        "",     // str
-                        "",     // str
-                        "",     // str
-                        "",     // str
-                        spec,   // []byte
-                        0,      // int
-                ).WillReturnResult(sqlmock.NewResult(0, 1))
+	prep := mock.ExpectPrepare("INSERT INTO network_policy")
+	prep.ExpectExec().
+		WithArgs(
+			"",               // str
+			"kind",           // str
+			flowID,           // []byte
+			"",               // str
+			"",               // str
+			"",               // str
+			"",               // str
+			"",               // str
+			"",               // str
+			"",               // str
+			spec,             // []byte
+			sqlmock.AnyArg(), // uint64
+			sqlmock.AnyArg(), // uint64
+		).WillReturnResult(sqlmock.NewResult(0, 1))
 
-        nfe := []types.KnoxNetworkPolicy{
-                types.KnoxNetworkPolicy{
-                        Kind: "kind",
-                },
-        }
+	nfe := []types.KnoxNetworkPolicy{
+		types.KnoxNetworkPolicy{
+			Kind: "kind",
+		},
+	}
 
-        err := InsertNetworkPoliciesToSQLite(types.ConfigDB{DBDriver: "sqlite3"}, nfe)
-        assert.NoError(t, err)
+	err := InsertNetworkPoliciesToSQLite(types.ConfigDB{DBDriver: "sqlite3"}, nfe)
+	assert.NoError(t, err)
 
-        if err := mock.ExpectationsWereMet(); err != nil {
-                t.Errorf(Unmet+"%s", err)
-        }
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf(Unmet+"%s", err)
+	}
 }
