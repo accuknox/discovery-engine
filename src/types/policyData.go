@@ -16,10 +16,18 @@ type SpecICMP struct {
 	Type   uint8  `json:"type" yaml:"type,omitempty" bson:"type,omitempty"`
 }
 
+func (x SpecICMP) Equal(y SpecICMP) bool {
+	return x.Family == y.Family && x.Type == y.Type
+}
+
 // SpecPort Structure
 type SpecPort struct {
 	Port     string `json:"port,omitempty" yaml:"port,omitempty" bson:"port,omitempty"`
 	Protocol string `json:"protocol,omitempty" yaml:"protocol,omitempty" bson:"protocol,omitempty"`
+}
+
+func (x SpecPort) Equal(y SpecPort) bool {
+	return x.Port == y.Port && x.Protocol == y.Protocol
 }
 
 // SpecService Structure
@@ -69,6 +77,36 @@ type Egress struct {
 	ToHTTPs    []SpecHTTP    `json:"toHTTPs,omitempty" yaml:"toHTTPs,omitempty" bson:"toHTTPs,omitempty"`
 }
 
+type L47Rule interface {
+	GetICMPRules() []SpecICMP
+	GetPortRules() []SpecPort
+	GetHTTPRules() []SpecHTTP
+}
+
+func (x Ingress) GetICMPRules() []SpecICMP {
+	return x.ICMPs
+}
+
+func (x Ingress) GetPortRules() []SpecPort {
+	return x.ToPorts
+}
+
+func (x Ingress) GetHTTPRules() []SpecHTTP {
+	return x.ToHTTPs
+}
+
+func (x Egress) GetICMPRules() []SpecICMP {
+	return x.ICMPs
+}
+
+func (x Egress) GetPortRules() []SpecPort {
+	return x.ToPorts
+}
+
+func (x Egress) GetHTTPRules() []SpecHTTP {
+	return x.ToHTTPs
+}
+
 // Spec Structure
 type Spec struct {
 	Selector Selector `json:"selector,omitempty" yaml:"selector,omitempty" bson:"selector,omitempty"`
@@ -90,6 +128,7 @@ type KnoxNetworkPolicy struct {
 	Spec Spec `json:"spec,omitempty" yaml:"spec,omitempty" bson:"spec,omitempty"`
 
 	GeneratedTime int64 `json:"generatedTime,omitempty" yaml:"generatedTime,omitempty" bson:"generatedTime,omitempty"`
+	UpdatedTime   int64 `json:"updatedTime,omitempty" yaml:"updatedTime,omitempty" bson:"updatedTime,omitempty"`
 }
 
 // =========================== //

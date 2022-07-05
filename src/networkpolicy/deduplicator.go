@@ -1,9 +1,7 @@
 package networkpolicy
 
 import (
-	"sort"
 	"strings"
-	"time"
 
 	"github.com/accuknox/auto-policy-discovery/src/libs"
 	types "github.com/accuknox/auto-policy-discovery/src/types"
@@ -922,85 +920,55 @@ func IsExistingPolicySpec(existingPolicies []types.KnoxNetworkPolicy, newPolicy 
 func UpdateDuplicatedPolicy(existingPolicies []types.KnoxNetworkPolicy, discoveredPolicies []types.KnoxNetworkPolicy, dnsToIPs map[string][]string, clusterName string) []types.KnoxNetworkPolicy {
 	newPolicies := []types.KnoxNetworkPolicy{}
 
-	// update policy name map
+	existIngressPolicies := map[string]types.KnoxNetworkPolicy{}
+	existEgressPolicies := map[string]types.KnoxNetworkPolicy{}
+
 	policyNamesMap := map[string]bool{}
-	for _, exist := range existingPolicies {
-		policyNamesMap[exist.Metadata["name"]] = true
+	for _, existPolicy := range existingPolicies {
+		policyNamesMap[existPolicy.Metadata["name"]] = true
+
+		lblArr := getLabelArrayFromMap(existPolicy.Spec.Selector.MatchLabels)
+		selector := strings.Join(lblArr, ",")
+		if existPolicy.Metadata["type"] == PolicyTypeIngress {
+			existIngressPolicies[selector] = existPolicy
+		} else {
+			existEgressPolicies[selector] = existPolicy
+		}
 	}
 
-	// enumerate discovered network policy
-	for _, policy := range discoveredPolicies {
-		// step 1: compare the total network policy spec
-		if IsExistingPolicySpec(existingPolicies, policy) {
-			continue
-		}
-
-		// step 2: generate policy name
-		namedPolicy := GeneratePolicyName(policyNamesMap, policy, clusterName)
-
-		// step 3: update existing HTTP rules: egress or ingress
-		if strings.Contains(policy.Metadata["rule"], "toHTTPs") {
-			updatedPolicy, updated := UpdateHTTP(namedPolicy, existingPolicies)
-			if updated {
-				namedPolicy = updatedPolicy
+	for _, newPolicy := range discoveredPolicies {
+		lblArr := getLabelArrayFromMap(newPolicy.Spec.Selector.MatchLabels)
+		selector := strings.Join(lblArr, ",")
+		if newPolicy.Metadata["type"] == PolicyTypeIngress {
+			existPolicy, ok := existIngressPolicies[selector]
+			if ok {
+				// Ingress policy for this endpoint exists already
+				mergedPolicy, updated := mergeIngressPolicies(existPolicy, []types.KnoxNetworkPolicy{newPolicy})
+				if updated {
+					existIngressPolicies[selector] = mergedPolicy
+					libs.UpdateNetworkPolicy(CfgDB, mergedPolicy)
+				}
+			} else {
+				// Ingress policy for this endpoint does not exists previously
+				namedPolicy := GeneratePolicyName(policyNamesMap, newPolicy, clusterName)
+				newPolicies = append(newPolicies, namedPolicy)
 			}
 		} else {
-			// step 4: update existing matchLabels+toPorts rules: egress or ingress
-			if strings.Contains(policy.Metadata["rule"], "matchLabels") {
-				updatedPolicy, updated := UpdateMatchLabels(policy, existingPolicies)
+			existPolicy, ok := existEgressPolicies[selector]
+			if ok {
+				// Egress policy for this endpoint exists already
+				mergedPolicy, updated := mergeEgressPolicies(existPolicy, []types.KnoxNetworkPolicy{newPolicy})
 				if updated {
-					namedPolicy = updatedPolicy
+					existEgressPolicies[selector] = mergedPolicy
+					libs.UpdateNetworkPolicy(CfgDB, mergedPolicy)
 				}
-			}
-
-			// step 5: update existing CIDR(+toPorts) rules: egress
-			if strings.Contains(policy.Metadata["rule"], "toCIDRs") && policy.Metadata["type"] == PolicyTypeEgress {
-				updatedPolicy, updated := UpdateToPorts(namedPolicy, existingPolicies)
-				if updated {
-					namedPolicy = updatedPolicy
-				}
-			}
-
-			// step 6: update existing FQDN+toPorts rules: egress
-			if strings.Contains(policy.Metadata["rule"], "toFQDNs") && policy.Metadata["type"] == PolicyTypeEgress {
-				updatedPolicy, updated := UpdateToPorts(namedPolicy, existingPolicies)
-				if updated {
-					namedPolicy = updatedPolicy
-				}
-			}
-
-			// step 7: update existing Entities rules: egress or ingress
-			if strings.Contains(policy.Metadata["rule"], "Entities") {
-				updatedPolicy, updated := UpdateEntity(namedPolicy, existingPolicies)
-				if updated {
-					namedPolicy = updatedPolicy
-				}
-			}
-
-			// step 8: update existing Entities rules: egress
-			if strings.Contains(policy.Metadata["rule"], "toServices") && policy.Metadata["type"] == PolicyTypeEgress {
-				updatedPolicy, updated := UpdateService(namedPolicy, existingPolicies)
-				if updated {
-					namedPolicy = updatedPolicy
-				}
+			} else {
+				// Egress policy for this endpoint does not exists previously
+				namedPolicy := GeneratePolicyName(policyNamesMap, newPolicy, clusterName)
+				newPolicies = append(newPolicies, namedPolicy)
 			}
 		}
-
-		// step 9: update status
-		namedPolicy.Metadata["status"] = "latest"
-
-		// step 10: update generated time
-		namedPolicy.GeneratedTime = time.Now().Unix()
-
-		newPolicies = append(newPolicies, namedPolicy)
 	}
-
-	// step 11: check if existing cidr matchs new fqdn
-	updateExistCIDRtoNewFQDN(existingPolicies, newPolicies, dnsToIPs)
-
-	sort.Slice(newPolicies, func(i, j int) bool {
-		return newPolicies[i].Metadata["name"] < newPolicies[j].Metadata["name"]
-	})
 
 	return newPolicies
 }

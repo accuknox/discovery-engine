@@ -83,7 +83,7 @@ func GetNetworkPoliciesFromMySQL(cfg types.ConfigDB, cluster, namespace, status,
 	var results *sql.Rows
 	var err error
 
-	query := "SELECT apiVersion,kind,flow_ids,name,cluster_name,namespace,type,rule,status,outdated,spec,generatedTime FROM " + TableNetworkPolicy_TableName
+	query := "SELECT apiVersion,kind,flow_ids,name,cluster_name,namespace,type,rule,status,outdated,spec,generatedTime,updatedTime FROM " + TableNetworkPolicy_TableName
 
 	var whereClause string
 	var args []interface{}
@@ -140,6 +140,7 @@ func GetNetworkPoliciesFromMySQL(cfg types.ConfigDB, cluster, namespace, status,
 			&policy.Outdated,
 			&specByte,
 			&policy.GeneratedTime,
+			&policy.UpdatedTime,
 		); err != nil {
 			return nil, err
 		}
@@ -168,6 +169,42 @@ func GetNetworkPoliciesFromMySQL(cfg types.ConfigDB, cluster, namespace, status,
 	}
 
 	return policies, nil
+}
+
+func UpdateNetworkPolicyToMySQL(cfg types.ConfigDB, policy types.KnoxNetworkPolicy) error {
+	db := connectMySQL(cfg)
+	defer db.Close()
+
+	// set status -> outdated
+	stmt, err := db.Prepare("UPDATE " + TableNetworkPolicy_TableName +
+		" SET apiVersion=?,kind=?,cluster_name=?,namespace=?,type=?,status=?,outdated=?,spec=?,updatedTime=? WHERE name = ?")
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	specPointer := &policy.Spec
+	spec, err := json.Marshal(specPointer)
+	if err != nil {
+		return err
+	}
+
+	_, err = stmt.Exec(
+		policy.APIVersion,
+		policy.Kind,
+		policy.Metadata["cluster_name"],
+		policy.Metadata["namespace"],
+		policy.Metadata["type"],
+		policy.Metadata["status"],
+		policy.Outdated,
+		spec,
+		ConvertStrToUnixTime("now"),
+		policy.Metadata["name"])
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func UpdateOutdatedNetworkPolicyFromMySQL(cfg types.ConfigDB, outdatedPolicy string, latestPolicy string) error {
@@ -204,7 +241,7 @@ func UpdateOutdatedNetworkPolicyFromMySQL(cfg types.ConfigDB, outdatedPolicy str
 }
 
 func insertNetworkPolicy(cfg types.ConfigDB, db *sql.DB, policy types.KnoxNetworkPolicy) error {
-	stmt, err := db.Prepare("INSERT INTO " + TableNetworkPolicy_TableName + "(apiVersion,kind,flow_ids,name,cluster_name,namespace,type,rule,status,outdated,spec,generatedTime) values(?,?,?,?,?,?,?,?,?,?,?,?)")
+	stmt, err := db.Prepare("INSERT INTO " + TableNetworkPolicy_TableName + "(apiVersion,kind,flow_ids,name,cluster_name,namespace,type,rule,status,outdated,spec,generatedTime,updatedTime) values(?,?,?,?,?,?,?,?,?,?,?,?,?)")
 	if err != nil {
 		return err
 	}
@@ -222,6 +259,8 @@ func insertNetworkPolicy(cfg types.ConfigDB, db *sql.DB, policy types.KnoxNetwor
 		return err
 	}
 
+	currTime := ConvertStrToUnixTime("now")
+
 	_, err = stmt.Exec(policy.APIVersion,
 		policy.Kind,
 		flowids,
@@ -233,7 +272,8 @@ func insertNetworkPolicy(cfg types.ConfigDB, db *sql.DB, policy types.KnoxNetwor
 		policy.Metadata["status"],
 		policy.Outdated,
 		spec,
-		policy.GeneratedTime)
+		currTime,
+		currTime)
 	if err != nil {
 		return err
 	}
@@ -506,7 +546,8 @@ func CreateTableNetworkPolicyMySQL(cfg types.ConfigDB) error {
 			"	`status` varchar(10) DEFAULT NULL," +
 			"	`outdated` varchar(50) DEFAULT NULL," +
 			"	`spec` JSON DEFAULT NULL," +
-			"	`generatedTime` int DEFAULT NULL," +
+			"	`generatedTime` bigint NOT NULL," +
+			"	`updatedTime` bigint NOT NULL," +
 			"	PRIMARY KEY (`id`)" +
 			"  );"
 

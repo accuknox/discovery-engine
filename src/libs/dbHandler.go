@@ -87,6 +87,18 @@ func UpdateOutdatedNetworkPolicy(cfg types.ConfigDB, outdatedPolicy string, late
 	}
 }
 
+func UpdateNetworkPolicy(cfg types.ConfigDB, policy types.KnoxNetworkPolicy) {
+	if cfg.DBDriver == "mysql" {
+		if err := UpdateNetworkPolicyToMySQL(cfg, policy); err != nil {
+			log.Error().Msg(err.Error())
+		}
+	} else if cfg.DBDriver == "sqlite3" {
+		if err := UpdateNetworkPolicyToSQLite(cfg, policy); err != nil {
+			log.Error().Msg(err.Error())
+		}
+	}
+}
+
 func InsertNetworkPolicies(cfg types.ConfigDB, policies []types.KnoxNetworkPolicy) {
 	if cfg.DBDriver == "mysql" {
 		if err := InsertNetworkPoliciesToMySQL(cfg, policies); err != nil {
