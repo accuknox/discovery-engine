@@ -2,7 +2,6 @@ package observability
 
 import (
 	"errors"
-	"net"
 	"regexp"
 	"strings"
 
@@ -24,7 +23,7 @@ func deDuplicateServerInOutConn(connList []types.SysNwConnDetail) []types.SysNwC
 	return result
 }
 
-func fetchSysServerConnDetail(data string, res string) (types.SysNwConnDetail, error) {
+func fetchSysServerConnDetail(podname, data, res string) (types.SysNwConnDetail, error) {
 	conn := types.SysNwConnDetail{}
 	err := errors.New("not a valid incoming/outgoing connection")
 
@@ -49,10 +48,9 @@ func fetchSysServerConnDetail(data string, res string) (types.SysNwConnDetail, e
 			if strings.Contains(locres, "sin_port") {
 				port = strings.Split(locres, "=")[1]
 			}
-			if ip == "" && port == "" {
-				return types.SysNwConnDetail{}, err
-			} else {
-				conn.Path = net.JoinHostPort(GetPodName(ip), port)
+			if ip != "" && port != "" {
+				conn.Path = GetPodNameFromPodIP(ip) + ":" + port
+				break
 			}
 		}
 	} else if strings.Contains(res, "AF_UNIX") {
@@ -61,13 +59,18 @@ func fetchSysServerConnDetail(data string, res string) (types.SysNwConnDetail, e
 		for _, locres := range resslice {
 			if strings.Contains(locres, "sun_path") {
 				conn.Path = strings.Split(locres, "=")[1]
-			} else {
-				return types.SysNwConnDetail{}, err
+				break
 			}
 		}
 	} else {
 		return types.SysNwConnDetail{}, err
 	}
+
+	if conn.Path == "" {
+		return types.SysNwConnDetail{}, err
+	}
+
+	conn.PodName = podname
 
 	return conn, nil
 }
@@ -118,21 +121,24 @@ func GetSummaryLogs(pbRequest *opb.LogsRequest, stream opb.Summary_FetchLogsServ
 		return err
 	}
 	for sysindex, locSysLog := range systemLogs {
-		nwConnDetail := types.SysNwConnDetail{}
 		if locSysLog.Operation == "Network" {
-			nwConnDetail, _ = fetchSysServerConnDetail(locSysLog.Data, locSysLog.Resource)
+			nwConnDetail, err := fetchSysServerConnDetail(locSysLog.PodName, locSysLog.Data, locSysLog.Resource)
+			if err == nil {
+				syserverconn = append(syserverconn, nwConnDetail)
+			}
 		}
 		systemPods[locSysLog.PodName] = append(systemPods[locSysLog.PodName], types.SystemSummary{
 			Operation:   locSysLog.Operation,
 			Source:      locSysLog.Source,
 			Resource:    locSysLog.Resource,
 			Action:      locSysLog.Action,
-			ServerConn:  nwConnDetail,
 			UpdatedTime: locSysLog.UpdatedTime,
 			Count:       int32(systemTotal[sysindex]),
 		})
-
 	}
+
+	// De-duplicate syserverconn
+	syserverconn = deDuplicateServerInOutConn(syserverconn)
 
 	for podName, sysLogs := range systemPods {
 
@@ -189,31 +195,27 @@ func GetSummaryLogs(pbRequest *opb.LogsRequest, stream opb.Summary_FetchLogsServ
 			}
 		}
 
-		for _, syslog := range sysLogs {
-			syserverconn = append(syserverconn, syslog.ServerConn)
-		}
-
-		syserverconn = deDuplicateServerInOutConn(syserverconn)
-
 		// ServerConnection
 		for _, servConn := range syserverconn {
-			if servConn.InOut == "IN" && servConn.AddFamily != "" && servConn.Path != "" {
-				inServerConn = append(inServerConn, &opb.ServerConnections{
-					AddressFamily: servConn.AddFamily,
-					Path:          servConn.Path,
-				})
-			} else if servConn.InOut == "OUT" && servConn.AddFamily != "" && servConn.Path != "" {
-				outServerConn = append(outServerConn, &opb.ServerConnections{
-					AddressFamily: servConn.AddFamily,
-					Path:          servConn.Path,
-				})
+			if servConn.PodName == podName {
+				if servConn.InOut == "IN" && servConn.AddFamily != "" && servConn.Path != "" {
+					inServerConn = append(inServerConn, &opb.ServerConnections{
+						AddressFamily: servConn.AddFamily,
+						Path:          servConn.Path,
+					})
+				} else if servConn.InOut == "OUT" && servConn.AddFamily != "" && servConn.Path != "" {
+					outServerConn = append(outServerConn, &opb.ServerConnections{
+						AddressFamily: servConn.AddFamily,
+						Path:          servConn.Path,
+					})
+				}
 			}
 		}
 
 		//Stream Block
 		if err := stream.Send(&opb.LogsResponse{
 			PodDetail:     podName,
-			Namespace:     pbRequest.Namespace,
+			Namespace:     GetPodNamespaceFromPodName(podName),
 			ListOfFile:    listOfFile,
 			ListOfProcess: listOfProcess,
 			ListOfNetwork: listOfNetwork,

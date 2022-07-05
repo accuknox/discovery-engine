@@ -96,13 +96,12 @@ type NetworkSummary struct {
 }
 
 type SystemSummary struct {
-	Operation   string          `json:"Operation,omitempty"`
-	Source      string          `json:"Source,omitempty"`
-	Resource    string          `json:"Resource,omitempty"`
-	Action      string          `json:"Action,omitempty"`
-	ServerConn  SysNwConnDetail `json:"ServerConn,omitempty"`
-	UpdatedTime int64           `json:"UpdatedTime,omitempty"`
-	Count       int32           `json:"Count,omitempty"`
+	Operation   string `json:"Operation,omitempty"`
+	Source      string `json:"Source,omitempty"`
+	Resource    string `json:"Resource,omitempty"`
+	Action      string `json:"Action,omitempty"`
+	UpdatedTime int64  `json:"UpdatedTime,omitempty"`
+	Count       int32  `json:"Count,omitempty"`
 }
 
 type KubeArmorLog struct {
@@ -134,6 +133,7 @@ type KubeArmorLog struct {
 }
 
 type SysNwConnDetail struct {
+	PodName   string `json:"PodName,omitempty"`
 	InOut     string `json:"InOut,omitempty"`
 	AddFamily string `json:"AddFamily,omitempty"`
 	Path      string `json:"Path,omitempty"`

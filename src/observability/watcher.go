@@ -70,11 +70,20 @@ func WatchK8sPods() {
 	}
 }
 
-func GetPodName(ip string) string {
+func GetPodNameFromPodIP(ip string) string {
 	for _, pod := range Pods {
-		if pod.IP == ip {
+		if ip == pod.IP {
 			return pod.PodName
 		}
 	}
 	return ip
+}
+
+func GetPodNamespaceFromPodName(podname string) string {
+	for _, pod := range Pods {
+		if podname == pod.PodName {
+			return pod.Namespace
+		}
+	}
+	return ""
 }
