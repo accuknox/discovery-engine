@@ -23,6 +23,22 @@ func deDuplicateServerInOutConn(connList []types.SysNwConnDetail) []types.SysNwC
 	return result
 }
 
+func mapPodSvcNameFromIP(ip string) string {
+
+	// Get matching pod name from IP
+	pod := GetPodDetailFromPodIP(ip)
+	if pod.PodName != "" {
+		return "pod/" + pod.PodName
+	}
+
+	// Get matching service name from IP
+	svc := GetServiceDetailFromClusterIP(ip)
+	if svc.ServiceName != "" {
+		return "svc/" + svc.ServiceName
+	}
+	return ip
+}
+
 func fetchSysServerConnDetail(podname, data, res string) (types.SysNwConnDetail, error) {
 	conn := types.SysNwConnDetail{}
 	err := errors.New("not a valid incoming/outgoing connection")
@@ -49,17 +65,21 @@ func fetchSysServerConnDetail(podname, data, res string) (types.SysNwConnDetail,
 				port = strings.Split(locres, "=")[1]
 			}
 			if ip != "" && port != "" {
-				conn.Path = GetPodNameFromPodIP(ip) + ":" + port
+				conn.Path = mapPodSvcNameFromIP(ip) + ":" + port
 				break
 			}
 		}
 	} else if strings.Contains(res, "AF_UNIX") {
 		conn.AddFamily = "AF_UNIX"
+		var path string
 		resslice := strings.Split(res, " ")
 		for _, locres := range resslice {
 			if strings.Contains(locres, "sun_path") {
-				conn.Path = strings.Split(locres, "=")[1]
-				break
+				path = strings.Split(locres, "=")[1]
+				if path != "" {
+					conn.Path = path
+					break
+				}
 			}
 		}
 	} else {
@@ -142,6 +162,7 @@ func GetSummaryLogs(pbRequest *opb.LogsRequest, stream opb.Summary_FetchLogsServ
 
 	for podName, sysLogs := range systemPods {
 
+		var podns string
 		var listOfFile, listOfProcess, listOfNetwork []*opb.ListOfSource
 		var inServerConn, outServerConn []*opb.ServerConnections
 		//System Block
@@ -212,10 +233,17 @@ func GetSummaryLogs(pbRequest *opb.LogsRequest, stream opb.Summary_FetchLogsServ
 			}
 		}
 
+		for _, locpod := range Pods {
+			if locpod.PodName == podName {
+				podns = locpod.Namespace
+				break
+			}
+		}
+
 		//Stream Block
 		if err := stream.Send(&opb.LogsResponse{
 			PodDetail:     podName,
-			Namespace:     GetPodNamespaceFromPodName(podName),
+			Namespace:     podns,
 			ListOfFile:    listOfFile,
 			ListOfProcess: listOfProcess,
 			ListOfNetwork: listOfNetwork,

@@ -51,3 +51,9 @@ type K8sPodEvent struct {
 	Type   string `json:"type"`
 	Object v1.Pod `json:"object"`
 }
+
+// K8sServiceEvent Structure
+type K8sServiceEvent struct {
+	Type   string     `json:"type"`
+	Object v1.Service `json:"object"`
+}

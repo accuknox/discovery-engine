@@ -240,8 +240,10 @@ func GetNewServer() *grpc.Server {
 	// start sys worker automatically
 	sysworker.StartSystemWorker()
 
-	// start observability
-	obs.InitObservability()
+	if cfg.IsObservabilityEnabled() {
+		// start observability
+		obs.InitObservability()
+	}
 
 	return s
 }

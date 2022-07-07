@@ -26,7 +26,8 @@ var (
 	NetworkLogs      []*flow.Flow
 	NetworkLogsMutex *sync.Mutex
 	// Pods
-	Pods []types.Pod
+	Pods     []types.Pod
+	Services []types.Service
 )
 
 // =================== //
@@ -41,13 +42,8 @@ func InitObservability() {
 	SystemLogsMutex = &sync.Mutex{}
 	NetworkLogsMutex = &sync.Mutex{}
 
-	// update pod list from existing pods
-	pods := cluster.GetPodsFromK8sClient()
-	for _, pod := range pods {
-		if pod.IP != "" && pod.PodName != "" {
-			addPodToList(pod)
-		}
-	}
+	Pods = cluster.GetPodsFromK8sClient()
+	Services = cluster.GetServicesFromK8sClient()
 
 	go WatchK8sPods()
 }
