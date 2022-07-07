@@ -76,14 +76,14 @@ ingress:
 
 resources:
   requests:
-    cpu: 200m
-    memory: 250Mi
+    cpu: 20m
+    memory: 30Mi
   limits:
-    cpu: 400m
-    memory: 450Mi
+    cpu: 40m
+    memory: 50Mi
 
 autoscaling:
-  enabled: true
+  enabled: false
   minReplicas: 2
   maxReplicas: 5
   targetCPUUtilizationPercentage: 75
