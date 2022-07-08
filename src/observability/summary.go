@@ -39,24 +39,23 @@ func mapPodSvcNameFromIP(ip string) string {
 	return ip
 }
 
-func fetchSysServerConnDetail(podname, data, res string) (types.SysNwConnDetail, error) {
+func fetchSysServerConnDetail(log types.KubeArmorLog) (types.SysNwConnDetail, error) {
 	conn := types.SysNwConnDetail{}
 	err := errors.New("not a valid incoming/outgoing connection")
 
 	// get Syscall
-	if strings.Contains(data, "SYS_CONNECT") {
+	if strings.Contains(log.Data, "SYS_CONNECT") {
 		conn.InOut = "OUT"
-	} else if strings.Contains(data, "SYS_ACCEPT") {
+	} else if strings.Contains(log.Data, "SYS_ACCEPT") {
 		conn.InOut = "IN"
 	} else {
 		return types.SysNwConnDetail{}, err
 	}
 
 	// get AF detail
-	if strings.Contains(res, "AF_INET") {
+	if strings.Contains(log.Resource, "AF_INET") {
 		var ip, port string
-		conn.AddFamily = "AF_INET"
-		resslice := strings.Split(res, " ")
+		resslice := strings.Split(log.Resource, " ")
 		for _, locres := range resslice {
 			if strings.Contains(locres, "sin_addr") {
 				ip = strings.Split(locres, "=")[1]
@@ -65,19 +64,23 @@ func fetchSysServerConnDetail(podname, data, res string) (types.SysNwConnDetail,
 				port = strings.Split(locres, "=")[1]
 			}
 			if ip != "" && port != "" {
-				conn.Path = mapPodSvcNameFromIP(ip) + ":" + port
+				conn.PodSvcIP = mapPodSvcNameFromIP(ip)
+				conn.ServerPort = port
+				conn.Protocol = ""
+				conn.Labels = log.Labels
 				break
 			}
 		}
-	} else if strings.Contains(res, "AF_UNIX") {
-		conn.AddFamily = "AF_UNIX"
+	} else if strings.Contains(log.Resource, "AF_UNIX") {
 		var path string
-		resslice := strings.Split(res, " ")
+		resslice := strings.Split(log.Resource, " ")
 		for _, locres := range resslice {
 			if strings.Contains(locres, "sun_path") {
 				path = strings.Split(locres, "=")[1]
 				if path != "" {
-					conn.Path = path
+					conn.PodSvcIP = path
+					conn.Protocol = ""
+					conn.Labels = log.Labels
 					break
 				}
 			}
@@ -86,11 +89,11 @@ func fetchSysServerConnDetail(podname, data, res string) (types.SysNwConnDetail,
 		return types.SysNwConnDetail{}, err
 	}
 
-	if conn.Path == "" {
+	if conn.PodSvcIP == "" {
 		return types.SysNwConnDetail{}, err
 	}
 
-	conn.PodName = podname
+	conn.PodName = log.PodName
 
 	return conn, nil
 }
@@ -142,7 +145,7 @@ func GetSummaryLogs(pbRequest *opb.LogsRequest, stream opb.Summary_FetchLogsServ
 	}
 	for sysindex, locSysLog := range systemLogs {
 		if locSysLog.Operation == "Network" {
-			nwConnDetail, err := fetchSysServerConnDetail(locSysLog.PodName, locSysLog.Data, locSysLog.Resource)
+			nwConnDetail, err := fetchSysServerConnDetail(locSysLog)
 			if err == nil {
 				syserverconn = append(syserverconn, nwConnDetail)
 			}
@@ -219,15 +222,19 @@ func GetSummaryLogs(pbRequest *opb.LogsRequest, stream opb.Summary_FetchLogsServ
 		// ServerConnection
 		for _, servConn := range syserverconn {
 			if servConn.PodName == podName {
-				if servConn.InOut == "IN" && servConn.AddFamily != "" && servConn.Path != "" {
+				if servConn.InOut == "IN" {
 					inServerConn = append(inServerConn, &opb.ServerConnections{
-						AddressFamily: servConn.AddFamily,
-						Path:          servConn.Path,
+						Protocol:   servConn.Protocol,
+						PodSvcIP:   servConn.PodSvcIP,
+						ServerPort: servConn.ServerPort,
+						Labels:     servConn.Labels,
 					})
-				} else if servConn.InOut == "OUT" && servConn.AddFamily != "" && servConn.Path != "" {
+				} else if servConn.InOut == "OUT" {
 					outServerConn = append(outServerConn, &opb.ServerConnections{
-						AddressFamily: servConn.AddFamily,
-						Path:          servConn.Path,
+						Protocol:   servConn.Protocol,
+						PodSvcIP:   servConn.PodSvcIP,
+						ServerPort: servConn.ServerPort,
+						Labels:     servConn.Labels,
 					})
 				}
 			}
