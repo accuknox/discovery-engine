@@ -11,7 +11,7 @@ RUN tar xf grpcurl_1.8.5_linux_x86_64.tar.gz
 
 RUN cd src && make
 
-FROM artifactory.accuknox.com/accuknox/ubuntu:22.04
+FROM artifactory.accuknox.com/accuknox/ubuntu:22.10
 
 COPY --from=builder /usr/src/knox/grpcurl /usr/local/bin/grpcurl
 COPY --from=builder /usr/src/knox/scripts/convert_net_policy.sh /convert_net_policy.sh
