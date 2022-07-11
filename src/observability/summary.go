@@ -67,7 +67,7 @@ func fetchSysServerConnDetail(log types.KubeArmorLog) (types.SysNwConnDetail, er
 				conn.PodSvcIP = mapPodSvcNameFromIP(ip)
 				conn.ServerPort = port
 				conn.Protocol = ""
-				conn.Labels = log.Labels
+				conn.Labels = GetPodLabelsFromPodName(conn.PodSvcIP)
 				break
 			}
 		}
@@ -80,7 +80,6 @@ func fetchSysServerConnDetail(log types.KubeArmorLog) (types.SysNwConnDetail, er
 				if path != "" {
 					conn.PodSvcIP = path
 					conn.Protocol = ""
-					conn.Labels = log.Labels
 					break
 				}
 			}

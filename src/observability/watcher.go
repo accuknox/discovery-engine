@@ -162,3 +162,24 @@ func GetServiceDetailFromClusterIP(ip string) types.Service {
 	}
 	return types.Service{}
 }
+
+func GetPodLabelsFromPodName(podname string) string {
+	var labels []string
+	resLabel := ""
+
+	for _, pod := range Pods {
+		if podname == pod.PodName {
+			labels = append(labels, pod.Labels...)
+			break
+		}
+	}
+
+	for index, label := range labels {
+		if index > 0 {
+			resLabel = ","
+		}
+		resLabel += label
+	}
+
+	return resLabel
+}
