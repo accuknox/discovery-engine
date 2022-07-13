@@ -36,11 +36,12 @@ func generateProcessPaths(fromSrc []types.KnoxFromSource) []string {
 
 func ConvertKnoxSystemPolicyToKubeArmorPolicy(knoxPolicies []types.KnoxSystemPolicy) []types.KubeArmorPolicy {
 	results := []types.KubeArmorPolicy{}
-	filePathsFromSrc := []string{}
-	processPaths := []string{}
-	resPath := []string{}
 
 	for _, policy := range knoxPolicies {
+		filePathsFromSrc := []string{}
+		processPaths := []string{}
+		resPath := []string{}
+
 		kubePolicy := types.KubeArmorPolicy{
 			APIVersion: "security.kubearmor.com/v1",
 			Kind:       "KubeArmorPolicy",
@@ -69,7 +70,7 @@ func ConvertKnoxSystemPolicyToKubeArmorPolicy(knoxPolicies []types.KnoxSystemPol
 			filePathsFromSrc = append(filePathsFromSrc, generateProcessPaths(matchpaths.FromSource)...)
 		}
 
-		filePathsFromSrc := common.StringDeDuplication(filePathsFromSrc)
+		filePathsFromSrc = common.StringDeDuplication(filePathsFromSrc)
 		procPaths := common.StringDeDuplication(processPaths)
 
 		for _, file := range filePathsFromSrc {
