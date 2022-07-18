@@ -267,9 +267,11 @@ func ConvertKubeArmorLogToKnoxSystemLog(relayLog *pb.Log) (types.KnoxSystemLog, 
 		resource = ""
 	}
 
-	if resource[0:len(types.PreConfiguredKubearmorRule)] == types.PreConfiguredKubearmorRule {
-		log.Info().Msgf("predefined resource [%s]. %+v", resource, relayLog)
-		return types.KnoxSystemLog{}, errors.New("predefined file resource")
+	if strings.Contains(resource, types.PreConfiguredKubearmorRule) {
+		if resource[0:len(types.PreConfiguredKubearmorRule)] == types.PreConfiguredKubearmorRule {
+			log.Info().Msgf("predefined resource [%s]. %+v", resource, relayLog)
+			return types.KnoxSystemLog{}, errors.New("predefined file resource")
+		}
 	}
 
 	knoxSystemLog := types.KnoxSystemLog{
