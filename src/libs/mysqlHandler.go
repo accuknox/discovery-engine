@@ -605,7 +605,7 @@ func CreateTableWorkLoadProcessFileSetMySQL(cfg types.ConfigDB) error {
 			"	`labels` varchar(1000) DEFAULT NULL," +
 			"	`fromSource` varchar(256) DEFAULT NULL," +
 			"	`settype` varchar(16) DEFAULT NULL," + // settype: "file" or "process"
-			"	`fileset` text DEFAULT NULL," +
+			"	`fileset` JSON DEFAULT NULL," +
 			"	`createdTime` bigint NOT NULL," +
 			"	`updatedTime` bigint NOT NULL," +
 			"	PRIMARY KEY (`id`)" +
@@ -791,7 +791,10 @@ func GetWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadProce
 		); err != nil {
 			return nil, nil, err
 		}
-		fs = strings.Split(fscsv, ",")
+		if err = json.Unmarshal([]byte(fscsv), &fs); err != nil {
+			log.Error().Msg(err.Error())
+			return nil, nil, err
+		}
 		res[loc_wpfs] = fs
 		pnMap[loc_wpfs] = policyName
 	}
@@ -811,7 +814,11 @@ func InsertWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadPr
 		return err
 	}
 	defer stmt.Close()
-	fsset := strings.Join(fs[:], ",")
+	fsset, err := json.Marshal(fs)
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return err
+	}
 
 	_, err = stmt.Exec(
 		policyName,
@@ -821,7 +828,7 @@ func InsertWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadPr
 		wpfs.Labels,
 		wpfs.FromSource,
 		wpfs.SetType,
-		fsset,
+		string(fsset),
 		time,
 		time)
 	return err
@@ -887,7 +894,11 @@ func UpdateWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadPr
 		return err
 	}
 	defer stmt.Close()
-	fsset := strings.Join(fs[:], ",")
+	fsset, err := json.Marshal(fs)
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return err
+	}
 
 	_, err = stmt.Exec(fsset,
 		time,

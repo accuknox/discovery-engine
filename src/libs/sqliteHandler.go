@@ -582,7 +582,7 @@ func CreateTableWorkLoadProcessFileSetSQLite(cfg types.ConfigDB) error {
 			"	`labels` varchar(1000) DEFAULT NULL," +
 			"	`fromSource` varchar(256) DEFAULT NULL," +
 			"	`settype` varchar(16) DEFAULT NULL," + // settype: "file" or "process"
-			"	`fileset` text DEFAULT NULL," +
+			"	`fileset` JSON DEFAULT NULL," +
 			"	`createdTime` bigint NOT NULL," +
 			"	`updatedTime` bigint NOT NULL," +
 			"	PRIMARY KEY (`id`)" +
@@ -770,7 +770,10 @@ func GetWorkloadProcessFileSetSQLite(cfg types.ConfigDB, wpfs types.WorkloadProc
 		); err != nil {
 			return nil, nil, err
 		}
-		fs = strings.Split(fscsv, ",")
+		if err = json.Unmarshal([]byte(fscsv), &fs); err != nil {
+			log.Error().Msg(err.Error())
+			return nil, nil, err
+		}
 		res[loc_wpfs] = fs
 		pnMap[loc_wpfs] = policyName
 	}
@@ -790,7 +793,11 @@ func InsertWorkloadProcessFileSetSQLite(cfg types.ConfigDB, wpfs types.WorkloadP
 		return err
 	}
 	defer stmt.Close()
-	fsset := strings.Join(fs[:], ",")
+	fsset, err := json.Marshal(fs)
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return err
+	}
 
 	_, err = stmt.Exec(
 		policyName,
@@ -866,7 +873,11 @@ func UpdateWorkloadProcessFileSetSQLite(cfg types.ConfigDB, wpfs types.WorkloadP
 		return err
 	}
 	defer stmt.Close()
-	fsset := strings.Join(fs[:], ",")
+	fsset, err := json.Marshal(fs)
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return err
+	}
 
 	_, err = stmt.Exec(fsset,
 		time,
