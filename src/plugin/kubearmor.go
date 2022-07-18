@@ -59,6 +59,14 @@ func ConvertKnoxSystemPolicyToKubeArmorPolicy(knoxPolicies []types.KnoxSystemPol
 
 		kubePolicy.Spec = policy.Spec
 
+		if kubePolicy.Kind == "KubeArmorPolicy" {
+			dirRule := types.KnoxMatchDirectories{
+				Dir:       types.PreConfiguredKubearmorRule,
+				Recursive: true,
+			}
+			kubePolicy.Spec.File.MatchDirectories = append(policy.Spec.File.MatchDirectories, dirRule)
+		}
+
 		for _, procpath := range kubePolicy.Spec.Process.MatchPaths {
 			processPaths = append(processPaths, procpath.Path)
 		}
@@ -257,6 +265,11 @@ func ConvertKubeArmorLogToKnoxSystemLog(relayLog *pb.Log) (types.KnoxSystemLog, 
 
 	if strings.Contains(resource, "runc") {
 		resource = ""
+	}
+
+	if resource[0:len(types.PreConfiguredKubearmorRule)] == types.PreConfiguredKubearmorRule {
+		log.Info().Msgf("predefined resource [%s]. %+v", resource, relayLog)
+		return types.KnoxSystemLog{}, errors.New("predefined file resource")
 	}
 
 	knoxSystemLog := types.KnoxSystemLog{
