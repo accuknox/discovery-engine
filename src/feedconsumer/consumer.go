@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"github.com/golang/protobuf/ptypes/wrappers"
 	"github.com/rs/zerolog"
 
 	"github.com/spf13/viper"
@@ -227,6 +228,7 @@ func (cfc *KnoxFeedConsumer) processNetworkLogMessage(message []byte) error {
 					IP:          &cilium.IP{},
 					L4:          &cilium.Layer4{},
 					L7:          &cilium.Layer7{},
+					IsReply:     &wrappers.BoolValue{Value: netLog.Reply},
 				}
 
 				// _ = is to ignore the return value
