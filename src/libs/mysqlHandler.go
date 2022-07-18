@@ -900,7 +900,7 @@ func UpdateWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadPr
 		return err
 	}
 
-	_, err = stmt.Exec(fsset,
+	_, err = stmt.Exec(string(fsset),
 		time,
 		wpfs.ClusterName,
 		wpfs.ContainerName,

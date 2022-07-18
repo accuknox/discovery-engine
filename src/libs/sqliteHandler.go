@@ -807,7 +807,7 @@ func InsertWorkloadProcessFileSetSQLite(cfg types.ConfigDB, wpfs types.WorkloadP
 		wpfs.Labels,
 		wpfs.FromSource,
 		wpfs.SetType,
-		fsset,
+		string(fsset),
 		time,
 		time)
 	return err
@@ -879,7 +879,7 @@ func UpdateWorkloadProcessFileSetSQLite(cfg types.ConfigDB, wpfs types.WorkloadP
 		return err
 	}
 
-	_, err = stmt.Exec(fsset,
+	_, err = stmt.Exec(string(fsset),
 		time,
 		wpfs.ClusterName,
 		wpfs.ContainerName,
