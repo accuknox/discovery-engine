@@ -605,7 +605,7 @@ func CreateTableWorkLoadProcessFileSetMySQL(cfg types.ConfigDB) error {
 			"	`labels` varchar(1000) DEFAULT NULL," +
 			"	`fromSource` varchar(256) DEFAULT NULL," +
 			"	`settype` varchar(16) DEFAULT NULL," + // settype: "file" or "process"
-			"	`fileset` JSON DEFAULT NULL," +
+			"	`fileset` text DEFAULT NULL," +
 			"	`createdTime` bigint NOT NULL," +
 			"	`updatedTime` bigint NOT NULL," +
 			"	PRIMARY KEY (`id`)" +
@@ -791,10 +791,7 @@ func GetWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadProce
 		); err != nil {
 			return nil, nil, err
 		}
-		if err = json.Unmarshal([]byte(fscsv), &fs); err != nil {
-			log.Error().Msg(err.Error())
-			return nil, nil, err
-		}
+		fs = strings.Split(fscsv, types.RecordSeparator)
 		res[loc_wpfs] = fs
 		pnMap[loc_wpfs] = policyName
 	}
@@ -814,11 +811,7 @@ func InsertWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadPr
 		return err
 	}
 	defer stmt.Close()
-	fsset, err := json.Marshal(fs)
-	if err != nil {
-		log.Error().Msg(err.Error())
-		return err
-	}
+	fsset := strings.Join(fs[:], types.RecordSeparator)
 
 	_, err = stmt.Exec(
 		policyName,
@@ -828,7 +821,7 @@ func InsertWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadPr
 		wpfs.Labels,
 		wpfs.FromSource,
 		wpfs.SetType,
-		string(fsset),
+		fsset,
 		time,
 		time)
 	return err
@@ -894,13 +887,9 @@ func UpdateWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadPr
 		return err
 	}
 	defer stmt.Close()
-	fsset, err := json.Marshal(fs)
-	if err != nil {
-		log.Error().Msg(err.Error())
-		return err
-	}
+	fsset := strings.Join(fs[:], types.RecordSeparator)
 
-	_, err = stmt.Exec(string(fsset),
+	_, err = stmt.Exec(fsset,
 		time,
 		wpfs.ClusterName,
 		wpfs.ContainerName,
@@ -974,6 +963,7 @@ func UpdateKubearmorLogsMySQL(cfg types.ConfigDB, kubearmorlog types.KubeArmorLo
 	if err != nil {
 		return err
 	}
+	defer stmt.Close()
 
 	_, err = stmt.Exec(
 		kubearmorlog.Timestamp,
@@ -1469,6 +1459,7 @@ func UpdateCiliumLogsMySQL(cfg types.ConfigDB, ciliumlog types.CiliumLog) error 
 	if err != nil {
 		return err
 	}
+	defer stmt.Close()
 
 	_, err = stmt.Exec(
 		ciliumlog.UpdatedTime,

@@ -7,4 +7,7 @@ const (
 
 	// Kubearmor k8s
 	PreConfiguredKubearmorRule = "/lib/x86_64-linux-gnu/"
+
+	// RecordSeparator - DB separator flag
+	RecordSeparator = "^^"
 )
