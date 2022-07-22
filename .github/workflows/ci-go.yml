@@ -2,9 +2,11 @@ name: ci-go
 
 on:
   push:
-    branches: [master,dev,AK-Dev]
+    branches:
+      - '**'  # matches every branch
   pull_request:
-    branches: [master,dev,AK-Dev]
+    branches:
+      - '**'  # matches every branch
 
 jobs:
   go-fmt:

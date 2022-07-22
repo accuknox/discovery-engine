@@ -15,7 +15,7 @@ spec:
     spec:
       serviceAccountName: knoxautopolicy
       containers:
-      - image: accuknox/knoxautopolicy:dev
+      - image: accuknox/knoxautopolicy:stable
         imagePullPolicy: Always
         name: knoxautopolicy
         ports:
