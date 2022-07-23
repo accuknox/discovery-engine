@@ -19,6 +19,7 @@ type ServiceCluster struct {
 	Mappings    []map[string]string `json:"mappings" bson:"mappings"`
 	Selector    []map[string]string `json:"selector" bson:"selector"`
 	Status      string              `json:"Status,omitempty" bson:"Status,omitempty"`
+	ClusterIP   string              `json:"ClusterIP,omitempty" bson:"ClusterIP,omitempty"`
 }
 
 // EndpointCluster Structure
@@ -35,4 +36,5 @@ type PodCluster struct {
 	Namespace string                   `json:"namespace,omitempty" bson:"namespace,omitempty"`
 	PodName   string                   `json:"podname,omitempty" bson:"podname,omitempty"`
 	Labels    []map[string]interface{} `json:"Labels,omitempty" bson:"Labels,omitempty"`
+	PodIP     string                   `json:"PodIP,omitempty" bson:"PodIP,omitempty"`
 }

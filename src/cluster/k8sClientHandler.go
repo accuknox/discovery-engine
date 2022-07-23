@@ -181,6 +181,7 @@ func GetPodsFromK8sClient() []types.Pod {
 			Namespace: pod.Namespace,
 			PodName:   pod.Name,
 			Labels:    []string{},
+			PodIP:     pod.Status.PodIP,
 		}
 
 		for k, v := range pod.Labels {
