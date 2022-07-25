@@ -19,6 +19,9 @@ func newMockDB() {
 
 	MockSql = mock
 	MockDB = db
+
+	// Replace actual DBHandle with mock handle
+	DBHandle = db
 }
 
 // ==================== //
