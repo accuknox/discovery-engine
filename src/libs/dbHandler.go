@@ -28,9 +28,9 @@ func InitDB(cfg types.ConfigDB) {
 }
 
 // WaitForDB
-func WaitForDB() {
+func WaitForDB(db *sql.DB) {
 	for {
-		err := DBHandle.Ping()
+		err := db.Ping()
 		if err != nil {
 			time.Sleep(time.Second * 1)
 			log.Error().Msgf("DB Ping() failed. Will retry. err=%s", err.Error())

@@ -37,7 +37,7 @@ func ConnectMySQL(cfg types.ConfigDB) (db *sql.DB) {
 		db, err = sql.Open(cfg.DBDriver, dbconn)
 	}
 	db.SetMaxIdleConns(0)
-	WaitForDB()
+	WaitForDB(db)
 
 	return db
 }
@@ -79,12 +79,12 @@ func GetNetworkPoliciesFromMySQL(cfg types.ConfigDB, cluster, namespace, status,
 	}
 
 	results, err = DBHandle.Query(query+whereClause, args...)
-	defer results.Close()
 
 	if err != nil {
 		log.Error().Msg(err.Error())
 		return nil, err
 	}
+	defer results.Close()
 
 	for results.Next() {
 		policy := types.KnoxNetworkPolicy{}

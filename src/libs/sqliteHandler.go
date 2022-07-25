@@ -36,7 +36,7 @@ func ConnectSQLite(cfg types.ConfigDB) (db *sql.DB) {
 		db, err = sql.Open(cfg.DBDriver, cfg.SQLiteDBPath)
 	}
 	db.SetMaxIdleConns(0)
-	WaitForDB()
+	WaitForDB(db)
 
 	return db
 }
