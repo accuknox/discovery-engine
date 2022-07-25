@@ -705,14 +705,15 @@ func GetWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadProce
 
 	defer results.Close()
 
-	var loc_wpfs types.WorkloadProcessFileSet
 	res := types.ResourceSetMap{}
 	pnMap := types.PolicyNameMap{}
-	var fscsv string
-	var fs []string
-	var policyName string
 
 	for results.Next() {
+		var loc_wpfs types.WorkloadProcessFileSet
+		var fscsv string
+		var fs []string
+		var policyName string
+
 		if err := results.Scan(
 			&policyName,
 			&loc_wpfs.ClusterName,
