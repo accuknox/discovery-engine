@@ -27,7 +27,7 @@ func newMockDB() {
 
 func TestGetNetworkPolicies(t *testing.T) {
 	// prepare mock mysql
-	_, mock := newMockDB()
+	newMockDB()
 
 	specPtr := &types.Spec{}
 	spec, _ := json.Marshal(specPtr)
@@ -35,7 +35,7 @@ func TestGetNetworkPolicies(t *testing.T) {
 	flowIDsPrt := &[]string{}
 	flowID, _ := json.Marshal(flowIDsPrt)
 
-	rows := mock.NewRows([]string{
+	rows := MockSql.NewRows([]string{
 		"apiVersion",    // str
 		"kind",          // str
 		"flow_ids",      // []byte
@@ -52,20 +52,20 @@ func TestGetNetworkPolicies(t *testing.T) {
 	}).
 		AddRow("", "test", flowID, "", "", "", "", "", "", "", spec, 0, 0)
 
-	mock.ExpectQuery("^SELECT (.+) FROM network_policy*").
+	MockSql.ExpectQuery("^SELECT (.+) FROM network_policy*").
 		WillReturnRows(rows)
 
 	results := GetNetworkPolicies(types.ConfigDB{DBDriver: "mysql"}, "", "", "", "", "")
 	assert.Equal(t, results[0].Kind, "test")
 
-	if err := mock.ExpectationsWereMet(); err != nil {
+	if err := MockSql.ExpectationsWereMet(); err != nil {
 		t.Errorf(Unmet+"%s", err)
 	}
 }
 
 func TestInsertNetworkPolicies(t *testing.T) {
 	// prepare mock mysql
-	_, mock := newMockDB()
+	newMockDB()
 
 	policy := types.KnoxNetworkPolicy{}
 
@@ -75,7 +75,7 @@ func TestInsertNetworkPolicies(t *testing.T) {
 	flowIDsPrt := &policy.FlowIDs
 	flowID, _ := json.Marshal(flowIDsPrt)
 
-	prep := mock.ExpectPrepare("INSERT INTO network_policy")
+	prep := MockSql.ExpectPrepare("INSERT INTO network_policy")
 	prep.ExpectExec().
 		WithArgs(
 			"",               // str
@@ -102,14 +102,14 @@ func TestInsertNetworkPolicies(t *testing.T) {
 	err := InsertNetworkPoliciesToMySQL(types.ConfigDB{DBDriver: "mysql"}, nfe)
 	assert.NoError(t, err)
 
-	if err := mock.ExpectationsWereMet(); err != nil {
+	if err := MockSql.ExpectationsWereMet(); err != nil {
 		t.Errorf(Unmet+"%s", err)
 	}
 }
 
 func TestInsertNetworkPoliciesSQLite(t *testing.T) {
 	// prepare mock sqlite
-	_, mock := newMockDB()
+	newMockDB()
 
 	policy := types.KnoxNetworkPolicy{}
 
@@ -119,7 +119,7 @@ func TestInsertNetworkPoliciesSQLite(t *testing.T) {
 	flowIDsPrt := &policy.FlowIDs
 	flowID, _ := json.Marshal(flowIDsPrt)
 
-	prep := mock.ExpectPrepare("INSERT INTO network_policy")
+	prep := MockSql.ExpectPrepare("INSERT INTO network_policy")
 	prep.ExpectExec().
 		WithArgs(
 			"",               // str
@@ -146,7 +146,7 @@ func TestInsertNetworkPoliciesSQLite(t *testing.T) {
 	err := InsertNetworkPoliciesToSQLite(types.ConfigDB{DBDriver: "sqlite3"}, nfe)
 	assert.NoError(t, err)
 
-	if err := mock.ExpectationsWereMet(); err != nil {
+	if err := MockSql.ExpectationsWereMet(); err != nil {
 		t.Errorf(Unmet+"%s", err)
 	}
 }
