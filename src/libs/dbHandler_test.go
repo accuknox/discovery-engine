@@ -21,7 +21,7 @@ const Unmet = "unmet expectation error: "
 
 func TestGetNetworkPolicies(t *testing.T) {
 	// prepare mock mysql
-	_, mock := NewMock()
+	_, mock := NewMockDB()
 
 	specPtr := &types.Spec{}
 	spec, _ := json.Marshal(specPtr)
@@ -59,7 +59,7 @@ func TestGetNetworkPolicies(t *testing.T) {
 
 func TestInsertNetworkPolicies(t *testing.T) {
 	// prepare mock mysql
-	_, mock := NewMock()
+	_, mock := NewMockDB()
 
 	policy := types.KnoxNetworkPolicy{}
 
@@ -103,7 +103,7 @@ func TestInsertNetworkPolicies(t *testing.T) {
 
 func TestInsertNetworkPoliciesSQLite(t *testing.T) {
 	// prepare mock sqlite
-	_, mock := NewMock()
+	_, mock := NewMockDB()
 
 	policy := types.KnoxNetworkPolicy{}
 
