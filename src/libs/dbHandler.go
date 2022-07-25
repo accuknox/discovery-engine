@@ -31,25 +31,12 @@ func InitDB(cfg types.ConfigDB) {
 func WaitForDB(db *sql.DB) {
 	for {
 		err := db.Ping()
-		if err != nil {
-			time.Sleep(time.Second * 1)
-			log.Error().Msgf("DB Ping() failed. Will retry. err=%s", err.Error())
-		} else {
+		if err == nil {
 			break
 		}
+		time.Sleep(time.Second * 1)
+		log.Error().Msgf("DB Ping() failed. Will retry. err=%s", err.Error())
 	}
-}
-
-func NewMockDB() (*sql.DB, sqlmock.Sqlmock) {
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		log.Error().Msgf("an error '%s' was not expected when opening a stub database connection", err)
-	}
-
-	MockSql = mock
-	MockDB = db
-
-	return db, mock
 }
 
 // ================= //

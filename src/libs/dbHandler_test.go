@@ -11,9 +11,15 @@ import (
 
 const Unmet = "unmet expectation error: "
 
-// ================= //
-// == Network Log == //
-// ================= //
+func newMockDB() {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		log.Error().Msgf("an error '%s' was not expected when opening a stub database connection", err)
+	}
+
+	MockSql = mock
+	MockDB = db
+}
 
 // ==================== //
 // == Network Policy == //
@@ -21,7 +27,7 @@ const Unmet = "unmet expectation error: "
 
 func TestGetNetworkPolicies(t *testing.T) {
 	// prepare mock mysql
-	_, mock := NewMockDB()
+	_, mock := newMockDB()
 
 	specPtr := &types.Spec{}
 	spec, _ := json.Marshal(specPtr)
@@ -59,7 +65,7 @@ func TestGetNetworkPolicies(t *testing.T) {
 
 func TestInsertNetworkPolicies(t *testing.T) {
 	// prepare mock mysql
-	_, mock := NewMockDB()
+	_, mock := newMockDB()
 
 	policy := types.KnoxNetworkPolicy{}
 
@@ -103,7 +109,7 @@ func TestInsertNetworkPolicies(t *testing.T) {
 
 func TestInsertNetworkPoliciesSQLite(t *testing.T) {
 	// prepare mock sqlite
-	_, mock := NewMockDB()
+	_, mock := newMockDB()
 
 	policy := types.KnoxNetworkPolicy{}
 
