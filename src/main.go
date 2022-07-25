@@ -34,6 +34,7 @@ func init() {
 	log.Info().Msgf("KUBEARMOR: %+v", config.GetCfgKubeArmor())
 
 	// 3. setup the tables in db
+	libs.InitDB(config.GetCfgDB())
 	libs.CreateTablesIfNotExist(config.GetCfgDB())
 }
 

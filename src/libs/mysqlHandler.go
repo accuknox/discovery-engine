@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/accuknox/auto-policy-discovery/src/types"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -23,50 +22,22 @@ const TableNetworkLogs_TableName = "network_logs"
 // == Connection == //
 // ================ //
 
-var MockSql sqlmock.Sqlmock = nil
-var MockDB *sql.DB = nil
-
-func NewMock() (*sql.DB, sqlmock.Sqlmock) {
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		log.Error().Msgf("an error '%s' was not expected when opening a stub database connection", err)
-	}
-
-	MockSql = mock
-	MockDB = db
-
-	return db, mock
-}
-
-func waitForDB(db *sql.DB) {
-	for {
-		err := db.Ping()
-		if err != nil {
-			time.Sleep(time.Second * 1)
-			log.Error().Msgf("db.Ping() failed. Will retry. err=%s", err.Error())
-		} else {
-			break
-		}
-	}
-}
-
-func connectMySQL(cfg types.ConfigDB) (db *sql.DB) {
+func ConnectMySQL(cfg types.ConfigDB) (db *sql.DB) {
+	var err error = nil
 	if MockDB != nil {
 		return MockDB
 	}
 
 	dbconn := cfg.DBUser + ":" + cfg.DBPass + "@tcp(" + cfg.DBHost + ":" + cfg.DBPort + ")/" + cfg.DBName
-	db, err := sql.Open(cfg.DBDriver, dbconn)
+	db, err = sql.Open(cfg.DBDriver, dbconn)
 	for err != nil {
 		log.Error().Msgf("mysql driver:%s, user:%s, host:%s, port:%s, dbname:%s conn-error:%s",
 			cfg.DBDriver, cfg.DBUser, cfg.DBHost, cfg.DBPort, cfg.DBName, err.Error())
 		time.Sleep(time.Second * 1)
 		db, err = sql.Open(cfg.DBDriver, dbconn)
 	}
-
 	db.SetMaxIdleConns(0)
-
-	waitForDB(db)
+	WaitForDB()
 
 	return db
 }
@@ -76,8 +47,6 @@ func connectMySQL(cfg types.ConfigDB) (db *sql.DB) {
 // ==================== //
 
 func GetNetworkPoliciesFromMySQL(cfg types.ConfigDB, cluster, namespace, status, nwtype, rule string) ([]types.KnoxNetworkPolicy, error) {
-	db := connectMySQL(cfg)
-	defer db.Close()
 
 	policies := []types.KnoxNetworkPolicy{}
 	var results *sql.Rows
@@ -109,7 +78,7 @@ func GetNetworkPoliciesFromMySQL(cfg types.ConfigDB, cluster, namespace, status,
 		args = append(args, rule)
 	}
 
-	results, err = db.Query(query+whereClause, args...)
+	results, err = DBHandle.Query(query+whereClause, args...)
 	defer results.Close()
 
 	if err != nil {
@@ -172,11 +141,9 @@ func GetNetworkPoliciesFromMySQL(cfg types.ConfigDB, cluster, namespace, status,
 }
 
 func UpdateNetworkPolicyToMySQL(cfg types.ConfigDB, policy types.KnoxNetworkPolicy) error {
-	db := connectMySQL(cfg)
-	defer db.Close()
 
 	// set status -> outdated
-	stmt, err := db.Prepare("UPDATE " + TableNetworkPolicy_TableName +
+	stmt, err := DBHandle.Prepare("UPDATE " + TableNetworkPolicy_TableName +
 		" SET apiVersion=?,kind=?,cluster_name=?,namespace=?,type=?,status=?,outdated=?,spec=?,updatedTime=? WHERE name = ?")
 	if err != nil {
 		return err
@@ -208,13 +175,10 @@ func UpdateNetworkPolicyToMySQL(cfg types.ConfigDB, policy types.KnoxNetworkPoli
 }
 
 func UpdateOutdatedNetworkPolicyFromMySQL(cfg types.ConfigDB, outdatedPolicy string, latestPolicy string) error {
-	db := connectMySQL(cfg)
-	defer db.Close()
-
 	var err error
 
 	// set status -> outdated
-	stmt1, err := db.Prepare("UPDATE " + TableNetworkPolicy_TableName + " SET status=? WHERE name=?")
+	stmt1, err := DBHandle.Prepare("UPDATE " + TableNetworkPolicy_TableName + " SET status=? WHERE name=?")
 	if err != nil {
 		return err
 	}
@@ -226,7 +190,7 @@ func UpdateOutdatedNetworkPolicyFromMySQL(cfg types.ConfigDB, outdatedPolicy str
 	}
 
 	// set outdated -> latest' name
-	stmt2, err := db.Prepare("UPDATE " + TableNetworkPolicy_TableName + " SET outdated=? WHERE name=?")
+	stmt2, err := DBHandle.Prepare("UPDATE " + TableNetworkPolicy_TableName + " SET outdated=? WHERE name=?")
 	if err != nil {
 		return err
 	}
@@ -240,8 +204,8 @@ func UpdateOutdatedNetworkPolicyFromMySQL(cfg types.ConfigDB, outdatedPolicy str
 	return nil
 }
 
-func insertNetworkPolicy(cfg types.ConfigDB, db *sql.DB, policy types.KnoxNetworkPolicy) error {
-	stmt, err := db.Prepare("INSERT INTO " + TableNetworkPolicy_TableName + "(apiVersion,kind,flow_ids,name,cluster_name,namespace,type,rule,status,outdated,spec,generatedTime,updatedTime) values(?,?,?,?,?,?,?,?,?,?,?,?,?)")
+func insertNetworkPolicy(cfg types.ConfigDB, policy types.KnoxNetworkPolicy) error {
+	stmt, err := DBHandle.Prepare("INSERT INTO " + TableNetworkPolicy_TableName + "(apiVersion,kind,flow_ids,name,cluster_name,namespace,type,rule,status,outdated,spec,generatedTime,updatedTime) values(?,?,?,?,?,?,?,?,?,?,?,?,?)")
 	if err != nil {
 		return err
 	}
@@ -282,11 +246,9 @@ func insertNetworkPolicy(cfg types.ConfigDB, db *sql.DB, policy types.KnoxNetwor
 }
 
 func InsertNetworkPoliciesToMySQL(cfg types.ConfigDB, policies []types.KnoxNetworkPolicy) error {
-	db := connectMySQL(cfg)
-	defer db.Close()
 
 	for _, policy := range policies {
-		if err := insertNetworkPolicy(cfg, db, policy); err != nil {
+		if err := insertNetworkPolicy(cfg, policy); err != nil {
 			return err
 		}
 	}
@@ -299,13 +261,10 @@ func InsertNetworkPoliciesToMySQL(cfg types.ConfigDB, policies []types.KnoxNetwo
 // =================== //
 
 func UpdateOutdatedSystemPolicyFromMySQL(cfg types.ConfigDB, outdatedPolicy string, latestPolicy string) error {
-	db := connectMySQL(cfg)
-	defer db.Close()
-
 	var err error
 
 	// set status -> outdated
-	stmt1, err := db.Prepare("UPDATE " + TableSystemPolicy_TableName + " SET status=? WHERE name=?")
+	stmt1, err := DBHandle.Prepare("UPDATE " + TableSystemPolicy_TableName + " SET status=? WHERE name=?")
 	if err != nil {
 		return err
 	}
@@ -317,7 +276,7 @@ func UpdateOutdatedSystemPolicyFromMySQL(cfg types.ConfigDB, outdatedPolicy stri
 	}
 
 	// set outdated -> latest' name
-	stmt2, err := db.Prepare("UPDATE " + TableNetworkPolicy_TableName + " SET outdated=? WHERE name=?")
+	stmt2, err := DBHandle.Prepare("UPDATE " + TableNetworkPolicy_TableName + " SET outdated=? WHERE name=?")
 	if err != nil {
 		return err
 	}
@@ -332,8 +291,6 @@ func UpdateOutdatedSystemPolicyFromMySQL(cfg types.ConfigDB, outdatedPolicy stri
 }
 
 func GetSystemPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) ([]types.KnoxSystemPolicy, error) {
-	db := connectMySQL(cfg)
-	defer db.Close()
 
 	policies := []types.KnoxSystemPolicy{}
 	var results *sql.Rows
@@ -343,15 +300,15 @@ func GetSystemPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) ([
 
 	if namespace != "" && status != "" {
 		query = query + " WHERE namespace = ? and status = ? "
-		results, err = db.Query(query, namespace, status)
+		results, err = DBHandle.Query(query, namespace, status)
 	} else if namespace != "" {
 		query = query + " WHERE namespace = ? "
-		results, err = db.Query(query, namespace)
+		results, err = DBHandle.Query(query, namespace)
 	} else if status != "" {
 		query = query + " WHERE status = ? "
-		results, err = db.Query(query, status)
+		results, err = DBHandle.Query(query, status)
 	} else {
-		results, err = db.Query(query)
+		results, err = DBHandle.Query(query)
 	}
 
 	if err != nil {
@@ -405,8 +362,8 @@ func GetSystemPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) ([
 	return policies, nil
 }
 
-func insertSystemPolicy(cfg types.ConfigDB, db *sql.DB, policy types.KnoxSystemPolicy) error {
-	stmt, err := db.Prepare("INSERT INTO " + TableSystemPolicy_TableName + "(apiVersion,kind,name,clusterName,namespace,type,status,outdated,spec,generatedTime,updatedTime,latest) values(?,?,?,?,?,?,?,?,?,?,?,?)")
+func insertSystemPolicy(cfg types.ConfigDB, policy types.KnoxSystemPolicy) error {
+	stmt, err := DBHandle.Prepare("INSERT INTO " + TableSystemPolicy_TableName + "(apiVersion,kind,name,clusterName,namespace,type,status,outdated,spec,generatedTime,updatedTime,latest) values(?,?,?,?,?,?,?,?,?,?,?,?)")
 	if err != nil {
 		return err
 	}
@@ -439,24 +396,18 @@ func insertSystemPolicy(cfg types.ConfigDB, db *sql.DB, policy types.KnoxSystemP
 }
 
 func InsertSystemPoliciesToMySQL(cfg types.ConfigDB, policies []types.KnoxSystemPolicy) error {
-	db := connectMySQL(cfg)
-	defer db.Close()
-
 	for _, policy := range policies {
-		if err := insertSystemPolicy(cfg, db, policy); err != nil {
+		if err := insertSystemPolicy(cfg, policy); err != nil {
 			return err
 		}
 	}
-
 	return nil
 }
 
 func UpdateSystemPolicyToMySQL(cfg types.ConfigDB, policy types.KnoxSystemPolicy) error {
-	db := connectMySQL(cfg)
-	defer db.Close()
 
 	// set status -> outdated
-	stmt, err := db.Prepare("UPDATE " + TableSystemPolicy_TableName +
+	stmt, err := DBHandle.Prepare("UPDATE " + TableSystemPolicy_TableName +
 		" SET apiVersion=?,kind=?,clusterName=?,namespace=?,type=?,status=?,outdated=?,spec=?,updatedTime=?,latest=? WHERE name = ?")
 	if err != nil {
 		return err
@@ -493,11 +444,9 @@ func UpdateSystemPolicyToMySQL(cfg types.ConfigDB, policy types.KnoxSystemPolicy
 // =========== //
 
 func ClearNetworkDBTableMySQL(cfg types.ConfigDB) error {
-	db := connectMySQL(cfg)
-	defer db.Close()
 
 	query := "DELETE FROM " + TableNetworkPolicy_TableName
-	if _, err := db.Query(query); err != nil {
+	if _, err := DBHandle.Query(query); err != nil {
 		return err
 	}
 
@@ -505,21 +454,19 @@ func ClearNetworkDBTableMySQL(cfg types.ConfigDB) error {
 }
 
 func ClearDBTablesMySQL(cfg types.ConfigDB) error {
-	db := connectMySQL(cfg)
-	defer db.Close()
 
 	query := "DELETE FROM " + TableNetworkPolicy_TableName
-	if _, err := db.Query(query); err != nil {
+	if _, err := DBHandle.Query(query); err != nil {
 		return err
 	}
 
 	query = "DELETE FROM " + TableSystemPolicy_TableName
-	if _, err := db.Query(query); err != nil {
+	if _, err := DBHandle.Query(query); err != nil {
 		return err
 	}
 
 	query = "DELETE FROM " + WorkloadProcessFileSet_TableName
-	if _, err := db.Query(query); err != nil {
+	if _, err := DBHandle.Query(query); err != nil {
 		return err
 	}
 
@@ -527,8 +474,6 @@ func ClearDBTablesMySQL(cfg types.ConfigDB) error {
 }
 
 func CreateTableNetworkPolicyMySQL(cfg types.ConfigDB) error {
-	db := connectMySQL(cfg)
-	defer db.Close()
 
 	tableName := TableNetworkPolicy_TableName
 
@@ -551,7 +496,7 @@ func CreateTableNetworkPolicyMySQL(cfg types.ConfigDB) error {
 			"	PRIMARY KEY (`id`)" +
 			"  );"
 
-	if _, err := db.Query(query); err != nil {
+	if _, err := DBHandle.Query(query); err != nil {
 		return err
 	}
 
@@ -559,8 +504,6 @@ func CreateTableNetworkPolicyMySQL(cfg types.ConfigDB) error {
 }
 
 func CreateTableSystemPolicyMySQL(cfg types.ConfigDB) error {
-	db := connectMySQL(cfg)
-	defer db.Close()
 
 	tableName := TableSystemPolicy_TableName
 
@@ -582,7 +525,7 @@ func CreateTableSystemPolicyMySQL(cfg types.ConfigDB) error {
 			"	PRIMARY KEY (`id`)" +
 			"  );"
 
-	if _, err := db.Query(query); err != nil {
+	if _, err := DBHandle.Query(query); err != nil {
 		return err
 	}
 
@@ -590,8 +533,6 @@ func CreateTableSystemPolicyMySQL(cfg types.ConfigDB) error {
 }
 
 func CreateTableWorkLoadProcessFileSetMySQL(cfg types.ConfigDB) error {
-	db := connectMySQL(cfg)
-	defer db.Close()
 
 	tableName := WorkloadProcessFileSet_TableName
 
@@ -611,13 +552,11 @@ func CreateTableWorkLoadProcessFileSetMySQL(cfg types.ConfigDB) error {
 			"	PRIMARY KEY (`id`)" +
 			"  );"
 
-	_, err := db.Query(query)
+	_, err := DBHandle.Query(query)
 	return err
 }
 
 func CreateTableSystemLogsMySQL(cfg types.ConfigDB) error {
-	db := connectMySQL(cfg)
-	defer db.Close()
 
 	tableName := TableSystemLogs_TableName
 
@@ -645,13 +584,11 @@ func CreateTableSystemLogsMySQL(cfg types.ConfigDB) error {
 			"	`total` INTEGER	" +
 			"  );"
 
-	_, err := db.Query(query)
+	_, err := DBHandle.Query(query)
 	return err
 }
 
 func CreateTableNetworkLogsMySQL(cfg types.ConfigDB) error {
-	db := connectMySQL(cfg)
-	defer db.Close()
 
 	tableName := TableNetworkLogs_TableName
 
@@ -702,7 +639,7 @@ func CreateTableNetworkLogsMySQL(cfg types.ConfigDB) error {
 			"	`total` INTEGER" +
 			" 	);"
 
-	_, err := db.Query(query)
+	_, err := DBHandle.Query(query)
 	return err
 }
 
@@ -726,9 +663,6 @@ func concatWhereClauseIntRange(whereClause *string, field string, start int64, e
 
 // GetWorkloadProcessFileSetMySQL Handle File Sets in context to a given fromSource
 func GetWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadProcessFileSet) (map[types.WorkloadProcessFileSet][]string, types.PolicyNameMap, error) {
-	db := connectMySQL(cfg)
-	defer db.Close()
-
 	var results *sql.Rows
 	var err error
 
@@ -762,7 +696,7 @@ func GetWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadProce
 		args = append(args, wpfs.SetType)
 	}
 
-	results, err = db.Query(query+whereClause, args...)
+	results, err = DBHandle.Query(query+whereClause, args...)
 
 	if err != nil {
 		log.Error().Msg(err.Error())
@@ -800,12 +734,10 @@ func GetWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadProce
 }
 
 func InsertWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadProcessFileSet, fs []string) error {
-	db := connectMySQL(cfg)
-	defer db.Close()
 	policyName := "autopol-" + strings.ToLower(wpfs.SetType) + "-" + RandSeq(15)
 	time := ConvertStrToUnixTime("now")
 
-	stmt, err := db.Prepare("INSERT INTO " + WorkloadProcessFileSet_TableName +
+	stmt, err := DBHandle.Prepare("INSERT INTO " + WorkloadProcessFileSet_TableName +
 		"(policyName,clusterName,namespace,containerName,labels,fromSource,settype,fileset,createdtime,updatedtime) values(?,?,?,?,?,?,?,?,?,?)")
 	if err != nil {
 		return err
@@ -829,9 +761,6 @@ func InsertWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadPr
 
 // Clears out WPFS DB on full or as per options specified
 func ClearWPFSDbMySQL(cfg types.ConfigDB, wpfs types.WorkloadProcessFileSet, duration int64) error {
-	db := connectMySQL(cfg)
-	defer db.Close()
-
 	var err error
 
 	query := "DELETE FROM " + WorkloadProcessFileSet_TableName
@@ -864,7 +793,7 @@ func ClearWPFSDbMySQL(cfg types.ConfigDB, wpfs types.WorkloadProcessFileSet, dur
 		concatWhereClauseIntRange(&whereClause, "createdtime", time-duration, time)
 	}
 
-	_, err = db.Query(query+whereClause, args...)
+	_, err = DBHandle.Query(query+whereClause, args...)
 
 	if err != nil {
 		log.Error().Msg(err.Error())
@@ -874,14 +803,11 @@ func ClearWPFSDbMySQL(cfg types.ConfigDB, wpfs types.WorkloadProcessFileSet, dur
 }
 
 func UpdateWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadProcessFileSet, fs []string) error {
-	db := connectMySQL(cfg)
-	defer db.Close()
-
 	var err error
 	time := ConvertStrToUnixTime("now")
 
 	// set status -> outdated
-	stmt, err := db.Prepare("UPDATE " + WorkloadProcessFileSet_TableName +
+	stmt, err := DBHandle.Prepare("UPDATE " + WorkloadProcessFileSet_TableName +
 		" SET fileset=?,updatedtime=? WHERE clusterName = ? and containerName = ? and namespace = ? and labels = ? and fromSource = ? and settype = ?")
 	if err != nil {
 		return err
@@ -909,8 +835,6 @@ func UpdateWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadPr
 
 // InsertKubearmorLogsMySQL : Insert new kubearmor log/alert into DB
 func InsertKubearmorLogsMySQL(cfg types.ConfigDB, log types.KubeArmorLog) error {
-	db := connectMySQL(cfg)
-	defer db.Close()
 
 	queryString := `(cluster_name,host_name,namespace_name,pod_name,container_id,container_name,
 		uid,type,source,operation,resource,labels,data,category,action,start_time,
@@ -918,7 +842,7 @@ func InsertKubearmorLogsMySQL(cfg types.ConfigDB, log types.KubeArmorLog) error 
 
 	query := "INSERT INTO " + TableSystemLogs_TableName + queryString
 
-	stmt, err := db.Prepare(query)
+	stmt, err := DBHandle.Prepare(query)
 	if err != nil {
 		return err
 	}
@@ -949,9 +873,6 @@ func InsertKubearmorLogsMySQL(cfg types.ConfigDB, log types.KubeArmorLog) error 
 
 // UpdateKubearmorLogsMySQL -- Update existing log/alert with time and count
 func UpdateKubearmorLogsMySQL(cfg types.ConfigDB, kubearmorlog types.KubeArmorLog) error {
-	db := connectMySQL(cfg)
-	defer db.Close()
-
 	var err error
 	queryString := `cluster_name = ? and host_name = ? and namespace_name = ? and pod_name = ? and container_id = ? and 
 					container_name = ? and uid = ? and type = ? and source = ? and operation = ? and resource = ? and 
@@ -959,7 +880,7 @@ func UpdateKubearmorLogsMySQL(cfg types.ConfigDB, kubearmorlog types.KubeArmorLo
 
 	query := "UPDATE " + TableSystemLogs_TableName + " SET total=total+1, updated_time=? WHERE " + queryString + " "
 
-	stmt, err := db.Prepare(query)
+	stmt, err := DBHandle.Prepare(query)
 	if err != nil {
 		return err
 	}
@@ -990,8 +911,6 @@ func UpdateKubearmorLogsMySQL(cfg types.ConfigDB, kubearmorlog types.KubeArmorLo
 
 // GetSystemLogsMySQL
 func GetSystemLogsMySQL(cfg types.ConfigDB, filterLog types.KubeArmorLog) ([]types.KubeArmorLog, []uint32, error) {
-	db := connectMySQL(cfg)
-	defer db.Close()
 
 	resLog := []types.KubeArmorLog{}
 	resTotal := []uint32{}
@@ -1080,7 +999,7 @@ func GetSystemLogsMySQL(cfg types.ConfigDB, filterLog types.KubeArmorLog) ([]typ
 		args = append(args, filterLog.Result)
 	}
 
-	results, err = db.Query(query+whereClause, args...)
+	results, err = DBHandle.Query(query+whereClause, args...)
 
 	if err != nil {
 		log.Error().Msg(err.Error())
@@ -1122,8 +1041,6 @@ func GetSystemLogsMySQL(cfg types.ConfigDB, filterLog types.KubeArmorLog) ([]typ
 }
 
 func InsertCiliumLogsMySQL(cfg types.ConfigDB, log types.CiliumLog) error {
-	db := connectMySQL(cfg)
-	defer db.Close()
 
 	queryString := `(verdict,ip_source,ip_destination,ip_version,ip_encrypted,l4_tcp_source_port,l4_tcp_destination_port,
 		l4_udp_source_port,l4_udp_destination_port,l4_icmpv4_type,l4_icmpv4_code,l4_icmpv6_type,l4_icmpv6_code,
@@ -1135,7 +1052,7 @@ func InsertCiliumLogsMySQL(cfg types.ConfigDB, log types.CiliumLog) error {
 
 	query := "INSERT INTO " + TableNetworkLogs_TableName + queryString
 
-	stmt, err := db.Prepare(query)
+	stmt, err := DBHandle.Prepare(query)
 	if err != nil {
 		return err
 	}
@@ -1189,8 +1106,6 @@ func InsertCiliumLogsMySQL(cfg types.ConfigDB, log types.CiliumLog) error {
 
 // GetCiliumLogsMySQL
 func GetCiliumLogsMySQL(cfg types.ConfigDB, filterLog types.CiliumLog) ([]types.CiliumLog, []uint32, error) {
-	db := connectMySQL(cfg)
-	defer db.Close()
 
 	resLog := []types.CiliumLog{}
 	resTotal := []uint32{}
@@ -1375,7 +1290,7 @@ func GetCiliumLogsMySQL(cfg types.ConfigDB, filterLog types.CiliumLog) ([]types.
 		args = append(args, filterLog.Total)
 	}
 
-	results, err = db.Query(query+whereClause, args...)
+	results, err = DBHandle.Query(query+whereClause, args...)
 
 	if err != nil {
 		log.Error().Msg(err.Error())
@@ -1440,9 +1355,6 @@ func GetCiliumLogsMySQL(cfg types.ConfigDB, filterLog types.CiliumLog) ([]types.
 
 // UpdateCiliumLogsMySQL -- Update existing log with time and count
 func UpdateCiliumLogsMySQL(cfg types.ConfigDB, ciliumlog types.CiliumLog) error {
-	db := connectMySQL(cfg)
-	defer db.Close()
-
 	var err error
 	queryString := `verdict = ? and ip_source = ? and ip_destination = ? and ip_version = ? and ip_encrypted = ? and l4_tcp_source_port = ? and 
 					l4_tcp_destination_port = ? and l4_udp_source_port = ? and l4_udp_destination_port = ? and l4_icmpv4_type = ? and 
@@ -1455,7 +1367,7 @@ func UpdateCiliumLogsMySQL(cfg types.ConfigDB, ciliumlog types.CiliumLog) error 
 
 	query := "UPDATE " + TableNetworkLogs_TableName + " SET total=total+1, updated_time=? WHERE " + queryString + " "
 
-	stmt, err := db.Prepare(query)
+	stmt, err := DBHandle.Prepare(query)
 	if err != nil {
 		return err
 	}

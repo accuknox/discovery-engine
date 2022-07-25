@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/accuknox/auto-policy-discovery/src/types"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -23,50 +22,21 @@ const TableNetworkLogsSQLite_TableName = "network_logs"
 // == Connection == //
 // ================ //
 
-var MockSqlite sqlmock.Sqlmock = nil
-var MockDBSQLite *sql.DB = nil
-
-func NewMockSQLite() (*sql.DB, sqlmock.Sqlmock) {
-	db, mock, err := sqlmock.New()
-	if err != nil {
-		log.Error().Msgf("an error '%s' was not expected when opening a stub database connection", err)
-	}
-
-	MockSqlite = mock
-	MockDBSQLite = db
-
-	return db, mock
-}
-
-func waitForDBSQLite(db *sql.DB) {
-	for {
-		err := db.Ping()
-		if err != nil {
-			time.Sleep(time.Second * 1)
-			log.Error().Msgf("db.Ping() failed. Will retry. err=%s", err.Error())
-		} else {
-			break
-		}
-	}
-}
-
-func connectSQLite(cfg types.ConfigDB) (db *sql.DB) {
+func ConnectSQLite(cfg types.ConfigDB) (db *sql.DB) {
+	var err error = nil
 	if MockDB != nil {
 		return MockDB
 	}
 
-	dbconn := cfg.DBUser + ":" + cfg.DBPass + "@tcp(" + cfg.DBHost + ":" + cfg.DBPort + ")/" + cfg.DBName
-	db, err := sql.Open(cfg.DBDriver, cfg.SQLiteDBPath)
+	db, err = sql.Open(cfg.DBDriver, cfg.SQLiteDBPath)
 	for err != nil {
 		log.Error().Msgf("sqlite driver:%s, user:%s, host:%s, port:%s, dbname:%s conn-error:%s",
 			cfg.DBDriver, cfg.DBUser, cfg.DBHost, cfg.DBPort, cfg.DBName, err.Error())
 		time.Sleep(time.Second * 1)
-		db, err = sql.Open(cfg.DBDriver, dbconn)
+		db, err = sql.Open(cfg.DBDriver, cfg.SQLiteDBPath)
 	}
-
 	db.SetMaxIdleConns(0)
-
-	waitForDBSQLite(db)
+	WaitForDB()
 
 	return db
 }
@@ -76,9 +46,6 @@ func connectSQLite(cfg types.ConfigDB) (db *sql.DB) {
 // ==================== //
 
 func GetNetworkPoliciesFromSQLite(cfg types.ConfigDB, cluster, namespace, status string) ([]types.KnoxNetworkPolicy, error) {
-	db := connectSQLite(cfg)
-	defer db.Close()
-
 	policies := []types.KnoxNetworkPolicy{}
 	var results *sql.Rows
 	var err error
@@ -86,20 +53,19 @@ func GetNetworkPoliciesFromSQLite(cfg types.ConfigDB, cluster, namespace, status
 	query := "SELECT apiVersion,kind,flow_ids,name,cluster_name,namespace,type,rule,status,outdated,spec,generatedTime,updatedTime FROM " + TableNetworkPolicySQLite_TableName
 	if cluster != "" && namespace != "" && status != "" {
 		query = query + " WHERE cluster_name = ? and namespace = ? and status = ? "
-		results, err = db.Query(query, cluster, namespace, status)
+		results, err = DBHandle.Query(query, cluster, namespace, status)
 	} else if cluster != "" && status != "" {
 		query = query + " WHERE cluster_name = ? and status = ? "
-		results, err = db.Query(query, cluster, status)
+		results, err = DBHandle.Query(query, cluster, status)
 	} else if namespace != "" && status != "" {
 		query = query + " WHERE namespace = ? and status = ? "
-		results, err = db.Query(query, namespace, status)
+		results, err = DBHandle.Query(query, namespace, status)
 	} else if status != "" {
 		query = query + " WHERE status = ? "
-		results, err = db.Query(query, status)
+		results, err = DBHandle.Query(query, status)
 	} else {
-		results, err = db.Query(query)
+		results, err = DBHandle.Query(query)
 	}
-
 	defer results.Close()
 
 	if err != nil {
@@ -162,10 +128,7 @@ func GetNetworkPoliciesFromSQLite(cfg types.ConfigDB, cluster, namespace, status
 }
 
 func UpdateNetworkPolicyToSQLite(cfg types.ConfigDB, policy types.KnoxNetworkPolicy) error {
-	db := connectSQLite(cfg)
-	defer db.Close()
-
-	stmt, err := db.Prepare("UPDATE " + TableNetworkPolicySQLite_TableName +
+	stmt, err := DBHandle.Prepare("UPDATE " + TableNetworkPolicySQLite_TableName +
 		" SET apiVersion=?,kind=?,cluster_name=?,namespace=?,type=?,status=?,outdated=?,spec=?,updatedTime=? WHERE name = ?")
 	if err != nil {
 		return err
@@ -197,13 +160,10 @@ func UpdateNetworkPolicyToSQLite(cfg types.ConfigDB, policy types.KnoxNetworkPol
 }
 
 func UpdateOutdatedNetworkPolicyFromSQLite(cfg types.ConfigDB, outdatedPolicy string, latestPolicy string) error {
-	db := connectSQLite(cfg)
-	defer db.Close()
-
 	var err error
 
 	// set status -> outdated
-	stmt1, err := db.Prepare("UPDATE " + TableNetworkPolicySQLite_TableName + " SET status=? WHERE name=?")
+	stmt1, err := DBHandle.Prepare("UPDATE " + TableNetworkPolicySQLite_TableName + " SET status=? WHERE name=?")
 	if err != nil {
 		return err
 	}
@@ -215,7 +175,7 @@ func UpdateOutdatedNetworkPolicyFromSQLite(cfg types.ConfigDB, outdatedPolicy st
 	}
 
 	// set outdated -> latest' name
-	stmt2, err := db.Prepare("UPDATE " + TableNetworkPolicySQLite_TableName + " SET outdated=? WHERE name=?")
+	stmt2, err := DBHandle.Prepare("UPDATE " + TableNetworkPolicySQLite_TableName + " SET outdated=? WHERE name=?")
 	if err != nil {
 		return err
 	}
@@ -229,8 +189,8 @@ func UpdateOutdatedNetworkPolicyFromSQLite(cfg types.ConfigDB, outdatedPolicy st
 	return nil
 }
 
-func insertNetworkPolicySQLite(cfg types.ConfigDB, db *sql.DB, policy types.KnoxNetworkPolicy) error {
-	stmt, err := db.Prepare("INSERT INTO " + TableNetworkPolicySQLite_TableName + "(apiVersion,kind,flow_ids,name,cluster_name,namespace,type,rule,status,outdated,spec,generatedTime,updatedTime) values(?,?,?,?,?,?,?,?,?,?,?,?,?)")
+func insertNetworkPolicySQLite(cfg types.ConfigDB, policy types.KnoxNetworkPolicy) error {
+	stmt, err := DBHandle.Prepare("INSERT INTO " + TableNetworkPolicySQLite_TableName + "(apiVersion,kind,flow_ids,name,cluster_name,namespace,type,rule,status,outdated,spec,generatedTime,updatedTime) values(?,?,?,?,?,?,?,?,?,?,?,?,?)")
 	if err != nil {
 		return err
 	}
@@ -271,15 +231,11 @@ func insertNetworkPolicySQLite(cfg types.ConfigDB, db *sql.DB, policy types.Knox
 }
 
 func InsertNetworkPoliciesToSQLite(cfg types.ConfigDB, policies []types.KnoxNetworkPolicy) error {
-	db := connectSQLite(cfg)
-	defer db.Close()
-
 	for _, policy := range policies {
-		if err := insertNetworkPolicySQLite(cfg, db, policy); err != nil {
+		if err := insertNetworkPolicySQLite(cfg, policy); err != nil {
 			return err
 		}
 	}
-
 	return nil
 }
 
@@ -288,13 +244,10 @@ func InsertNetworkPoliciesToSQLite(cfg types.ConfigDB, policies []types.KnoxNetw
 // =================== //
 
 func UpdateOutdatedSystemPolicyFromSQLite(cfg types.ConfigDB, outdatedPolicy string, latestPolicy string) error {
-	db := connectSQLite(cfg)
-	defer db.Close()
-
 	var err error
 
 	// set status -> outdated
-	stmt1, err := db.Prepare("UPDATE " + TableSystemPolicySQLite_TableName + " SET status=? WHERE name=?")
+	stmt1, err := DBHandle.Prepare("UPDATE " + TableSystemPolicySQLite_TableName + " SET status=? WHERE name=?")
 	if err != nil {
 		return err
 	}
@@ -306,7 +259,7 @@ func UpdateOutdatedSystemPolicyFromSQLite(cfg types.ConfigDB, outdatedPolicy str
 	}
 
 	// set outdated -> latest' name
-	stmt2, err := db.Prepare("UPDATE " + TableNetworkPolicySQLite_TableName + " SET outdated=? WHERE name=?")
+	stmt2, err := DBHandle.Prepare("UPDATE " + TableNetworkPolicySQLite_TableName + " SET outdated=? WHERE name=?")
 	if err != nil {
 		return err
 	}
@@ -321,9 +274,6 @@ func UpdateOutdatedSystemPolicyFromSQLite(cfg types.ConfigDB, outdatedPolicy str
 }
 
 func GetSystemPoliciesFromSQLite(cfg types.ConfigDB, namespace, status string) ([]types.KnoxSystemPolicy, error) {
-	db := connectSQLite(cfg)
-	defer db.Close()
-
 	policies := []types.KnoxSystemPolicy{}
 	var results *sql.Rows
 	var err error
@@ -332,15 +282,15 @@ func GetSystemPoliciesFromSQLite(cfg types.ConfigDB, namespace, status string) (
 
 	if namespace != "" && status != "" {
 		query = query + " WHERE namespace = ? and status = ? "
-		results, err = db.Query(query, namespace, status)
+		results, err = DBHandle.Query(query, namespace, status)
 	} else if namespace != "" {
 		query = query + " WHERE namespace = ? "
-		results, err = db.Query(query, namespace)
+		results, err = DBHandle.Query(query, namespace)
 	} else if status != "" {
 		query = query + " WHERE status = ? "
-		results, err = db.Query(query, status)
+		results, err = DBHandle.Query(query, status)
 	} else {
-		results, err = db.Query(query)
+		results, err = DBHandle.Query(query)
 	}
 
 	if err != nil {
@@ -394,8 +344,8 @@ func GetSystemPoliciesFromSQLite(cfg types.ConfigDB, namespace, status string) (
 	return policies, nil
 }
 
-func insertSystemPolicySQLite(cfg types.ConfigDB, db *sql.DB, policy types.KnoxSystemPolicy) error {
-	stmt, err := db.Prepare("INSERT INTO " + TableSystemPolicySQLite_TableName + "(apiVersion,kind,name,clusterName,namespace,type,status,outdated,spec,generatedTime,updatedTime,latest) values(?,?,?,?,?,?,?,?,?,?,?,?)")
+func insertSystemPolicySQLite(cfg types.ConfigDB, policy types.KnoxSystemPolicy) error {
+	stmt, err := DBHandle.Prepare("INSERT INTO " + TableSystemPolicySQLite_TableName + "(apiVersion,kind,name,clusterName,namespace,type,status,outdated,spec,generatedTime,updatedTime,latest) values(?,?,?,?,?,?,?,?,?,?,?,?)")
 	if err != nil {
 		return err
 	}
@@ -428,11 +378,8 @@ func insertSystemPolicySQLite(cfg types.ConfigDB, db *sql.DB, policy types.KnoxS
 }
 
 func InsertSystemPoliciesToSQLite(cfg types.ConfigDB, policies []types.KnoxSystemPolicy) error {
-	db := connectSQLite(cfg)
-	defer db.Close()
-
 	for _, policy := range policies {
-		if err := insertSystemPolicySQLite(cfg, db, policy); err != nil {
+		if err := insertSystemPolicySQLite(cfg, policy); err != nil {
 			return err
 		}
 	}
@@ -441,11 +388,9 @@ func InsertSystemPoliciesToSQLite(cfg types.ConfigDB, policies []types.KnoxSyste
 }
 
 func UpdateSystemPolicyToSQLite(cfg types.ConfigDB, policy types.KnoxSystemPolicy) error {
-	db := connectSQLite(cfg)
-	defer db.Close()
 
 	// set status -> outdated
-	stmt, err := db.Prepare("UPDATE " + TableSystemPolicySQLite_TableName +
+	stmt, err := DBHandle.Prepare("UPDATE " + TableSystemPolicySQLite_TableName +
 		" SET apiVersion=?,kind=?,clusterName=?,namespace=?,type=?,status=?,outdated=?,spec=?,updatedTime=?,latest=? WHERE name = ?")
 	if err != nil {
 		return err
@@ -482,21 +427,19 @@ func UpdateSystemPolicyToSQLite(cfg types.ConfigDB, policy types.KnoxSystemPolic
 // =========== //
 
 func ClearDBTablesSQLite(cfg types.ConfigDB) error {
-	db := connectSQLite(cfg)
-	defer db.Close()
 
 	query := "DELETE FROM " + TableNetworkPolicySQLite_TableName
-	if _, err := db.Query(query); err != nil {
+	if _, err := DBHandle.Query(query); err != nil {
 		return err
 	}
 
 	query = "DELETE FROM " + TableSystemPolicySQLite_TableName
-	if _, err := db.Query(query); err != nil {
+	if _, err := DBHandle.Query(query); err != nil {
 		return err
 	}
 
 	query = "DELETE FROM " + WorkloadProcessFileSetSQLite_TableName
-	if _, err := db.Query(query); err != nil {
+	if _, err := DBHandle.Query(query); err != nil {
 		return err
 	}
 
@@ -504,8 +447,6 @@ func ClearDBTablesSQLite(cfg types.ConfigDB) error {
 }
 
 func CreateTableNetworkPolicySQLite(cfg types.ConfigDB) error {
-	db := connectSQLite(cfg)
-	defer db.Close()
 
 	tableName := TableNetworkPolicySQLite_TableName
 
@@ -528,7 +469,7 @@ func CreateTableNetworkPolicySQLite(cfg types.ConfigDB) error {
 			"	PRIMARY KEY (`id`)" +
 			"  );"
 
-	if _, err := db.Exec(query); err != nil {
+	if _, err := DBHandle.Exec(query); err != nil {
 		return err
 	}
 
@@ -536,8 +477,6 @@ func CreateTableNetworkPolicySQLite(cfg types.ConfigDB) error {
 }
 
 func CreateTableSystemPolicySQLite(cfg types.ConfigDB) error {
-	db := connectSQLite(cfg)
-	defer db.Close()
 
 	tableName := TableSystemPolicySQLite_TableName
 
@@ -559,7 +498,7 @@ func CreateTableSystemPolicySQLite(cfg types.ConfigDB) error {
 			"	PRIMARY KEY (`id`)" +
 			"  );"
 
-	if _, err := db.Exec(query); err != nil {
+	if _, err := DBHandle.Exec(query); err != nil {
 		return err
 	}
 
@@ -567,8 +506,6 @@ func CreateTableSystemPolicySQLite(cfg types.ConfigDB) error {
 }
 
 func CreateTableWorkLoadProcessFileSetSQLite(cfg types.ConfigDB) error {
-	db := connectSQLite(cfg)
-	defer db.Close()
 
 	tableName := WorkloadProcessFileSetSQLite_TableName
 
@@ -588,13 +525,11 @@ func CreateTableWorkLoadProcessFileSetSQLite(cfg types.ConfigDB) error {
 			"	PRIMARY KEY (`id`)" +
 			"  );"
 
-	_, err := db.Exec(query)
+	_, err := DBHandle.Exec(query)
 	return err
 }
 
 func CreateTableSystemLogsSQLite(cfg types.ConfigDB) error {
-	db := connectSQLite(cfg)
-	defer db.Close()
 
 	tableName := TableSystemLogsSQLite_TableName
 
@@ -623,13 +558,11 @@ func CreateTableSystemLogsSQLite(cfg types.ConfigDB) error {
 			"	PRIMARY KEY (`id`)" +
 			"  );"
 
-	_, err := db.Exec(query)
+	_, err := DBHandle.Exec(query)
 	return err
 }
 
 func CreateTableNetworkLogsSQLite(cfg types.ConfigDB) error {
-	db := connectSQLite(cfg)
-	defer db.Close()
 
 	tableName := TableNetworkLogsSQLite_TableName
 
@@ -681,7 +614,7 @@ func CreateTableNetworkLogsSQLite(cfg types.ConfigDB) error {
 			"	PRIMARY KEY (`id`)" +
 			"  );"
 
-	_, err := db.Exec(query)
+	_, err := DBHandle.Exec(query)
 	return err
 }
 
@@ -705,8 +638,6 @@ func concatWhereClauseIntRangeSQLite(whereClause *string, field string, start in
 
 // GetWorkloadProcessFileSetMySQL Handle File Sets in context to a given fromSource
 func GetWorkloadProcessFileSetSQLite(cfg types.ConfigDB, wpfs types.WorkloadProcessFileSet) (map[types.WorkloadProcessFileSet][]string, types.PolicyNameMap, error) {
-	db := connectSQLite(cfg)
-	defer db.Close()
 
 	var results *sql.Rows
 	var err error
@@ -741,7 +672,7 @@ func GetWorkloadProcessFileSetSQLite(cfg types.ConfigDB, wpfs types.WorkloadProc
 		args = append(args, wpfs.SetType)
 	}
 
-	results, err = db.Query(query+whereClause, args...)
+	results, err = DBHandle.Query(query+whereClause, args...)
 
 	if err != nil {
 		log.Error().Msg(err.Error())
@@ -779,12 +710,10 @@ func GetWorkloadProcessFileSetSQLite(cfg types.ConfigDB, wpfs types.WorkloadProc
 }
 
 func InsertWorkloadProcessFileSetSQLite(cfg types.ConfigDB, wpfs types.WorkloadProcessFileSet, fs []string) error {
-	db := connectSQLite(cfg)
-	defer db.Close()
 	policyName := "autopol-" + strings.ToLower(wpfs.SetType) + "-" + RandSeq(15)
 	time := ConvertStrToUnixTime("now")
 
-	stmt, err := db.Prepare("INSERT INTO " + WorkloadProcessFileSetSQLite_TableName +
+	stmt, err := DBHandle.Prepare("INSERT INTO " + WorkloadProcessFileSetSQLite_TableName +
 		"(policyName,clusterName,namespace,containerName,labels,fromSource,settype,fileset,createdtime,updatedtime) values(?,?,?,?,?,?,?,?,?,?)")
 	if err != nil {
 		return err
@@ -808,8 +737,6 @@ func InsertWorkloadProcessFileSetSQLite(cfg types.ConfigDB, wpfs types.WorkloadP
 
 // Clears out WPFS DB on full or as per options specified
 func ClearWPFSDbSQLite(cfg types.ConfigDB, wpfs types.WorkloadProcessFileSet, duration int64) error {
-	db := connectSQLite(cfg)
-	defer db.Close()
 
 	var err error
 
@@ -843,7 +770,7 @@ func ClearWPFSDbSQLite(cfg types.ConfigDB, wpfs types.WorkloadProcessFileSet, du
 		concatWhereClauseIntRangeSQLite(&whereClause, "createdtime", time-duration, time)
 	}
 
-	_, err = db.Query(query+whereClause, args...)
+	_, err = DBHandle.Query(query+whereClause, args...)
 
 	if err != nil {
 		log.Error().Msg(err.Error())
@@ -853,14 +780,12 @@ func ClearWPFSDbSQLite(cfg types.ConfigDB, wpfs types.WorkloadProcessFileSet, du
 }
 
 func UpdateWorkloadProcessFileSetSQLite(cfg types.ConfigDB, wpfs types.WorkloadProcessFileSet, fs []string) error {
-	db := connectSQLite(cfg)
-	defer db.Close()
 
 	var err error
 	time := ConvertStrToUnixTime("now")
 
 	// set status -> outdated
-	stmt, err := db.Prepare("UPDATE " + WorkloadProcessFileSetSQLite_TableName +
+	stmt, err := DBHandle.Prepare("UPDATE " + WorkloadProcessFileSetSQLite_TableName +
 		" SET fileset=?,updatedtime=? WHERE clusterName = ? and containerName = ? and namespace = ? and labels = ? and fromSource = ? and settype = ?")
 	if err != nil {
 		return err
@@ -888,8 +813,6 @@ func UpdateWorkloadProcessFileSetSQLite(cfg types.ConfigDB, wpfs types.WorkloadP
 
 // InsertKubearmorLogsAlertsMySQL : Insert new kubearmor log/alert into DB
 func InsertKubearmorLogsSQLite(cfg types.ConfigDB, log types.KubeArmorLog) error {
-	db := connectSQLite(cfg)
-	defer db.Close()
 
 	queryString := `(cluster_name,host_name,namespace_name,pod_name,container_id,container_name,
 		uid,type,source,operation,resource,labels,data,category,action,start_time,
@@ -897,7 +820,7 @@ func InsertKubearmorLogsSQLite(cfg types.ConfigDB, log types.KubeArmorLog) error
 
 	query := "INSERT INTO " + TableSystemLogs_TableName + queryString
 
-	stmt, err := db.Prepare(query)
+	stmt, err := DBHandle.Prepare(query)
 	if err != nil {
 		return err
 	}
@@ -928,17 +851,15 @@ func InsertKubearmorLogsSQLite(cfg types.ConfigDB, log types.KubeArmorLog) error
 
 // UpdateKubearmorLogsAlertsMySQL -- Update existing log/alert with time and count
 func UpdateKubearmorLogsSQLite(cfg types.ConfigDB, kubearmorlog types.KubeArmorLog) error {
-	db := connectSQLite(cfg)
-	defer db.Close()
-
 	var err error
+
 	queryString := `cluster_name = ? and host_name = ? and namespace_name = ? and pod_name = ? and container_id = ? and 
 					container_name = ? and uid = ? and type = ? and source = ? and operation = ? and resource = ? and 
 					labels = ? and data = ? and category = ? and action = ? and result = ? `
 
 	query := "UPDATE " + TableSystemLogs_TableName + " SET total=total+1, updated_time=? WHERE " + queryString + " "
 
-	stmt, err := db.Prepare(query)
+	stmt, err := DBHandle.Prepare(query)
 	if err != nil {
 		return err
 	}
@@ -969,8 +890,6 @@ func UpdateKubearmorLogsSQLite(cfg types.ConfigDB, kubearmorlog types.KubeArmorL
 
 // GetSystemLogsMySQL
 func GetSystemLogsSQLite(cfg types.ConfigDB, filterLog types.KubeArmorLog) ([]types.KubeArmorLog, []uint32, error) {
-	db := connectSQLite(cfg)
-	defer db.Close()
 
 	resLog := []types.KubeArmorLog{}
 	resTotal := []uint32{}
@@ -1059,7 +978,7 @@ func GetSystemLogsSQLite(cfg types.ConfigDB, filterLog types.KubeArmorLog) ([]ty
 		args = append(args, filterLog.Result)
 	}
 
-	results, err = db.Query(query+whereClause, args...)
+	results, err = DBHandle.Query(query+whereClause, args...)
 
 	if err != nil {
 		log.Error().Msg(err.Error())
@@ -1101,8 +1020,6 @@ func GetSystemLogsSQLite(cfg types.ConfigDB, filterLog types.KubeArmorLog) ([]ty
 }
 
 func InsertCiliumLogsSQLite(cfg types.ConfigDB, log types.CiliumLog) error {
-	db := connectSQLite(cfg)
-	defer db.Close()
 
 	queryString := `(verdict,ip_source,ip_destination,ip_version,ip_encrypted,l4_tcp_source_port,l4_tcp_destination_port,
 		l4_udp_source_port,l4_udp_destination_port,l4_icmpv4_type,l4_icmpv4_code,l4_icmpv6_type,l4_icmpv6_code,
@@ -1114,7 +1031,7 @@ func InsertCiliumLogsSQLite(cfg types.ConfigDB, log types.CiliumLog) error {
 
 	query := "INSERT INTO " + TableNetworkLogs_TableName + queryString
 
-	stmt, err := db.Prepare(query)
+	stmt, err := DBHandle.Prepare(query)
 	if err != nil {
 		return err
 	}
@@ -1168,8 +1085,6 @@ func InsertCiliumLogsSQLite(cfg types.ConfigDB, log types.CiliumLog) error {
 
 // GetNetworkLogsMySQL
 func GetCiliumLogsSQLite(cfg types.ConfigDB, filterLog types.CiliumLog) ([]types.CiliumLog, []uint32, error) {
-	db := connectSQLite(cfg)
-	defer db.Close()
 
 	resLog := []types.CiliumLog{}
 	resTotal := []uint32{}
@@ -1354,7 +1269,7 @@ func GetCiliumLogsSQLite(cfg types.ConfigDB, filterLog types.CiliumLog) ([]types
 		args = append(args, filterLog.Total)
 	}
 
-	results, err = db.Query(query+whereClause, args...)
+	results, err = DBHandle.Query(query+whereClause, args...)
 
 	if err != nil {
 		log.Error().Msg(err.Error())
@@ -1419,8 +1334,6 @@ func GetCiliumLogsSQLite(cfg types.ConfigDB, filterLog types.CiliumLog) ([]types
 
 // UpdateCiliumLogsMySQL -- Update existing log with time and count
 func UpdateCiliumLogsSQLite(cfg types.ConfigDB, ciliumlog types.CiliumLog) error {
-	db := connectSQLite(cfg)
-	defer db.Close()
 
 	var err error
 	queryString := `verdict = ? and ip_source = ? and ip_destination = ? and ip_version = ? and ip_encrypted = ? and l4_tcp_source_port = ? and 
@@ -1434,7 +1347,7 @@ func UpdateCiliumLogsSQLite(cfg types.ConfigDB, ciliumlog types.CiliumLog) error
 
 	query := "UPDATE " + TableNetworkLogs_TableName + " SET total=total+1, updated_time=? WHERE " + queryString + " "
 
-	stmt, err := db.Prepare(query)
+	stmt, err := DBHandle.Prepare(query)
 	if err != nil {
 		return err
 	}

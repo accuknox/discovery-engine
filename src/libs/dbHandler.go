@@ -1,10 +1,56 @@
 package libs
 
 import (
+	"database/sql"
 	"errors"
+	"time"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/accuknox/auto-policy-discovery/src/types"
 )
+
+// ======== //
+// == DB == //
+// ======== //
+
+// DBHandle : To store DB handle
+var DBHandle *sql.DB = nil
+var MockSql sqlmock.Sqlmock = nil
+var MockDB *sql.DB = nil
+
+// InitDB : Initilaize DB driver
+func InitDB(cfg types.ConfigDB) {
+	if cfg.DBDriver == "mysql" {
+		DBHandle = ConnectMySQL(cfg)
+	} else if cfg.DBDriver == "sqlite3" {
+		DBHandle = ConnectSQLite(cfg)
+	}
+}
+
+// WaitForDB
+func WaitForDB() {
+	for {
+		err := DBHandle.Ping()
+		if err != nil {
+			time.Sleep(time.Second * 1)
+			log.Error().Msgf("DB Ping() failed. Will retry. err=%s", err.Error())
+		} else {
+			break
+		}
+	}
+}
+
+func NewMockDB() (*sql.DB, sqlmock.Sqlmock) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		log.Error().Msgf("an error '%s' was not expected when opening a stub database connection", err)
+	}
+
+	MockSql = mock
+	MockDB = db
+
+	return db, mock
+}
 
 // ================= //
 // == Network Log == //
