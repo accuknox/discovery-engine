@@ -5,7 +5,7 @@ application:
     operation-trigger: 100
     cron-job-time-interval: "0h0m10s"             # format: XhYmZs 
     network-log-limit: 10000
-    network-log-from: "hubble"                    # db|hubble|kafka
+    network-log-from: "hubble"                    # db|hubble|feed-consumer
     #network-log-file: "/home/rahul/feeds.json"   # file path
     network-policy-to: "db"                       # db, file
     network-policy-dir: "./"
@@ -15,7 +15,7 @@ application:
     operation-mode: 1                         # 1: cronjob | 2: one-time-job
     operation-trigger: 5
     cron-job-time-interval: "0h0m10s"         # format: XhYmZs
-    system-log-from: "kubearmor"              # db|kubearmor|kafka
+    system-log-from: "kubearmor"              # db|kubearmor|feed-consumer
     system-log-limit: 10000
     #system-policy-types: 1
     #system-log-file: "./log.json"            # file path
@@ -57,3 +57,40 @@ cilium-hubble:
 kubearmor:
   url: localhost
   port: 32767
+
+feed-consumer:
+  driver: "pulsar" # kafka | pulsar
+  servers:
+    - "localhost:6650"
+  topic: 
+    cilium: "persistent://accuknox/datapipeline/ciliumalertsrawflow"
+    kubearmor: "persistent://accuknox/datapipeline/kubearmoralertsrawflow"
+    # cilium: "cilium-alerts"
+    # kubearmor: "kubearmor-alerts"
+  encryption:
+    enable: false
+    ca-cert: /kafka-ssl/ca.pem 
+  auth:
+    enable: false
+    cert: /kafka-ssl/user.cert.pem
+    key: /kafka-ssl/user.key.pem
+    # keystore:
+    #   path: /kafka-ssl/user.p12
+    #   password: DHmHwNYy22At
+
+  # The following feed-consumer fields has default values
+  # set in the code. The likelihood of these value getting
+  # changed are very less. These fields can be used for
+  # troubleshooting purpose.
+  # -----------------------------------------------
+  # message-offset: "latest" # earliest | latest
+  # number-of-consumers: 1
+  # consumer-group: knoxautopolicy
+  # event-buffer-size: 50
+  # kafka:
+  #   server-address-family: v4
+  #   session-timeout: 6000 # in millisecond
+  # pulsar:
+  #   connection-timeout: 10 # in second
+  #   operation-timeout: 30 # in second
+  # -----------------------------------------------

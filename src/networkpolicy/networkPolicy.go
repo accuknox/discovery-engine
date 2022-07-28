@@ -9,7 +9,7 @@ import (
 	"github.com/accuknox/auto-policy-discovery/src/cluster"
 	"github.com/accuknox/auto-policy-discovery/src/config"
 	cfg "github.com/accuknox/auto-policy-discovery/src/config"
-	"github.com/accuknox/auto-policy-discovery/src/feedconsumer"
+	fc "github.com/accuknox/auto-policy-discovery/src/feedconsumer"
 	"github.com/accuknox/auto-policy-discovery/src/libs"
 	logger "github.com/accuknox/auto-policy-discovery/src/logging"
 	"github.com/accuknox/auto-policy-discovery/src/observability"
@@ -2166,8 +2166,10 @@ func StartNetworkLogRcvr() {
 	for {
 		if cfg.GetCfgNetworkLogFrom() == "hubble" {
 			plugin.StartHubbleRelay(NetworkStopChan /* &NetworkWaitG, */, cfg.GetCfgCiliumHubble())
-		} else if cfg.GetCfgNetworkLogFrom() == "kafka" {
-			feedconsumer.StartConsumer()
+		} else if cfg.GetCfgNetworkLogFrom() == "feed-consumer" {
+			fc.ConsumerMutex.Lock()
+			fc.StartConsumer()
+			fc.ConsumerMutex.Unlock()
 		}
 		time.Sleep(time.Second * 2)
 	}

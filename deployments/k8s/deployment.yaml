@@ -42,7 +42,7 @@ data:
         operation-mode: 1                         # 1: cronjob | 2: one-time-job
         cron-job-time-interval: "0h0m10s"         # format: XhYmZs
         operation-trigger: 1000
-        network-log-from: "hubble"                # db|hubble
+        network-log-from: "hubble"                # db|hubble|feed-consumer
         network-log-file: "./flow.json"           # file path
         network-policy-to: "db"                   # db, file
         network-policy-dir: "./"
@@ -51,7 +51,7 @@ data:
       system:
         operation-mode: 1                         # 1: cronjob | 2: one-time-job
         cron-job-time-interval: "0h0m10s"         # format: XhYmZs
-        system-log-from: "kubearmor"              # db|kubearmor
+        system-log-from: "kubearmor"              # db|kubearmor|feed-consumer
         system-log-file: "./log.json"             # file path
         system-policy-to: "db"                    # db, file
         system-policy-dir: "./"
@@ -75,19 +75,19 @@ data:
       table-system-policy: system_policy
 
     feed-consumer:
-      kafka:
-        broker-address-family: v4
-        session-timeout-ms: 6000
-        auto-offset-reset: "earliest"
-        bootstrap-servers: "dev-kafka-kafka-bootstrap.accuknox-dev-kafka.svc.cluster.local:9092"
-        group-id: policy.cilium
-        topics:
-          - cilium-alerts
-          - kubearmor-alerts
-        ssl:
-          enabled: false
-        events:
-          buffer: 50
+      driver: "pulsar"
+      servers:
+        - "pulsar-proxy.accuknox-dev-pulsar.svc.cluster.local:6650"
+      topic: 
+        cilium: "persistent://accuknox/datapipeline/ciliumalertsflowv1"
+        kubearmor: "persistent://accuknox/datapipeline/kubearmoralertsflowv1"
+      encryption:
+        enable: false
+        ca-cert: /kafka-ssl/ca.pem 
+      auth:
+        enable: false
+        cert: /kafka-ssl/user.cert.pem
+        key: /kafka-ssl/user.key.pem
 
     logging:
       level: "INFO"

@@ -231,14 +231,14 @@ func getNetworkLogs() []types.KnoxNetworkLog {
 				networkLogs = append(networkLogs, log)
 			}
 		}
-	} else if NetworkLogFrom == "kafka" {
-		// ================== //
-		// == Cilium kafka == //
-		// ================== //
-		log.Info().Msg("Get network log from the kafka consumer")
+	} else if NetworkLogFrom == "feed-consumer" {
+		// ==================== //
+		// == kafka / Pulsar == //
+		// ==================== //
+		log.Info().Msg("Get network log from the feed-consumer")
 
-		// get flows from kafka consumer
-		flows := plugin.GetCiliumFlowsFromKafka(OperationTrigger)
+		// get flows from kafka/pulsar consumer
+		flows := plugin.GetCiliumFlowsFromFeedConsumer(OperationTrigger)
 		if len(flows) == 0 || len(flows) < OperationTrigger {
 			return nil
 		}

@@ -23,8 +23,8 @@ import (
 var KubeArmorRelayLogs []*pb.Log
 var KubeArmorRelayLogsMutex *sync.Mutex
 
-var KubeArmorKafkaLogs []*types.KnoxSystemLog
-var KubeArmorKafkaLogsMutex *sync.Mutex
+var KubeArmorFCLogs []*types.KnoxSystemLog
+var KubeArmorFCLogsMutex *sync.Mutex
 
 func generateProcessPaths(fromSrc []types.KnoxFromSource) []string {
 	var processpaths []string
@@ -438,24 +438,24 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 	}()
 }
 
-func GetSystemLogsFromKafkaConsumer(trigger int) []*types.KnoxSystemLog {
+func GetSystemLogsFromFeedConsumer(trigger int) []*types.KnoxSystemLog {
 	results := []*types.KnoxSystemLog{}
-	KubeArmorKafkaLogsMutex.Lock()
-	defer KubeArmorKafkaLogsMutex.Unlock()
-	if len(KubeArmorKafkaLogs) == 0 {
-		log.Info().Msgf("KubeArmor kafka traffic flow not exist")
+	KubeArmorFCLogsMutex.Lock()
+	defer KubeArmorFCLogsMutex.Unlock()
+	if len(KubeArmorFCLogs) == 0 {
+		log.Info().Msgf("KubeArmor feed-consumer traffic flow not exist")
 		return results
 	}
 
-	if len(KubeArmorKafkaLogs) < trigger {
-		log.Info().Msgf("The number of KubeArmor traffic flow [%d] is less than trigger [%d]", len(KubeArmorKafkaLogs), trigger)
+	if len(KubeArmorFCLogs) < trigger {
+		log.Info().Msgf("The number of KubeArmor traffic flow [%d] is less than trigger [%d]", len(KubeArmorFCLogs), trigger)
 		return results
 	}
 
-	results = KubeArmorKafkaLogs                  // copy
-	KubeArmorKafkaLogs = []*types.KnoxSystemLog{} // reset
+	results = KubeArmorFCLogs                  // copy
+	KubeArmorFCLogs = []*types.KnoxSystemLog{} // reset
 
-	log.Info().Msgf("The total number of KubeArmor kafka traffic flow: [%d]", len(results))
+	log.Info().Msgf("The total number of KubeArmor feed-consumer traffic flow: [%d]", len(results))
 
 	return results
 }

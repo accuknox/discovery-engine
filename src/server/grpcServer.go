@@ -8,7 +8,7 @@ import (
 	analyzer "github.com/accuknox/auto-policy-discovery/src/analyzer"
 	cfg "github.com/accuknox/auto-policy-discovery/src/config"
 	core "github.com/accuknox/auto-policy-discovery/src/config"
-	"github.com/accuknox/auto-policy-discovery/src/feedconsumer"
+	fc "github.com/accuknox/auto-policy-discovery/src/feedconsumer"
 	logger "github.com/accuknox/auto-policy-discovery/src/logging"
 	networker "github.com/accuknox/auto-policy-discovery/src/networkpolicy"
 	obs "github.com/accuknox/auto-policy-discovery/src/observability"
@@ -131,19 +131,23 @@ type consumerServer struct {
 
 func (s *consumerServer) Start(ctx context.Context, in *fpb.ConsumerRequest) (*fpb.ConsumerResponse, error) {
 	log.Info().Msg("Start consumer called")
-	feedconsumer.StartConsumer()
+	fc.ConsumerMutex.Lock()
+	fc.StartConsumer()
+	fc.ConsumerMutex.Unlock()
 	return &fpb.ConsumerResponse{Res: "ok"}, nil
 }
 
 func (s *consumerServer) Stop(ctx context.Context, in *fpb.ConsumerRequest) (*fpb.ConsumerResponse, error) {
 	log.Info().Msg("Stop consumer called")
-	feedconsumer.StopConsumer()
+	fc.ConsumerMutex.Lock()
+	fc.StopConsumer()
+	fc.ConsumerMutex.Unlock()
 	return &fpb.ConsumerResponse{Res: "ok"}, nil
 }
 
 func (s *consumerServer) GetWorkerStatus(ctx context.Context, in *fpb.ConsumerRequest) (*fpb.ConsumerResponse, error) {
 	log.Info().Msg("Get consumer status called")
-	return &fpb.ConsumerResponse{Res: feedconsumer.Status}, nil
+	return &fpb.ConsumerResponse{Res: fc.Status}, nil
 }
 
 // ====================== //
@@ -231,7 +235,9 @@ func GetNewServer() *grpc.Server {
 
 	if cfg.GetCurrentCfg().ConfigClusterMgmt.ClusterInfoFrom != "k8sclient" {
 		// start consumer automatically
-		feedconsumer.StartConsumer()
+		fc.ConsumerMutex.Lock()
+		fc.StartConsumer()
+		fc.ConsumerMutex.Unlock()
 	}
 
 	// start net worker automatically
