@@ -49,11 +49,9 @@ message ListOfDestination {
 }
 
 message ServerConnections {
-    string addressFamily = 1;
-    string path = 2;
-}
-
-message OutgoingServerConnections {
-    string addressFamily = 1;
-    string path = 2;
+    string Protocol = 1;
+    string PodSvcIP = 2;
+    string ServerPort = 3;
+    string Labels = 4;
+    string Namespace = 5;
 }
