@@ -208,7 +208,8 @@ type CiliumIngress struct {
 
 // CiliumSpec Structure
 type CiliumSpec struct {
-	Selector Selector `json:"endpointSelector,omitempty" yaml:"endpointSelector,omitempty"`
+	NodeSelector     Selector `json:"nodeSelector,omitempty" yaml:"nodeSelector,omitempty"`
+	EndpointSelector Selector `json:"endpointSelector,omitempty" yaml:"endpointSelector,omitempty"`
 
 	Egress  []CiliumEgress  `json:"egress,omitempty" yaml:"egress,omitempty"`
 	Ingress []CiliumIngress `json:"ingress,omitempty" yaml:"ingress,omitempty"`

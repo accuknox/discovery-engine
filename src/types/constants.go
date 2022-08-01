@@ -11,3 +11,8 @@ const (
 	// RecordSeparator - DB separator flag
 	RecordSeparator = "^^"
 )
+
+const (
+	KindKnoxNetworkPolicy     = "KnoxNetworkPolicy"
+	KindKnoxHostNetworkPolicy = "KnoxHostNetworkPolicy"
+)

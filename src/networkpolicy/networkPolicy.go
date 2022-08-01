@@ -68,8 +68,10 @@ const (
 	PolicyTypeEgress  = "egress"
 )
 
-// if the target IP is in out-of-cluster
-var ReservedWorld = "reserved:world"
+const (
+	ReservedHost  = "reserved:host"
+	ReservedWorld = "reserved:world"
+)
 
 // ====================== //
 // == Global Variables == //
@@ -226,6 +228,11 @@ type FlowIDTrackingSecond struct {
 type IcmpPortPair struct {
 	ICMPs []types.SpecICMP
 	Ports []types.SpecPort
+}
+
+type Selector struct {
+	Kind   string
+	Labels string
 }
 
 // =========================================== //
@@ -1108,7 +1115,7 @@ func aggregateDstByLabel(aggregatedSrcPerMergedDst map[string][]MergedPortDst, p
 func buildNewKnoxPolicy() types.KnoxNetworkPolicy {
 	return types.KnoxNetworkPolicy{
 		APIVersion: "v1",
-		Kind:       "KnoxNetworkPolicy",
+		Kind:       types.KindKnoxNetworkPolicy,
 		Metadata: map[string]string{
 			"status": "latest",
 		},
@@ -1497,21 +1504,21 @@ func DiscoverNetworkPolicy(namespace string,
 
 	networkPolicies := []types.KnoxNetworkPolicy{}
 
-	ingressPolicies := map[string][]types.KnoxNetworkPolicy{}
-	egressPolicies := map[string][]types.KnoxNetworkPolicy{}
+	ingressPolicies := map[Selector][]types.KnoxNetworkPolicy{}
+	egressPolicies := map[Selector][]types.KnoxNetworkPolicy{}
 
 	for i := range networkLogs {
 		ingress, egress := convertKnoxNetworkLogToKnoxNetworkPolicy(&networkLogs[i], pods)
 
 		if ingress != nil {
 			endpointSelector := getLabelArrayFromMap(ingress.Spec.Selector.MatchLabels)
-			k := strings.Join(endpointSelector, ",")
-			ingressPolicies[k] = append(ingressPolicies[k], *ingress)
+			selector := Selector{ingress.Kind, strings.Join(endpointSelector, ",")}
+			ingressPolicies[selector] = append(ingressPolicies[selector], *ingress)
 		}
 		if egress != nil {
 			endpointSelector := getLabelArrayFromMap(egress.Spec.Selector.MatchLabels)
-			k := strings.Join(endpointSelector, ",")
-			egressPolicies[k] = append(egressPolicies[k], *egress)
+			selector := Selector{egress.Kind, strings.Join(endpointSelector, ",")}
+			egressPolicies[selector] = append(egressPolicies[selector], *egress)
 		}
 	}
 
@@ -1771,7 +1778,7 @@ func convertKnoxNetworkLogToKnoxNetworkPolicy(log *types.KnoxNetworkLog, pods []
 
 		egressPolicy = &ePolicy
 		ingressPolicy = &iPolicy
-	} else if len(log.SrcReservedLabels) > 0 {
+	} else if log.SrcPodName == "" && len(log.SrcReservedLabels) > 0 {
 		// 2. Generate ingress policy only for the dst
 
 		// Ingress Policy
@@ -1808,7 +1815,7 @@ func convertKnoxNetworkLogToKnoxNetworkPolicy(log *types.KnoxNetworkLog, pods []
 
 			ingressPolicy = &iPolicy
 		}
-	} else if len(log.DstReservedLabels) > 0 {
+	} else if log.DstPodName == "" && len(log.DstReservedLabels) > 0 {
 		// 3. Generate egress policy only for the src
 
 		// Egress Policy
@@ -1857,6 +1864,14 @@ func convertKnoxNetworkLogToKnoxNetworkPolicy(log *types.KnoxNetworkLog, pods []
 
 	if !isValidPolicy(egressPolicy) {
 		egressPolicy = nil
+	}
+
+	// If src/dst is VM, set kind field as host-policy
+	if egressPolicy != nil && log.SrcPodName != "" && isVM(log.SrcPodName, pods) {
+		egressPolicy.Kind = types.KindKnoxHostNetworkPolicy
+	}
+	if ingressPolicy != nil && log.DstPodName != "" && isVM(log.DstPodName, pods) {
+		ingressPolicy.Kind = types.KindKnoxHostNetworkPolicy
 	}
 
 	return ingressPolicy, egressPolicy
@@ -1989,6 +2004,10 @@ func getLabelArrayFromMap(labelMap map[string]string) []string {
 	sort.Strings(labels)
 
 	return labels
+}
+
+func isVM(podName string, pods []types.Pod) bool {
+	return libs.ContainsElement(getLabelsFromPod(podName, pods), ReservedHost)
 }
 
 func applyPolicyFilter(discoveredPolicies map[string][]types.KnoxNetworkPolicy) map[string][]types.KnoxNetworkPolicy {
