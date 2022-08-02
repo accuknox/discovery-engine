@@ -26,7 +26,7 @@ func deDuplicateServerInOutConn(connList []types.SysNwConnDetail) []types.SysNwC
 	return result
 }
 
-func extractPodSvcInfoFromIP(ip, clustername string) (string, string, string) {
+func extractPodSvcInfoFromIP(ip, clustername string, revDNSLookup bool) (string, string, string) {
 	podSvcName := ip
 
 	_, services, _, pods, err := cluster.GetAllClusterResources(clustername)
@@ -45,15 +45,17 @@ func extractPodSvcInfoFromIP(ip, clustername string) (string, string, string) {
 		}
 	}
 
-	dnsName, err := net.LookupAddr(ip)
-	if err == nil {
-		return strings.Join(dnsName, ","), "", ""
+	if revDNSLookup {
+		dnsName, err := net.LookupAddr(ip)
+		if err == nil {
+			return strings.Join(dnsName, ","), "", ""
+		}
 	}
 
 	return podSvcName, "", ""
 }
 
-func fetchSysServerConnDetail(log types.KubeArmorLog) (types.SysNwConnDetail, error) {
+func fetchSysServerConnDetail(log types.KubeArmorLog, revDNSLookup bool) (types.SysNwConnDetail, error) {
 	conn := types.SysNwConnDetail{}
 	err := errors.New("not a valid incoming/outgoing connection")
 
@@ -70,8 +72,8 @@ func fetchSysServerConnDetail(log types.KubeArmorLog) (types.SysNwConnDetail, er
 	if strings.Contains(log.Data, "AF_INET") && strings.Contains(log.Data, "tcp_") {
 		resslice := strings.Split(log.Resource, " ")
 		for _, locres := range resslice {
-			if strings.Contains(locres, "RemoteIP") {
-				conn.PodSvcIP, conn.Labels, conn.Namespace = extractPodSvcInfoFromIP(strings.Split(locres, "=")[1], log.ClusterName)
+			if strings.Contains(locres, "remoteip") {
+				conn.PodSvcIP, conn.Labels, conn.Namespace = extractPodSvcInfoFromIP(strings.Split(locres, "=")[1], log.ClusterName, revDNSLookup)
 			}
 			if strings.Contains(locres, "port") {
 				conn.ServerPort = strings.Split(locres, "=")[1]
@@ -88,7 +90,7 @@ func fetchSysServerConnDetail(log types.KubeArmorLog) (types.SysNwConnDetail, er
 				path = strings.Split(locres, "=")[1]
 				if path != "" {
 					conn.PodSvcIP = path
-					conn.Protocol = "SOCKET"
+					conn.Protocol = "UNIX"
 					break
 				}
 			}
@@ -102,6 +104,7 @@ func fetchSysServerConnDetail(log types.KubeArmorLog) (types.SysNwConnDetail, er
 	}
 
 	conn.PodName = log.PodName
+	conn.Command = strings.Split(log.Source, " ")[0]
 
 	return conn, nil
 }
@@ -153,7 +156,7 @@ func GetSummaryLogs(pbRequest *opb.LogsRequest, stream opb.Summary_FetchLogsServ
 	}
 	for sysindex, locSysLog := range systemLogs {
 		if locSysLog.Operation == "Network" {
-			nwConnDetail, err := fetchSysServerConnDetail(locSysLog)
+			nwConnDetail, err := fetchSysServerConnDetail(locSysLog, pbRequest.RevDNSLookup)
 			if err == nil {
 				syserverconn = append(syserverconn, nwConnDetail)
 			}
@@ -168,6 +171,8 @@ func GetSummaryLogs(pbRequest *opb.LogsRequest, stream opb.Summary_FetchLogsServ
 		})
 
 	}
+
+	syserverconn = deDuplicateServerInOutConn(syserverconn)
 
 	for podName, sysLogs := range systemPods {
 
@@ -228,8 +233,6 @@ func GetSummaryLogs(pbRequest *opb.LogsRequest, stream opb.Summary_FetchLogsServ
 			syserverconn = append(syserverconn, syslog.ServerConn)
 		}
 
-		syserverconn = deDuplicateServerInOutConn(syserverconn)
-
 		// ServerConnection
 		for _, servConn := range syserverconn {
 			if servConn.PodName == podName {
@@ -240,6 +243,7 @@ func GetSummaryLogs(pbRequest *opb.LogsRequest, stream opb.Summary_FetchLogsServ
 						ServerPort: servConn.ServerPort,
 						Labels:     servConn.Labels,
 						Namespace:  servConn.Namespace,
+						Command:    servConn.Command,
 					})
 				} else if servConn.InOut == "OUT" {
 					outServerConn = append(outServerConn, &opb.ServerConnections{
@@ -248,6 +252,7 @@ func GetSummaryLogs(pbRequest *opb.LogsRequest, stream opb.Summary_FetchLogsServ
 						ServerPort: servConn.ServerPort,
 						Labels:     servConn.Labels,
 						Namespace:  servConn.Namespace,
+						Command:    servConn.Command,
 					})
 				}
 			}

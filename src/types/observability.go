@@ -141,4 +141,5 @@ type SysNwConnDetail struct {
 	ServerPort string `json:"ServerPort,omitempty"`
 	Labels     string `json:"Labels,omitempty"`
 	Namespace  string `json:"Namespace,omitempty"`
+	Command    string `json:"Command,omitempty"`
 }

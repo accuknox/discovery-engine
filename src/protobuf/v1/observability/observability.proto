@@ -12,6 +12,7 @@ message LogsRequest {
     string type = 1;
     string label = 2;
     string namespace = 3;
+    bool revDNSLookup = 4;
 }
 
 message LogsResponse {
@@ -54,4 +55,5 @@ message ServerConnections {
     string ServerPort = 3;
     string Labels = 4;
     string Namespace = 5;
+    string Command = 6;
 }

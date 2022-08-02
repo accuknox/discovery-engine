@@ -14,16 +14,20 @@ import (
 // ======== //
 
 // DBHandle : To store DB handle
-var DBHandle *sql.DB = nil
-var MockSql sqlmock.Sqlmock = nil
-var MockDB *sql.DB = nil
+var (
+	MySQLDBHandle     *sql.DB         = nil
+	PolSqliteDBHandle *sql.DB         = nil
+	ObsSqliteDBHandle *sql.DB         = nil
+	MockSql           sqlmock.Sqlmock = nil
+	MockDB            *sql.DB         = nil
+)
 
 // InitDB : Initilaize DB driver
 func InitDB(cfg types.ConfigDB) {
 	if cfg.DBDriver == "mysql" {
-		DBHandle = ConnectMySQL(cfg)
+		MySQLDBHandle = ConnectMySQL(cfg)
 	} else if cfg.DBDriver == "sqlite3" {
-		DBHandle = ConnectSQLite(cfg)
+		PolSqliteDBHandle, ObsSqliteDBHandle = ConnectSQLite(cfg)
 	}
 }
 
