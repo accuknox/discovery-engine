@@ -21,7 +21,8 @@ func newMockDB() {
 	MockDB = db
 
 	// Replace actual DBHandle with mock handle
-	DBHandle = db
+	MySQLDBHandle = db
+	PolSqliteDBHandle = db
 }
 
 // ==================== //

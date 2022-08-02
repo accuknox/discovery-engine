@@ -293,7 +293,7 @@ type KnoxSystemPolicy struct {
 
 	GeneratedTime int64 `json:"generatedTime,omitempty" yaml:"generatedTime,omitempty" bson:"generatedTime,omitempty"`
 	UpdatedTime   int64 `json:"updatedTime,omitempty" yaml:"updatedTime,omitempty" bson:"updatedTime,omitempty"`
-	Latest        int64 `json:"latest,omitempty" yaml:"latest,omitempty" bson:"latest,omitempty"`
+	Latest        bool  `json:"latest,omitempty" yaml:"latest,omitempty" bson:"latest,omitempty"`
 }
 
 // ============================= //
