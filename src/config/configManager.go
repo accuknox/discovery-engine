@@ -57,7 +57,8 @@ func LoadConfigDB() types.ConfigDB {
 	cfgDB.DBName = viper.GetString("database.dbname")
 
 	cfgDB.DBHost = viper.GetString("database.host")
-	cfgDB.SQLiteDBPath = viper.GetString("database.sqlite-db-path")
+	cfgDB.SQLitePolDB = viper.GetString("database.sqlite-pol-db")
+	cfgDB.SQLiteObsDB = viper.GetString("database.sqlite-obs-db")
 	/*
 		fix for #405
 		dbAddr, err := net.LookupIP(cfgDB.DBHost)
@@ -118,7 +119,10 @@ func LoadConfigFromFile() {
 	CurrentCfg.Status = 1 // 1: active 0: inactive
 
 	// Observability module
-	CurrentCfg.Observability = viper.GetBool("observability")
+	CurrentCfg.ConfigObs = types.ConfigObservability{
+		Enable:              viper.GetBool("observability.enable"),
+		CronJobTimeInterval: "@every " + viper.GetString("observability.cron-job-time-interval"),
+	}
 
 	// load network policy discovery
 	CurrentCfg.ConfigNetPolicy = types.ConfigNetworkPolicy{
@@ -209,10 +213,6 @@ func SetLogFile(file string) {
 
 func GetCurrentCfg() types.Configuration {
 	return CurrentCfg
-}
-
-func IsObservabilityEnabled() bool {
-	return CurrentCfg.Observability
 }
 
 func GetCfgDB() types.ConfigDB {
@@ -381,4 +381,16 @@ func GetCfgClusterInfoFrom() string {
 
 func GetCfgClusterMgmtURL() string {
 	return CurrentCfg.ConfigClusterMgmt.ClusterMgmtURL
+}
+
+// =================================== //
+// == Get Observability Config Info == //
+// =================================== //
+
+func IsObservabilityEnabled() bool {
+	return CurrentCfg.ConfigObs.Enable
+}
+
+func GetCfgObsCronJobTime() string {
+	return CurrentCfg.ConfigObs.CronJobTimeInterval
 }

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/accuknox/auto-policy-discovery/src/config"
 	"github.com/accuknox/auto-policy-discovery/src/types"
 )
 
@@ -294,11 +295,13 @@ func CreateTablesIfNotExist(cfg types.ConfigDB) {
 		if err := CreateTableWorkLoadProcessFileSetMySQL(cfg); err != nil {
 			log.Error().Msg(err.Error())
 		}
-		if err := CreateTableSystemLogsMySQL(cfg); err != nil {
-			log.Error().Msg(err.Error())
-		}
-		if err := CreateTableNetworkLogsMySQL(cfg); err != nil {
-			log.Error().Msg(err.Error())
+		if config.IsObservabilityEnabled() {
+			if err := CreateTableSystemLogsMySQL(cfg); err != nil {
+				log.Error().Msg(err.Error())
+			}
+			if err := CreateTableNetworkLogsMySQL(cfg); err != nil {
+				log.Error().Msg(err.Error())
+			}
 		}
 	} else if cfg.DBDriver == "sqlite3" {
 		if err := CreateTableNetworkPolicySQLite(cfg); err != nil {
@@ -310,11 +313,13 @@ func CreateTablesIfNotExist(cfg types.ConfigDB) {
 		if err := CreateTableWorkLoadProcessFileSetSQLite(cfg); err != nil {
 			log.Error().Msg(err.Error())
 		}
-		if err := CreateTableSystemLogsSQLite(cfg); err != nil {
-			log.Error().Msg(err.Error())
-		}
-		if err := CreateTableNetworkLogsSQLite(cfg); err != nil {
-			log.Error().Msg(err.Error())
+		if config.IsObservabilityEnabled() {
+			if err := CreateTableSystemLogsSQLite(cfg); err != nil {
+				log.Error().Msg(err.Error())
+			}
+			if err := CreateTableNetworkLogsSQLite(cfg); err != nil {
+				log.Error().Msg(err.Error())
+			}
 		}
 	}
 }

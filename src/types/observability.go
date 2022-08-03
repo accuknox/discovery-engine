@@ -143,3 +143,8 @@ type SysNwConnDetail struct {
 	Namespace  string `json:"Namespace,omitempty"`
 	Command    string `json:"Command,omitempty"`
 }
+
+type ConfigObservability struct {
+	Enable              bool   `json:"enable,omitempty" bson:"enable,omitempty"`
+	CronJobTimeInterval string `json:"cronjob_time_interval,omitempty" bson:"cronjob_time_interval,omitempty"`
+}

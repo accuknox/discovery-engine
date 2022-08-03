@@ -28,22 +28,22 @@ func ConnectSQLite(cfg types.ConfigDB) (poldb, obsdb *sql.DB) {
 		return MockDB, MockDB
 	}
 
-	poldb, err = sql.Open(cfg.DBDriver, "pol-"+cfg.SQLiteDBPath)
+	poldb, err = sql.Open(cfg.DBDriver, cfg.SQLitePolDB)
 	for err != nil {
 		log.Error().Msgf("sqlite driver:%s, user:%s, host:%s, port:%s, dbname:%s conn-error:%s",
 			cfg.DBDriver, cfg.DBUser, cfg.DBHost, cfg.DBPort, cfg.DBName, err.Error())
 		time.Sleep(time.Second * 1)
-		poldb, err = sql.Open(cfg.DBDriver, "pol-"+cfg.SQLiteDBPath)
+		poldb, err = sql.Open(cfg.DBDriver, cfg.SQLitePolDB)
 	}
 	poldb.SetMaxIdleConns(0)
 	WaitForDB(poldb)
 
-	obsdb, err = sql.Open(cfg.DBDriver, "obs-"+cfg.SQLiteDBPath)
+	obsdb, err = sql.Open(cfg.DBDriver, cfg.SQLiteObsDB)
 	for err != nil {
 		log.Error().Msgf("sqlite driver:%s, user:%s, host:%s, port:%s, dbname:%s conn-error:%s",
 			cfg.DBDriver, cfg.DBUser, cfg.DBHost, cfg.DBPort, cfg.DBName, err.Error())
 		time.Sleep(time.Second * 1)
-		obsdb, err = sql.Open(cfg.DBDriver, "obs-"+cfg.SQLiteDBPath)
+		obsdb, err = sql.Open(cfg.DBDriver, cfg.SQLiteObsDB)
 	}
 	obsdb.SetMaxIdleConns(0)
 	WaitForDB(obsdb)
@@ -828,7 +828,7 @@ func InsertKubearmorLogsSQLite(cfg types.ConfigDB, log types.KubeArmorLog) error
 		uid,type,source,operation,resource,labels,data,category,action,start_time,
 		updated_time,result,total) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
 
-	query := "INSERT INTO " + TableSystemLogs_TableName + queryString
+	query := "INSERT INTO " + TableSystemLogsSQLite_TableName + queryString
 
 	stmt, err := ObsSqliteDBHandle.Prepare(query)
 	if err != nil {
@@ -867,7 +867,7 @@ func UpdateKubearmorLogsSQLite(cfg types.ConfigDB, kubearmorlog types.KubeArmorL
 					container_name = ? and uid = ? and type = ? and source = ? and operation = ? and resource = ? and 
 					labels = ? and data = ? and category = ? and action = ? and result = ? `
 
-	query := "UPDATE " + TableSystemLogs_TableName + " SET total=total+1, updated_time=? WHERE " + queryString + " "
+	query := "UPDATE " + TableSystemLogsSQLite_TableName + " SET total=total+1, updated_time=? WHERE " + queryString + " "
 
 	stmt, err := ObsSqliteDBHandle.Prepare(query)
 	if err != nil {
@@ -910,7 +910,7 @@ func GetSystemLogsSQLite(cfg types.ConfigDB, filterLog types.KubeArmorLog) ([]ty
 	queryString := `cluster_name,host_name,namespace_name,pod_name,container_id,container_name,
 		uid,type,source,operation,resource,labels,data,category,action,start_time,updated_time,result,total`
 
-	query := "SELECT " + queryString + " FROM " + TableSystemLogs_TableName + " "
+	query := "SELECT " + queryString + " FROM " + TableSystemLogsSQLite_TableName + " "
 
 	var whereClause string
 	var args []interface{}
@@ -1039,7 +1039,7 @@ func InsertCiliumLogsSQLite(cfg types.ConfigDB, log types.CiliumLog) error {
 		traffic_direction,trace_observation_point,drop_reason_desc,is_reply,start_time,updated_time,total) 
 		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
 
-	query := "INSERT INTO " + TableNetworkLogs_TableName + queryString
+	query := "INSERT INTO " + TableNetworkLogsSQLite_TableName + queryString
 
 	stmt, err := ObsSqliteDBHandle.Prepare(query)
 	if err != nil {
@@ -1109,7 +1109,7 @@ func GetCiliumLogsSQLite(cfg types.ConfigDB, filterLog types.CiliumLog) ([]types
 	event_type_type,event_type_sub_type,source_service_name,source_service_namespace,destination_service_name,destination_service_namespace,
 	traffic_direction,trace_observation_point,drop_reason_desc,is_reply,start_time,updated_time,total`
 
-	query := "SELECT " + queryString + " FROM " + TableNetworkLogs_TableName + " "
+	query := "SELECT " + queryString + " FROM " + TableNetworkLogsSQLite_TableName + " "
 
 	var whereClause string
 	var args []interface{}
@@ -1355,7 +1355,7 @@ func UpdateCiliumLogsSQLite(cfg types.ConfigDB, ciliumlog types.CiliumLog) error
 					event_type_sub_type = ? and source_service_name = ? and source_service_namespace = ? and destination_service_name = ? and 
 					destination_service_namespace = ? and traffic_direction = ? and trace_observation_point = ? and drop_reason_desc = ? and is_reply = ? `
 
-	query := "UPDATE " + TableNetworkLogs_TableName + " SET total=total+1, updated_time=? WHERE " + queryString + " "
+	query := "UPDATE " + TableNetworkLogsSQLite_TableName + " SET total=total+1, updated_time=? WHERE " + queryString + " "
 
 	stmt, err := ObsSqliteDBHandle.Prepare(query)
 	if err != nil {
