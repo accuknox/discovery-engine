@@ -43,10 +43,10 @@ func ProcessSystemLogs() {
 
 	if len(SystemLogs) > 0 {
 
-		//SystemLogsMutex.Lock()
+		SystemLogsMutex.Lock()
 		locSysLogs := SystemLogs
 		SystemLogs = []*pb.Log{} //reset
-		//SystemLogsMutex.Unlock()
+		SystemLogsMutex.Unlock()
 
 		for _, kubearmorLog := range locSysLogs {
 
