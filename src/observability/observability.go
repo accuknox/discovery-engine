@@ -3,6 +3,7 @@ package observability
 import (
 	"sync"
 
+	"github.com/accuknox/auto-policy-discovery/src/config"
 	cfg "github.com/accuknox/auto-policy-discovery/src/config"
 	logger "github.com/accuknox/auto-policy-discovery/src/logging"
 	"github.com/accuknox/auto-policy-discovery/src/types"
@@ -26,30 +27,37 @@ var (
 	NetworkLogs      []*flow.Flow
 	NetworkLogsMutex *sync.Mutex
 	// for cron job
-	ObservabilityCronJob *cron.Cron
+	SysObsCronJob, NetObsCronJob *cron.Cron
 )
 
 // =================== //
 // == Obs Functions == //
 // =================== //
 
-func configureCronJob() {
-	ObservabilityCronJob = cron.New()
+func StartSystemObservability() {
+	SystemLogsMutex = &sync.Mutex{}
+	SysObsCronJob = cron.New()
 
-	err := ObservabilityCronJob.AddFunc(cfg.GetCfgObsCronJobTime(), ProcessSystemLogs) // time interval
+	err := SysObsCronJob.AddFunc(cfg.GetCfgObsCronJobTime(), ProcessSystemLogs) // time interval
 	if err != nil {
 		log.Error().Msg(err.Error())
 		return
 	}
-	err = ObservabilityCronJob.AddFunc(cfg.GetCfgObsCronJobTime(), ProcessNetworkLogs) // time interval
+	SysObsCronJob.Start()
+	log.Info().Msg("System observability cron job started")
+}
+
+func StartNetworkObservability() {
+	NetworkLogsMutex = &sync.Mutex{}
+	NetObsCronJob = cron.New()
+
+	err := NetObsCronJob.AddFunc(cfg.GetCfgObsCronJobTime(), ProcessNetworkLogs) // time interval
 	if err != nil {
 		log.Error().Msg(err.Error())
 		return
 	}
-	ObservabilityCronJob.Start()
-
-	log.Info().Msg("Observability cron job started")
-
+	NetObsCronJob.Start()
+	log.Info().Msg("Network observability cron job started")
 }
 
 func InitObservability() {
@@ -57,10 +65,11 @@ func InitObservability() {
 	CfgDB = cfg.GetCfgDB()
 
 	if cfg.IsObservabilityEnabled() {
-		// Init Mutex
-		SystemLogsMutex = &sync.Mutex{}
-		NetworkLogsMutex = &sync.Mutex{}
-
-		configureCronJob()
+		if config.CurrentCfg.ConfigSysPolicy.OperationMode == 1 {
+			StartSystemObservability()
+		}
+		if config.CurrentCfg.ConfigNetPolicy.OperationMode == 1 {
+			StartNetworkObservability()
+		}
 	}
 }

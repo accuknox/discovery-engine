@@ -31,7 +31,7 @@ func ConnectSQLite(cfg types.ConfigDB) (poldb, obsdb *sql.DB) {
 	poldb, err = sql.Open(cfg.DBDriver, cfg.SQLitePolDB)
 	for err != nil {
 		log.Error().Msgf("sqlite driver:%s, user:%s, host:%s, port:%s, dbname:%s conn-error:%s",
-			cfg.DBDriver, cfg.DBUser, cfg.DBHost, cfg.DBPort, cfg.DBName, err.Error())
+			cfg.DBDriver, cfg.DBUser, cfg.SQLitePolDB, cfg.DBPort, cfg.DBName, err.Error())
 		time.Sleep(time.Second * 1)
 		poldb, err = sql.Open(cfg.DBDriver, cfg.SQLitePolDB)
 	}
@@ -41,7 +41,7 @@ func ConnectSQLite(cfg types.ConfigDB) (poldb, obsdb *sql.DB) {
 	obsdb, err = sql.Open(cfg.DBDriver, cfg.SQLiteObsDB)
 	for err != nil {
 		log.Error().Msgf("sqlite driver:%s, user:%s, host:%s, port:%s, dbname:%s conn-error:%s",
-			cfg.DBDriver, cfg.DBUser, cfg.DBHost, cfg.DBPort, cfg.DBName, err.Error())
+			cfg.DBDriver, cfg.DBUser, cfg.SQLiteObsDB, cfg.DBPort, cfg.DBName, err.Error())
 		time.Sleep(time.Second * 1)
 		obsdb, err = sql.Open(cfg.DBDriver, cfg.SQLiteObsDB)
 	}
