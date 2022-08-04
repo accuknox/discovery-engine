@@ -164,32 +164,9 @@ func convertFlowLogToCiliumLog(flowLog *flow.Flow) (types.CiliumLog, error) {
 	return ciliumLog, nil
 }
 
-func checkIfNetworkLogExist(netLog types.CiliumLog) (bool, error) {
-	networkLogs := []types.CiliumLog{}
-	var err error
-
-	netLog.StartTime = 0
-	netLog.UpdatedTime = 0
-	netLog.Total = 0
-
-	if networkLogs, _, err = libs.GetCiliumLogs(CfgDB, netLog); err != nil {
-		return false, err
-	}
-
-	for _, locNetLog := range networkLogs {
-		locNetLog.StartTime = 0
-		locNetLog.UpdatedTime = 0
-		locNetLog.Total = 0
-		if reflect.DeepEqual(locNetLog, netLog) {
-			return true, nil
-		}
-	}
-
-	return false, nil
-}
-
 func ProcessNetworkLogs() {
 	var isEntryExist bool
+	var newLogs, updateLogs []types.CiliumLog
 
 	if len(NetworkLogs) > 0 {
 
@@ -198,27 +175,37 @@ func ProcessNetworkLogs() {
 		NetworkLogs = []*flow.Flow{} //reset
 		NetworkLogsMutex.Unlock()
 
+		networkLogs, err := getNetworkLogs()
+		if err != nil {
+			return
+		}
+
 		for _, flowLog := range locNetLogs {
+			isEntryExist = false
 
 			netLog, err := convertFlowLogToCiliumLog(flowLog)
 			if err != nil {
 				log.Error().Msg(err.Error())
 			} else {
-				if isEntryExist, err = checkIfNetworkLogExist(netLog); err != nil {
-					log.Error().Msg(err.Error())
+				for _, locNetLog := range networkLogs {
+					locNetLog.StartTime = 0
+					locNetLog.UpdatedTime = 0
+					locNetLog.Total = 0
+					if reflect.DeepEqual(locNetLog, netLog) {
+						isEntryExist = true
+						break
+					}
 				}
 
 				if isEntryExist {
-					if err := libs.UpdateCiliumLogs(CfgDB, netLog); err != nil {
-						log.Error().Msg(err.Error())
-					}
+					updateLogs = append(updateLogs, netLog)
 				} else {
-					if err := libs.InsertCiliumLogs(CfgDB, netLog); err != nil {
-						log.Error().Msg(err.Error())
-					}
+					newLogs = append(newLogs, netLog)
+					networkLogs = append(networkLogs, netLog)
 				}
 			}
 		}
+		pushCiliumLogs(newLogs, updateLogs)
 	}
 }
 
@@ -228,18 +215,26 @@ func ProcessCiliumFlow(flowLog *flow.Flow) {
 	NetworkLogsMutex.Unlock()
 }
 
-func compareSrcDestFlow(src, dest types.CiliumLog) bool {
-	// Reset values which are not required for comparison
-	src.StartTime = 0
-	src.UpdatedTime = 0
-	src.Total = 0
+func getNetworkLogs() ([]types.CiliumLog, error) {
 
-	dest.StartTime = 0
-	dest.UpdatedTime = 0
-	dest.Total = 0
-
-	if reflect.DeepEqual(src, dest) {
-		return true
+	logs, _, err := libs.GetCiliumLogs(CfgDB, types.CiliumLog{})
+	if err != nil {
+		return nil, err
 	}
-	return false
+	return logs, nil
+}
+
+func pushCiliumLogs(newLogs, updateLogs []types.CiliumLog) {
+	NetObsMutex.Lock()
+	for _, newlog := range newLogs {
+		if err := libs.InsertCiliumLogs(CfgDB, newlog); err != nil {
+			log.Error().Msg(err.Error())
+		}
+	}
+	for _, updatelog := range updateLogs {
+		if err := libs.UpdateCiliumLogs(CfgDB, updatelog); err != nil {
+			log.Error().Msg(err.Error())
+		}
+	}
+	NetObsMutex.Unlock()
 }

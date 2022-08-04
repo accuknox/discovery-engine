@@ -59,7 +59,9 @@ data:
       cluster:
         cluster-info-from: "k8sclient"            # k8sclient|accuknox
 
-    observability: false
+    observability:
+      enable: true
+      cron-job-time-interval: "0h0m10s"             # format: XhYmZs
 
     database:
       driver: sqlite3
@@ -68,6 +70,8 @@ data:
       user: root
       password: password
       dbname: knoxautopolicy
+      sqlite-pol-db: ./accuknox-pol.db
+      sqlite-obs-db: ./accuknox-obs.db
       table-configuration: auto_policy_config
       table-network-log: network_log
       table-network-policy: network_policy

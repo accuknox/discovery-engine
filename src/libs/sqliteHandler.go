@@ -22,13 +22,15 @@ const TableNetworkLogsSQLite_TableName = "network_logs"
 // == Connection == //
 // ================ //
 
-func ConnectSQLite(cfg types.ConfigDB) (poldb, obsdb *sql.DB) {
+func ConnectSQLite(cfg types.ConfigDB) (*sql.DB, *sql.DB) {
 	var err error = nil
 	if MockDB != nil {
 		return MockDB, MockDB
 	}
 
-	poldb, err = sql.Open(cfg.DBDriver, cfg.SQLitePolDB)
+	//openOptions := "?_cache=shared&mode=rwc&_journal_mode=WAL"
+
+	poldb, err := sql.Open(cfg.DBDriver, cfg.SQLitePolDB)
 	for err != nil {
 		log.Error().Msgf("sqlite driver:%s, user:%s, host:%s, port:%s, dbname:%s conn-error:%s",
 			cfg.DBDriver, cfg.DBUser, cfg.SQLitePolDB, cfg.DBPort, cfg.DBName, err.Error())
@@ -38,7 +40,7 @@ func ConnectSQLite(cfg types.ConfigDB) (poldb, obsdb *sql.DB) {
 	poldb.SetMaxIdleConns(0)
 	WaitForDB(poldb)
 
-	obsdb, err = sql.Open(cfg.DBDriver, cfg.SQLiteObsDB)
+	obsdb, err := sql.Open(cfg.DBDriver, cfg.SQLiteObsDB)
 	for err != nil {
 		log.Error().Msgf("sqlite driver:%s, user:%s, host:%s, port:%s, dbname:%s conn-error:%s",
 			cfg.DBDriver, cfg.DBUser, cfg.SQLiteObsDB, cfg.DBPort, cfg.DBName, err.Error())
@@ -58,7 +60,7 @@ func ConnectSQLite(cfg types.ConfigDB) (poldb, obsdb *sql.DB) {
 func GetNetworkPoliciesFromSQLite(cfg types.ConfigDB, cluster, namespace, status string) ([]types.KnoxNetworkPolicy, error) {
 	policies := []types.KnoxNetworkPolicy{}
 	var results *sql.Rows
-	var err error
+	var err error = nil
 
 	query := "SELECT apiVersion,kind,flow_ids,name,cluster_name,namespace,type,rule,status,outdated,spec,generatedTime,updatedTime FROM " + TableNetworkPolicySQLite_TableName
 	if cluster != "" && namespace != "" && status != "" {
@@ -108,7 +110,8 @@ func GetNetworkPoliciesFromSQLite(cfg types.ConfigDB, cluster, namespace, status
 			&policy.GeneratedTime,
 			&policy.UpdatedTime,
 		); err != nil {
-			return nil, err
+			log.Error().Msg(err.Error())
+			continue
 		}
 
 		if err := json.Unmarshal(specByte, &spec); err != nil {
@@ -134,10 +137,11 @@ func GetNetworkPoliciesFromSQLite(cfg types.ConfigDB, cluster, namespace, status
 		policies = append(policies, policy)
 	}
 
-	return policies, nil
+	return policies, err
 }
 
 func UpdateNetworkPolicyToSQLite(cfg types.ConfigDB, policy types.KnoxNetworkPolicy) error {
+
 	stmt, err := PolSqliteDBHandle.Prepare("UPDATE " + TableNetworkPolicySQLite_TableName +
 		" SET apiVersion=?,kind=?,cluster_name=?,namespace=?,type=?,status=?,outdated=?,spec=?,updatedTime=? WHERE name = ?")
 	if err != nil {
@@ -170,7 +174,7 @@ func UpdateNetworkPolicyToSQLite(cfg types.ConfigDB, policy types.KnoxNetworkPol
 }
 
 func UpdateOutdatedNetworkPolicyFromSQLite(cfg types.ConfigDB, outdatedPolicy string, latestPolicy string) error {
-	var err error
+	var err error = nil
 
 	// set status -> outdated
 	stmt1, err := PolSqliteDBHandle.Prepare("UPDATE " + TableNetworkPolicySQLite_TableName + " SET status=? WHERE name=?")
@@ -196,10 +200,11 @@ func UpdateOutdatedNetworkPolicyFromSQLite(cfg types.ConfigDB, outdatedPolicy st
 		return err
 	}
 
-	return nil
+	return err
 }
 
 func insertNetworkPolicySQLite(cfg types.ConfigDB, policy types.KnoxNetworkPolicy) error {
+
 	stmt, err := PolSqliteDBHandle.Prepare("INSERT INTO " + TableNetworkPolicySQLite_TableName + "(apiVersion,kind,flow_ids,name,cluster_name,namespace,type,rule,status,outdated,spec,generatedTime,updatedTime) values(?,?,?,?,?,?,?,?,?,?,?,?,?)")
 	if err != nil {
 		return err
@@ -254,7 +259,7 @@ func InsertNetworkPoliciesToSQLite(cfg types.ConfigDB, policies []types.KnoxNetw
 // =================== //
 
 func UpdateOutdatedSystemPolicyFromSQLite(cfg types.ConfigDB, outdatedPolicy string, latestPolicy string) error {
-	var err error
+	var err error = nil
 
 	// set status -> outdated
 	stmt1, err := PolSqliteDBHandle.Prepare("UPDATE " + TableSystemPolicySQLite_TableName + " SET status=? WHERE name=?")
@@ -280,13 +285,13 @@ func UpdateOutdatedSystemPolicyFromSQLite(cfg types.ConfigDB, outdatedPolicy str
 		return err
 	}
 
-	return nil
+	return err
 }
 
 func GetSystemPoliciesFromSQLite(cfg types.ConfigDB, namespace, status string) ([]types.KnoxSystemPolicy, error) {
 	policies := []types.KnoxSystemPolicy{}
 	var results *sql.Rows
-	var err error
+	var err error = nil
 
 	query := "SELECT apiVersion,kind,name,clusterName,namespace,type,status,outdated,spec,generatedTime,updatedTime,latest FROM " + TableSystemPolicySQLite_TableName
 
@@ -331,7 +336,8 @@ func GetSystemPoliciesFromSQLite(cfg types.ConfigDB, namespace, status string) (
 			&policy.UpdatedTime,
 			&policy.Latest,
 		); err != nil {
-			return nil, err
+			log.Error().Msg(err.Error())
+			continue
 		}
 
 		if err := json.Unmarshal(specByte, &spec); err != nil {
@@ -355,6 +361,7 @@ func GetSystemPoliciesFromSQLite(cfg types.ConfigDB, namespace, status string) (
 }
 
 func insertSystemPolicySQLite(cfg types.ConfigDB, policy types.KnoxSystemPolicy) error {
+
 	stmt, err := PolSqliteDBHandle.Prepare("INSERT INTO " + TableSystemPolicySQLite_TableName + "(apiVersion,kind,name,clusterName,namespace,type,status,outdated,spec,generatedTime,updatedTime,latest) values(?,?,?,?,?,?,?,?,?,?,?,?)")
 	if err != nil {
 		return err
@@ -650,7 +657,7 @@ func concatWhereClauseIntRangeSQLite(whereClause *string, field string, start in
 func GetWorkloadProcessFileSetSQLite(cfg types.ConfigDB, wpfs types.WorkloadProcessFileSet) (map[types.WorkloadProcessFileSet][]string, types.PolicyNameMap, error) {
 
 	var results *sql.Rows
-	var err error
+	var err error = nil
 
 	query := "SELECT policyName,clusterName,namespace,containerName,labels,fromSource,settype,fileset FROM " + WorkloadProcessFileSetSQLite_TableName
 
@@ -709,7 +716,8 @@ func GetWorkloadProcessFileSetSQLite(cfg types.ConfigDB, wpfs types.WorkloadProc
 			&loc_wpfs.SetType,
 			&fscsv,
 		); err != nil {
-			return nil, nil, err
+			log.Error().Msg(err.Error())
+			continue
 		}
 		fs = strings.Split(fscsv, types.RecordSeparator)
 		res[loc_wpfs] = fs
@@ -720,6 +728,7 @@ func GetWorkloadProcessFileSetSQLite(cfg types.ConfigDB, wpfs types.WorkloadProc
 }
 
 func InsertWorkloadProcessFileSetSQLite(cfg types.ConfigDB, wpfs types.WorkloadProcessFileSet, fs []string) error {
+
 	policyName := "autopol-" + strings.ToLower(wpfs.SetType) + "-" + RandSeq(15)
 	time := ConvertStrToUnixTime("now")
 
@@ -742,6 +751,7 @@ func InsertWorkloadProcessFileSetSQLite(cfg types.ConfigDB, wpfs types.WorkloadP
 		fsset,
 		time,
 		time)
+
 	return err
 }
 
@@ -786,12 +796,13 @@ func ClearWPFSDbSQLite(cfg types.ConfigDB, wpfs types.WorkloadProcessFileSet, du
 		log.Error().Msg(err.Error())
 		return err
 	}
+
 	return err
 }
 
 func UpdateWorkloadProcessFileSetSQLite(cfg types.ConfigDB, wpfs types.WorkloadProcessFileSet, fs []string) error {
 
-	var err error
+	var err error = nil
 	time := ConvertStrToUnixTime("now")
 
 	// set status -> outdated
@@ -852,17 +863,17 @@ func InsertKubearmorLogsSQLite(cfg types.ConfigDB, log types.KubeArmorLog) error
 		log.Data,
 		log.Category,
 		log.Action,
-		log.Timestamp,
-		log.UpdatedTime,
+		ConvertStrToUnixTime("now"),
+		ConvertStrToUnixTime("now"),
 		log.Result,
 		1)
+
 	return err
 }
 
 // UpdateKubearmorLogsAlertsMySQL -- Update existing log/alert with time and count
 func UpdateKubearmorLogsSQLite(cfg types.ConfigDB, kubearmorlog types.KubeArmorLog) error {
-	var err error
-
+	var err error = nil
 	queryString := `cluster_name = ? and host_name = ? and namespace_name = ? and pod_name = ? and container_id = ? and 
 					container_name = ? and uid = ? and type = ? and source = ? and operation = ? and resource = ? and 
 					labels = ? and data = ? and category = ? and action = ? and result = ? `
@@ -876,7 +887,7 @@ func UpdateKubearmorLogsSQLite(cfg types.ConfigDB, kubearmorlog types.KubeArmorL
 	defer stmt.Close()
 
 	_, err = stmt.Exec(
-		kubearmorlog.Timestamp,
+		ConvertStrToUnixTime("now"),
 		kubearmorlog.ClusterName,
 		kubearmorlog.HostName,
 		kubearmorlog.NamespaceName,
@@ -1020,7 +1031,8 @@ func GetSystemLogsSQLite(cfg types.ConfigDB, filterLog types.KubeArmorLog) ([]ty
 			&loc_log.Result,
 			&loc_total,
 		); err != nil {
-			return nil, nil, err
+			log.Error().Msg(err.Error())
+			continue
 		}
 		resLog = append(resLog, loc_log)
 		resTotal = append(resTotal, loc_total)
@@ -1087,9 +1099,10 @@ func InsertCiliumLogsSQLite(cfg types.ConfigDB, log types.CiliumLog) error {
 		log.TraceObservationPoint,
 		log.DropReasonDesc,
 		log.IsReply,
-		log.StartTime,
-		log.UpdatedTime,
+		ConvertStrToUnixTime("now"),
+		ConvertStrToUnixTime("now"),
 		1)
+
 	return err
 }
 
@@ -1100,7 +1113,7 @@ func GetCiliumLogsSQLite(cfg types.ConfigDB, filterLog types.CiliumLog) ([]types
 	resTotal := []uint32{}
 
 	var results *sql.Rows
-	var err error
+	var err error = nil
 
 	queryString := ` verdict,ip_source,ip_destination,ip_version,ip_encrypted,l4_tcp_source_port,l4_tcp_destination_port,
 	l4_udp_source_port,l4_udp_destination_port,l4_icmpv4_type,l4_icmpv4_code,l4_icmpv6_type,l4_icmpv6_code,
@@ -1334,18 +1347,21 @@ func GetCiliumLogsSQLite(cfg types.ConfigDB, filterLog types.CiliumLog) ([]types
 			&loc_log.UpdatedTime,
 			&loc_total,
 		); err != nil {
-			return nil, nil, err
+			log.Error().Msg(err.Error())
+			continue
 		}
 		resLog = append(resLog, loc_log)
 		resTotal = append(resTotal, loc_total)
 	}
+
 	return resLog, resTotal, err
 }
 
 // UpdateCiliumLogsMySQL -- Update existing log with time and count
 func UpdateCiliumLogsSQLite(cfg types.ConfigDB, ciliumlog types.CiliumLog) error {
 
-	var err error
+	var err error = nil
+
 	queryString := `verdict = ? and ip_source = ? and ip_destination = ? and ip_version = ? and ip_encrypted = ? and l4_tcp_source_port = ? and 
 					l4_tcp_destination_port = ? and l4_udp_source_port = ? and l4_udp_destination_port = ? and l4_icmpv4_type = ? and 
 					l4_icmpv4_code = ? and l4_icmpv6_type = ? and l4_icmpv6_code = ? and source_namespace = ? and source_labels = ? and 
@@ -1364,7 +1380,7 @@ func UpdateCiliumLogsSQLite(cfg types.ConfigDB, ciliumlog types.CiliumLog) error
 	defer stmt.Close()
 
 	_, err = stmt.Exec(
-		ciliumlog.UpdatedTime,
+		ConvertStrToUnixTime("now"),
 		ciliumlog.Verdict,
 		ciliumlog.IpSource,
 		ciliumlog.IpDestination,

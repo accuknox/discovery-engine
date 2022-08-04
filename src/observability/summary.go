@@ -172,8 +172,6 @@ func GetSummaryLogs(pbRequest *opb.LogsRequest, stream opb.Summary_FetchLogsServ
 
 	}
 
-	syserverconn = deDuplicateServerInOutConn(syserverconn)
-
 	for podName, sysLogs := range systemPods {
 
 		var listOfFile, listOfProcess, listOfNetwork []*opb.ListOfSource
@@ -232,6 +230,8 @@ func GetSummaryLogs(pbRequest *opb.LogsRequest, stream opb.Summary_FetchLogsServ
 		for _, syslog := range sysLogs {
 			syserverconn = append(syserverconn, syslog.ServerConn)
 		}
+
+		syserverconn = deDuplicateServerInOutConn(syserverconn)
 
 		// ServerConnection
 		for _, servConn := range syserverconn {

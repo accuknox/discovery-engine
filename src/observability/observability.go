@@ -21,11 +21,11 @@ var (
 	CfgDB types.ConfigDB
 	log   *zerolog.Logger
 	// Kubearmor relay logs
-	SystemLogs      []*pb.Log
-	SystemLogsMutex *sync.Mutex
+	SystemLogs []*pb.Log
 	// Hubble relay logs
-	NetworkLogs      []*flow.Flow
-	NetworkLogsMutex *sync.Mutex
+	NetworkLogs []*flow.Flow
+	// Mutex
+	SystemLogsMutex, NetworkLogsMutex, SysObsMutex, NetObsMutex *sync.Mutex
 	// for cron job
 	SysObsCronJob, NetObsCronJob *cron.Cron
 )
@@ -36,6 +36,7 @@ var (
 
 func StartSystemObservability() {
 	SystemLogsMutex = &sync.Mutex{}
+	SysObsMutex = &sync.Mutex{}
 	SysObsCronJob = cron.New()
 
 	err := SysObsCronJob.AddFunc(cfg.GetCfgObsCronJobTime(), ProcessSystemLogs) // time interval
@@ -49,6 +50,7 @@ func StartSystemObservability() {
 
 func StartNetworkObservability() {
 	NetworkLogsMutex = &sync.Mutex{}
+	NetObsMutex = &sync.Mutex{}
 	NetObsCronJob = cron.New()
 
 	err := NetObsCronJob.AddFunc(cfg.GetCfgObsCronJobTime(), ProcessNetworkLogs) // time interval

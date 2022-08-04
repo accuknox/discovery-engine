@@ -22,14 +22,14 @@ const TableNetworkLogs_TableName = "network_logs"
 // == Connection == //
 // ================ //
 
-func ConnectMySQL(cfg types.ConfigDB) (db *sql.DB) {
+func ConnectMySQL(cfg types.ConfigDB) *sql.DB {
 	var err error = nil
 	if MockDB != nil {
 		return MockDB
 	}
 
 	dbconn := cfg.DBUser + ":" + cfg.DBPass + "@tcp(" + cfg.DBHost + ":" + cfg.DBPort + ")/" + cfg.DBName
-	db, err = sql.Open(cfg.DBDriver, dbconn)
+	db, err := sql.Open(cfg.DBDriver, dbconn)
 	for err != nil {
 		log.Error().Msgf("mysql driver:%s, user:%s, host:%s, port:%s, dbname:%s conn-error:%s",
 			cfg.DBDriver, cfg.DBUser, cfg.DBHost, cfg.DBPort, cfg.DBName, err.Error())
@@ -82,6 +82,7 @@ func GetNetworkPoliciesFromMySQL(cfg types.ConfigDB, cluster, namespace, status,
 
 	if err != nil {
 		log.Error().Msg(err.Error())
+
 		return nil, err
 	}
 	defer results.Close()
@@ -111,14 +112,17 @@ func GetNetworkPoliciesFromMySQL(cfg types.ConfigDB, cluster, namespace, status,
 			&policy.GeneratedTime,
 			&policy.UpdatedTime,
 		); err != nil {
+
 			return nil, err
 		}
 
 		if err := json.Unmarshal(specByte, &spec); err != nil {
+
 			return nil, err
 		}
 
 		if err := json.Unmarshal(flowIDsByte, &flowIDs); err != nil {
+
 			return nil, err
 		}
 
@@ -175,7 +179,7 @@ func UpdateNetworkPolicyToMySQL(cfg types.ConfigDB, policy types.KnoxNetworkPoli
 }
 
 func UpdateOutdatedNetworkPolicyFromMySQL(cfg types.ConfigDB, outdatedPolicy string, latestPolicy string) error {
-	var err error
+	var err error = nil
 
 	// set status -> outdated
 	stmt1, err := MySQLDBHandle.Prepare("UPDATE " + TableNetworkPolicy_TableName + " SET status=? WHERE name=?")
@@ -201,10 +205,11 @@ func UpdateOutdatedNetworkPolicyFromMySQL(cfg types.ConfigDB, outdatedPolicy str
 		return err
 	}
 
-	return nil
+	return err
 }
 
 func insertNetworkPolicy(cfg types.ConfigDB, policy types.KnoxNetworkPolicy) error {
+
 	stmt, err := MySQLDBHandle.Prepare("INSERT INTO " + TableNetworkPolicy_TableName + "(apiVersion,kind,flow_ids,name,cluster_name,namespace,type,rule,status,outdated,spec,generatedTime,updatedTime) values(?,?,?,?,?,?,?,?,?,?,?,?,?)")
 	if err != nil {
 		return err
@@ -261,7 +266,7 @@ func InsertNetworkPoliciesToMySQL(cfg types.ConfigDB, policies []types.KnoxNetwo
 // =================== //
 
 func UpdateOutdatedSystemPolicyFromMySQL(cfg types.ConfigDB, outdatedPolicy string, latestPolicy string) error {
-	var err error
+	var err error = nil
 
 	// set status -> outdated
 	stmt1, err := MySQLDBHandle.Prepare("UPDATE " + TableSystemPolicy_TableName + " SET status=? WHERE name=?")
@@ -287,7 +292,7 @@ func UpdateOutdatedSystemPolicyFromMySQL(cfg types.ConfigDB, outdatedPolicy stri
 		return err
 	}
 
-	return nil
+	return err
 }
 
 func GetSystemPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) ([]types.KnoxSystemPolicy, error) {
@@ -363,6 +368,7 @@ func GetSystemPoliciesFromMySQL(cfg types.ConfigDB, namespace, status string) ([
 }
 
 func insertSystemPolicy(cfg types.ConfigDB, policy types.KnoxSystemPolicy) error {
+
 	stmt, err := MySQLDBHandle.Prepare("INSERT INTO " + TableSystemPolicy_TableName + "(apiVersion,kind,name,clusterName,namespace,type,status,outdated,spec,generatedTime,updatedTime,latest) values(?,?,?,?,?,?,?,?,?,?,?,?)")
 	if err != nil {
 		return err
@@ -757,6 +763,7 @@ func InsertWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadPr
 		fsset,
 		time,
 		time)
+
 	return err
 }
 
@@ -800,6 +807,7 @@ func ClearWPFSDbMySQL(cfg types.ConfigDB, wpfs types.WorkloadProcessFileSet, dur
 		log.Error().Msg(err.Error())
 		return err
 	}
+
 	return err
 }
 
@@ -869,12 +877,14 @@ func InsertKubearmorLogsMySQL(cfg types.ConfigDB, log types.KubeArmorLog) error 
 		log.UpdatedTime,
 		log.Result,
 		1)
+
 	return err
 }
 
 // UpdateKubearmorLogsMySQL -- Update existing log/alert with time and count
 func UpdateKubearmorLogsMySQL(cfg types.ConfigDB, kubearmorlog types.KubeArmorLog) error {
-	var err error
+	var err error = nil
+
 	queryString := `cluster_name = ? and host_name = ? and namespace_name = ? and pod_name = ? and container_id = ? and 
 					container_name = ? and uid = ? and type = ? and source = ? and operation = ? and resource = ? and 
 					labels = ? and data = ? and category = ? and action = ? and result = ? `
@@ -917,7 +927,7 @@ func GetSystemLogsMySQL(cfg types.ConfigDB, filterLog types.KubeArmorLog) ([]typ
 	resTotal := []uint32{}
 
 	var results *sql.Rows
-	var err error
+	var err error = nil
 
 	queryString := `cluster_name,host_name,namespace_name,pod_name,container_id,container_name,
 		uid,type,source,operation,resource,labels,data,category,action,start_time,updated_time,result,total`
@@ -1102,6 +1112,7 @@ func InsertCiliumLogsMySQL(cfg types.ConfigDB, log types.CiliumLog) error {
 		log.StartTime,
 		log.UpdatedTime,
 		1)
+
 	return err
 }
 
@@ -1112,7 +1123,7 @@ func GetCiliumLogsMySQL(cfg types.ConfigDB, filterLog types.CiliumLog) ([]types.
 	resTotal := []uint32{}
 
 	var results *sql.Rows
-	var err error
+	var err error = nil
 
 	queryString := ` verdict,ip_source,ip_destination,ip_version,ip_encrypted,l4_tcp_source_port,l4_tcp_destination_port,
 	l4_udp_source_port,l4_udp_destination_port,l4_icmpv4_type,l4_icmpv4_code,l4_icmpv6_type,l4_icmpv6_code,
@@ -1351,12 +1362,14 @@ func GetCiliumLogsMySQL(cfg types.ConfigDB, filterLog types.CiliumLog) ([]types.
 		resLog = append(resLog, loc_log)
 		resTotal = append(resTotal, loc_total)
 	}
+
 	return resLog, resTotal, err
 }
 
 // UpdateCiliumLogsMySQL -- Update existing log with time and count
 func UpdateCiliumLogsMySQL(cfg types.ConfigDB, ciliumlog types.CiliumLog) error {
-	var err error
+	var err error = nil
+
 	queryString := `verdict = ? and ip_source = ? and ip_destination = ? and ip_version = ? and ip_encrypted = ? and l4_tcp_source_port = ? and 
 					l4_tcp_destination_port = ? and l4_udp_source_port = ? and l4_udp_destination_port = ? and l4_icmpv4_type = ? and 
 					l4_icmpv4_code = ? and l4_icmpv6_type = ? and l4_icmpv6_code = ? and source_namespace = ? and source_labels = ? and 

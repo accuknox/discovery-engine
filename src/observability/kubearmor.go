@@ -2,6 +2,7 @@ package observability
 
 import (
 	"encoding/json"
+	"reflect"
 
 	"github.com/accuknox/auto-policy-discovery/src/libs"
 	"github.com/accuknox/auto-policy-discovery/src/types"
@@ -39,7 +40,7 @@ func convertKubearmorPbLogToKubearmorLog(pbLog pb.Log) types.KubeArmorLog {
 
 func ProcessSystemLogs() {
 	var isEntryExist bool
-	var err error
+	var updateLogs, newLogs []types.KubeArmorLog
 
 	if len(SystemLogs) > 0 {
 
@@ -48,11 +49,16 @@ func ProcessSystemLogs() {
 		SystemLogs = []*pb.Log{} //reset
 		SystemLogsMutex.Unlock()
 
+		destLogAlert, err := getSystemLogs()
+		if err != nil {
+			log.Error().Msg(err.Error())
+			return
+		}
+
 		for _, kubearmorLog := range locSysLogs {
-
+			isEntryExist = false
 			locPbLog := pb.Log{}
-
-			var locLog, resLog types.KubeArmorLog
+			locLog := types.KubeArmorLog{}
 
 			jsonLog, _ := json.Marshal(kubearmorLog)
 			if err := json.Unmarshal(jsonLog, &locPbLog); err != nil {
@@ -69,22 +75,26 @@ func ProcessSystemLogs() {
 				locLog.Category = "Log"
 			}
 
-			if isEntryExist, resLog, err = checkIfSystemLogExist(locLog); err != nil {
-				log.Error().Msg(err.Error())
-				return
+			for _, locDestLogAlert := range destLogAlert {
+				locLog.Timestamp = 0
+				locLog.UpdatedTime = 0
+				locDestLogAlert.Timestamp = 0
+				locDestLogAlert.UpdatedTime = 0
+				if reflect.DeepEqual(locLog, locDestLogAlert) {
+					isEntryExist = true
+					break
+				}
 			}
 
 			if isEntryExist {
-				resLog.Timestamp = locLog.Timestamp
-				if err := libs.UpdateKubearmorLogs(CfgDB, resLog); err != nil {
-					log.Error().Msg(err.Error())
-				}
+				updateLogs = append(updateLogs, locLog)
 			} else {
-				if err := libs.InsertKubearmorLogs(CfgDB, locLog); err != nil {
-					log.Error().Msg(err.Error())
-				}
+				newLogs = append(newLogs, locLog)
+				destLogAlert = append(destLogAlert, locLog)
 			}
 		}
+
+		pushKubearmorLogs(newLogs, updateLogs)
 	}
 }
 
@@ -100,49 +110,27 @@ func ProcessKubearmorAlert(kubearmorAlert *pb.Log) {
 	SystemLogsMutex.Unlock()
 }
 
-func compareSrcDestLogAlert(src types.KubeArmorLog, dest types.KubeArmorLog) bool {
-	if src.ClusterName == dest.ClusterName && src.HostName == dest.HostName && src.NamespaceName == dest.NamespaceName &&
-		src.PodName == dest.PodName && src.ContainerID == dest.ContainerID && src.ContainerName == dest.ContainerName &&
-		src.UID == dest.UID && src.Type == dest.Type && src.Source == dest.Source && src.Operation == dest.Operation &&
-		src.Resource == dest.Resource && src.Labels == dest.Labels && src.Data == dest.Data && src.Category == dest.Category &&
-		src.Action == dest.Action && src.Result == dest.Result {
-		return true
-	} else {
-		return false
-	}
-}
-
-func checkIfSystemLogExist(logAlert types.KubeArmorLog) (bool, types.KubeArmorLog, error) {
-	locLogAlert := types.KubeArmorLog{}
-
-	locLogAlert.ClusterName = logAlert.ClusterName
-	locLogAlert.HostName = logAlert.HostName
-	locLogAlert.NamespaceName = logAlert.NamespaceName
-	locLogAlert.PodName = logAlert.PodName
-	locLogAlert.ContainerID = logAlert.ContainerID
-	locLogAlert.ContainerName = logAlert.ContainerName
-	locLogAlert.UID = logAlert.UID
-	locLogAlert.Type = logAlert.Type
-	locLogAlert.Source = logAlert.Source
-	locLogAlert.Operation = logAlert.Operation
-	locLogAlert.Resource = logAlert.Resource
-	locLogAlert.Labels = logAlert.Labels
-	locLogAlert.Data = logAlert.Data
-	locLogAlert.Category = logAlert.Category
-	locLogAlert.Action = logAlert.Action
-	locLogAlert.Result = logAlert.Result
-
-	destLogAlert, _, err := libs.GetKubearmorLogs(CfgDB, locLogAlert)
+func getSystemLogs() ([]types.KubeArmorLog, error) {
+	logs, _, err := libs.GetKubearmorLogs(CfgDB, types.KubeArmorLog{})
 	if err != nil {
 		log.Error().Msg(err.Error())
-		return false, types.KubeArmorLog{}, err
+		return nil, err
 	}
+	return logs, nil
+}
 
-	for _, locDestLogAlert := range destLogAlert {
-		if compareSrcDestLogAlert(logAlert, locDestLogAlert) {
-			return true, locLogAlert, nil
+func pushKubearmorLogs(newLogs, updateLogs []types.KubeArmorLog) {
+
+	SysObsMutex.Lock()
+	for _, newlog := range newLogs {
+		if err := libs.InsertKubearmorLogs(CfgDB, newlog); err != nil {
+			log.Error().Msg(err.Error())
 		}
 	}
-
-	return false, types.KubeArmorLog{}, nil
+	for _, updatelog := range updateLogs {
+		if err := libs.UpdateKubearmorLogs(CfgDB, updatelog); err != nil {
+			log.Error().Msg(err.Error())
+		}
+	}
+	SysObsMutex.Unlock()
 }

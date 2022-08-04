@@ -3,7 +3,6 @@ package libs
 import (
 	"database/sql"
 	"errors"
-	"sync"
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -16,12 +15,11 @@ import (
 // ======== //
 
 var (
-	MySQLDBHandle                                    *sql.DB         = nil
-	PolSqliteDBHandle                                *sql.DB         = nil
-	ObsSqliteDBHandle                                *sql.DB         = nil
-	MockSql                                          sqlmock.Sqlmock = nil
-	MockDB                                           *sql.DB         = nil
-	MySqlDBMutex, SqlitePolDBMutex, SqliteObsDBMutex *sync.Mutex     = nil, nil, nil
+	MySQLDBHandle     *sql.DB         = nil
+	PolSqliteDBHandle *sql.DB         = nil
+	ObsSqliteDBHandle *sql.DB         = nil
+	MockSql           sqlmock.Sqlmock = nil
+	MockDB            *sql.DB         = nil
 )
 
 // InitDB : Initilaize DB driver
