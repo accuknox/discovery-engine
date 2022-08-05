@@ -41,4 +41,5 @@ type Pod struct {
 	Namespace string   `json:"namespace" bson:"namespace"`
 	PodName   string   `json:"pod_name" bson:"pod_name"`
 	Labels    []string `json:"labels" bson:"labels"`
+	PodIP     string   `json:"pod_ip" bson:"pod_ip"`
 }
