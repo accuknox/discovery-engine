@@ -18,12 +18,12 @@ fi
 
 cp /etc/rancher/k3s/k3s.yaml $KUBEDIR/config 
 
-for (( ; ; ))
-do
-	status=$(kubectl get pods -A -o jsonpath={.items[*].status.phase})
-	[[ $(echo $status | grep -v Running | wc -l) -eq 0 ]] && break
-	echo "wait for initialization"
-	sleep 1
-done
+#for (( ; ; ))
+#do
+#	status=$(kubectl get pods -A -o jsonpath={.items[*].status.phase})
+#	[[ $(echo $status | grep -v Running | wc -l) -eq 0 ]] && break
+echo "wait for initialization"
+sleep 15
+#done
 
 kubectl get pods -A
