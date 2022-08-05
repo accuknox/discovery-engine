@@ -3,7 +3,6 @@ package observability
 import (
 	"sync"
 
-	"github.com/accuknox/auto-policy-discovery/src/config"
 	cfg "github.com/accuknox/auto-policy-discovery/src/config"
 	logger "github.com/accuknox/auto-policy-discovery/src/logging"
 	"github.com/accuknox/auto-policy-discovery/src/types"
@@ -27,39 +26,38 @@ var (
 	// Mutex
 	SystemLogsMutex, NetworkLogsMutex, SysObsMutex, NetObsMutex *sync.Mutex
 	// for cron job
-	SysObsCronJob, NetObsCronJob *cron.Cron
+	ObservabilityCronJob *cron.Cron
 )
 
 // =================== //
 // == Obs Functions == //
 // =================== //
 
-func StartSystemObservability() {
+func StartObservability() {
 	SystemLogsMutex = &sync.Mutex{}
-	SysObsMutex = &sync.Mutex{}
-	SysObsCronJob = cron.New()
+	NetworkLogsMutex = &sync.Mutex{}
 
-	err := SysObsCronJob.AddFunc(cfg.GetCfgObsCronJobTime(), ProcessSystemLogs) // time interval
+	SysObsMutex = &sync.Mutex{}
+	NetObsMutex = &sync.Mutex{}
+
+	ObservabilityCronJob = cron.New()
+
+	err := ObservabilityCronJob.AddFunc(cfg.GetCfgObsCronJobTime(), ProcessObsLogs) // time interval
 	if err != nil {
 		log.Error().Msg(err.Error())
 		return
 	}
-	SysObsCronJob.Start()
-	log.Info().Msg("System observability cron job started")
+	ObservabilityCronJob.Start()
+	log.Info().Msg("Observability cron job started")
 }
 
-func StartNetworkObservability() {
-	NetworkLogsMutex = &sync.Mutex{}
-	NetObsMutex = &sync.Mutex{}
-	NetObsCronJob = cron.New()
-
-	err := NetObsCronJob.AddFunc(cfg.GetCfgObsCronJobTime(), ProcessNetworkLogs) // time interval
-	if err != nil {
-		log.Error().Msg(err.Error())
-		return
+func ProcessObsLogs() {
+	if cfg.CurrentCfg.ConfigSysPolicy.OperationMode == 1 {
+		ProcessSystemLogs()
 	}
-	NetObsCronJob.Start()
-	log.Info().Msg("Network observability cron job started")
+	if cfg.CurrentCfg.ConfigNetPolicy.OperationMode == 1 {
+		ProcessNetworkLogs()
+	}
 }
 
 func InitObservability() {
@@ -67,11 +65,6 @@ func InitObservability() {
 	CfgDB = cfg.GetCfgDB()
 
 	if cfg.IsObservabilityEnabled() {
-		if config.CurrentCfg.ConfigSysPolicy.OperationMode == 1 {
-			StartSystemObservability()
-		}
-		if config.CurrentCfg.ConfigNetPolicy.OperationMode == 1 {
-			StartNetworkObservability()
-		}
+		StartObservability()
 	}
 }

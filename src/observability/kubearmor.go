@@ -3,6 +3,7 @@ package observability
 import (
 	"encoding/json"
 	"reflect"
+	"time"
 
 	"github.com/accuknox/auto-policy-discovery/src/libs"
 	"github.com/accuknox/auto-policy-discovery/src/types"
@@ -47,7 +48,7 @@ func ProcessSystemLogs() {
 		SystemLogsMutex.Lock()
 		locSysLogs := SystemLogs
 		SystemLogs = []*pb.Log{} //reset
-		SystemLogsMutex.Unlock()
+		//SystemLogsMutex.Unlock()
 
 		destLogAlert, err := getSystemLogs()
 		if err != nil {
@@ -95,6 +96,7 @@ func ProcessSystemLogs() {
 		}
 
 		pushKubearmorLogs(newLogs, updateLogs)
+		SystemLogsMutex.Unlock()
 	}
 }
 
@@ -120,13 +122,13 @@ func getSystemLogs() ([]types.KubeArmorLog, error) {
 }
 
 func pushKubearmorLogs(newLogs, updateLogs []types.KubeArmorLog) {
-
 	SysObsMutex.Lock()
 	for _, newlog := range newLogs {
 		if err := libs.InsertKubearmorLogs(CfgDB, newlog); err != nil {
 			log.Error().Msg(err.Error())
 		}
 	}
+	time.Sleep(500 * time.Millisecond)
 	for _, updatelog := range updateLogs {
 		if err := libs.UpdateKubearmorLogs(CfgDB, updatelog); err != nil {
 			log.Error().Msg(err.Error())

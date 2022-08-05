@@ -29,7 +29,7 @@ application:
 
 observability: 
   enable: true
-  cron-job-time-interval: "0h0m10s"             # format: XhYmZs 
+  cron-job-time-interval: "0h0m5s"             # format: XhYmZs 
 
 database:
   driver: sqlite3

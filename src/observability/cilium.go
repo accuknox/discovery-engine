@@ -3,6 +3,7 @@ package observability
 import (
 	"errors"
 	"reflect"
+	"time"
 
 	"github.com/accuknox/auto-policy-discovery/src/common"
 	"github.com/accuknox/auto-policy-discovery/src/libs"
@@ -173,7 +174,6 @@ func ProcessNetworkLogs() {
 		NetworkLogsMutex.Lock()
 		locNetLogs := NetworkLogs
 		NetworkLogs = []*flow.Flow{} //reset
-		NetworkLogsMutex.Unlock()
 
 		networkLogs, err := getNetworkLogs()
 		if err != nil {
@@ -206,6 +206,7 @@ func ProcessNetworkLogs() {
 			}
 		}
 		pushCiliumLogs(newLogs, updateLogs)
+		NetworkLogsMutex.Unlock()
 	}
 }
 
@@ -231,6 +232,7 @@ func pushCiliumLogs(newLogs, updateLogs []types.CiliumLog) {
 			log.Error().Msg(err.Error())
 		}
 	}
+	time.Sleep(500 * time.Millisecond)
 	for _, updatelog := range updateLogs {
 		if err := libs.UpdateCiliumLogs(CfgDB, updatelog); err != nil {
 			log.Error().Msg(err.Error())

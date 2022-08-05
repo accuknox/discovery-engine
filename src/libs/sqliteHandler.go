@@ -28,8 +28,6 @@ func ConnectSQLite(cfg types.ConfigDB) (*sql.DB, *sql.DB) {
 		return MockDB, MockDB
 	}
 
-	//openOptions := "?_cache=shared&mode=rwc&_journal_mode=WAL"
-
 	poldb, err := sql.Open(cfg.DBDriver, cfg.SQLitePolDB)
 	for err != nil {
 		log.Error().Msgf("sqlite driver:%s, user:%s, host:%s, port:%s, dbname:%s conn-error:%s",
