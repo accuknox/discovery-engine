@@ -27,7 +27,10 @@ application:
     #cluster-mgmt-url: "http://cluster-management-service.accuknox-dev-cluster-mgmt.svc.cluster.local/cm"
     cluster-mgmt-url: "http://localhost:8080"
 
-observability: true
+observability: 
+  enable: true
+  cron-job-time-interval: "0h0m10s"         # format: XhYmZs
+  dbname: ./accuknox-pol.db
 
 database:
   driver: sqlite3

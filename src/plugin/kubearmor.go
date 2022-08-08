@@ -381,7 +381,7 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 				KubeArmorRelayLogs = append(KubeArmorRelayLogs, res)
 				KubeArmorRelayLogsMutex.Unlock()
 
-				if config.IsObservabilityEnabled() {
+				if config.GetCfgObservabilityEnable() {
 					obs.ProcessKubearmorLog(res)
 				}
 			}
@@ -430,7 +430,7 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 				KubeArmorRelayLogs = append(KubeArmorRelayLogs, &log)
 				KubeArmorRelayLogsMutex.Unlock()
 
-				if config.IsObservabilityEnabled() {
+				if config.GetCfgObservabilityEnable() {
 					obs.ProcessKubearmorAlert(&log)
 				}
 			}

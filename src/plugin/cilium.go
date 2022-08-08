@@ -854,7 +854,7 @@ func StartHubbleRelay(StopChan chan struct{}, cfg types.ConfigCiliumHubble) {
 				CiliumFlows = append(CiliumFlows, flow)
 				CiliumFlowsMutex.Unlock()
 
-				if config.IsObservabilityEnabled() {
+				if config.GetCfgObservabilityEnable() {
 					obs.ProcessCiliumFlow(flow)
 				}
 			}
