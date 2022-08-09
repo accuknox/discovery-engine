@@ -16,7 +16,7 @@ import (
 
 	"github.com/accuknox/auto-policy-discovery/src/cluster"
 	cfg "github.com/accuknox/auto-policy-discovery/src/config"
-	"github.com/accuknox/auto-policy-discovery/src/feedconsumer"
+	fc "github.com/accuknox/auto-policy-discovery/src/feedconsumer"
 	"github.com/accuknox/auto-policy-discovery/src/libs"
 	logger "github.com/accuknox/auto-policy-discovery/src/logging"
 	"github.com/accuknox/auto-policy-discovery/src/observability"
@@ -236,11 +236,11 @@ func getSystemLogs() []types.KnoxSystemLog {
 				systemLogs = append(systemLogs, log)
 			}
 		}
-	} else if SystemLogFrom == "kafka" {
-		log.Info().Msg("Get system log from kafka consumer")
+	} else if SystemLogFrom == "feed-consumer" {
+		log.Info().Msg("Get system log from feed-consumer")
 
-		// get system logs from kafka consumer
-		sysLogs := plugin.GetSystemLogsFromKafkaConsumer(OperationTrigger)
+		// get system logs from kafka/pulsar
+		sysLogs := plugin.GetSystemLogsFromFeedConsumer(OperationTrigger)
 		if len(sysLogs) == 0 || len(sysLogs) < OperationTrigger {
 			return nil
 		}
@@ -1351,8 +1351,10 @@ func StartSystemLogRcvr() {
 	for {
 		if cfg.GetCfgSystemLogFrom() == "kubearmor" {
 			plugin.StartKubeArmorRelay(SystemStopChan, cfg.GetCfgKubeArmor())
-		} else if cfg.GetCfgSystemLogFrom() == "kafka" {
-			feedconsumer.StartConsumer()
+		} else if cfg.GetCfgSystemLogFrom() == "feed-consumer" {
+			fc.ConsumerMutex.Lock()
+			fc.StartConsumer()
+			fc.ConsumerMutex.Unlock()
 		}
 		time.Sleep(time.Second * 2)
 	}

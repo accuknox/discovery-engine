@@ -8,7 +8,7 @@ import (
 	"github.com/accuknox/auto-policy-discovery/src/libs"
 	"github.com/accuknox/auto-policy-discovery/src/types"
 	"github.com/cilium/cilium/api/v1/flow"
-	"github.com/golang/protobuf/ptypes/wrappers"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 func convertFlowLogToCiliumLog(flowLog *flow.Flow) (types.CiliumLog, error) {
@@ -107,7 +107,7 @@ func convertFlowLogToCiliumLog(flowLog *flow.Flow) (types.CiliumLog, error) {
 		destinationService = *flowLog.GetDestinationService()
 	}
 
-	var isReply wrappers.BoolValue
+	var isReply wrapperspb.BoolValue
 	//Check IsReply exist
 	if flowLog.IsReply != nil {
 		isReply = *flowLog.IsReply

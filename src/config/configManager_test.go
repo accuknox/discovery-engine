@@ -34,19 +34,32 @@ logging:
   level: INFO
 
 feed-consumer:
+  driver: "pulsar"
+  servers:
+  - "localhost:9092"
+  topic: 
+    cilium: "cilium-alerts"
+    kubearmor: "kubearmor-alerts"
+  encryption:
+    enable: false
+    ca-cert: /kafka-ssl/ca.pem 
+  auth:
+    enable: false
+    cert: /kafka-ssl/user.cert.pem
+    key: /kafka-ssl/user.key.pem
+    keystore:
+      path: /kafka-ssl/user.p12
+      password: abcdxyz123
+  message-offset: "latest"
+  number-of-consumers: 1
+  consumer-group: knoxautopolicy
+  event-buffer-size: 50
   kafka:
-    broker-address-family: v4
-    session-timeout-ms: 6000
-    auto-offset-reset: "earliest"
-    bootstrap-servers: "dev-kafka-kafka-bootstrap.accuknox-dev-kafka.svc.cluster.local:9092"
-    group-id: policy.cilium
-    topics: 
-      - cilium-alerts
-      - kubearmor-alerts
-    ssl:
-      enabled: false
-    events:
-      buffer: 50
+    server-address-family: v4
+    session-timeout: 6000
+  pulsar:
+    connection-timeout: 10
+    operation-timeout: 30
 
 database:
   driver: mysql

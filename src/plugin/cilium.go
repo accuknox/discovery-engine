@@ -61,8 +61,8 @@ var Verdict = map[string]int{
 
 var CiliumFlows []*cilium.Flow
 var CiliumFlowsMutex *sync.Mutex
-var CiliumFlowsKafka []*types.KnoxNetworkLog
-var CiliumFlowsKafkaMutex *sync.Mutex
+var CiliumFlowsFC []*types.KnoxNetworkLog
+var CiliumFlowsFCMutex *sync.Mutex
 
 var log *zerolog.Logger
 
@@ -70,8 +70,8 @@ func init() {
 	log = logger.GetInstance()
 	CiliumFlowsMutex = &sync.Mutex{}
 	KubeArmorRelayLogsMutex = &sync.Mutex{}
-	CiliumFlowsKafkaMutex = &sync.Mutex{}
-	KubeArmorKafkaLogsMutex = &sync.Mutex{}
+	CiliumFlowsFCMutex = &sync.Mutex{}
+	KubeArmorFCLogsMutex = &sync.Mutex{}
 }
 
 // ====================== //
@@ -866,25 +866,25 @@ func StartHubbleRelay(StopChan chan struct{}, cfg types.ConfigCiliumHubble) {
 	}
 }
 
-func GetCiliumFlowsFromKafka(trigger int) []*types.KnoxNetworkLog {
+func GetCiliumFlowsFromFeedConsumer(trigger int) []*types.KnoxNetworkLog {
 	results := []*types.KnoxNetworkLog{}
 
-	CiliumFlowsKafkaMutex.Lock()
-	defer CiliumFlowsKafkaMutex.Unlock()
-	if len(CiliumFlowsKafka) == 0 {
-		log.Info().Msgf("Cilium kafka traffic flow not exist")
+	CiliumFlowsFCMutex.Lock()
+	defer CiliumFlowsFCMutex.Unlock()
+	if len(CiliumFlowsFC) == 0 {
+		log.Info().Msgf("Cilium feed-consumer traffic flow not exist")
 		return results
 	}
 
-	if len(CiliumFlowsKafka) < trigger {
-		log.Info().Msgf("The number of cilium kafka traffic flow [%d] is less than trigger [%d]", len(CiliumFlowsKafka), trigger)
+	if len(CiliumFlowsFC) < trigger {
+		log.Info().Msgf("The number of cilium feed-consumer traffic flow [%d] is less than trigger [%d]", len(CiliumFlowsFC), trigger)
 		return results
 	}
 
-	results = CiliumFlowsKafka                   // copy
-	CiliumFlowsKafka = []*types.KnoxNetworkLog{} // reset
+	results = CiliumFlowsFC                   // copy
+	CiliumFlowsFC = []*types.KnoxNetworkLog{} // reset
 
-	log.Info().Msgf("The total number of cilium kafka traffic flow: [%d]", len(results))
+	log.Info().Msgf("The total number of cilium feed-consumer traffic flow: [%d]", len(results))
 
 	return results
 }

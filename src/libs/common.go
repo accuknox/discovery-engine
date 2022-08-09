@@ -129,6 +129,17 @@ func SetDefaultConfig() {
 	// kubearmor config
 	viper.SetDefault("kubearmor.url", "localhost")
 	viper.SetDefault("kubearmor.port", "32767")
+
+	// feed-consumer config
+	viper.SetDefault("feed-consumer.number-of-consumers", "1")
+	viper.SetDefault("feed-consumer.event-buffer-size", "50")
+	viper.SetDefault("feed-consumer.consumer-group", "knoxautopolicy")
+	viper.SetDefault("feed-consumer.message-offset", "latest")
+	viper.SetDefault("feed-consumer.kafka.server-address-family", "v4")
+	viper.SetDefault("feed-consumer.kafka.session-timeout", "6000")
+	viper.SetDefault("feed-consumer.pulsar.connection-timeout", "10")
+	viper.SetDefault("feed-consumer.pulsar.operation-timeout", "30")
+
 }
 
 type cfgArray []string
