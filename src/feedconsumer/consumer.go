@@ -188,12 +188,16 @@ func (cfc *KnoxFeedConsumer) processNetworkLogMessage(message []byte) error {
 		return err
 	}
 
-	clusterName := eventMap["cluster_name"]
+	clusterName, exists := eventMap["cluster_name"]
 
 	clusterNameStr := ""
-	if err := json.Unmarshal(clusterName, &clusterNameStr); err != nil {
-		log.Error().Stack().Msg(err.Error())
-		return err
+	if !exists {
+		clusterNameStr = "default"
+	} else {
+		if err := json.Unmarshal(clusterName, &clusterNameStr); err != nil {
+			log.Error().Stack().Msg(err.Error())
+			return err
+		}
 	}
 
 	flowEvent, exists := eventMap["flow"]

@@ -920,15 +920,15 @@ func IsExistingPolicySpec(existingPolicies []types.KnoxNetworkPolicy, newPolicy 
 func UpdateDuplicatedPolicy(existingPolicies []types.KnoxNetworkPolicy, discoveredPolicies []types.KnoxNetworkPolicy, dnsToIPs map[string][]string, clusterName string) []types.KnoxNetworkPolicy {
 	newPolicies := []types.KnoxNetworkPolicy{}
 
-	existIngressPolicies := map[string]types.KnoxNetworkPolicy{}
-	existEgressPolicies := map[string]types.KnoxNetworkPolicy{}
+	existIngressPolicies := map[Selector]types.KnoxNetworkPolicy{}
+	existEgressPolicies := map[Selector]types.KnoxNetworkPolicy{}
 
 	policyNamesMap := map[string]bool{}
 	for _, existPolicy := range existingPolicies {
 		policyNamesMap[existPolicy.Metadata["name"]] = true
 
 		lblArr := getLabelArrayFromMap(existPolicy.Spec.Selector.MatchLabels)
-		selector := strings.Join(lblArr, ",")
+		selector := Selector{existPolicy.Kind, strings.Join(lblArr, ",")}
 		if existPolicy.Metadata["type"] == PolicyTypeIngress {
 			existIngressPolicies[selector] = existPolicy
 		} else {
@@ -938,7 +938,7 @@ func UpdateDuplicatedPolicy(existingPolicies []types.KnoxNetworkPolicy, discover
 
 	for _, newPolicy := range discoveredPolicies {
 		lblArr := getLabelArrayFromMap(newPolicy.Spec.Selector.MatchLabels)
-		selector := strings.Join(lblArr, ",")
+		selector := Selector{newPolicy.Kind, strings.Join(lblArr, ",")}
 		if newPolicy.Metadata["type"] == PolicyTypeIngress {
 			existPolicy, ok := existIngressPolicies[selector]
 			if ok {

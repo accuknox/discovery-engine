@@ -19,9 +19,9 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	// "github.com/cilium/cilium/pkg/policy/api"
 	cilium "github.com/cilium/cilium/api/v1/flow"
 	"github.com/cilium/cilium/api/v1/observer"
+	cu "github.com/cilium/cilium/pkg/k8s/apis/cilium.io/utils"
 )
 
 var CiliumReserved string = "reserved:"
@@ -523,7 +523,6 @@ func buildNewCiliumNetworkPolicy(inPolicy types.KnoxNetworkPolicy) types.CiliumN
 	ciliumPolicy := types.CiliumNetworkPolicy{}
 
 	ciliumPolicy.APIVersion = "cilium.io/v2"
-	ciliumPolicy.Kind = "CiliumNetworkPolicy"
 	ciliumPolicy.Metadata = map[string]string{}
 	for k, v := range inPolicy.Metadata {
 		if k == "name" || k == "namespace" {
@@ -531,8 +530,13 @@ func buildNewCiliumNetworkPolicy(inPolicy types.KnoxNetworkPolicy) types.CiliumN
 		}
 	}
 
-	// update selector matchLabels
-	ciliumPolicy.Spec.Selector.MatchLabels = inPolicy.Spec.Selector.MatchLabels
+	if inPolicy.Kind == types.KindKnoxHostNetworkPolicy {
+		ciliumPolicy.Kind = cu.ResourceTypeCiliumClusterwideNetworkPolicy
+		ciliumPolicy.Spec.NodeSelector.MatchLabels = inPolicy.Spec.Selector.MatchLabels
+	} else {
+		ciliumPolicy.Kind = cu.ResourceTypeCiliumNetworkPolicy
+		ciliumPolicy.Spec.EndpointSelector.MatchLabels = inPolicy.Spec.Selector.MatchLabels
+	}
 
 	return ciliumPolicy
 }

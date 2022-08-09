@@ -31,13 +31,18 @@ func GetPods(clusterName string) []types.Pod {
 }
 
 func GetAllClusterResources(cluster string) ([]string, []types.Service, []types.Endpoint, []types.Pod, error) {
-	if config.GetCfgClusterInfoFrom() == "k8sclient" { // get from k8s client api
+	clusterMgmt := config.GetCfgClusterInfoFrom()
+
+	if clusterMgmt == "k8sclient" { // get from k8s client api
 		namespaces := GetNamespacesFromK8sClient()
 		services := GetServicesFromK8sClient()
 		endpoints := GetEndpointsFromK8sClient()
 		pods := GetPodsFromK8sClient()
 
 		return namespaces, services, endpoints, pods, nil
+	} else if clusterMgmt == "kvmservice" {
+		namespaces, pods := GetResourcesFromKvmService()
+		return namespaces, nil, nil, pods, nil
 	} else {
 		clusterInstance := GetClusterFromClusterName(cluster)
 		if clusterInstance.ClusterID == 0 { // cluster not onboarded
