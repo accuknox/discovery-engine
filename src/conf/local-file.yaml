@@ -30,7 +30,7 @@ application:
 observability: 
   enable: true
   cron-job-time-interval: "0h0m10s"         # format: XhYmZs
-  dbname: ./accuknox-pol.db
+  dbname: ./accuknox-obs.db
 
 database:
   driver: sqlite3
@@ -39,7 +39,7 @@ database:
   user: root
   password: password
   dbname: accuknox
-  sqlite-db-path: ./accuknox.db
+  sqlite-db-path: ./accuknox-pol.db
   table-network-log: network_log
   table-network-policy: network_policy
   table-system-log: system_log

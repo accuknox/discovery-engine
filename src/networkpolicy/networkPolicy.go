@@ -2165,7 +2165,7 @@ func StartNetworkCronJob() {
 		return
 	}
 	if cfg.GetCfgObservabilityEnable() {
-		err := NetworkCronJob.AddFunc(cfg.GetCfgSysCronJobTime(), observability.NetworkLogCronJob) // time interval
+		err := NetworkCronJob.AddFunc(cfg.GetCfgObservabilityCronJobTime(), observability.NetworkLogCronJob) // time interval
 		if err != nil {
 			log.Error().Msg(err.Error())
 			return

@@ -1369,7 +1369,7 @@ func StartSystemCronJob() {
 		return
 	}
 	if cfg.GetCfgObservabilityEnable() {
-		err := SystemCronJob.AddFunc(cfg.GetCfgSysCronJobTime(), observability.SystemLogCronJob) // time interval
+		err := SystemCronJob.AddFunc(cfg.GetCfgObservabilityCronJobTime(), observability.SystemLogCronJob) // time interval
 		if err != nil {
 			log.Error().Msg(err.Error())
 			return
