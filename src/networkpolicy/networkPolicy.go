@@ -1687,7 +1687,7 @@ func mergeHttpRules(existRule types.L47Rule, newRule types.L47Rule) (bool, bool,
 
 	newIsICMP := false
 	if len(newIcmpRule) > 0 {
-		existIsICMP = true
+		newIsICMP = true
 	}
 
 	// Handle Ingress/Egress with ICMP rules
