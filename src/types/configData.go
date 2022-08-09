@@ -92,17 +92,22 @@ type ConfigClusterMgmt struct {
 	ClusterMgmtURL  string `json:"cluster_mgmt_url,omitempty" bson:"cluster_mgmt_url,omitempty"`
 }
 
+type ConfigObservability struct {
+	Enable              bool   `json:"enable,omitempty" bson:"enable,omitempty"`
+	CronJobTimeInterval string `json:"cronjob_time_interval,omitempty" bson:"cronjob_time_interval,omitempty"`
+	DBName              string `json:"db_name,omitempty" bson:"db_name,omitempty"`
+}
+
 type Configuration struct {
 	ConfigName string `json:"config_name,omitempty" bson:"config_name,omitempty"`
 	Status     int    `json:"status,omitempty" bson:"status,omitempty"`
-
-	Observability bool `json:"observability,omitempty" bson:"observability,omitempty"`
 
 	ConfigDB             ConfigDB             `json:"config_db,omitempty" bson:"config_db,omitempty"`
 	ConfigCiliumHubble   ConfigCiliumHubble   `json:"config_cilium_hubble,omitempty" bson:"config_cilium_hubble,omitempty"`
 	ConfigKubeArmorRelay ConfigKubeArmorRelay `json:"config_kubearmor_relay,omitempty" bson:"config_kubearmor_relay,omitempty"`
 
-	ConfigNetPolicy   ConfigNetworkPolicy `json:"config_network_policy,omitempty" bson:"config_network_policy,omitempty"`
-	ConfigSysPolicy   ConfigSystemPolicy  `json:"config_system_policy,omitempty" bson:"config_system_policy,omitempty"`
-	ConfigClusterMgmt ConfigClusterMgmt   `json:"config_cluster_mgmt,omitempty" bson:"config_cluster_mgmt,omitempty"`
+	ConfigNetPolicy     ConfigNetworkPolicy `json:"config_network_policy,omitempty" bson:"config_network_policy,omitempty"`
+	ConfigSysPolicy     ConfigSystemPolicy  `json:"config_system_policy,omitempty" bson:"config_system_policy,omitempty"`
+	ConfigClusterMgmt   ConfigClusterMgmt   `json:"config_cluster_mgmt,omitempty" bson:"config_cluster_mgmt,omitempty"`
+	ConfigObservability ConfigObservability `json:"config_observability,omitempty" bson:"config_observability,omitempty"`
 }

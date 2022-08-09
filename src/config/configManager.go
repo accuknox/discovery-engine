@@ -117,9 +117,6 @@ func LoadConfigFromFile() {
 
 	CurrentCfg.Status = 1 // 1: active 0: inactive
 
-	// Observability module
-	CurrentCfg.Observability = viper.GetBool("observability")
-
 	// load network policy discovery
 	CurrentCfg.ConfigNetPolicy = types.ConfigNetworkPolicy{
 		OperationMode:           viper.GetInt("application.network.operation-mode"),
@@ -185,6 +182,12 @@ func LoadConfigFromFile() {
 		ClusterMgmtURL:  viper.GetString("application.cluster.cluster-mgmt-url"),
 	}
 
+	CurrentCfg.ConfigObservability = types.ConfigObservability{
+		Enable:              viper.GetBool("observability.enable"),
+		CronJobTimeInterval: "@every " + viper.GetString("observability.cron-job-time-interval"),
+		DBName:              viper.GetString("observability.dbname"),
+	}
+
 	// load database
 	CurrentCfg.ConfigDB = LoadConfigDB()
 
@@ -209,10 +212,6 @@ func SetLogFile(file string) {
 
 func GetCurrentCfg() types.Configuration {
 	return CurrentCfg
-}
-
-func IsObservabilityEnabled() bool {
-	return CurrentCfg.Observability
 }
 
 func GetCfgDB() types.ConfigDB {
@@ -381,4 +380,20 @@ func GetCfgClusterInfoFrom() string {
 
 func GetCfgClusterMgmtURL() string {
 	return CurrentCfg.ConfigClusterMgmt.ClusterMgmtURL
+}
+
+// ============================ //
+// == Get Observability Info == //
+// ============================ //
+
+func GetCfgObservabilityEnable() bool {
+	return CurrentCfg.ConfigObservability.Enable
+}
+
+func GetCfgObservabilityCronJobTime() string {
+	return CurrentCfg.ConfigObservability.CronJobTimeInterval
+}
+
+func GetCfgObservabilityDBName() string {
+	return CurrentCfg.ConfigObservability.DBName
 }

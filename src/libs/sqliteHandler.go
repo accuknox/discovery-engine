@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/accuknox/auto-policy-discovery/src/config"
 	"github.com/accuknox/auto-policy-discovery/src/types"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -50,17 +51,17 @@ func waitForDBSQLite(db *sql.DB) {
 	}
 }
 
-func connectSQLite(cfg types.ConfigDB) (db *sql.DB) {
+func connectSQLite(cfg types.ConfigDB, dbpath string) (db *sql.DB) {
 	if MockDB != nil {
 		return MockDB
 	}
 
-	db, err := sql.Open(cfg.DBDriver, cfg.SQLiteDBPath)
+	db, err := sql.Open(cfg.DBDriver, dbpath)
 	for err != nil {
 		log.Error().Msgf("sqlite driver:%s, user:%s, host:%s, port:%s, dbname:%s conn-error:%s",
 			cfg.DBDriver, cfg.DBUser, cfg.DBHost, cfg.DBPort, cfg.DBName, err.Error())
 		time.Sleep(time.Second * 1)
-		db, err = sql.Open(cfg.DBDriver, cfg.SQLiteDBPath)
+		db, err = sql.Open(cfg.DBDriver, dbpath)
 	}
 	db.SetMaxIdleConns(0)
 	waitForDBSQLite(db)
@@ -73,7 +74,7 @@ func connectSQLite(cfg types.ConfigDB) (db *sql.DB) {
 // ==================== //
 
 func GetNetworkPoliciesFromSQLite(cfg types.ConfigDB, cluster, namespace, status string) ([]types.KnoxNetworkPolicy, error) {
-	db := connectSQLite(cfg)
+	db := connectSQLite(cfg, cfg.SQLiteDBPath)
 	defer db.Close()
 
 	policies := []types.KnoxNetworkPolicy{}
@@ -158,7 +159,7 @@ func GetNetworkPoliciesFromSQLite(cfg types.ConfigDB, cluster, namespace, status
 }
 
 func UpdateNetworkPolicyToSQLite(cfg types.ConfigDB, policy types.KnoxNetworkPolicy) error {
-	db := connectSQLite(cfg)
+	db := connectSQLite(cfg, cfg.SQLiteDBPath)
 	defer db.Close()
 
 	stmt, err := db.Prepare("UPDATE " + TableNetworkPolicySQLite_TableName +
@@ -193,7 +194,7 @@ func UpdateNetworkPolicyToSQLite(cfg types.ConfigDB, policy types.KnoxNetworkPol
 }
 
 func UpdateOutdatedNetworkPolicyFromSQLite(cfg types.ConfigDB, outdatedPolicy string, latestPolicy string) error {
-	db := connectSQLite(cfg)
+	db := connectSQLite(cfg, cfg.SQLiteDBPath)
 	defer db.Close()
 
 	var err error
@@ -267,7 +268,7 @@ func insertNetworkPolicySQLite(cfg types.ConfigDB, db *sql.DB, policy types.Knox
 }
 
 func InsertNetworkPoliciesToSQLite(cfg types.ConfigDB, policies []types.KnoxNetworkPolicy) error {
-	db := connectSQLite(cfg)
+	db := connectSQLite(cfg, cfg.SQLiteDBPath)
 	defer db.Close()
 
 	for _, policy := range policies {
@@ -284,7 +285,7 @@ func InsertNetworkPoliciesToSQLite(cfg types.ConfigDB, policies []types.KnoxNetw
 // =================== //
 
 func UpdateOutdatedSystemPolicyFromSQLite(cfg types.ConfigDB, outdatedPolicy string, latestPolicy string) error {
-	db := connectSQLite(cfg)
+	db := connectSQLite(cfg, cfg.SQLiteDBPath)
 	defer db.Close()
 
 	var err error
@@ -317,7 +318,7 @@ func UpdateOutdatedSystemPolicyFromSQLite(cfg types.ConfigDB, outdatedPolicy str
 }
 
 func GetSystemPoliciesFromSQLite(cfg types.ConfigDB, namespace, status string) ([]types.KnoxSystemPolicy, error) {
-	db := connectSQLite(cfg)
+	db := connectSQLite(cfg, cfg.SQLiteDBPath)
 	defer db.Close()
 
 	policies := []types.KnoxSystemPolicy{}
@@ -423,7 +424,7 @@ func insertSystemPolicySQLite(cfg types.ConfigDB, db *sql.DB, policy types.KnoxS
 }
 
 func InsertSystemPoliciesToSQLite(cfg types.ConfigDB, policies []types.KnoxSystemPolicy) error {
-	db := connectSQLite(cfg)
+	db := connectSQLite(cfg, cfg.SQLiteDBPath)
 	defer db.Close()
 
 	for _, policy := range policies {
@@ -436,7 +437,7 @@ func InsertSystemPoliciesToSQLite(cfg types.ConfigDB, policies []types.KnoxSyste
 }
 
 func UpdateSystemPolicyToSQLite(cfg types.ConfigDB, policy types.KnoxSystemPolicy) error {
-	db := connectSQLite(cfg)
+	db := connectSQLite(cfg, cfg.SQLiteDBPath)
 	defer db.Close()
 
 	// set status -> outdated
@@ -477,7 +478,7 @@ func UpdateSystemPolicyToSQLite(cfg types.ConfigDB, policy types.KnoxSystemPolic
 // =========== //
 
 func ClearDBTablesSQLite(cfg types.ConfigDB) error {
-	db := connectSQLite(cfg)
+	db := connectSQLite(cfg, cfg.SQLiteDBPath)
 	defer db.Close()
 
 	query := "DELETE FROM " + TableNetworkPolicySQLite_TableName
@@ -499,7 +500,7 @@ func ClearDBTablesSQLite(cfg types.ConfigDB) error {
 }
 
 func CreateTableNetworkPolicySQLite(cfg types.ConfigDB) error {
-	db := connectSQLite(cfg)
+	db := connectSQLite(cfg, cfg.SQLiteDBPath)
 	defer db.Close()
 
 	tableName := TableNetworkPolicySQLite_TableName
@@ -531,7 +532,7 @@ func CreateTableNetworkPolicySQLite(cfg types.ConfigDB) error {
 }
 
 func CreateTableSystemPolicySQLite(cfg types.ConfigDB) error {
-	db := connectSQLite(cfg)
+	db := connectSQLite(cfg, cfg.SQLiteDBPath)
 	defer db.Close()
 
 	tableName := TableSystemPolicySQLite_TableName
@@ -562,7 +563,7 @@ func CreateTableSystemPolicySQLite(cfg types.ConfigDB) error {
 }
 
 func CreateTableWorkLoadProcessFileSetSQLite(cfg types.ConfigDB) error {
-	db := connectSQLite(cfg)
+	db := connectSQLite(cfg, cfg.SQLiteDBPath)
 	defer db.Close()
 
 	tableName := WorkloadProcessFileSetSQLite_TableName
@@ -588,7 +589,7 @@ func CreateTableWorkLoadProcessFileSetSQLite(cfg types.ConfigDB) error {
 }
 
 func CreateTableSystemLogsSQLite(cfg types.ConfigDB) error {
-	db := connectSQLite(cfg)
+	db := connectSQLite(cfg, config.GetCfgObservabilityDBName())
 	defer db.Close()
 
 	tableName := TableSystemLogsSQLite_TableName
@@ -623,7 +624,7 @@ func CreateTableSystemLogsSQLite(cfg types.ConfigDB) error {
 }
 
 func CreateTableNetworkLogsSQLite(cfg types.ConfigDB) error {
-	db := connectSQLite(cfg)
+	db := connectSQLite(cfg, config.GetCfgObservabilityDBName())
 	defer db.Close()
 
 	tableName := TableNetworkLogsSQLite_TableName
@@ -700,7 +701,7 @@ func concatWhereClauseIntRangeSQLite(whereClause *string, field string, start in
 
 // GetWorkloadProcessFileSetMySQL Handle File Sets in context to a given fromSource
 func GetWorkloadProcessFileSetSQLite(cfg types.ConfigDB, wpfs types.WorkloadProcessFileSet) (map[types.WorkloadProcessFileSet][]string, types.PolicyNameMap, error) {
-	db := connectSQLite(cfg)
+	db := connectSQLite(cfg, cfg.SQLiteDBPath)
 	defer db.Close()
 
 	var results *sql.Rows
@@ -774,7 +775,7 @@ func GetWorkloadProcessFileSetSQLite(cfg types.ConfigDB, wpfs types.WorkloadProc
 }
 
 func InsertWorkloadProcessFileSetSQLite(cfg types.ConfigDB, wpfs types.WorkloadProcessFileSet, fs []string) error {
-	db := connectSQLite(cfg)
+	db := connectSQLite(cfg, cfg.SQLiteDBPath)
 	defer db.Close()
 	policyName := "autopol-" + strings.ToLower(wpfs.SetType) + "-" + RandSeq(15)
 	time := ConvertStrToUnixTime("now")
@@ -803,7 +804,7 @@ func InsertWorkloadProcessFileSetSQLite(cfg types.ConfigDB, wpfs types.WorkloadP
 
 // Clears out WPFS DB on full or as per options specified
 func ClearWPFSDbSQLite(cfg types.ConfigDB, wpfs types.WorkloadProcessFileSet, duration int64) error {
-	db := connectSQLite(cfg)
+	db := connectSQLite(cfg, cfg.SQLiteDBPath)
 	defer db.Close()
 
 	var err error
@@ -848,7 +849,7 @@ func ClearWPFSDbSQLite(cfg types.ConfigDB, wpfs types.WorkloadProcessFileSet, du
 }
 
 func UpdateWorkloadProcessFileSetSQLite(cfg types.ConfigDB, wpfs types.WorkloadProcessFileSet, fs []string) error {
-	db := connectSQLite(cfg)
+	db := connectSQLite(cfg, cfg.SQLiteDBPath)
 	defer db.Close()
 
 	var err error
@@ -883,7 +884,7 @@ func UpdateWorkloadProcessFileSetSQLite(cfg types.ConfigDB, wpfs types.WorkloadP
 
 // InsertKubearmorLogsAlertsMySQL : Insert new kubearmor log/alert into DB
 func InsertKubearmorLogsSQLite(cfg types.ConfigDB, log types.KubeArmorLog) error {
-	db := connectSQLite(cfg)
+	db := connectSQLite(cfg, config.GetCfgObservabilityDBName())
 	defer db.Close()
 
 	queryString := `(cluster_name,host_name,namespace_name,pod_name,container_id,container_name,
@@ -923,7 +924,7 @@ func InsertKubearmorLogsSQLite(cfg types.ConfigDB, log types.KubeArmorLog) error
 
 // UpdateKubearmorLogsAlertsMySQL -- Update existing log/alert with time and count
 func UpdateKubearmorLogsSQLite(cfg types.ConfigDB, kubearmorlog types.KubeArmorLog) error {
-	db := connectSQLite(cfg)
+	db := connectSQLite(cfg, config.GetCfgObservabilityDBName())
 	defer db.Close()
 
 	var err error
@@ -964,7 +965,7 @@ func UpdateKubearmorLogsSQLite(cfg types.ConfigDB, kubearmorlog types.KubeArmorL
 
 // GetSystemLogsMySQL
 func GetSystemLogsSQLite(cfg types.ConfigDB, filterLog types.KubeArmorLog) ([]types.KubeArmorLog, []uint32, error) {
-	db := connectSQLite(cfg)
+	db := connectSQLite(cfg, config.GetCfgObservabilityDBName())
 	defer db.Close()
 
 	resLog := []types.KubeArmorLog{}
@@ -1095,7 +1096,7 @@ func GetSystemLogsSQLite(cfg types.ConfigDB, filterLog types.KubeArmorLog) ([]ty
 }
 
 func InsertCiliumLogsSQLite(cfg types.ConfigDB, log types.CiliumLog) error {
-	db := connectSQLite(cfg)
+	db := connectSQLite(cfg, config.GetCfgObservabilityDBName())
 	defer db.Close()
 
 	queryString := `(verdict,ip_source,ip_destination,ip_version,ip_encrypted,l4_tcp_source_port,l4_tcp_destination_port,
@@ -1162,7 +1163,7 @@ func InsertCiliumLogsSQLite(cfg types.ConfigDB, log types.CiliumLog) error {
 
 // GetNetworkLogsMySQL
 func GetCiliumLogsSQLite(cfg types.ConfigDB, filterLog types.CiliumLog) ([]types.CiliumLog, []uint32, error) {
-	db := connectSQLite(cfg)
+	db := connectSQLite(cfg, config.GetCfgObservabilityDBName())
 	defer db.Close()
 
 	resLog := []types.CiliumLog{}
@@ -1413,7 +1414,7 @@ func GetCiliumLogsSQLite(cfg types.ConfigDB, filterLog types.CiliumLog) ([]types
 
 // UpdateCiliumLogsMySQL -- Update existing log with time and count
 func UpdateCiliumLogsSQLite(cfg types.ConfigDB, ciliumlog types.CiliumLog) error {
-	db := connectSQLite(cfg)
+	db := connectSQLite(cfg, config.GetCfgObservabilityDBName())
 	defer db.Close()
 
 	var err error
