@@ -19,7 +19,6 @@ import (
 	fc "github.com/accuknox/auto-policy-discovery/src/feedconsumer"
 	"github.com/accuknox/auto-policy-discovery/src/libs"
 	logger "github.com/accuknox/auto-policy-discovery/src/logging"
-	"github.com/accuknox/auto-policy-discovery/src/observability"
 	"github.com/accuknox/auto-policy-discovery/src/plugin"
 	wpb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/worker"
 	types "github.com/accuknox/auto-policy-discovery/src/types"
@@ -1369,13 +1368,6 @@ func StartSystemCronJob() {
 	if err != nil {
 		log.Error().Msg(err.Error())
 		return
-	}
-	if cfg.GetCfgObservabilityEnable() {
-		err := SystemCronJob.AddFunc(cfg.GetCfgObservabilityCronJobTime(), observability.SystemLogCronJob) // time interval
-		if err != nil {
-			log.Error().Msg(err.Error())
-			return
-		}
 	}
 	SystemCronJob.Start()
 

@@ -186,6 +186,8 @@ func LoadConfigFromFile() {
 		Enable:              viper.GetBool("observability.enable"),
 		CronJobTimeInterval: "@every " + viper.GetString("observability.cron-job-time-interval"),
 		DBName:              viper.GetString("observability.dbname"),
+		SysObservability:    viper.GetBool("observability.system-observability"),
+		NetObservability:    viper.GetBool("observability.network-observability"),
 	}
 
 	// load database
@@ -396,4 +398,12 @@ func GetCfgObservabilityCronJobTime() string {
 
 func GetCfgObservabilityDBName() string {
 	return CurrentCfg.ConfigObservability.DBName
+}
+
+func GetCfgObservabilitySysObsStatus() bool {
+	return CurrentCfg.ConfigObservability.SysObservability
+}
+
+func GetCfgObservabilityNetObsStatus() bool {
+	return CurrentCfg.ConfigObservability.NetObservability
 }

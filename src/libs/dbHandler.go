@@ -285,22 +285,12 @@ func CreateTablesIfNotExist(cfg types.ConfigDB) {
 // =================== //
 // == Observability == //
 // =================== //
-func InsertKubearmorLogs(cfg types.ConfigDB, kubearmorLog types.KubeArmorLog) error {
+func UpdateOrInsertKubearmorLogs(cfg types.ConfigDB, kubearmorLogs []types.KubeArmorLog) error {
 	var err = errors.New("unknown db driver")
 	if cfg.DBDriver == "mysql" {
-		err = InsertKubearmorLogsMySQL(cfg, kubearmorLog)
+		err = UpdateOrInsertKubearmorLogsMySQL(cfg, kubearmorLogs)
 	} else if cfg.DBDriver == "sqlite3" {
-		err = InsertKubearmorLogsSQLite(cfg, kubearmorLog)
-	}
-	return err
-}
-
-func UpdateKubearmorLogs(cfg types.ConfigDB, kubearmorLog types.KubeArmorLog) error {
-	var err = errors.New("unknown db driver")
-	if cfg.DBDriver == "mysql" {
-		err = UpdateKubearmorLogsMySQL(cfg, kubearmorLog)
-	} else if cfg.DBDriver == "sqlite3" {
-		err = UpdateKubearmorLogsSQLite(cfg, kubearmorLog)
+		err = UpdateOrInsertKubearmorLogsSQLite(cfg, kubearmorLogs)
 	}
 	return err
 }
@@ -317,22 +307,12 @@ func GetKubearmorLogs(cfg types.ConfigDB, filterLog types.KubeArmorLog) ([]types
 	return kubearmorLog, totalCount, err
 }
 
-func InsertCiliumLogs(cfg types.ConfigDB, ciliumLog types.CiliumLog) error {
+func UpdateOrInsertCiliumLogs(cfg types.ConfigDB, ciliumLogs []types.CiliumLog) error {
 	var err = errors.New("unknown db driver")
 	if cfg.DBDriver == "mysql" {
-		err = InsertCiliumLogsMySQL(cfg, ciliumLog)
+		err = UpdateOrInsertCiliumLogsMySQL(cfg, ciliumLogs)
 	} else if cfg.DBDriver == "sqlite3" {
-		err = InsertCiliumLogsSQLite(cfg, ciliumLog)
-	}
-	return err
-}
-
-func UpdateCiliumLogs(cfg types.ConfigDB, ciliumLog types.CiliumLog) error {
-	var err = errors.New("unknown db driver")
-	if cfg.DBDriver == "mysql" {
-		err = UpdateCiliumLogsMySQL(cfg, ciliumLog)
-	} else if cfg.DBDriver == "sqlite3" {
-		err = UpdateCiliumLogsSQLite(cfg, ciliumLog)
+		err = UpdateOrInsertCiliumLogsSQLite(cfg, ciliumLogs)
 	}
 	return err
 }
