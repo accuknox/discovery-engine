@@ -882,66 +882,34 @@ func UpdateWorkloadProcessFileSetSQLite(cfg types.ConfigDB, wpfs types.WorkloadP
 	return err
 }
 
-// InsertKubearmorLogsAlertsMySQL : Insert new kubearmor log/alert into DB
-func InsertKubearmorLogsSQLite(cfg types.ConfigDB, log types.KubeArmorLog) error {
+// UpdateOrInsertKubearmorLogsSQLite -- Update existing log or insert a new log into DB
+func UpdateOrInsertKubearmorLogsSQLite(cfg types.ConfigDB, kubearmorlogs []types.KubeArmorLog) error {
 	db := connectSQLite(cfg, config.GetCfgObservabilityDBName())
 	defer db.Close()
 
-	queryString := `(cluster_name,host_name,namespace_name,pod_name,container_id,container_name,
-		uid,type,source,operation,resource,labels,data,category,action,start_time,
-		updated_time,result,total) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
-
-	query := "INSERT INTO " + TableSystemLogsSQLite_TableName + queryString
-
-	stmt, err := db.Prepare(query)
-	if err != nil {
-		return err
+	for _, kubearmorlog := range kubearmorlogs {
+		if err := updateOrInsertKubearmorLogsSQLite(db, kubearmorlog); err != nil {
+			log.Error().Msg(err.Error())
+		}
 	}
-	defer stmt.Close()
-
-	_, err = stmt.Exec(
-		log.ClusterName,
-		log.HostName,
-		log.NamespaceName,
-		log.PodName,
-		log.ContainerID,
-		log.ContainerName,
-		log.UID,
-		log.Type,
-		log.Source,
-		log.Operation,
-		log.Resource,
-		log.Labels,
-		log.Data,
-		log.Category,
-		log.Action,
-		log.Timestamp,
-		log.UpdatedTime,
-		log.Result,
-		1)
-	return err
+	return nil
 }
 
-// UpdateKubearmorLogsAlertsMySQL -- Update existing log/alert with time and count
-func UpdateKubearmorLogsSQLite(cfg types.ConfigDB, kubearmorlog types.KubeArmorLog) error {
-	db := connectSQLite(cfg, config.GetCfgObservabilityDBName())
-	defer db.Close()
-
-	var err error
+func updateOrInsertKubearmorLogsSQLite(db *sql.DB, kubearmorlog types.KubeArmorLog) error {
 	queryString := `cluster_name = ? and host_name = ? and namespace_name = ? and pod_name = ? and container_id = ? and 
 					container_name = ? and uid = ? and type = ? and source = ? and operation = ? and resource = ? and 
 					labels = ? and data = ? and category = ? and action = ? and result = ? `
 
 	query := "UPDATE " + TableSystemLogsSQLite_TableName + " SET total=total+1, updated_time=? WHERE " + queryString + " "
 
-	stmt, err := db.Prepare(query)
+	updateStmt, err := db.Prepare(query)
 	if err != nil {
 		return err
 	}
-	defer stmt.Close()
+	defer updateStmt.Close()
 
-	_, err = stmt.Exec(
-		kubearmorlog.Timestamp,
+	result, err := updateStmt.Exec(
+		ConvertStrToUnixTime("now"),
 		kubearmorlog.ClusterName,
 		kubearmorlog.HostName,
 		kubearmorlog.NamespaceName,
@@ -959,8 +927,54 @@ func UpdateKubearmorLogsSQLite(cfg types.ConfigDB, kubearmorlog types.KubeArmorL
 		kubearmorlog.Action,
 		kubearmorlog.Result,
 	)
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return err
+	}
 
-	return err
+	rowsAffected, err := result.RowsAffected()
+
+	if err == nil && rowsAffected == 0 {
+
+		updateQueryString := `(cluster_name,host_name,namespace_name,pod_name,container_id,container_name,
+		uid,type,source,operation,resource,labels,data,category,action,start_time,
+		updated_time,result,total) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+
+		updateQuery := "INSERT INTO " + TableSystemLogsSQLite_TableName + updateQueryString
+
+		insertStmt, err := db.Prepare(updateQuery)
+		if err != nil {
+			return err
+		}
+		defer insertStmt.Close()
+
+		_, err = insertStmt.Exec(
+			kubearmorlog.ClusterName,
+			kubearmorlog.HostName,
+			kubearmorlog.NamespaceName,
+			kubearmorlog.PodName,
+			kubearmorlog.ContainerID,
+			kubearmorlog.ContainerName,
+			kubearmorlog.UID,
+			kubearmorlog.Type,
+			kubearmorlog.Source,
+			kubearmorlog.Operation,
+			kubearmorlog.Resource,
+			kubearmorlog.Labels,
+			kubearmorlog.Data,
+			kubearmorlog.Category,
+			kubearmorlog.Action,
+			ConvertStrToUnixTime("now"),
+			ConvertStrToUnixTime("now"),
+			kubearmorlog.Result,
+			1)
+		if err != nil {
+			log.Error().Msg(err.Error())
+			return err
+		}
+	}
+
+	return nil
 }
 
 // GetSystemLogsMySQL
@@ -1093,72 +1107,6 @@ func GetSystemLogsSQLite(cfg types.ConfigDB, filterLog types.KubeArmorLog) ([]ty
 	}
 
 	return resLog, resTotal, err
-}
-
-func InsertCiliumLogsSQLite(cfg types.ConfigDB, log types.CiliumLog) error {
-	db := connectSQLite(cfg, config.GetCfgObservabilityDBName())
-	defer db.Close()
-
-	queryString := `(verdict,ip_source,ip_destination,ip_version,ip_encrypted,l4_tcp_source_port,l4_tcp_destination_port,
-		l4_udp_source_port,l4_udp_destination_port,l4_icmpv4_type,l4_icmpv4_code,l4_icmpv6_type,l4_icmpv6_code,
-		source_namespace,source_labels,source_pod_name,destination_namespace,destination_labels,destination_pod_name,
-		type,node_name,l7_type,l7_dns_cnames,l7_dns_observation_source,l7_http_code,l7_http_method,l7_http_url,l7_http_protocol,l7_http_headers,
-		event_type_type,event_type_sub_type,source_service_name,source_service_namespace,destination_service_name,destination_service_namespace,
-		traffic_direction,trace_observation_point,drop_reason_desc,is_reply,start_time,updated_time,total) 
-		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
-
-	query := "INSERT INTO " + TableNetworkLogsSQLite_TableName + queryString
-
-	stmt, err := db.Prepare(query)
-	if err != nil {
-		return err
-	}
-	defer stmt.Close()
-
-	_, err = stmt.Exec(
-		log.Verdict,
-		log.IpSource,
-		log.IpDestination,
-		log.IpVersion,
-		log.IpEncrypted,
-		log.L4TCPSourcePort,
-		log.L4TCPDestinationPort,
-		log.L4UDPSourcePort,
-		log.L4UDPDestinationPort,
-		log.L4ICMPv4Type,
-		log.L4ICMPv4Code,
-		log.L4ICMPv6Type,
-		log.L4ICMPv6Code,
-		log.SourceNamespace,
-		log.SourceLabels,
-		log.SourcePodName,
-		log.DestinationNamespace,
-		log.DestinationLabels,
-		log.DestinationPodName,
-		log.Type,
-		log.NodeName,
-		log.L7Type,
-		log.L7DnsCnames,
-		log.L7DnsObservationsource,
-		log.L7HttpCode,
-		log.L7HttpMethod,
-		log.L7HttpUrl,
-		log.L7HttpProtocol,
-		log.L7HttpHeaders,
-		log.EventTypeType,
-		log.EventTypeSubType,
-		log.SourceServiceName,
-		log.SourceServiceNamespace,
-		log.DestinationServiceName,
-		log.DestinationServiceNamespace,
-		log.TrafficDirection,
-		log.TraceObservationPoint,
-		log.DropReasonDesc,
-		log.IsReply,
-		log.StartTime,
-		log.UpdatedTime,
-		1)
-	return err
 }
 
 // GetNetworkLogsMySQL
@@ -1413,10 +1361,20 @@ func GetCiliumLogsSQLite(cfg types.ConfigDB, filterLog types.CiliumLog) ([]types
 }
 
 // UpdateCiliumLogsMySQL -- Update existing log with time and count
-func UpdateCiliumLogsSQLite(cfg types.ConfigDB, ciliumlog types.CiliumLog) error {
+func UpdateOrInsertCiliumLogsSQLite(cfg types.ConfigDB, ciliumlogs []types.CiliumLog) error {
+	var err error = nil
 	db := connectSQLite(cfg, config.GetCfgObservabilityDBName())
 	defer db.Close()
 
+	for _, ciliumLog := range ciliumlogs {
+		if err := updateOrInsertCiliumLogSQLite(db, ciliumLog); err != nil {
+			log.Error().Msg(err.Error())
+		}
+	}
+	return err
+}
+
+func updateOrInsertCiliumLogSQLite(db *sql.DB, ciliumlog types.CiliumLog) error {
 	var err error
 	queryString := `verdict = ? and ip_source = ? and ip_destination = ? and ip_version = ? and ip_encrypted = ? and l4_tcp_source_port = ? and 
 					l4_tcp_destination_port = ? and l4_udp_source_port = ? and l4_udp_destination_port = ? and l4_icmpv4_type = ? and 
@@ -1429,13 +1387,13 @@ func UpdateCiliumLogsSQLite(cfg types.ConfigDB, ciliumlog types.CiliumLog) error
 
 	query := "UPDATE " + TableNetworkLogsSQLite_TableName + " SET total=total+1, updated_time=? WHERE " + queryString + " "
 
-	stmt, err := db.Prepare(query)
+	updateStmt, err := db.Prepare(query)
 	if err != nil {
 		return err
 	}
-	defer stmt.Close()
+	defer updateStmt.Close()
 
-	_, err = stmt.Exec(
+	result, err := updateStmt.Exec(
 		ciliumlog.UpdatedTime,
 		ciliumlog.Verdict,
 		ciliumlog.IpSource,
@@ -1477,6 +1435,77 @@ func UpdateCiliumLogsSQLite(cfg types.ConfigDB, ciliumlog types.CiliumLog) error
 		ciliumlog.DropReasonDesc,
 		ciliumlog.IsReply,
 	)
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+
+	if err == nil && rowsAffected == 0 {
+		insertQueryString := `(verdict,ip_source,ip_destination,ip_version,ip_encrypted,l4_tcp_source_port,l4_tcp_destination_port,
+			l4_udp_source_port,l4_udp_destination_port,l4_icmpv4_type,l4_icmpv4_code,l4_icmpv6_type,l4_icmpv6_code,
+			source_namespace,source_labels,source_pod_name,destination_namespace,destination_labels,destination_pod_name,
+			type,node_name,l7_type,l7_dns_cnames,l7_dns_observation_source,l7_http_code,l7_http_method,l7_http_url,l7_http_protocol,l7_http_headers,
+			event_type_type,event_type_sub_type,source_service_name,source_service_namespace,destination_service_name,destination_service_namespace,
+			traffic_direction,trace_observation_point,drop_reason_desc,is_reply,start_time,updated_time,total) 
+			VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+
+		query := "INSERT INTO " + TableNetworkLogsSQLite_TableName + insertQueryString
+
+		insertStmt, err := db.Prepare(query)
+		if err != nil {
+			return err
+		}
+		defer insertStmt.Close()
+
+		_, err = insertStmt.Exec(
+			ciliumlog.Verdict,
+			ciliumlog.IpSource,
+			ciliumlog.IpDestination,
+			ciliumlog.IpVersion,
+			ciliumlog.IpEncrypted,
+			ciliumlog.L4TCPSourcePort,
+			ciliumlog.L4TCPDestinationPort,
+			ciliumlog.L4UDPSourcePort,
+			ciliumlog.L4UDPDestinationPort,
+			ciliumlog.L4ICMPv4Type,
+			ciliumlog.L4ICMPv4Code,
+			ciliumlog.L4ICMPv6Type,
+			ciliumlog.L4ICMPv6Code,
+			ciliumlog.SourceNamespace,
+			ciliumlog.SourceLabels,
+			ciliumlog.SourcePodName,
+			ciliumlog.DestinationNamespace,
+			ciliumlog.DestinationLabels,
+			ciliumlog.DestinationPodName,
+			ciliumlog.Type,
+			ciliumlog.NodeName,
+			ciliumlog.L7Type,
+			ciliumlog.L7DnsCnames,
+			ciliumlog.L7DnsObservationsource,
+			ciliumlog.L7HttpCode,
+			ciliumlog.L7HttpMethod,
+			ciliumlog.L7HttpUrl,
+			ciliumlog.L7HttpProtocol,
+			ciliumlog.L7HttpHeaders,
+			ciliumlog.EventTypeType,
+			ciliumlog.EventTypeSubType,
+			ciliumlog.SourceServiceName,
+			ciliumlog.SourceServiceNamespace,
+			ciliumlog.DestinationServiceName,
+			ciliumlog.DestinationServiceNamespace,
+			ciliumlog.TrafficDirection,
+			ciliumlog.TraceObservationPoint,
+			ciliumlog.DropReasonDesc,
+			ciliumlog.IsReply,
+			ciliumlog.StartTime,
+			ciliumlog.UpdatedTime,
+			1)
+		if err != nil {
+			log.Error().Msg(err.Error())
+		}
+	}
 
 	return err
 }

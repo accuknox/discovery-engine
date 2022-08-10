@@ -29,8 +29,10 @@ application:
 
 observability: 
   enable: true
-  cron-job-time-interval: "0h0m10s"         # format: XhYmZs
+  cron-job-time-interval: "0h0m5s"         # format: XhYmZs
   dbname: ./accuknox-obs.db
+  system-observability: true
+  network-observability: true
 
 database:
   driver: sqlite3

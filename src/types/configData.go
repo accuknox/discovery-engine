@@ -96,6 +96,8 @@ type ConfigObservability struct {
 	Enable              bool   `json:"enable,omitempty" bson:"enable,omitempty"`
 	CronJobTimeInterval string `json:"cronjob_time_interval,omitempty" bson:"cronjob_time_interval,omitempty"`
 	DBName              string `json:"db_name,omitempty" bson:"db_name,omitempty"`
+	SysObservability    bool   `json:"sys_observability,omitempty" bson:"sys_observability,omitempty"`
+	NetObservability    bool   `json:"net_observability,omitempty" bson:"net_observability,omitempty"`
 }
 
 type Configuration struct {

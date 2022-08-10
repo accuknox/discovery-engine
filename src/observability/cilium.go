@@ -2,7 +2,6 @@ package observability
 
 import (
 	"errors"
-	"reflect"
 
 	"github.com/accuknox/auto-policy-discovery/src/common"
 	"github.com/accuknox/auto-policy-discovery/src/libs"
@@ -164,34 +163,11 @@ func convertFlowLogToCiliumLog(flowLog *flow.Flow) (types.CiliumLog, error) {
 	return ciliumLog, nil
 }
 
-func checkIfNetworkLogExist(netLog types.CiliumLog) (bool, error) {
-	networkLogs := []types.CiliumLog{}
-	var err error
-
-	netLog.StartTime = 0
-	netLog.UpdatedTime = 0
-	netLog.Total = 0
-
-	if networkLogs, _, err = libs.GetCiliumLogs(CfgDB, netLog); err != nil {
-		return false, err
-	}
-
-	for _, locNetLog := range networkLogs {
-		locNetLog.StartTime = 0
-		locNetLog.UpdatedTime = 0
-		locNetLog.Total = 0
-		if reflect.DeepEqual(locNetLog, netLog) {
-			return true, nil
-		}
-	}
-
-	return false, nil
-}
-
 func ProcessNetworkLogs() {
-	var isEntryExist bool
 
 	if len(NetworkLogs) > 0 {
+		ObsMutex.Lock()
+		res := []types.CiliumLog{}
 
 		NetworkLogsMutex.Lock()
 		locNetLogs := NetworkLogs
@@ -199,26 +175,17 @@ func ProcessNetworkLogs() {
 		NetworkLogsMutex.Unlock()
 
 		for _, flowLog := range locNetLogs {
-
 			netLog, err := convertFlowLogToCiliumLog(flowLog)
 			if err != nil {
 				log.Error().Msg(err.Error())
-			} else {
-				if isEntryExist, err = checkIfNetworkLogExist(netLog); err != nil {
-					log.Error().Msg(err.Error())
-				}
-
-				if isEntryExist {
-					if err := libs.UpdateCiliumLogs(CfgDB, netLog); err != nil {
-						log.Error().Msg(err.Error())
-					}
-				} else {
-					if err := libs.InsertCiliumLogs(CfgDB, netLog); err != nil {
-						log.Error().Msg(err.Error())
-					}
-				}
+				continue
 			}
+			res = append(res, netLog)
 		}
+		if err := libs.UpdateOrInsertCiliumLogs(CfgDB, res); err != nil {
+			log.Error().Msg(err.Error())
+		}
+		ObsMutex.Unlock()
 	}
 }
 
@@ -226,20 +193,4 @@ func ProcessCiliumFlow(flowLog *flow.Flow) {
 	NetworkLogsMutex.Lock()
 	NetworkLogs = append(NetworkLogs, flowLog)
 	NetworkLogsMutex.Unlock()
-}
-
-func compareSrcDestFlow(src, dest types.CiliumLog) bool {
-	// Reset values which are not required for comparison
-	src.StartTime = 0
-	src.UpdatedTime = 0
-	src.Total = 0
-
-	dest.StartTime = 0
-	dest.UpdatedTime = 0
-	dest.Total = 0
-
-	if reflect.DeepEqual(src, dest) {
-		return true
-	}
-	return false
 }
