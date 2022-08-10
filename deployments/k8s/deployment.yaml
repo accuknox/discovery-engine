@@ -59,7 +59,12 @@ data:
       cluster:
         cluster-info-from: "k8sclient"            # k8sclient|accuknox
 
-    observability: false
+    observability: 
+      enable: false
+      cron-job-time-interval: "0h0m5s"         # format: XhYmZs
+      dbname: ./accuknox-obs.db
+      system-observability: true
+      network-observability: true
 
     database:
       driver: sqlite3
