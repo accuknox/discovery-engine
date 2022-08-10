@@ -166,13 +166,13 @@ func convertFlowLogToCiliumLog(flowLog *flow.Flow) (types.CiliumLog, error) {
 func ProcessNetworkLogs() {
 
 	if len(NetworkLogs) > 0 {
-		ObsMutex.Lock()
-		res := []types.CiliumLog{}
-
 		NetworkLogsMutex.Lock()
 		locNetLogs := NetworkLogs
 		NetworkLogs = []*flow.Flow{} //reset
 		NetworkLogsMutex.Unlock()
+
+		ObsMutex.Lock()
+		res := []types.CiliumLog{}
 
 		for _, flowLog := range locNetLogs {
 			netLog, err := convertFlowLogToCiliumLog(flowLog)
