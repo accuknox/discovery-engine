@@ -58,9 +58,9 @@ func InitObservability() {
 			log.Error().Msg(err.Error())
 			return
 		}
+		ObsCronJob.Start()
+		log.Info().Msg("Observability cron job started")
 	}
-	ObsCronJob.Start()
-	log.Info().Msg("Observability cron job started")
 }
 
 func ObservabilityCronJob() {
