@@ -40,13 +40,13 @@ func convertKubearmorPbLogToKubearmorLog(pbLog pb.Log) types.KubeArmorLog {
 func ProcessSystemLogs() {
 
 	if len(SystemLogs) > 0 {
-		ObsMutex.Lock()
-		res := []types.KubeArmorLog{}
-
 		SystemLogsMutex.Lock()
 		locSysLogs := SystemLogs
 		SystemLogs = []*pb.Log{} //reset
 		SystemLogsMutex.Unlock()
+
+		ObsMutex.Lock()
+		res := []types.KubeArmorLog{}
 
 		for _, kubearmorLog := range locSysLogs {
 			locPbLog := pb.Log{}
