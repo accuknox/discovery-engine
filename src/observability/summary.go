@@ -2,19 +2,27 @@ package observability
 
 import (
 	"errors"
+	"net"
 	"regexp"
+	"sort"
 	"strings"
 
+	"github.com/accuknox/auto-policy-discovery/src/cluster"
 	"github.com/accuknox/auto-policy-discovery/src/libs"
 	opb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/observability"
 	"github.com/accuknox/auto-policy-discovery/src/types"
+)
+
+var (
+	RevDNSLookup bool = false
+	Aggregation  bool = true
 )
 
 func deDuplicateServerInOutConn(connList []types.SysNwConnDetail) []types.SysNwConnDetail {
 	occurred := map[types.SysNwConnDetail]bool{}
 	result := []types.SysNwConnDetail{}
 	for index := range connList {
-		if occurred[connList[index]] != true {
+		if !occurred[connList[index]] {
 			occurred[connList[index]] = true
 			// Append to result slice.
 			result = append(result, connList[index])
@@ -23,45 +31,85 @@ func deDuplicateServerInOutConn(connList []types.SysNwConnDetail) []types.SysNwC
 	return result
 }
 
-func fetchSysServerConnDetail(data string, res string) (types.SysNwConnDetail, error) {
+func extractPodSvcInfoFromIP(ip, clustername string) (string, string, string) {
+	podSvcName := ip
+
+	_, services, _, pods, err := cluster.GetAllClusterResources(clustername)
+	if err != nil {
+		return podSvcName, "", ""
+	}
+
+	for _, pod := range pods {
+		if pod.PodIP == ip {
+			return "pod/" + pod.PodName, strings.Join(sort.StringSlice(pod.Labels), ","), pod.Namespace
+		}
+	}
+	for _, svc := range services {
+		if svc.ClusterIP == ip {
+			return "svc/" + svc.ServiceName, strings.Join(svc.Labels, ","), svc.Namespace
+		}
+	}
+
+	if RevDNSLookup {
+		dnsName, err := net.LookupAddr(ip)
+		if err == nil {
+			return strings.Join(dnsName, ","), "", ""
+		}
+	}
+
+	return podSvcName, "", ""
+}
+
+func fetchSysServerConnDetail(log types.KubeArmorLog) (types.SysNwConnDetail, error) {
 	conn := types.SysNwConnDetail{}
+	err := errors.New("not a valid incoming/outgoing connection")
 
 	// get Syscall
-	if strings.Contains(data, "SYS_CONNECT") {
+	if strings.Contains(log.Data, "tcp_connect") || strings.Contains(log.Data, "SYS_CONNECT") {
 		conn.InOut = "OUT"
-	} else if strings.Contains(data, "SYS_ACCEPT") {
+	} else if strings.Contains(log.Data, "tcp_accept") || strings.Contains(log.Data, "SYS_ACCEPT") {
 		conn.InOut = "IN"
 	} else {
-		return conn, errors.New("not a valid incoming/outgoing connection")
+		return types.SysNwConnDetail{}, err
 	}
 
 	// get AF detail
-	if strings.Contains(res, "AF_INET") {
-		conn.AddFamily = "AF_INET"
-	} else if strings.Contains(res, "AF_UNIX") {
-		conn.AddFamily = "AF_UNIX"
-	} else {
-		return conn, errors.New("not a valid incoming/outgoing connection")
-	}
-
-	if conn.AddFamily == "AF_INET" {
-		resslice := strings.Split(res, " ")
+	if strings.Contains(log.Data, "AF_INET") && strings.Contains(log.Data, "tcp_") {
+		resslice := strings.Split(log.Resource, " ")
 		for _, locres := range resslice {
-			if strings.Contains(locres, "sin_addr") {
-				conn.Path = strings.Split(locres, "=")[1]
+			if strings.Contains(locres, "remoteip") {
+				conn.PodSvcIP, conn.Labels, conn.Namespace = extractPodSvcInfoFromIP(strings.Split(locres, "=")[1], log.ClusterName)
 			}
-			if strings.Contains(locres, "sin_port") {
-				conn.Path = conn.Path + ":" + strings.Split(locres, "=")[1]
+			if strings.Contains(locres, "port") {
+				conn.ServerPort = strings.Split(locres, "=")[1]
+			}
+			if strings.Contains(locres, "protocol") {
+				conn.Protocol = strings.Split(locres, "=")[1]
 			}
 		}
-	} else if conn.AddFamily == "AF_UNIX" {
-		resslice := strings.Split(res, " ")
+	} else if strings.Contains(log.Resource, "AF_UNIX") {
+		var path string
+		resslice := strings.Split(log.Resource, " ")
 		for _, locres := range resslice {
 			if strings.Contains(locres, "sun_path") {
-				conn.Path = strings.Split(locres, "=")[1]
+				path = strings.Split(locres, "=")[1]
+				if path != "" {
+					conn.PodSvcIP = path
+					conn.Protocol = "UNIX"
+					break
+				}
 			}
 		}
+	} else {
+		return types.SysNwConnDetail{}, err
 	}
+
+	if conn.PodSvcIP == "" {
+		return types.SysNwConnDetail{}, err
+	}
+
+	conn.PodName = log.PodName
+	conn.Command = strings.Split(log.Source, " ")[0]
 
 	return conn, nil
 }
@@ -82,6 +130,9 @@ func GetSummaryLogs(pbRequest *opb.LogsRequest, stream opb.Summary_FetchLogsServ
 	if err != nil {
 		return err
 	}
+
+	RevDNSLookup = pbRequest.GetRevDNSLookup()
+	Aggregation = pbRequest.GetAggregation()
 
 	for nwindex, locNetLog := range networkLogs {
 		networkPods[locNetLog.SourcePodName] = append(networkPods[locNetLog.SourcePodName], types.NetworkSummary{
@@ -112,16 +163,17 @@ func GetSummaryLogs(pbRequest *opb.LogsRequest, stream opb.Summary_FetchLogsServ
 		return err
 	}
 	for sysindex, locSysLog := range systemLogs {
-		nwConnDetail := types.SysNwConnDetail{}
 		if locSysLog.Operation == "Network" {
-			nwConnDetail, err = fetchSysServerConnDetail(locSysLog.Data, locSysLog.Resource)
+			nwConnDetail, err := fetchSysServerConnDetail(locSysLog)
+			if err == nil {
+				syserverconn = append(syserverconn, nwConnDetail)
+			}
 		}
 		systemPods[locSysLog.PodName] = append(systemPods[locSysLog.PodName], types.SystemSummary{
 			Operation:   locSysLog.Operation,
 			Source:      locSysLog.Source,
 			Resource:    locSysLog.Resource,
 			Action:      locSysLog.Action,
-			ServerConn:  nwConnDetail,
 			UpdatedTime: locSysLog.UpdatedTime,
 			Count:       int32(systemTotal[sysindex]),
 		})
@@ -191,16 +243,26 @@ func GetSummaryLogs(pbRequest *opb.LogsRequest, stream opb.Summary_FetchLogsServ
 
 		// ServerConnection
 		for _, servConn := range syserverconn {
-			if servConn.InOut == "IN" && servConn.AddFamily != "" && servConn.Path != "" {
-				inServerConn = append(inServerConn, &opb.ServerConnections{
-					AddressFamily: servConn.AddFamily,
-					Path:          servConn.Path,
-				})
-			} else if servConn.InOut == "OUT" && servConn.AddFamily != "" && servConn.Path != "" {
-				outServerConn = append(outServerConn, &opb.ServerConnections{
-					AddressFamily: servConn.AddFamily,
-					Path:          servConn.Path,
-				})
+			if servConn.PodName == podName {
+				if servConn.InOut == "IN" {
+					inServerConn = append(inServerConn, &opb.ServerConnections{
+						Protocol:   servConn.Protocol,
+						PodSvcIP:   servConn.PodSvcIP,
+						ServerPort: servConn.ServerPort,
+						Labels:     servConn.Labels,
+						Namespace:  servConn.Namespace,
+						Command:    servConn.Command,
+					})
+				} else if servConn.InOut == "OUT" {
+					outServerConn = append(outServerConn, &opb.ServerConnections{
+						Protocol:   servConn.Protocol,
+						PodSvcIP:   servConn.PodSvcIP,
+						ServerPort: servConn.ServerPort,
+						Labels:     servConn.Labels,
+						Namespace:  servConn.Namespace,
+						Command:    servConn.Command,
+					})
+				}
 			}
 		}
 
@@ -264,7 +326,12 @@ func networkRegex(str string) (string, error) {
 
 //convertListofDestination - Create the mapping between Source and Destination/Resource/Protocol
 func convertListofDestination(arr []*opb.ListOfDestination, sysLog types.SystemSummary) []*opb.ListOfDestination {
-	destination := aggregateFolder(sysLog.Resource)
+	var destination string
+	if Aggregation {
+		destination = aggregateFolder(sysLog.Resource)
+	} else {
+		destination = sysLog.Resource
+	}
 	//Check Operation is Network
 	if sysLog.Operation == "Network" {
 		destination, _ = networkRegex(sysLog.Resource)

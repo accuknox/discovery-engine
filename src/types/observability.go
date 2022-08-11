@@ -134,7 +134,12 @@ type KubeArmorLog struct {
 }
 
 type SysNwConnDetail struct {
-	InOut     string `json:"InOut,omitempty"`
-	AddFamily string `json:"AddFamily,omitempty"`
-	Path      string `json:"Path,omitempty"`
+	InOut      string `json:"InOut,omitempty"`
+	PodName    string `json:"PodName,omitempty"`
+	PodSvcIP   string `json:"PodSvcIP,omitempty"`
+	Protocol   string `json:"Protocol,omitempty"`
+	ServerPort string `json:"ServerPort,omitempty"`
+	Labels     string `json:"Labels,omitempty"`
+	Namespace  string `json:"Namespace,omitempty"`
+	Command    string `json:"Command,omitempty"`
 }
