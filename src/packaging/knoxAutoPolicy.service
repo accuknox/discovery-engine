@@ -1,0 +1,11 @@
+[Unit]
+Description=knoxAutoPolicy
+
+[Service]
+KillMode=process
+EnvironmentFile=/opt/knoxAutoPolicy/local-file.yaml
+WorkingDirectory=/opt/knoxAutoPolicy/
+ExecStart=/opt/knoxAutoPolicy/src/knoxAutoPolicy
+
+[Install]
+WantedBy=multi-user.target
