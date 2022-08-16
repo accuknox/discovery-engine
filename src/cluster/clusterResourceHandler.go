@@ -27,6 +27,11 @@ func GetPods(clusterName string) []types.Pod {
 		PodName:   types.PolicyDiscoveryVMPodName,
 	})
 
+	pods = append(pods, types.Pod{
+		Namespace: types.PolicyDiscoveryContainerNamespace,
+		PodName:   types.PolicyDiscoveryContainerPodName,
+	})
+
 	return pods
 }
 

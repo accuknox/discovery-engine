@@ -404,10 +404,6 @@ func writeYamlByte(f *os.File, b []byte) {
 		log.Error().Msg(err.Error())
 	}
 
-	if _, err := f.WriteString("---\n"); err != nil {
-		log.Error().Msg(err.Error())
-	}
-
 	if err := f.Sync(); err != nil {
 		log.Error().Msg(err.Error())
 	}
