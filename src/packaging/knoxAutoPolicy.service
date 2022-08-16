@@ -3,8 +3,8 @@ Description=knoxAutoPolicy
 
 [Service]
 KillMode=process
-EnvironmentFile=/opt/knoxAutoPolicy/local-file.yaml
 WorkingDirectory=/opt/knoxAutoPolicy/
+Environment=CONF_FILE_NAME=local-file
 ExecStart=/opt/knoxAutoPolicy/src/knoxAutoPolicy
 
 [Install]
