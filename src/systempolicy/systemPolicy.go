@@ -265,7 +265,7 @@ func populateKnoxSysPolicyFromWPFSDb(namespace, clustername, labels, fromsource 
 	}
 	res, pnMap, err := libs.GetWorkloadProcessFileSet(CfgDB, wpfs)
 	if err != nil {
-		log.Error().Msgf("cudnot fetch WPFS err=%s", err.Error())
+		log.Error().Msgf("could not fetch WPFS err=%s", err.Error())
 		return nil
 	}
 	log.Info().Msgf("found %d WPFS records", len(res))
@@ -1261,9 +1261,14 @@ func GenFileSetForAllPodsInCluster(clusterName string, pods []types.Pod, settype
 		wpfs.SetType = settype
 		labels, err := GetPodLabels(slog.ClusterName, slog.PodName, slog.Namespace, pods)
 		if err != nil {
-			log.Error().Msgf("cudnot get pod labels for podname=%s ns=%s", slog.PodName, slog.Namespace)
+			log.Error().Msgf("could not get pod labels for podname=%s ns=%s", slog.PodName, slog.Namespace)
 			continue
 		}
+
+		if slog.Namespace == types.PolicyDiscoveryContainerNamespace {
+			labels = append(labels, "kubearmor.io/container.name="+slog.ContainerName)
+		}
+
 		wpfs.Labels = strings.Join(labels[:], ",")
 
 		if isNetworkOp {
@@ -1339,7 +1344,6 @@ func DiscoverSystemPolicyMain() {
 	}
 
 	PopulateSystemPoliciesFromSystemLogs(allSystemkLogs)
-
 }
 
 // ==================================== //
