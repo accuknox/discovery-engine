@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net"
 	"path/filepath"
 	"strings"
@@ -295,7 +294,6 @@ func ConvertKubeArmorLogToKnoxSystemLog(relayLog *pb.Log) (types.KnoxSystemLog, 
 	}
 
 	if relayLog.Type == "ContainerLog" && relayLog.NamespaceName == "Unknown" {
-		fmt.Printf("\nERS ==> [%v]\n", relayLog)
 		knoxSystemLog.ContainerName = relayLog.ContainerName
 		knoxSystemLog.Namespace = types.PolicyDiscoveryContainerNamespace
 		knoxSystemLog.PodName = types.PolicyDiscoveryContainerPodName
