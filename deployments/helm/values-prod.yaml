@@ -18,7 +18,7 @@ namespace: accuknox-knoxautopolicy
 
 #serviceaccountnamespace
 namespace:
-  name: explorer
+  name: default
 
 volumeMounts:
   - mountPath: /conf

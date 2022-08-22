@@ -136,4 +136,4 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: knoxautopolicy
-  namespace: explorer
+  namespace: default
