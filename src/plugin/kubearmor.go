@@ -345,6 +345,32 @@ func GetSystemAlertsFromKubeArmorRelay(trigger int) []*pb.Log {
 	return results
 }
 
+func ignoreLogFromRelayWithSource(filter []string, log *pb.Log) bool {
+	for _, srcFilter := range filter {
+		if strings.Contains(log.Source, srcFilter) {
+			return true
+		}
+	}
+	return false
+}
+
+func ignoreLogFromRelayWithNamespace(nsFilter, nsNotFilter []string, log *pb.Log) bool {
+	if len(nsFilter) > 0 {
+		for _, ns := range nsFilter {
+			if !strings.Contains(log.NamespaceName, ns) {
+				return true
+			}
+		}
+	} else if len(nsNotFilter) > 0 {
+		for _, notns := range nsNotFilter {
+			if strings.Contains(log.NamespaceName, notns) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 var KubeArmorRelayStarted = false
 
 func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay) {
@@ -358,6 +384,10 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 	client := pb.NewLogServiceClient(conn)
 	req := pb.RequestMessage{}
 	req.Filter = "all"
+
+	nsFilter := config.CurrentCfg.ConfigSysPolicy.NsFilter
+	nsNotFilter := config.CurrentCfg.ConfigSysPolicy.NsNotFilter
+	fromSourceFilter := config.CurrentCfg.ConfigSysPolicy.FromSourceFilter
 
 	//Stream Logs
 	go func(client pb.LogServiceClient) {
@@ -381,6 +411,14 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 				if err != nil {
 					log.Error().Msg("watch logs stream stopped: " + err.Error())
 					return
+				}
+
+				if ignoreLogFromRelayWithNamespace(nsFilter, nsNotFilter, res) {
+					continue
+				}
+
+				if ignoreLogFromRelayWithSource(fromSourceFilter, res) {
+					continue
 				}
 
 				KubeArmorRelayLogsMutex.Lock()
@@ -430,6 +468,14 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 					Data:          res.Data,
 					Result:        res.Result,
 					Type:          res.Type,
+				}
+
+				if ignoreLogFromRelayWithNamespace(nsFilter, nsNotFilter, &log) {
+					continue
+				}
+
+				if ignoreLogFromRelayWithSource(fromSourceFilter, &log) {
+					continue
 				}
 
 				KubeArmorRelayLogsMutex.Lock()

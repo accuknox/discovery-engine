@@ -56,7 +56,7 @@ func connectSQLite(cfg types.ConfigDB, dbpath string) (db *sql.DB) {
 		return MockDB
 	}
 
-	db, err := sql.Open(cfg.DBDriver, dbpath)
+	db, err := sql.Open(cfg.DBDriver, dbpath+"?_journal=OFF")
 	for err != nil {
 		log.Error().Msgf("sqlite driver:%s, user:%s, host:%s, port:%s, dbname:%s conn-error:%s",
 			cfg.DBDriver, cfg.DBUser, cfg.DBHost, cfg.DBPort, cfg.DBName, err.Error())
