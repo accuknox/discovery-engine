@@ -8,7 +8,7 @@ jobs:
   push-docker-img:
     name: Create discovery engine img
     if: github.repository == 'accuknox/discovery-engine'
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     timeout-minutes: 20
     steps:
       - name: Checkout code

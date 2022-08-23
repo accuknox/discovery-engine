@@ -887,11 +887,15 @@ func UpdateOrInsertKubearmorLogsSQLite(cfg types.ConfigDB, kubearmorlogs []types
 	db := connectSQLite(cfg, config.GetCfgObservabilityDBName())
 	defer db.Close()
 
+	start := time.Now().UnixNano() / int64(time.Millisecond)
+	log.Info().Msgf("sqlite update or insert %d\n", len(kubearmorlogs))
 	for _, kubearmorlog := range kubearmorlogs {
 		if err := updateOrInsertKubearmorLogsSQLite(db, kubearmorlog); err != nil {
 			log.Error().Msg(err.Error())
 		}
 	}
+	end := time.Now().UnixNano() / int64(time.Millisecond)
+	log.Info().Msgf("return sqlite update or insert %d time-taken-ms:%d\n", len(kubearmorlogs), end-start)
 	return nil
 }
 
