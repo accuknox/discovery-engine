@@ -17,8 +17,8 @@ import (
 	"github.com/accuknox/auto-policy-discovery/src/types"
 	"github.com/rs/zerolog"
 	"google.golang.org/grpc"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/cilium/cilium/api/v1/flow"
 	cilium "github.com/cilium/cilium/api/v1/flow"
 	"github.com/cilium/cilium/api/v1/observer"
 	cu "github.com/cilium/cilium/pkg/k8s/apis/cilium.io/utils"
@@ -826,11 +826,21 @@ func StartHubbleRelay(StopChan chan struct{}, cfg types.ConfigCiliumHubble) {
 	client := observer.NewObserverClient(conn)
 
 	req := &observer.GetFlowsRequest{
-		Follow:    true,
-		Whitelist: nil,
-		Blacklist: nil,
-		Since:     timestamppb.Now(),
-		Until:     nil,
+		Follow: true,
+		Whitelist: []*cilium.FlowFilter{
+			{
+				TcpFlags: []*flow.TCPFlags{
+					{SYN: true},
+					{FIN: true},
+					{RST: true},
+					{NS: true},
+					{ECE: true},
+				},
+			},
+			{
+				Protocol: []string{"udp", "icmp", "http", "dns"},
+			},
+		},
 	}
 
 	stream, err := client.GetFlows(context.Background(), req)
