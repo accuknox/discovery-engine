@@ -833,6 +833,9 @@ func StartHubbleRelay(StopChan chan struct{}, cfg types.ConfigCiliumHubble) {
 		Until:     nil,
 	}
 
+	nsFilter := config.CurrentCfg.ConfigNetPolicy.NsFilter
+	nsNotFilter := config.CurrentCfg.ConfigSysPolicy.NsNotFilter
+
 	stream, err := client.GetFlows(context.Background(), req)
 	if err != nil {
 		log.Error().Msg("Unable to stream network flow: " + err.Error())
@@ -853,6 +856,10 @@ func StartHubbleRelay(StopChan chan struct{}, cfg types.ConfigCiliumHubble) {
 			switch r := res.ResponseTypes.(type) {
 			case *observer.GetFlowsResponse_Flow:
 				flow := r.Flow
+
+				if IgnoreLogFromRelayWithNamespace(nsFilter, nsNotFilter, flow.Source.Namespace) {
+					continue
+				}
 
 				CiliumFlowsMutex.Lock()
 				CiliumFlows = append(CiliumFlows, flow)

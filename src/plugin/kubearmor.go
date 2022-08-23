@@ -345,32 +345,6 @@ func GetSystemAlertsFromKubeArmorRelay(trigger int) []*pb.Log {
 	return results
 }
 
-func ignoreLogFromRelayWithSource(filter []string, log *pb.Log) bool {
-	for _, srcFilter := range filter {
-		if strings.Contains(log.Source, srcFilter) {
-			return true
-		}
-	}
-	return false
-}
-
-func ignoreLogFromRelayWithNamespace(nsFilter, nsNotFilter []string, log *pb.Log) bool {
-	if len(nsFilter) > 0 {
-		for _, ns := range nsFilter {
-			if !strings.Contains(log.NamespaceName, ns) {
-				return true
-			}
-		}
-	} else if len(nsNotFilter) > 0 {
-		for _, notns := range nsNotFilter {
-			if strings.Contains(log.NamespaceName, notns) {
-				return true
-			}
-		}
-	}
-	return false
-}
-
 var KubeArmorRelayStarted = false
 
 func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay) {
@@ -413,11 +387,11 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 					return
 				}
 
-				if ignoreLogFromRelayWithNamespace(nsFilter, nsNotFilter, res) {
+				if IgnoreLogFromRelayWithNamespace(nsFilter, nsNotFilter, res.NamespaceName) {
 					continue
 				}
 
-				if ignoreLogFromRelayWithSource(fromSourceFilter, res) {
+				if IgnoreLogFromRelayWithSource(fromSourceFilter, res.Source) {
 					continue
 				}
 
@@ -470,11 +444,11 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 					Type:          res.Type,
 				}
 
-				if ignoreLogFromRelayWithNamespace(nsFilter, nsNotFilter, &log) {
+				if IgnoreLogFromRelayWithNamespace(nsFilter, nsNotFilter, log.NamespaceName) {
 					continue
 				}
 
-				if ignoreLogFromRelayWithSource(fromSourceFilter, &log) {
+				if IgnoreLogFromRelayWithSource(fromSourceFilter, log.Source) {
 					continue
 				}
 
