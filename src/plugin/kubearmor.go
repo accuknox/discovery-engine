@@ -345,6 +345,32 @@ func GetSystemAlertsFromKubeArmorRelay(trigger int) []*pb.Log {
 	return results
 }
 
+func ignoreLogFromRelayWithSource(filter []string, log *pb.Log) bool {
+	for _, srcFilter := range filter {
+		if strings.Contains(log.Source, srcFilter) {
+			return true
+		}
+	}
+	return false
+}
+
+func ignoreLogFromRelayWithNamespace(nsFilter, nsNotFilter []string, log *pb.Log) bool {
+	if len(nsFilter) > 0 {
+		for _, ns := range nsFilter {
+			if !strings.Contains(log.NamespaceName, ns) {
+				return true
+			}
+		}
+	} else if len(nsNotFilter) > 0 {
+		for _, notns := range nsNotFilter {
+			if strings.Contains(log.NamespaceName, notns) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 var KubeArmorRelayStarted = false
 
 func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay) {
@@ -387,24 +413,12 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 					return
 				}
 
-				if len(nsFilter) > 0 {
-					for _, ns := range nsNotFilter {
-						if !strings.Contains(res.NamespaceName, ns) {
-							continue
-						}
-					}
-				} else if len(nsNotFilter) > 0 {
-					for _, notns := range nsNotFilter {
-						if strings.Contains(res.NamespaceName, notns) {
-							continue
-						}
-					}
+				if ignoreLogFromRelayWithNamespace(nsFilter, nsNotFilter, res) {
+					continue
 				}
 
-				for _, srcFilter := range fromSourceFilter {
-					if strings.Contains(res.Source, srcFilter) {
-						continue
-					}
+				if ignoreLogFromRelayWithSource(fromSourceFilter, res) {
+					continue
 				}
 
 				KubeArmorRelayLogsMutex.Lock()
@@ -456,24 +470,12 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 					Type:          res.Type,
 				}
 
-				if len(nsFilter) > 0 {
-					for _, ns := range nsNotFilter {
-						if !strings.Contains(res.NamespaceName, ns) {
-							continue
-						}
-					}
-				} else if len(nsNotFilter) > 0 {
-					for _, notns := range nsNotFilter {
-						if strings.Contains(res.NamespaceName, notns) {
-							continue
-						}
-					}
+				if ignoreLogFromRelayWithNamespace(nsFilter, nsNotFilter, &log) {
+					continue
 				}
 
-				for _, srcFilter := range fromSourceFilter {
-					if strings.Contains(res.Source, srcFilter) {
-						continue
-					}
+				if ignoreLogFromRelayWithSource(fromSourceFilter, &log) {
+					continue
 				}
 
 				KubeArmorRelayLogsMutex.Lock()
