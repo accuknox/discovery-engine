@@ -15,7 +15,7 @@ jobs:
   build:
     name: Create discovery engine Release
     if: github.repository == 'accuknox/discovery-engine'
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     timeout-minutes: 20
     steps:
       - name: Checkout discovery engine code
@@ -59,10 +59,10 @@ jobs:
             ./src/build/push_knoxautopolicy.sh ${{ steps.vars.outputs.tag }}
 
   push-stable-version:
-    name: Create discovery engine Release - 18.04
+    name: Create discovery engine Release - 20.04
     needs: build
     if: github.ref != 'refs/heads/dev'
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     timeout-minutes: 20
     steps:
       - name: Checkout discovery engine code
