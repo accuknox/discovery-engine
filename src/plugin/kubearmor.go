@@ -359,6 +359,10 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 	req := pb.RequestMessage{}
 	req.Filter = "all"
 
+	nsFilter := config.CurrentCfg.ConfigSysPolicy.NsFilter
+	nsNotFilter := config.CurrentCfg.ConfigSysPolicy.NsNotFilter
+	fromSourceFilter := config.CurrentCfg.ConfigSysPolicy.FromSourceFilter
+
 	//Stream Logs
 	go func(client pb.LogServiceClient) {
 		defer func() {
@@ -381,6 +385,26 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 				if err != nil {
 					log.Error().Msg("watch logs stream stopped: " + err.Error())
 					return
+				}
+
+				if len(nsFilter) > 0 {
+					for _, ns := range nsNotFilter {
+						if !strings.Contains(res.NamespaceName, ns) {
+							continue
+						}
+					}
+				} else if len(nsNotFilter) > 0 {
+					for _, notns := range nsNotFilter {
+						if strings.Contains(res.NamespaceName, notns) {
+							continue
+						}
+					}
+				}
+
+				for _, srcFilter := range fromSourceFilter {
+					if strings.Contains(res.Source, srcFilter) {
+						continue
+					}
 				}
 
 				KubeArmorRelayLogsMutex.Lock()
@@ -430,6 +454,26 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 					Data:          res.Data,
 					Result:        res.Result,
 					Type:          res.Type,
+				}
+
+				if len(nsFilter) > 0 {
+					for _, ns := range nsNotFilter {
+						if !strings.Contains(res.NamespaceName, ns) {
+							continue
+						}
+					}
+				} else if len(nsNotFilter) > 0 {
+					for _, notns := range nsNotFilter {
+						if strings.Contains(res.NamespaceName, notns) {
+							continue
+						}
+					}
+				}
+
+				for _, srcFilter := range fromSourceFilter {
+					if strings.Contains(res.Source, srcFilter) {
+						continue
+					}
 				}
 
 				KubeArmorRelayLogsMutex.Lock()

@@ -22,6 +22,11 @@ application:
     system-policy-to: "db"                    # db, file
     system-policy-dir: "./"
     deprecate-old-mode: true
+    namespace-filter:
+      - "!kube-system"
+    fromsource-filter:
+      - "knoxAutoPolicy"
+
   cluster:
     cluster-info-from: "k8sclient"            # k8sclient|accuknox
     #cluster-mgmt-url: "http://cluster-management-service.accuknox-dev-cluster-mgmt.svc.cluster.local/cm"
@@ -29,7 +34,7 @@ application:
 
 observability: 
   enable: true
-  cron-job-time-interval: "0h0m5s"         # format: XhYmZs
+  cron-job-time-interval: "0h0m10s"         # format: XhYmZs
   dbname: ./accuknox-obs.db
   system-observability: true
   network-observability: true

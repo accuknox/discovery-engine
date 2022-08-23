@@ -83,6 +83,10 @@ type ConfigSystemPolicy struct {
 
 	SystemLogFilters []SystemLogFilter `json:"system_policy_log_filters,omitempty" bson:"system_policy_log_filters,omitempty"`
 
+	NsFilter         []string `json:"system_policy_ns_filter,omitempty" bson:"system_policy_ns_filter,omitempty"`
+	NsNotFilter      []string `json:"system_policy_ns_not_filter,omitempty" bson:"system_policy_ns_not_filter,omitempty"`
+	FromSourceFilter []string `json:"system_fromsource_filter,omitempty" bson:"system_fromsource_filter,omitempty"`
+
 	ProcessFromSource bool `json:"system_policy_proc_fromsource,omitempty" bson:"system_policy_proc_fromsource,omitempty"`
 	FileFromSource    bool `json:"system_policy_file_fromsource,omitempty" bson:"system_policy_file_fromsource,omitempty"`
 }

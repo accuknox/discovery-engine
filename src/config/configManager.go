@@ -143,17 +143,17 @@ func LoadConfigFromFile() {
 		NetSkipCertVerification: viper.GetBool("application.network.skip-cert-verification"),
 	}
 
-	var ns, notNs []string
-	namespaces := viper.GetStringSlice("application.network.namespace-filter")
-	for _, n := range namespaces {
+	var nw_ns, nw_notNs []string
+	nw_namespaces := viper.GetStringSlice("application.network.namespace-filter")
+	for _, n := range nw_namespaces {
 		if n[0] == '!' {
-			notNs = append(notNs, n[1:])
+			nw_notNs = append(nw_notNs, n[1:])
 		} else {
-			ns = append(ns, n)
+			nw_ns = append(nw_ns, n)
 		}
 	}
-	CurrentCfg.ConfigNetPolicy.NsFilter = ns
-	CurrentCfg.ConfigNetPolicy.NsNotFilter = notNs
+	CurrentCfg.ConfigNetPolicy.NsFilter = nw_ns
+	CurrentCfg.ConfigNetPolicy.NsNotFilter = nw_notNs
 
 	// load system policy discovery
 	CurrentCfg.ConfigSysPolicy = types.ConfigSystemPolicy{
@@ -175,6 +175,19 @@ func LoadConfigFromFile() {
 		ProcessFromSource: true,
 		FileFromSource:    true,
 	}
+
+	var sys_ns, sys_notNs []string
+	sys_namespaces := viper.GetStringSlice("application.system.namespace-filter")
+	for _, n := range sys_namespaces {
+		if n[0] == '!' {
+			sys_notNs = append(sys_notNs, n[1:])
+		} else {
+			sys_ns = append(sys_ns, n)
+		}
+	}
+	CurrentCfg.ConfigSysPolicy.NsFilter = sys_ns
+	CurrentCfg.ConfigSysPolicy.NsNotFilter = sys_notNs
+	CurrentCfg.ConfigSysPolicy.FromSourceFilter = viper.GetStringSlice("application.system.fromsource-filter")
 
 	// load cluster resource info
 	CurrentCfg.ConfigClusterMgmt = types.ConfigClusterMgmt{
