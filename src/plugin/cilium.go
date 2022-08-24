@@ -867,6 +867,10 @@ func StartHubbleRelay(StopChan chan struct{}, cfg types.ConfigCiliumHubble) {
 			case *observer.GetFlowsResponse_Flow:
 				flow := r.Flow
 
+				if IgnoreLogFromRelayWithNamespace(nsFilter, nsNotFilter, flow.Destination.Namespace) {
+					continue
+				}
+
 				if IgnoreLogFromRelayWithNamespace(nsFilter, nsNotFilter, flow.Source.Namespace) {
 					continue
 				}
