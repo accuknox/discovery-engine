@@ -39,40 +39,41 @@ func convertKubearmorPbLogToKubearmorLog(pbLog pb.Log) types.KubeArmorLog {
 
 func ProcessSystemLogs() {
 
-	if len(SystemLogs) > 0 {
-		SystemLogsMutex.Lock()
-		locSysLogs := SystemLogs
-		SystemLogs = []*pb.Log{} //reset
-		SystemLogsMutex.Unlock()
+	if len(SystemLogs) <= 0 {
+		return
+	}
+	SystemLogsMutex.Lock()
+	locSysLogs := SystemLogs
+	SystemLogs = []*pb.Log{} //reset
+	SystemLogsMutex.Unlock()
 
-		ObsMutex.Lock()
-		res := []types.KubeArmorLog{}
+	ObsMutex.Lock()
+	defer ObsMutex.Unlock()
+	res := []types.KubeArmorLog{}
 
-		for _, kubearmorLog := range locSysLogs {
-			locPbLog := pb.Log{}
-			locLog := types.KubeArmorLog{}
+	for _, kubearmorLog := range locSysLogs {
+		locPbLog := pb.Log{}
+		locLog := types.KubeArmorLog{}
 
-			jsonLog, _ := json.Marshal(kubearmorLog)
-			if err := json.Unmarshal(jsonLog, &locPbLog); err != nil {
-				log.Error().Msg(err.Error())
-				return
-			}
-
-			locLog = convertKubearmorPbLogToKubearmorLog(locPbLog)
-
-			if locLog.Type == "MatchedPolicy" || locLog.Type == "MatchedHostPolicy" {
-				locLog.Category = "Alert"
-			} else {
-				locLog.Action = "Allow"
-				locLog.Category = "Log"
-			}
-
-			res = append(res, locLog)
-		}
-		if err := libs.UpdateOrInsertKubearmorLogs(CfgDB, res); err != nil {
+		jsonLog, _ := json.Marshal(kubearmorLog)
+		if err := json.Unmarshal(jsonLog, &locPbLog); err != nil {
 			log.Error().Msg(err.Error())
+			return
 		}
-		ObsMutex.Unlock()
+
+		locLog = convertKubearmorPbLogToKubearmorLog(locPbLog)
+
+		if locLog.Type == "MatchedPolicy" || locLog.Type == "MatchedHostPolicy" {
+			locLog.Category = "Alert"
+		} else {
+			locLog.Action = "Allow"
+			locLog.Category = "Log"
+		}
+
+		res = append(res, locLog)
+	}
+	if err := libs.UpdateOrInsertKubearmorLogs(CfgDB, res); err != nil {
+		log.Error().Msg(err.Error())
 	}
 }
 
