@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/accuknox/auto-policy-discovery/src/cluster"
+	"github.com/accuknox/auto-policy-discovery/src/config"
 	cfg "github.com/accuknox/auto-policy-discovery/src/config"
 	fc "github.com/accuknox/auto-policy-discovery/src/feedconsumer"
 	"github.com/accuknox/auto-policy-discovery/src/libs"
@@ -2008,6 +2009,28 @@ func isVM(podName string, pods []types.Pod) bool {
 	return libs.ContainsElement(getLabelsFromPod(podName, pods), ReservedHost)
 }
 
+func applyPolicyFilter(discoveredPolicies map[string][]types.KnoxNetworkPolicy) map[string][]types.KnoxNetworkPolicy {
+
+	nsFilter := config.CurrentCfg.ConfigNetPolicy.NsFilter
+	nsNotFilter := config.CurrentCfg.ConfigNetPolicy.NsNotFilter
+
+	if len(nsFilter) > 0 {
+		for ns := range discoveredPolicies {
+			if !libs.ContainsElement(nsFilter, ns) {
+				delete(discoveredPolicies, ns)
+			}
+		}
+	} else if len(nsNotFilter) > 0 {
+		for ns := range discoveredPolicies {
+			if libs.ContainsElement(nsNotFilter, ns) {
+				delete(discoveredPolicies, ns)
+			}
+		}
+	}
+
+	return discoveredPolicies
+}
+
 func PopulateNetworkPoliciesFromNetworkLogs(networkLogs []types.KnoxNetworkLog) map[string][]types.KnoxNetworkPolicy {
 
 	discoveredNetworkPolicies := map[string][]types.KnoxNetworkPolicy{}
@@ -2069,6 +2092,9 @@ func PopulateNetworkPoliciesFromNetworkLogs(networkLogs []types.KnoxNetworkLog) 
 				discoveredNetworkPolicies[ns] = append(discoveredNetworkPolicies[ns], policy)
 			}
 		}
+
+		// filter discovered policies
+		discoveredNetworkPolicies = applyPolicyFilter(discoveredNetworkPolicies)
 
 		// iterate each namespace
 		for _, namespace := range namespaces {
