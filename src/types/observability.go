@@ -143,11 +143,11 @@ type ObsPodDetail struct {
 }
 
 type SysObsProcFileData struct {
-	ProcName       string
-	ParentProcName string
-	Status         string
-	Count          uint32
-	UpdatedTime    string
+	Source      string
+	Destination string
+	Status      string
+	Count       uint32
+	UpdatedTime string
 }
 
 type SysObsNwData struct {

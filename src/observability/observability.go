@@ -91,7 +91,7 @@ func GetPodNames(request *opb.Request) (opb.PodNameResponse, error) {
 
 	result = common.StringDeDuplication(result)
 
-	if len(result) < 1 {
+	if len(result) <= 0 {
 		return opb.PodNameResponse{}, errors.New("no pods matching the input request")
 	}
 

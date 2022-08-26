@@ -70,10 +70,6 @@ func ProcessSystemLogs() {
 
 		locLog = convertKubearmorPbLogToKubearmorLog(locPbLog)
 
-		if strings.Contains(locLog.Source, "runc") || strings.Contains(locLog.Resource, "runc") {
-			continue
-		}
-
 		if locLog.Type == "MatchedPolicy" || locLog.Type == "MatchedHostPolicy" {
 			locLog.Category = "Alert"
 		} else {
@@ -92,14 +88,12 @@ func ProcessSystemLogs() {
 			locLog.PodName = types.PolicyDiscoveryVMPodName
 		}
 
-		if locLog.Operation == "Network" {
-			if !strings.Contains(locLog.Resource, "sun_path") &&
-				!strings.Contains(locLog.Data, "tcp_connect") &&
-				!strings.Contains(locLog.Data, "tcp_accept") {
-				locLog.Resource = ""
+		if locLog.Operation != "Network" {
+			if strings.Contains(locLog.Source, "runc") || strings.Contains(locLog.Resource, "runc") || strings.Contains(locLog.ParentProcessName, "runc") {
+				continue
 			}
-		} else {
-			locLog.Resource = ""
+			locLog.Source = strings.Split(locLog.Source, " ")[0]
+			locLog.Resource = strings.Split(locLog.Resource, " ")[0]
 			locLog.Data = ""
 		}
 
@@ -193,7 +187,7 @@ func fetchSysServerConnDetail(log types.KubeArmorLog) (types.SysObsNwData, error
 		return types.SysObsNwData{}, err
 	}
 
-	conn.Command = strings.Split(log.ProcessName, " ")[0]
+	conn.Command = strings.Split(log.Source, " ")[0]
 
 	return conn, nil
 }
@@ -240,20 +234,20 @@ func GetKubearmorSummaryData(req *opb.Request) ([]types.SysObsProcFileData, []ty
 		if locSysLog.Operation == "Process" {
 			//ExtractProcessData
 			processData = append(processData, types.SysObsProcFileData{
-				ParentProcName: locSysLog.ParentProcessName,
-				ProcName:       locSysLog.ProcessName,
-				Status:         locSysLog.Action,
-				Count:          systemTotal[sysindex],
-				UpdatedTime:    t.Format(time.UnixDate),
+				Source:      locSysLog.Source,
+				Destination: locSysLog.Resource,
+				Status:      locSysLog.Action,
+				Count:       systemTotal[sysindex],
+				UpdatedTime: t.Format(time.UnixDate),
 			})
 		} else if locSysLog.Operation == "File" {
 			//ExtractFileData
 			fileData = append(fileData, types.SysObsProcFileData{
-				ParentProcName: locSysLog.ParentProcessName,
-				ProcName:       locSysLog.ProcessName,
-				Status:         locSysLog.Action,
-				Count:          systemTotal[sysindex],
-				UpdatedTime:    t.Format(time.UnixDate),
+				Source:      locSysLog.Source,
+				Destination: locSysLog.Resource,
+				Status:      locSysLog.Action,
+				Count:       systemTotal[sysindex],
+				UpdatedTime: t.Format(time.UnixDate),
 			})
 		} else if locSysLog.Operation == "Network" {
 			//ExtractNwData

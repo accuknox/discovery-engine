@@ -604,8 +604,6 @@ func CreateTableSystemLogsSQLite(cfg types.ConfigDB) error {
 			"	`source` varchar(250) DEFAULT NULL," +
 			"	`resource` varchar(250) DEFAULT NULL," +
 			"	`operation` varchar(250) DEFAULT NULL," +
-			"	`process_name` varchar(250) DEFAULT NULL," +
-			"	`parent_process_name` varchar(250) DEFAULT NULL," +
 			"	`labels` varchar(250) DEFAULT NULL," +
 			"	`data` varchar(250) DEFAULT NULL," +
 			"	`category` varchar(50) DEFAULT NULL," +
@@ -898,7 +896,7 @@ func UpdateOrInsertKubearmorLogsSQLite(cfg types.ConfigDB, kubearmorlogs []types
 
 func updateOrInsertKubearmorLogsSQLite(db *sql.DB, kubearmorlog types.KubeArmorLog) error {
 	queryString := `cluster_name = ? and namespace_name = ? and pod_name = ? and container_name = ? and operation = ? and labels = ? 
-					and data = ? and category = ? and action = ? and result = ? and process_name = ? and parent_process_name = ? and resource = ?`
+					and data = ? and category = ? and action = ? and result = ? and source = ? and resource = ?`
 
 	query := "UPDATE " + TableSystemLogsSQLite_TableName + " SET total=total+1, updated_time=? WHERE " + queryString + " "
 
@@ -920,8 +918,7 @@ func updateOrInsertKubearmorLogsSQLite(db *sql.DB, kubearmorlog types.KubeArmorL
 		kubearmorlog.Category,
 		kubearmorlog.Action,
 		kubearmorlog.Result,
-		kubearmorlog.ProcessName,
-		kubearmorlog.ParentProcessName,
+		kubearmorlog.Source,
 		kubearmorlog.Resource,
 	)
 	if err != nil {
@@ -934,7 +931,7 @@ func updateOrInsertKubearmorLogsSQLite(db *sql.DB, kubearmorlog types.KubeArmorL
 	if err == nil && rowsAffected == 0 {
 
 		updateQueryString := `(cluster_name,namespace_name,pod_name,container_name,operation,labels,data,category,action,
-		updated_time,result,total,process_name,parent_process_name,resource) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+		updated_time,result,total,source,resource) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
 
 		updateQuery := "INSERT INTO " + TableSystemLogsSQLite_TableName + updateQueryString
 
@@ -957,8 +954,7 @@ func updateOrInsertKubearmorLogsSQLite(db *sql.DB, kubearmorlog types.KubeArmorL
 			ConvertStrToUnixTime("now"),
 			kubearmorlog.Result,
 			1,
-			kubearmorlog.ProcessName,
-			kubearmorlog.ParentProcessName,
+			kubearmorlog.Source,
 			kubearmorlog.Resource)
 		if err != nil {
 			log.Error().Msg(err.Error())
@@ -980,7 +976,7 @@ func GetSystemLogsSQLite(cfg types.ConfigDB, filterLog types.KubeArmorLog) ([]ty
 	var results *sql.Rows
 	var err error
 
-	queryString := `cluster_name,namespace_name,pod_name,container_name,operation,labels,data,category,action,updated_time,result,total,process_name,parent_process_name,resource`
+	queryString := `cluster_name,namespace_name,pod_name,container_name,operation,labels,data,category,action,updated_time,result,total,source,resource`
 
 	query := "SELECT " + queryString + " FROM " + TableSystemLogsSQLite_TableName + " "
 
@@ -1031,13 +1027,9 @@ func GetSystemLogsSQLite(cfg types.ConfigDB, filterLog types.KubeArmorLog) ([]ty
 		concatWhereClause(&whereClause, "result")
 		args = append(args, filterLog.Result)
 	}
-	if filterLog.ProcessName != "" {
-		concatWhereClause(&whereClause, "process_name")
-		args = append(args, filterLog.ProcessName)
-	}
-	if filterLog.ParentProcessName != "" {
-		concatWhereClause(&whereClause, "parent_process_name")
-		args = append(args, filterLog.ParentProcessName)
+	if filterLog.Source != "" {
+		concatWhereClause(&whereClause, "source")
+		args = append(args, filterLog.Source)
 	}
 	if filterLog.Resource != "" {
 		concatWhereClause(&whereClause, "resource")
@@ -1067,8 +1059,7 @@ func GetSystemLogsSQLite(cfg types.ConfigDB, filterLog types.KubeArmorLog) ([]ty
 			&loc_log.UpdatedTime,
 			&loc_log.Result,
 			&loc_total,
-			&loc_log.ProcessName,
-			&loc_log.ParentProcessName,
+			&loc_log.Source,
 			&loc_log.Resource,
 		); err != nil {
 			return nil, nil, err

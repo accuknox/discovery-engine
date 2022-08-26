@@ -206,9 +206,7 @@ func GetCiliumSummaryData(req *opb.Request) ([]types.NetObsData, types.ObsPodDet
 	var ingressEgressData []types.NetObsData
 	var podInfo types.ObsPodDetail
 
-	ciliumLogs, logCount, err := libs.GetCiliumLogs(CfgDB, types.CiliumLog{
-		SourcePodName: req.PodName,
-	})
+	ciliumLogs, logCount, err := libs.GetCiliumLogs(CfgDB, types.CiliumLog{})
 	if err != nil {
 		return nil, types.ObsPodDetail{}
 	}
