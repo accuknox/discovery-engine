@@ -598,21 +598,18 @@ func CreateTableSystemLogsSQLite(cfg types.ConfigDB) error {
 		"CREATE TABLE IF NOT EXISTS `" + tableName + "` (" +
 			"	`id` INTEGER AUTO_INCREMENT," +
 			"	`cluster_name` varchar(50) DEFAULT NULL," +
-			"	`host_name` varchar(50) DEFAULT NULL," +
 			"	`namespace_name` varchar(50) DEFAULT NULL," +
 			"	`pod_name` varchar(50) DEFAULT NULL," +
-			"	`container_id` varchar(100) DEFAULT NULL," +
 			"	`container_name` varchar(100) DEFAULT NULL," +
-			"	`uid` INTEGER," +
-			"	`type` varchar(50) DEFAULT NULL," +
 			"	`source` varchar(250) DEFAULT NULL," +
-			"	`operation` varchar(250) DEFAULT NULL," +
 			"	`resource` varchar(250) DEFAULT NULL," +
+			"	`operation` varchar(250) DEFAULT NULL," +
+			"	`process_name` varchar(250) DEFAULT NULL," +
+			"	`parent_process_name` varchar(250) DEFAULT NULL," +
 			"	`labels` varchar(250) DEFAULT NULL," +
 			"	`data` varchar(250) DEFAULT NULL," +
 			"	`category` varchar(50) DEFAULT NULL," +
 			"	`action` varchar(50) DEFAULT NULL," +
-			"	`start_time` bigint NOT NULL," +
 			"	`updated_time` bigint NOT NULL," +
 			"	`result` varchar(100) DEFAULT NULL," +
 			"	`total` INTEGER, " +
@@ -900,9 +897,8 @@ func UpdateOrInsertKubearmorLogsSQLite(cfg types.ConfigDB, kubearmorlogs []types
 }
 
 func updateOrInsertKubearmorLogsSQLite(db *sql.DB, kubearmorlog types.KubeArmorLog) error {
-	queryString := `cluster_name = ? and host_name = ? and namespace_name = ? and pod_name = ? and container_id = ? and 
-					container_name = ? and uid = ? and type = ? and source = ? and operation = ? and resource = ? and 
-					labels = ? and data = ? and category = ? and action = ? and result = ? `
+	queryString := `cluster_name = ? and namespace_name = ? and pod_name = ? and container_name = ? and operation = ? and labels = ? 
+					and data = ? and category = ? and action = ? and result = ? and process_name = ? and parent_process_name = ? and resource = ?`
 
 	query := "UPDATE " + TableSystemLogsSQLite_TableName + " SET total=total+1, updated_time=? WHERE " + queryString + " "
 
@@ -915,21 +911,18 @@ func updateOrInsertKubearmorLogsSQLite(db *sql.DB, kubearmorlog types.KubeArmorL
 	result, err := updateStmt.Exec(
 		ConvertStrToUnixTime("now"),
 		kubearmorlog.ClusterName,
-		kubearmorlog.HostName,
 		kubearmorlog.NamespaceName,
 		kubearmorlog.PodName,
-		kubearmorlog.ContainerID,
 		kubearmorlog.ContainerName,
-		kubearmorlog.UID,
-		kubearmorlog.Type,
-		kubearmorlog.Source,
 		kubearmorlog.Operation,
-		kubearmorlog.Resource,
 		kubearmorlog.Labels,
 		kubearmorlog.Data,
 		kubearmorlog.Category,
 		kubearmorlog.Action,
 		kubearmorlog.Result,
+		kubearmorlog.ProcessName,
+		kubearmorlog.ParentProcessName,
+		kubearmorlog.Resource,
 	)
 	if err != nil {
 		log.Error().Msg(err.Error())
@@ -940,9 +933,8 @@ func updateOrInsertKubearmorLogsSQLite(db *sql.DB, kubearmorlog types.KubeArmorL
 
 	if err == nil && rowsAffected == 0 {
 
-		updateQueryString := `(cluster_name,host_name,namespace_name,pod_name,container_id,container_name,
-		uid,type,source,operation,resource,labels,data,category,action,start_time,
-		updated_time,result,total) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+		updateQueryString := `(cluster_name,namespace_name,pod_name,container_name,operation,labels,data,category,action,
+		updated_time,result,total,process_name,parent_process_name,resource) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
 
 		updateQuery := "INSERT INTO " + TableSystemLogsSQLite_TableName + updateQueryString
 
@@ -954,24 +946,20 @@ func updateOrInsertKubearmorLogsSQLite(db *sql.DB, kubearmorlog types.KubeArmorL
 
 		_, err = insertStmt.Exec(
 			kubearmorlog.ClusterName,
-			kubearmorlog.HostName,
 			kubearmorlog.NamespaceName,
 			kubearmorlog.PodName,
-			kubearmorlog.ContainerID,
 			kubearmorlog.ContainerName,
-			kubearmorlog.UID,
-			kubearmorlog.Type,
-			kubearmorlog.Source,
 			kubearmorlog.Operation,
-			kubearmorlog.Resource,
 			kubearmorlog.Labels,
 			kubearmorlog.Data,
 			kubearmorlog.Category,
 			kubearmorlog.Action,
 			ConvertStrToUnixTime("now"),
-			ConvertStrToUnixTime("now"),
 			kubearmorlog.Result,
-			1)
+			1,
+			kubearmorlog.ProcessName,
+			kubearmorlog.ParentProcessName,
+			kubearmorlog.Resource)
 		if err != nil {
 			log.Error().Msg(err.Error())
 			return err
@@ -992,8 +980,7 @@ func GetSystemLogsSQLite(cfg types.ConfigDB, filterLog types.KubeArmorLog) ([]ty
 	var results *sql.Rows
 	var err error
 
-	queryString := `cluster_name,host_name,namespace_name,pod_name,container_id,container_name,
-		uid,type,source,operation,resource,labels,data,category,action,start_time,updated_time,result,total`
+	queryString := `cluster_name,namespace_name,pod_name,container_name,operation,labels,data,category,action,updated_time,result,total,process_name,parent_process_name,resource`
 
 	query := "SELECT " + queryString + " FROM " + TableSystemLogsSQLite_TableName + " "
 
@@ -1004,10 +991,6 @@ func GetSystemLogsSQLite(cfg types.ConfigDB, filterLog types.KubeArmorLog) ([]ty
 		concatWhereClause(&whereClause, "cluster_name")
 		args = append(args, filterLog.ClusterName)
 	}
-	if filterLog.HostName != "" {
-		concatWhereClause(&whereClause, "host_name")
-		args = append(args, filterLog.HostName)
-	}
 	if filterLog.NamespaceName != "" {
 		concatWhereClause(&whereClause, "namespace_name")
 		args = append(args, filterLog.NamespaceName)
@@ -1016,33 +999,13 @@ func GetSystemLogsSQLite(cfg types.ConfigDB, filterLog types.KubeArmorLog) ([]ty
 		concatWhereClause(&whereClause, "pod_name")
 		args = append(args, filterLog.PodName)
 	}
-	if filterLog.ContainerID != "" {
-		concatWhereClause(&whereClause, "container_id")
-		args = append(args, filterLog.ContainerID)
-	}
 	if filterLog.ContainerName != "" {
 		concatWhereClause(&whereClause, "container_name")
 		args = append(args, filterLog.ContainerName)
 	}
-	if filterLog.UID != 0 {
-		concatWhereClause(&whereClause, "uid")
-		args = append(args, filterLog.UID)
-	}
-	if filterLog.Type != "" {
-		concatWhereClause(&whereClause, "type")
-		args = append(args, filterLog.Type)
-	}
-	if filterLog.Source != "" {
-		concatWhereClause(&whereClause, "source")
-		args = append(args, filterLog.Source)
-	}
 	if filterLog.Operation != "" {
 		concatWhereClause(&whereClause, "operation")
 		args = append(args, filterLog.Operation)
-	}
-	if filterLog.Resource != "" {
-		concatWhereClause(&whereClause, "resource")
-		args = append(args, filterLog.Resource)
 	}
 	if filterLog.Labels != "" {
 		concatWhereClause(&whereClause, "labels")
@@ -1060,10 +1023,6 @@ func GetSystemLogsSQLite(cfg types.ConfigDB, filterLog types.KubeArmorLog) ([]ty
 		concatWhereClause(&whereClause, "action")
 		args = append(args, filterLog.Action)
 	}
-	if filterLog.Timestamp != 0 {
-		concatWhereClause(&whereClause, "start_time")
-		args = append(args, filterLog.Timestamp)
-	}
 	if filterLog.UpdatedTime != 0 {
 		concatWhereClause(&whereClause, "updated_time")
 		args = append(args, filterLog.UpdatedTime)
@@ -1071,6 +1030,18 @@ func GetSystemLogsSQLite(cfg types.ConfigDB, filterLog types.KubeArmorLog) ([]ty
 	if filterLog.Result != "" {
 		concatWhereClause(&whereClause, "result")
 		args = append(args, filterLog.Result)
+	}
+	if filterLog.ProcessName != "" {
+		concatWhereClause(&whereClause, "process_name")
+		args = append(args, filterLog.ProcessName)
+	}
+	if filterLog.ParentProcessName != "" {
+		concatWhereClause(&whereClause, "parent_process_name")
+		args = append(args, filterLog.ParentProcessName)
+	}
+	if filterLog.Resource != "" {
+		concatWhereClause(&whereClause, "resource")
+		args = append(args, filterLog.Resource)
 	}
 
 	results, err = db.Query(query+whereClause, args...)
@@ -1085,24 +1056,20 @@ func GetSystemLogsSQLite(cfg types.ConfigDB, filterLog types.KubeArmorLog) ([]ty
 		var loc_total uint32
 		if err := results.Scan(
 			&loc_log.ClusterName,
-			&loc_log.HostName,
 			&loc_log.NamespaceName,
 			&loc_log.PodName,
-			&loc_log.ContainerID,
 			&loc_log.ContainerName,
-			&loc_log.UID,
-			&loc_log.Type,
-			&loc_log.Source,
 			&loc_log.Operation,
-			&loc_log.Resource,
 			&loc_log.Labels,
 			&loc_log.Data,
 			&loc_log.Category,
 			&loc_log.Action,
-			&loc_log.Timestamp,
 			&loc_log.UpdatedTime,
 			&loc_log.Result,
 			&loc_total,
+			&loc_log.ProcessName,
+			&loc_log.ParentProcessName,
+			&loc_log.Resource,
 		); err != nil {
 			return nil, nil, err
 		}
@@ -1512,4 +1479,92 @@ func updateOrInsertCiliumLogSQLite(db *sql.DB, ciliumlog types.CiliumLog) error 
 	}
 
 	return err
+}
+
+func GetPodNamesSQLite(cfg types.ConfigDB, filter types.ObsPodDetail) ([]string, error) {
+	db := connectSQLite(cfg, config.GetCfgObservabilityDBName())
+	defer db.Close()
+
+	resPodNames := []string{}
+
+	var results *sql.Rows
+	var err error
+
+	// Get podnames from system table
+	query := "SELECT pod_name FROM " + TableSystemLogs_TableName + " "
+
+	var whereClause string
+	var sysargs []interface{}
+
+	if filter.ClusterName != "" {
+		concatWhereClause(&whereClause, "cluster_name")
+		sysargs = append(sysargs, filter.ClusterName)
+	}
+	if filter.Namespace != "" {
+		concatWhereClause(&whereClause, "namespace_name")
+		sysargs = append(sysargs, filter.Namespace)
+	}
+	if filter.PodName != "" {
+		concatWhereClause(&whereClause, "pod_name")
+		sysargs = append(sysargs, filter.PodName)
+	}
+	if filter.Labels != "" {
+		concatWhereClause(&whereClause, "labels")
+		sysargs = append(sysargs, filter.Labels)
+	}
+	if filter.ContainerName != "" {
+		concatWhereClause(&whereClause, "container_name")
+		sysargs = append(sysargs, filter.ContainerName)
+	}
+
+	results, err = db.Query(query+whereClause, sysargs...)
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return nil, err
+	}
+	defer results.Close()
+
+	for results.Next() {
+		var locPodName string
+		if err := results.Scan(
+			&locPodName,
+		); err != nil {
+			return nil, err
+		}
+		resPodNames = append(resPodNames, locPodName)
+	}
+
+	// Get podnames from network table
+	query = "SELECT source_pod_name FROM " + TableNetworkLogs_TableName + " "
+
+	whereClause = ""
+	var nwargs []interface{}
+
+	if filter.Namespace != "" {
+		concatWhereClause(&whereClause, "source_namespace")
+		nwargs = append(nwargs, filter.Namespace)
+	}
+	if filter.Labels != "" {
+		concatWhereClause(&whereClause, "source_labels")
+		nwargs = append(nwargs, filter.Labels)
+	}
+
+	results, err = db.Query(query+whereClause, nwargs...)
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return nil, err
+	}
+	defer results.Close()
+
+	for results.Next() {
+		var locPodName string
+		if err := results.Scan(
+			&locPodName,
+		); err != nil {
+			return nil, err
+		}
+		resPodNames = append(resPodNames, locPodName)
+	}
+
+	return resPodNames, err
 }

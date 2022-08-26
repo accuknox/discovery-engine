@@ -197,16 +197,19 @@ func (s *insightServer) GetInsightData(ctx context.Context, in *ipb.Request) (*i
 // =================== //
 // == Observability == //
 // =================== //
-type summaryServer struct {
-	opb.SummaryServer
+type observabilityServer struct {
+	opb.ObservabilityServer
 }
 
-//FetchLogs -  Service to fetch summary logs based on Pod level
-func (s *summaryServer) FetchLogs(in *opb.LogsRequest, stream opb.Summary_FetchLogsServer) error {
-	if err := obs.GetSummaryLogs(in, stream); err != nil {
-		return err
-	}
-	return nil
+//Service to fetch summary data
+func (s *observabilityServer) Summary(ctx context.Context, in *opb.Request) (*opb.Response, error) {
+	resp, err := obs.GetSummaryData(in)
+	return resp, err
+}
+
+func (s *observabilityServer) GetPodNames(ctx context.Context, in *opb.Request) (*opb.PodNameResponse, error) {
+	resp, err := obs.GetPodNames(in)
+	return &resp, err
 }
 
 // ================= //
@@ -224,14 +227,14 @@ func GetNewServer() *grpc.Server {
 	consumerServer := &consumerServer{}
 	analyzerServer := &analyzerServer{}
 	insightServer := &insightServer{}
-	summaryServer := &summaryServer{}
+	observabilityServer := &observabilityServer{}
 
 	// register gRPC servers
 	wpb.RegisterWorkerServer(s, workerServer)
 	fpb.RegisterConsumerServer(s, consumerServer)
 	apb.RegisterAnalyzerServer(s, analyzerServer)
 	ipb.RegisterInsightServer(s, insightServer)
-	opb.RegisterSummaryServer(s, summaryServer)
+	opb.RegisterObservabilityServer(s, observabilityServer)
 
 	if cfg.GetCurrentCfg().ConfigClusterMgmt.ClusterInfoFrom != "k8sclient" {
 		// start consumer automatically

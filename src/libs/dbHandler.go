@@ -328,3 +328,14 @@ func GetCiliumLogs(cfg types.ConfigDB, ciliumFilter types.CiliumLog) ([]types.Ci
 	}
 	return ciliumLogs, ciliumTotalCount, err
 }
+
+func GetPodNames(cfg types.ConfigDB, filter types.ObsPodDetail) ([]string, error) {
+	res := []string{}
+	var err = errors.New("unknown db driver")
+	if cfg.DBDriver == "mysql" {
+		res, err = GetPodNamesMySQL(cfg, filter)
+	} else if cfg.DBDriver == "sqlite3" {
+		res, err = GetPodNamesSQLite(cfg, filter)
+	}
+	return res, err
+}
