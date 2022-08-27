@@ -32,6 +32,8 @@ var (
 	SystemLogsMutex, NetworkLogsMutex, ObsMutex *sync.Mutex
 	// Observability Cronjob
 	ObsCronJob *cron.Cron
+	//Kubearmor log map
+	KubeArmorLogMap map[types.KubeArmorLog]int
 )
 
 // =================== //
@@ -48,6 +50,10 @@ func initMutex() {
 	}
 }
 
+func initMap() {
+	KubeArmorLogMap = make(map[types.KubeArmorLog]int)
+}
+
 func InitObservability() {
 	log = logger.GetInstance()
 	CfgDB = cfg.GetCfgDB()
@@ -55,6 +61,9 @@ func InitObservability() {
 	if cfg.GetCfgObservabilityEnable() {
 		// Init mutex
 		initMutex()
+
+		// Init Variables
+		initMap()
 
 		ObsCronJob = cron.New()
 		err := ObsCronJob.AddFunc(cfg.GetCfgObservabilityCronJobTime(), ObservabilityCronJob) // time interval

@@ -43,6 +43,30 @@ func convertKubearmorPbLogToKubearmorLog(pbLog pb.Log) types.KubeArmorLog {
 	}
 }
 
+func groupKubeArmorLogs(logs []types.KubeArmorLog) {
+	for index, log := range logs {
+		if index == 0 {
+			KubeArmorLogMap[log] = 1
+			continue
+		}
+		for k, v := range KubeArmorLogMap {
+			if log == k {
+				KubeArmorLogMap[log] = v + 1
+				break
+			} else {
+				KubeArmorLogMap[log] = 1
+				break
+			}
+		}
+	}
+}
+
+func clearKubeArmorLogMap() {
+	for log := range KubeArmorLogMap {
+		delete(KubeArmorLogMap, log)
+	}
+}
+
 func ProcessSystemLogs() {
 
 	if len(SystemLogs) <= 0 {
@@ -96,9 +120,15 @@ func ProcessSystemLogs() {
 
 		res = append(res, locLog)
 	}
-	if err := libs.UpdateOrInsertKubearmorLogs(CfgDB, res); err != nil {
+
+	groupKubeArmorLogs(res)
+
+	if err := libs.UpdateOrInsertKubearmorLogs(CfgDB, KubeArmorLogMap); err != nil {
 		log.Error().Msg(err.Error())
 	}
+
+	clearKubeArmorLogMap()
+
 	ObsMutex.Unlock()
 }
 

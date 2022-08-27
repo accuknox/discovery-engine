@@ -285,12 +285,12 @@ func CreateTablesIfNotExist(cfg types.ConfigDB) {
 // =================== //
 // == Observability == //
 // =================== //
-func UpdateOrInsertKubearmorLogs(cfg types.ConfigDB, kubearmorLogs []types.KubeArmorLog) error {
+func UpdateOrInsertKubearmorLogs(cfg types.ConfigDB, kubearmorLogMap map[types.KubeArmorLog]int) error {
 	var err = errors.New("unknown db driver")
 	if cfg.DBDriver == "mysql" {
-		err = UpdateOrInsertKubearmorLogsMySQL(cfg, kubearmorLogs)
+		err = UpdateOrInsertKubearmorLogsMySQL(cfg, kubearmorLogMap)
 	} else if cfg.DBDriver == "sqlite3" {
-		err = UpdateOrInsertKubearmorLogsSQLite(cfg, kubearmorLogs)
+		err = UpdateOrInsertKubearmorLogsSQLite(cfg, kubearmorLogMap)
 	}
 	return err
 }

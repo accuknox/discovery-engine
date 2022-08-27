@@ -908,27 +908,27 @@ func UpdateWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadPr
 }
 
 // UpdateOrInsertKubearmorLogsSQLite -- Update existing log or insert a new log into DB
-func UpdateOrInsertKubearmorLogsMySQL(cfg types.ConfigDB, kubearmorlogs []types.KubeArmorLog) error {
+func UpdateOrInsertKubearmorLogsMySQL(cfg types.ConfigDB, kubearmorlogmap map[types.KubeArmorLog]int) error {
 	db := connectMySQL(cfg)
 	defer db.Close()
 
 	start := time.Now().UnixNano() / int64(time.Millisecond)
-	log.Info().Msgf("sqlite update or insert %d\n", len(kubearmorlogs))
-	for _, kubearmorlog := range kubearmorlogs {
-		if err := updateOrInsertKubearmorLogsMySQL(db, kubearmorlog); err != nil {
+	log.Info().Msgf("sqlite update or insert %d\n", len(kubearmorlogmap))
+	for kubearmorlog, count := range kubearmorlogmap {
+		if err := updateOrInsertKubearmorLogsMySQL(db, kubearmorlog, count); err != nil {
 			log.Error().Msg(err.Error())
 		}
 	}
 	end := time.Now().UnixNano() / int64(time.Millisecond)
-	log.Info().Msgf("return sqlite update or insert %d time-taken-ms:%d\n", len(kubearmorlogs), end-start)
+	log.Info().Msgf("return sqlite update or insert %d time-taken-ms:%d\n", len(kubearmorlogmap), end-start)
 	return nil
 }
 
-func updateOrInsertKubearmorLogsMySQL(db *sql.DB, kubearmorlog types.KubeArmorLog) error {
+func updateOrInsertKubearmorLogsMySQL(db *sql.DB, kubearmorlog types.KubeArmorLog, count int) error {
 	queryString := `cluster_name = ? and namespace_name = ? and pod_name = ? and container_name = ? and operation = ? and labels = ? 
-					and data = ? and category = ? and action = ? and result = ? and process_name = ? and parent_process_name = ? and resource = ?`
+					and data = ? and category = ? and action = ? and result = ? and source = ? and resource = ?`
 
-	query := "UPDATE " + TableSystemLogs_TableName + " SET total=total+1, updated_time=? WHERE " + queryString + " "
+	query := "UPDATE " + TableSystemLogs_TableName + " SET total=total+?, updated_time=? WHERE " + queryString + " "
 
 	updateStmt, err := db.Prepare(query)
 	if err != nil {
@@ -937,6 +937,7 @@ func updateOrInsertKubearmorLogsMySQL(db *sql.DB, kubearmorlog types.KubeArmorLo
 	defer updateStmt.Close()
 
 	result, err := updateStmt.Exec(
+		count,
 		ConvertStrToUnixTime("now"),
 		kubearmorlog.ClusterName,
 		kubearmorlog.NamespaceName,
@@ -948,8 +949,7 @@ func updateOrInsertKubearmorLogsMySQL(db *sql.DB, kubearmorlog types.KubeArmorLo
 		kubearmorlog.Category,
 		kubearmorlog.Action,
 		kubearmorlog.Result,
-		kubearmorlog.ProcessName,
-		kubearmorlog.ParentProcessName,
+		kubearmorlog.Source,
 		kubearmorlog.Resource,
 	)
 	if err != nil {
@@ -962,7 +962,7 @@ func updateOrInsertKubearmorLogsMySQL(db *sql.DB, kubearmorlog types.KubeArmorLo
 	if err == nil && rowsAffected == 0 {
 
 		updateQueryString := `(cluster_name,namespace_name,pod_name,container_name,operation,labels,data,category,action,
-		updated_time,result,total,process_name,parent_process_name,resource) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+		updated_time,result,total,source,resource) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
 
 		updateQuery := "INSERT INTO " + TableSystemLogs_TableName + updateQueryString
 
@@ -984,9 +984,8 @@ func updateOrInsertKubearmorLogsMySQL(db *sql.DB, kubearmorlog types.KubeArmorLo
 			kubearmorlog.Action,
 			ConvertStrToUnixTime("now"),
 			kubearmorlog.Result,
-			1,
-			kubearmorlog.ProcessName,
-			kubearmorlog.ParentProcessName,
+			count,
+			kubearmorlog.Source,
 			kubearmorlog.Resource)
 		if err != nil {
 			log.Error().Msg(err.Error())

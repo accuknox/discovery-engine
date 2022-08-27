@@ -878,27 +878,27 @@ func UpdateWorkloadProcessFileSetSQLite(cfg types.ConfigDB, wpfs types.WorkloadP
 }
 
 // UpdateOrInsertKubearmorLogsSQLite -- Update existing log or insert a new log into DB
-func UpdateOrInsertKubearmorLogsSQLite(cfg types.ConfigDB, kubearmorlogs []types.KubeArmorLog) error {
+func UpdateOrInsertKubearmorLogsSQLite(cfg types.ConfigDB, kubearmorlogmap map[types.KubeArmorLog]int) error {
 	db := connectSQLite(cfg, config.GetCfgObservabilityDBName())
 	defer db.Close()
 
 	start := time.Now().UnixNano() / int64(time.Millisecond)
-	log.Info().Msgf("sqlite update or insert %d\n", len(kubearmorlogs))
-	for _, kubearmorlog := range kubearmorlogs {
-		if err := updateOrInsertKubearmorLogsSQLite(db, kubearmorlog); err != nil {
+	log.Info().Msgf("sqlite update or insert %d\n", len(kubearmorlogmap))
+	for kubearmorlog, count := range kubearmorlogmap {
+		if err := updateOrInsertKubearmorLogsSQLite(db, kubearmorlog, count); err != nil {
 			log.Error().Msg(err.Error())
 		}
 	}
 	end := time.Now().UnixNano() / int64(time.Millisecond)
-	log.Info().Msgf("return sqlite update or insert %d time-taken-ms:%d\n", len(kubearmorlogs), end-start)
+	log.Info().Msgf("return sqlite update or insert %d time-taken-ms:%d\n", len(kubearmorlogmap), end-start)
 	return nil
 }
 
-func updateOrInsertKubearmorLogsSQLite(db *sql.DB, kubearmorlog types.KubeArmorLog) error {
+func updateOrInsertKubearmorLogsSQLite(db *sql.DB, kubearmorlog types.KubeArmorLog, count int) error {
 	queryString := `cluster_name = ? and namespace_name = ? and pod_name = ? and container_name = ? and operation = ? and labels = ? 
 					and data = ? and category = ? and action = ? and result = ? and source = ? and resource = ?`
 
-	query := "UPDATE " + TableSystemLogsSQLite_TableName + " SET total=total+1, updated_time=? WHERE " + queryString + " "
+	query := "UPDATE " + TableSystemLogs_TableName + " SET total=total+?, updated_time=? WHERE " + queryString + " "
 
 	updateStmt, err := db.Prepare(query)
 	if err != nil {
@@ -907,6 +907,7 @@ func updateOrInsertKubearmorLogsSQLite(db *sql.DB, kubearmorlog types.KubeArmorL
 	defer updateStmt.Close()
 
 	result, err := updateStmt.Exec(
+		count,
 		ConvertStrToUnixTime("now"),
 		kubearmorlog.ClusterName,
 		kubearmorlog.NamespaceName,
@@ -933,7 +934,7 @@ func updateOrInsertKubearmorLogsSQLite(db *sql.DB, kubearmorlog types.KubeArmorL
 		updateQueryString := `(cluster_name,namespace_name,pod_name,container_name,operation,labels,data,category,action,
 		updated_time,result,total,source,resource) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
 
-		updateQuery := "INSERT INTO " + TableSystemLogsSQLite_TableName + updateQueryString
+		updateQuery := "INSERT INTO " + TableSystemLogs_TableName + updateQueryString
 
 		insertStmt, err := db.Prepare(updateQuery)
 		if err != nil {
@@ -953,7 +954,7 @@ func updateOrInsertKubearmorLogsSQLite(db *sql.DB, kubearmorlog types.KubeArmorL
 			kubearmorlog.Action,
 			ConvertStrToUnixTime("now"),
 			kubearmorlog.Result,
-			1,
+			count,
 			kubearmorlog.Source,
 			kubearmorlog.Resource)
 		if err != nil {
