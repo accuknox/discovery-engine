@@ -89,9 +89,6 @@ func ProcessSystemLogs() {
 		}
 
 		if locLog.Operation != "Network" {
-			if strings.Contains(locLog.Source, "runc") || strings.Contains(locLog.Resource, "runc") || strings.Contains(locLog.ParentProcessName, "runc") {
-				continue
-			}
 			locLog.Source = strings.Split(locLog.Source, " ")[0]
 			locLog.Resource = strings.Split(locLog.Resource, " ")[0]
 			locLog.Data = ""
