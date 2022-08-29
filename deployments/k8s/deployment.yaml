@@ -60,8 +60,8 @@ data:
         cluster-info-from: "k8sclient"            # k8sclient|accuknox
 
     observability: 
-      enable: false
-      cron-job-time-interval: "0h0m5s"         # format: XhYmZs
+      enable: true
+      cron-job-time-interval: "0h0m10s"         # format: XhYmZs
       dbname: ./accuknox-obs.db
       system-observability: true
       network-observability: true
