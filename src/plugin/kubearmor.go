@@ -421,10 +421,6 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 					continue
 				}
 
-				if strings.Contains(res.Source, types.FilterBinaryKnoxAutoPolicy) {
-					continue
-				}
-
 				KubeArmorRelayLogsMutex.Lock()
 				KubeArmorRelayLogs = append(KubeArmorRelayLogs, res)
 				KubeArmorRelayLogsMutex.Unlock()
