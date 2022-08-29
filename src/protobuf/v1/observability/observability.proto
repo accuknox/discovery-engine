@@ -60,3 +60,4 @@ message CiliumSummData {
 message PodNameResponse {
     repeated string PodName = 1;
 }
+

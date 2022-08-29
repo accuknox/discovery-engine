@@ -78,7 +78,6 @@ func ProcessSystemLogs() {
 	SystemLogsMutex.Unlock()
 
 	ObsMutex.Lock()
-	//defer ObsMutex.Unlock()
 	res := []types.KubeArmorLog{}
 
 	for _, kubearmorLog := range locSysLogs {

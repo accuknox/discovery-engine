@@ -912,14 +912,14 @@ func UpdateOrInsertKubearmorLogsMySQL(cfg types.ConfigDB, kubearmorlogmap map[ty
 	db := connectMySQL(cfg)
 	defer db.Close()
 
-	start := time.Now().UnixNano() / int64(time.Millisecond)
+	start := time.Now().UnixMilli()
 	log.Info().Msgf("sqlite update or insert %d\n", len(kubearmorlogmap))
 	for kubearmorlog, count := range kubearmorlogmap {
 		if err := updateOrInsertKubearmorLogsMySQL(db, kubearmorlog, count); err != nil {
 			log.Error().Msg(err.Error())
 		}
 	}
-	end := time.Now().UnixNano() / int64(time.Millisecond)
+	end := time.Now().UnixMilli()
 	log.Info().Msgf("return sqlite update or insert %d time-taken-ms:%d\n", len(kubearmorlogmap), end-start)
 	return nil
 }
