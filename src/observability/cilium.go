@@ -2,9 +2,12 @@ package observability
 
 import (
 	"errors"
+	"strconv"
+	"time"
 
 	"github.com/accuknox/auto-policy-discovery/src/common"
 	"github.com/accuknox/auto-policy-discovery/src/libs"
+	opb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/observability"
 	"github.com/accuknox/auto-policy-discovery/src/types"
 	"github.com/cilium/cilium/api/v1/flow"
 	"google.golang.org/protobuf/types/known/wrapperspb"
@@ -165,32 +168,107 @@ func convertFlowLogToCiliumLog(flowLog *flow.Flow) (types.CiliumLog, error) {
 
 func ProcessNetworkLogs() {
 
-	if len(NetworkLogs) > 0 {
-		NetworkLogsMutex.Lock()
-		locNetLogs := NetworkLogs
-		NetworkLogs = []*flow.Flow{} //reset
-		NetworkLogsMutex.Unlock()
-
-		ObsMutex.Lock()
-		res := []types.CiliumLog{}
-
-		for _, flowLog := range locNetLogs {
-			netLog, err := convertFlowLogToCiliumLog(flowLog)
-			if err != nil {
-				log.Error().Msg(err.Error())
-				continue
-			}
-			res = append(res, netLog)
-		}
-		if err := libs.UpdateOrInsertCiliumLogs(CfgDB, res); err != nil {
-			log.Error().Msg(err.Error())
-		}
-		ObsMutex.Unlock()
+	if len(NetworkLogs) <= 0 {
+		return
 	}
+
+	NetworkLogsMutex.Lock()
+	locNetLogs := NetworkLogs
+	NetworkLogs = []*flow.Flow{} //reset
+	NetworkLogsMutex.Unlock()
+
+	ObsMutex.Lock()
+	//defer ObsMutex.Unlock()
+	res := []types.CiliumLog{}
+
+	for _, flowLog := range locNetLogs {
+		netLog, err := convertFlowLogToCiliumLog(flowLog)
+		if err != nil {
+			log.Error().Msg(err.Error())
+			continue
+		}
+		res = append(res, netLog)
+	}
+	if err := libs.UpdateOrInsertCiliumLogs(CfgDB, res); err != nil {
+		log.Error().Msg(err.Error())
+	}
+	ObsMutex.Unlock()
 }
 
 func ProcessCiliumFlow(flowLog *flow.Flow) {
 	NetworkLogsMutex.Lock()
 	NetworkLogs = append(NetworkLogs, flowLog)
 	NetworkLogsMutex.Unlock()
+}
+
+func GetCiliumSummaryData(req *opb.Request) ([]types.NetObsData, types.ObsPodDetail) {
+	var err error
+	var ingressEgressData []types.NetObsData
+	var podInfo types.ObsPodDetail
+
+	ciliumLogs, logCount, err := libs.GetCiliumLogs(CfgDB, types.CiliumLog{})
+	if err != nil {
+		return nil, types.ObsPodDetail{}
+	}
+
+	for netindex, netlog := range ciliumLogs {
+		if netindex == 0 {
+			podInfo.PodName = netlog.SourcePodName
+			podInfo.Namespace = netlog.SourceNamespace
+			podInfo.Labels = netlog.SourceLabels
+		}
+
+		t := time.Unix(netlog.UpdatedTime, 0)
+		var srcDestPod, protocol, port, status string
+
+		// Extract ingress/egress traffic
+		switch netlog.TrafficDirection {
+		case "INGRESS":
+			srcDestPod = netlog.SourcePodName + " <-- " + netlog.DestinationPodName
+		case "EGRESS":
+			srcDestPod = netlog.SourcePodName + " --> " + netlog.DestinationPodName
+		}
+
+		// Extract port and protocol
+		if netlog.L4TCPDestinationPort != 0 {
+			port = strconv.Itoa(int(netlog.L4TCPDestinationPort))
+			if netlog.L7HttpMethod != "" {
+				protocol = "HTTP"
+			} else {
+				protocol = "TCP"
+			}
+		} else if netlog.L4UDPDestinationPort != 0 {
+			port = strconv.Itoa(int(netlog.L4UDPDestinationPort))
+			if netlog.L7DnsCnames != "" {
+				protocol = "DNS"
+			} else {
+				protocol = "UDP"
+			}
+		} else if netlog.L4ICMPv4Code != 0 {
+			protocol = "ICMPv4"
+		} else {
+			protocol = "ICMPv6"
+		}
+
+		//Convert Status based on Verdict
+		switch netlog.Verdict {
+		case "FORWARDED", "REDIRECTED":
+			status = "ALLOW"
+		case "DROPPED", "ERROR":
+			status = "DENY"
+		case "AUDIT":
+			status = "AUDIT"
+		}
+
+		ingressEgressData = append(ingressEgressData, types.NetObsData{
+			Protocol:    protocol,
+			SrcDestPod:  srcDestPod,
+			Port:        port,
+			Count:       strconv.Itoa(int(logCount[netindex])),
+			UpdatedTime: t.Format(time.UnixDate),
+			Status:      status,
+		})
+	}
+
+	return ingressEgressData, podInfo
 }

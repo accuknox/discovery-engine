@@ -14,9 +14,11 @@ const (
 
 	// RecordSeparator - DB separator flag
 	RecordSeparator = "^^"
-)
 
-const (
+	// Cilium constants
 	KindKnoxNetworkPolicy     = "KnoxNetworkPolicy"
 	KindKnoxHostNetworkPolicy = "KnoxHostNetworkPolicy"
+
+	// Binary Name Filters
+	FilterBinaryKnoxAutoPolicy = "knoxAutoPolicy"
 )

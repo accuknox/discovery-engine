@@ -2,8 +2,14 @@ package observability
 
 import (
 	"encoding/json"
+	"errors"
+	"sort"
+	"strings"
+	"time"
 
+	"github.com/accuknox/auto-policy-discovery/src/cluster"
 	"github.com/accuknox/auto-policy-discovery/src/libs"
+	opb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/observability"
 	"github.com/accuknox/auto-policy-discovery/src/types"
 
 	pb "github.com/kubearmor/KubeArmor/protobuf"
@@ -37,6 +43,30 @@ func convertKubearmorPbLogToKubearmorLog(pbLog pb.Log) types.KubeArmorLog {
 	}
 }
 
+func groupKubeArmorLogs(logs []types.KubeArmorLog) {
+	for index, log := range logs {
+		if index == 0 {
+			KubeArmorLogMap[log] = 1
+			continue
+		}
+		for k, v := range KubeArmorLogMap {
+			if log == k {
+				KubeArmorLogMap[log] = v + 1
+				break
+			} else {
+				KubeArmorLogMap[log] = 1
+				break
+			}
+		}
+	}
+}
+
+func clearKubeArmorLogMap() {
+	for log := range KubeArmorLogMap {
+		delete(KubeArmorLogMap, log)
+	}
+}
+
 func ProcessSystemLogs() {
 
 	if len(SystemLogs) <= 0 {
@@ -48,7 +78,6 @@ func ProcessSystemLogs() {
 	SystemLogsMutex.Unlock()
 
 	ObsMutex.Lock()
-	defer ObsMutex.Unlock()
 	res := []types.KubeArmorLog{}
 
 	for _, kubearmorLog := range locSysLogs {
@@ -58,6 +87,7 @@ func ProcessSystemLogs() {
 		jsonLog, _ := json.Marshal(kubearmorLog)
 		if err := json.Unmarshal(jsonLog, &locPbLog); err != nil {
 			log.Error().Msg(err.Error())
+			ObsMutex.Unlock()
 			return
 		}
 
@@ -70,11 +100,35 @@ func ProcessSystemLogs() {
 			locLog.Category = "Log"
 		}
 
+		if locLog.Type == "ContainerLog" && locLog.NamespaceName == types.PolicyDiscoveryContainerNamespace {
+			locLog.NamespaceName = types.PolicyDiscoveryContainerNamespace
+			locLog.PodName = types.PolicyDiscoveryContainerPodName
+		}
+
+		if locLog.Type == "HostLog" {
+			locLog.ContainerName = locLog.HostName
+			locLog.NamespaceName = types.PolicyDiscoveryVMNamespace
+			locLog.PodName = types.PolicyDiscoveryVMPodName
+		}
+
+		if locLog.Operation != "Network" {
+			locLog.Source = strings.Split(locLog.Source, " ")[0]
+			locLog.Resource = strings.Split(locLog.Resource, " ")[0]
+			locLog.Data = ""
+		}
+
 		res = append(res, locLog)
 	}
-	if err := libs.UpdateOrInsertKubearmorLogs(CfgDB, res); err != nil {
+
+	groupKubeArmorLogs(res)
+
+	if err := libs.UpdateOrInsertKubearmorLogs(CfgDB, KubeArmorLogMap); err != nil {
 		log.Error().Msg(err.Error())
 	}
+
+	clearKubeArmorLogMap()
+
+	ObsMutex.Unlock()
 }
 
 func ProcessKubearmorLog(kubearmorLog *pb.Log) {
@@ -87,4 +141,152 @@ func ProcessKubearmorAlert(kubearmorAlert *pb.Log) {
 	SystemLogsMutex.Lock()
 	SystemLogs = append(SystemLogs, kubearmorAlert)
 	SystemLogsMutex.Unlock()
+}
+
+func extractPodSvcInfoFromIP(ip, clustername string) (string, string, string) {
+	podSvcName := ip
+
+	_, services, _, pods, err := cluster.GetAllClusterResources(clustername)
+	if err != nil {
+		return podSvcName, "", ""
+	}
+
+	for _, pod := range pods {
+		if pod.PodIP == ip {
+			return "pod/" + pod.PodName, strings.Join(sort.StringSlice(pod.Labels), ","), pod.Namespace
+		}
+	}
+	for _, svc := range services {
+		if svc.ClusterIP == ip {
+			return "svc/" + svc.ServiceName, strings.Join(svc.Labels, ","), svc.Namespace
+		}
+	}
+
+	return podSvcName, "", ""
+}
+
+func fetchSysServerConnDetail(log types.KubeArmorLog) (types.SysObsNwData, error) {
+	conn := types.SysObsNwData{}
+	err := errors.New("not a valid incoming/outgoing connection")
+
+	// get Syscall
+	if strings.Contains(log.Data, "tcp_connect") || strings.Contains(log.Data, "SYS_CONNECT") {
+		conn.InOut = "OUT"
+	} else if strings.Contains(log.Data, "tcp_accept") || strings.Contains(log.Data, "SYS_ACCEPT") {
+		conn.InOut = "IN"
+	} else {
+		return types.SysObsNwData{}, err
+	}
+
+	// get AF detail
+	if strings.Contains(log.Data, "AF_INET") && strings.Contains(log.Data, "tcp_") {
+		resslice := strings.Split(log.Resource, " ")
+		for _, locres := range resslice {
+			if strings.Contains(locres, "remoteip") {
+				conn.PodSvcIP, conn.Labels, conn.Namespace = extractPodSvcInfoFromIP(strings.Split(locres, "=")[1], log.ClusterName)
+			}
+			if strings.Contains(locres, "port") {
+				conn.ServerPort = strings.Split(locres, "=")[1]
+			}
+			if strings.Contains(locres, "protocol") {
+				conn.Protocol = strings.Split(locres, "=")[1]
+			}
+		}
+	} else if strings.Contains(log.Resource, "AF_UNIX") {
+		var path string
+		resslice := strings.Split(log.Resource, " ")
+		for _, locres := range resslice {
+			if strings.Contains(locres, "sun_path") {
+				path = strings.Split(locres, "=")[1]
+				if path != "" {
+					conn.PodSvcIP = path
+					conn.Protocol = "UNIX"
+					break
+				}
+			}
+		}
+	} else {
+		return types.SysObsNwData{}, err
+	}
+
+	if conn.PodSvcIP == "" {
+		return types.SysObsNwData{}, err
+	}
+
+	conn.Command = strings.Split(log.Source, " ")[0]
+
+	return conn, nil
+}
+
+func deDuplicateServerInOutConn(connList []types.SysObsNwData) []types.SysObsNwData {
+	occurred := map[types.SysObsNwData]bool{}
+	result := []types.SysObsNwData{}
+	for index := range connList {
+		if !occurred[connList[index]] {
+			occurred[connList[index]] = true
+			// Append to result slice.
+			result = append(result, connList[index])
+		}
+	}
+	return result
+}
+
+func GetKubearmorSummaryData(req *opb.Request) ([]types.SysObsProcFileData, []types.SysObsProcFileData, []types.SysObsNwData, types.ObsPodDetail) {
+	var err error
+	var processData, fileData []types.SysObsProcFileData
+	var nwData []types.SysObsNwData
+	var podInfo types.ObsPodDetail
+
+	// Get DB data
+	systemLogs, systemTotal, err := libs.GetKubearmorLogs(CfgDB, types.KubeArmorLog{
+		PodName: req.PodName,
+	})
+	if err != nil {
+		return nil, nil, nil, types.ObsPodDetail{}
+	}
+
+	for sysindex, locSysLog := range systemLogs {
+
+		if sysindex == 0 {
+			podInfo.PodName = locSysLog.PodName
+			podInfo.ClusterName = locSysLog.ClusterName
+			podInfo.ContainerName = locSysLog.ContainerName
+			podInfo.Labels = locSysLog.Labels
+			podInfo.Namespace = locSysLog.NamespaceName
+		}
+
+		t := time.Unix(locSysLog.UpdatedTime, 0)
+
+		if locSysLog.Operation == "Process" {
+			//ExtractProcessData
+			processData = append(processData, types.SysObsProcFileData{
+				Source:      locSysLog.Source,
+				Destination: locSysLog.Resource,
+				Status:      locSysLog.Action,
+				Count:       systemTotal[sysindex],
+				UpdatedTime: t.Format(time.UnixDate),
+			})
+		} else if locSysLog.Operation == "File" {
+			//ExtractFileData
+			fileData = append(fileData, types.SysObsProcFileData{
+				Source:      locSysLog.Source,
+				Destination: locSysLog.Resource,
+				Status:      locSysLog.Action,
+				Count:       systemTotal[sysindex],
+				UpdatedTime: t.Format(time.UnixDate),
+			})
+		} else if locSysLog.Operation == "Network" {
+			//ExtractNwData
+			nwobsdata, err := fetchSysServerConnDetail(locSysLog)
+			if err == nil {
+				nwData = append(nwData, nwobsdata)
+			}
+		}
+	}
+
+	if len(nwData) > 0 {
+		nwData = deDuplicateServerInOutConn(nwData)
+	}
+
+	return processData, fileData, nwData, podInfo
 }

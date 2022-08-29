@@ -4,56 +4,60 @@ package v1.observability;
 
 option go_package = "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/observability";
 
-service Summary {
-    rpc FetchLogs (LogsRequest) returns (stream LogsResponse);
+service Observability {
+    rpc Summary(Request) returns (Response);
+    rpc GetPodNames (Request) returns (PodNameResponse);
 }
 
-message LogsRequest {
-    string type = 1;
-    string label = 2;
-    string namespace = 3;
+message Request{
+    string PodName = 1;
+    string NameSpace = 2;
+    string ClusterName = 3;
+    string Label = 4;
+    string ContainerName = 5;
+    string Type = 6; 
 }
 
-message LogsResponse {
-    string podDetail = 1;
-    string namespace = 2;
-    repeated ListOfSource listOfProcess = 3;
-    repeated ListOfSource listOfFile = 4; 
-    repeated ListOfSource listOfNetwork = 5;
-    repeated ListOfConnection ingress = 6;
-    repeated ListOfConnection egress = 7;
-    repeated ServerConnections inServerConn = 8;
-    repeated ServerConnections outServerConn = 9;
+message Response{
+    string PodName = 1;
+    string ClusterName = 2;
+    string Namespace = 3;
+    string Label = 4;
+    string ContainerName = 5;
+    repeated SysProcFileSummaryData ProcessData = 6;
+    repeated SysProcFileSummaryData FileData = 7;
+    repeated SysNwSummaryData InNwData = 8;
+    repeated SysNwSummaryData OutNwData = 9;
+    repeated CiliumSummData IngressEgressData = 10;
 }
 
-message ListOfSource {
-    string source = 1;
-    repeated ListOfDestination listOfDestination = 2;
+message SysProcFileSummaryData {
+    string ProcName = 1;
+    string ParentProcName = 2;
+    string Count = 3;
+    string UpdatedTime = 4;
+    string Status = 5;
 }
 
-message ListOfConnection {
-    string destinationLabels = 1;
-    string destinationNamespace = 2;
-    string protocol = 3;
-    uint32 port = 4;
-    int32 count = 5;
-    string status = 6;
-    int64 lastUpdatedTime = 7;
+message SysNwSummaryData {
+    string Protocol = 1;
+    string Command = 2;
+    string IP = 3;
+    string Port = 4;
+    string Labels = 5;
+    string Namespace = 6;
 }
 
-message ListOfDestination {
-    string destination = 1;
-    int32 count = 2;
-    string status = 3;
-    int64 lastUpdatedTime = 4;
+message CiliumSummData {
+    string SrcDestPod = 1;
+    string Protocol = 2;
+    string Port = 3;
+    string Count = 4;
+    string UpdatedTime = 5;
+    string Status = 6;
 }
 
-message ServerConnections {
-    string addressFamily = 1;
-    string path = 2;
+message PodNameResponse {
+    repeated string PodName = 1;
 }
 
-message OutgoingServerConnections {
-    string addressFamily = 1;
-    string path = 2;
-}

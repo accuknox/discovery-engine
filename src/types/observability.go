@@ -96,13 +96,12 @@ type NetworkSummary struct {
 }
 
 type SystemSummary struct {
-	Operation   string          `json:"Operation,omitempty"`
-	Source      string          `json:"Source,omitempty"`
-	Resource    string          `json:"Resource,omitempty"`
-	Action      string          `json:"Action,omitempty"`
-	ServerConn  SysNwConnDetail `json:"ServerConn,omitempty"`
-	UpdatedTime int64           `json:"UpdatedTime,omitempty"`
-	Count       int32           `json:"Count,omitempty"`
+	Operation   string `json:"Operation,omitempty"`
+	Source      string `json:"Source,omitempty"`
+	Resource    string `json:"Resource,omitempty"`
+	Action      string `json:"Action,omitempty"`
+	UpdatedTime int64  `json:"UpdatedTime,omitempty"`
+	Count       int32  `json:"Count,omitempty"`
 }
 
 type KubeArmorLog struct {
@@ -133,8 +132,49 @@ type KubeArmorLog struct {
 	Category          string `json:"Category,omitempty"`
 }
 
-type SysNwConnDetail struct {
-	InOut     string `json:"InOut,omitempty"`
-	AddFamily string `json:"AddFamily,omitempty"`
-	Path      string `json:"Path,omitempty"`
+// NEW DATA
+// ObsPodDetail -- Type to store observability Pod info/detail
+type ObsPodDetail struct {
+	PodName       string
+	Namespace     string
+	ClusterName   string
+	ContainerName string
+	Labels        string
+}
+
+type SysObsProcFileData struct {
+	Source      string
+	Destination string
+	Status      string
+	Count       uint32
+	UpdatedTime string
+}
+
+type SysObsNwData struct {
+	InOut      string
+	Protocol   string
+	Command    string
+	PodSvcIP   string
+	ServerPort string
+	Namespace  string
+	Labels     string
+}
+
+type NetObsData struct {
+	Protocol    string
+	SrcDestPod  string
+	Port        string
+	Count       string
+	UpdatedTime string
+	Status      string
+}
+
+type NwObsIngressEgressData struct {
+	DestinationLabel     string
+	DestinationNamespace string
+	Protocol             string
+	Port                 string
+	Status               string
+	Count                int
+	UpdatedTime          string
 }

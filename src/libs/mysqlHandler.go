@@ -908,24 +908,27 @@ func UpdateWorkloadProcessFileSetMySQL(cfg types.ConfigDB, wpfs types.WorkloadPr
 }
 
 // UpdateOrInsertKubearmorLogsSQLite -- Update existing log or insert a new log into DB
-func UpdateOrInsertKubearmorLogsMySQL(cfg types.ConfigDB, kubearmorlogs []types.KubeArmorLog) error {
+func UpdateOrInsertKubearmorLogsMySQL(cfg types.ConfigDB, kubearmorlogmap map[types.KubeArmorLog]int) error {
 	db := connectMySQL(cfg)
 	defer db.Close()
 
-	for _, kubearmorlog := range kubearmorlogs {
-		if err := updateOrInsertKubearmorLogMySQL(db, kubearmorlog); err != nil {
+	start := time.Now().UnixMilli()
+	log.Info().Msgf("sqlite update or insert %d\n", len(kubearmorlogmap))
+	for kubearmorlog, count := range kubearmorlogmap {
+		if err := updateOrInsertKubearmorLogsMySQL(db, kubearmorlog, count); err != nil {
 			log.Error().Msg(err.Error())
 		}
 	}
+	end := time.Now().UnixMilli()
+	log.Info().Msgf("return sqlite update or insert %d time-taken-ms:%d\n", len(kubearmorlogmap), end-start)
 	return nil
 }
 
-func updateOrInsertKubearmorLogMySQL(db *sql.DB, kubearmorlog types.KubeArmorLog) error {
-	queryString := `cluster_name = ? and host_name = ? and namespace_name = ? and pod_name = ? and container_id = ? and 
-					container_name = ? and uid = ? and type = ? and source = ? and operation = ? and resource = ? and 
-					labels = ? and data = ? and category = ? and action = ? and result = ? `
+func updateOrInsertKubearmorLogsMySQL(db *sql.DB, kubearmorlog types.KubeArmorLog, count int) error {
+	queryString := `cluster_name = ? and namespace_name = ? and pod_name = ? and container_name = ? and operation = ? and labels = ? 
+					and data = ? and category = ? and action = ? and result = ? and source = ? and resource = ?`
 
-	query := "UPDATE " + TableSystemLogsSQLite_TableName + " SET total=total+1, updated_time=? WHERE " + queryString + " "
+	query := "UPDATE " + TableSystemLogs_TableName + " SET total=total+?, updated_time=? WHERE " + queryString + " "
 
 	updateStmt, err := db.Prepare(query)
 	if err != nil {
@@ -934,23 +937,20 @@ func updateOrInsertKubearmorLogMySQL(db *sql.DB, kubearmorlog types.KubeArmorLog
 	defer updateStmt.Close()
 
 	result, err := updateStmt.Exec(
+		count,
 		ConvertStrToUnixTime("now"),
 		kubearmorlog.ClusterName,
-		kubearmorlog.HostName,
 		kubearmorlog.NamespaceName,
 		kubearmorlog.PodName,
-		kubearmorlog.ContainerID,
 		kubearmorlog.ContainerName,
-		kubearmorlog.UID,
-		kubearmorlog.Type,
-		kubearmorlog.Source,
 		kubearmorlog.Operation,
-		kubearmorlog.Resource,
 		kubearmorlog.Labels,
 		kubearmorlog.Data,
 		kubearmorlog.Category,
 		kubearmorlog.Action,
 		kubearmorlog.Result,
+		kubearmorlog.Source,
+		kubearmorlog.Resource,
 	)
 	if err != nil {
 		log.Error().Msg(err.Error())
@@ -961,11 +961,10 @@ func updateOrInsertKubearmorLogMySQL(db *sql.DB, kubearmorlog types.KubeArmorLog
 
 	if err == nil && rowsAffected == 0 {
 
-		updateQueryString := `(cluster_name,host_name,namespace_name,pod_name,container_id,container_name,
-		uid,type,source,operation,resource,labels,data,category,action,start_time,
-		updated_time,result,total) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+		updateQueryString := `(cluster_name,namespace_name,pod_name,container_name,operation,labels,data,category,action,
+		updated_time,result,total,source,resource) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
 
-		updateQuery := "INSERT INTO " + TableSystemLogsSQLite_TableName + updateQueryString
+		updateQuery := "INSERT INTO " + TableSystemLogs_TableName + updateQueryString
 
 		insertStmt, err := db.Prepare(updateQuery)
 		if err != nil {
@@ -975,24 +974,19 @@ func updateOrInsertKubearmorLogMySQL(db *sql.DB, kubearmorlog types.KubeArmorLog
 
 		_, err = insertStmt.Exec(
 			kubearmorlog.ClusterName,
-			kubearmorlog.HostName,
 			kubearmorlog.NamespaceName,
 			kubearmorlog.PodName,
-			kubearmorlog.ContainerID,
 			kubearmorlog.ContainerName,
-			kubearmorlog.UID,
-			kubearmorlog.Type,
-			kubearmorlog.Source,
 			kubearmorlog.Operation,
-			kubearmorlog.Resource,
 			kubearmorlog.Labels,
 			kubearmorlog.Data,
 			kubearmorlog.Category,
 			kubearmorlog.Action,
 			ConvertStrToUnixTime("now"),
-			ConvertStrToUnixTime("now"),
 			kubearmorlog.Result,
-			1)
+			count,
+			kubearmorlog.Source,
+			kubearmorlog.Resource)
 		if err != nil {
 			log.Error().Msg(err.Error())
 			return err
@@ -1013,8 +1007,7 @@ func GetSystemLogsMySQL(cfg types.ConfigDB, filterLog types.KubeArmorLog) ([]typ
 	var results *sql.Rows
 	var err error
 
-	queryString := `cluster_name,host_name,namespace_name,pod_name,container_id,container_name,
-		uid,type,source,operation,resource,labels,data,category,action,start_time,updated_time,result,total`
+	queryString := `cluster_name,namespace_name,pod_name,container_name,operation,labels,data,category,action,updated_time,result,total,process_name,parent_process_name,resource`
 
 	query := "SELECT " + queryString + " FROM " + TableSystemLogs_TableName + " "
 
@@ -1025,10 +1018,6 @@ func GetSystemLogsMySQL(cfg types.ConfigDB, filterLog types.KubeArmorLog) ([]typ
 		concatWhereClause(&whereClause, "cluster_name")
 		args = append(args, filterLog.ClusterName)
 	}
-	if filterLog.HostName != "" {
-		concatWhereClause(&whereClause, "host_name")
-		args = append(args, filterLog.HostName)
-	}
 	if filterLog.NamespaceName != "" {
 		concatWhereClause(&whereClause, "namespace_name")
 		args = append(args, filterLog.NamespaceName)
@@ -1037,33 +1026,13 @@ func GetSystemLogsMySQL(cfg types.ConfigDB, filterLog types.KubeArmorLog) ([]typ
 		concatWhereClause(&whereClause, "pod_name")
 		args = append(args, filterLog.PodName)
 	}
-	if filterLog.ContainerID != "" {
-		concatWhereClause(&whereClause, "container_id")
-		args = append(args, filterLog.ContainerID)
-	}
 	if filterLog.ContainerName != "" {
 		concatWhereClause(&whereClause, "container_name")
 		args = append(args, filterLog.ContainerName)
 	}
-	if filterLog.UID != 0 {
-		concatWhereClause(&whereClause, "uid")
-		args = append(args, filterLog.UID)
-	}
-	if filterLog.Type != "" {
-		concatWhereClause(&whereClause, "type")
-		args = append(args, filterLog.Type)
-	}
-	if filterLog.Source != "" {
-		concatWhereClause(&whereClause, "source")
-		args = append(args, filterLog.Source)
-	}
 	if filterLog.Operation != "" {
 		concatWhereClause(&whereClause, "operation")
 		args = append(args, filterLog.Operation)
-	}
-	if filterLog.Resource != "" {
-		concatWhereClause(&whereClause, "resource")
-		args = append(args, filterLog.Resource)
 	}
 	if filterLog.Labels != "" {
 		concatWhereClause(&whereClause, "labels")
@@ -1081,10 +1050,6 @@ func GetSystemLogsMySQL(cfg types.ConfigDB, filterLog types.KubeArmorLog) ([]typ
 		concatWhereClause(&whereClause, "action")
 		args = append(args, filterLog.Action)
 	}
-	if filterLog.Timestamp != 0 {
-		concatWhereClause(&whereClause, "start_time")
-		args = append(args, filterLog.Timestamp)
-	}
 	if filterLog.UpdatedTime != 0 {
 		concatWhereClause(&whereClause, "updated_time")
 		args = append(args, filterLog.UpdatedTime)
@@ -1093,9 +1058,20 @@ func GetSystemLogsMySQL(cfg types.ConfigDB, filterLog types.KubeArmorLog) ([]typ
 		concatWhereClause(&whereClause, "result")
 		args = append(args, filterLog.Result)
 	}
+	if filterLog.ProcessName != "" {
+		concatWhereClause(&whereClause, "process_name")
+		args = append(args, filterLog.ProcessName)
+	}
+	if filterLog.ParentProcessName != "" {
+		concatWhereClause(&whereClause, "parent_process_name")
+		args = append(args, filterLog.ParentProcessName)
+	}
+	if filterLog.Resource != "" {
+		concatWhereClause(&whereClause, "resource")
+		args = append(args, filterLog.Resource)
+	}
 
 	results, err = db.Query(query+whereClause, args...)
-
 	if err != nil {
 		log.Error().Msg(err.Error())
 		return nil, nil, err
@@ -1107,24 +1083,20 @@ func GetSystemLogsMySQL(cfg types.ConfigDB, filterLog types.KubeArmorLog) ([]typ
 		var loc_total uint32
 		if err := results.Scan(
 			&loc_log.ClusterName,
-			&loc_log.HostName,
 			&loc_log.NamespaceName,
 			&loc_log.PodName,
-			&loc_log.ContainerID,
 			&loc_log.ContainerName,
-			&loc_log.UID,
-			&loc_log.Type,
-			&loc_log.Source,
 			&loc_log.Operation,
-			&loc_log.Resource,
 			&loc_log.Labels,
 			&loc_log.Data,
 			&loc_log.Category,
 			&loc_log.Action,
-			&loc_log.Timestamp,
 			&loc_log.UpdatedTime,
 			&loc_log.Result,
 			&loc_total,
+			&loc_log.ProcessName,
+			&loc_log.ParentProcessName,
+			&loc_log.Resource,
 		); err != nil {
 			return nil, nil, err
 		}
@@ -1135,73 +1107,7 @@ func GetSystemLogsMySQL(cfg types.ConfigDB, filterLog types.KubeArmorLog) ([]typ
 	return resLog, resTotal, err
 }
 
-func InsertCiliumLogsMySQL(cfg types.ConfigDB, log types.CiliumLog) error {
-	db := connectMySQL(cfg)
-	defer db.Close()
-
-	queryString := `(verdict,ip_source,ip_destination,ip_version,ip_encrypted,l4_tcp_source_port,l4_tcp_destination_port,
-		l4_udp_source_port,l4_udp_destination_port,l4_icmpv4_type,l4_icmpv4_code,l4_icmpv6_type,l4_icmpv6_code,
-		source_namespace,source_labels,source_pod_name,destination_namespace,destination_labels,destination_pod_name,
-		type,node_name,l7_type,l7_dns_cnames,l7_dns_observation_source,l7_http_code,l7_http_method,l7_http_url,l7_http_protocol,l7_http_headers,
-		event_type_type,event_type_sub_type,source_service_name,source_service_namespace,destination_service_name,destination_service_namespace,
-		traffic_direction,trace_observation_point,drop_reason_desc,is_reply,start_time,updated_time,total) 
-		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
-
-	query := "INSERT INTO " + TableNetworkLogs_TableName + queryString
-
-	stmt, err := db.Prepare(query)
-	if err != nil {
-		return err
-	}
-	defer stmt.Close()
-
-	_, err = stmt.Exec(
-		log.Verdict,
-		log.IpSource,
-		log.IpDestination,
-		log.IpVersion,
-		log.IpEncrypted,
-		log.L4TCPSourcePort,
-		log.L4TCPDestinationPort,
-		log.L4UDPSourcePort,
-		log.L4UDPDestinationPort,
-		log.L4ICMPv4Type,
-		log.L4ICMPv4Code,
-		log.L4ICMPv6Type,
-		log.L4ICMPv6Code,
-		log.SourceNamespace,
-		log.SourceLabels,
-		log.SourcePodName,
-		log.DestinationNamespace,
-		log.DestinationLabels,
-		log.DestinationPodName,
-		log.Type,
-		log.NodeName,
-		log.L7Type,
-		log.L7DnsCnames,
-		log.L7DnsObservationsource,
-		log.L7HttpCode,
-		log.L7HttpMethod,
-		log.L7HttpUrl,
-		log.L7HttpProtocol,
-		log.L7HttpHeaders,
-		log.EventTypeType,
-		log.EventTypeSubType,
-		log.SourceServiceName,
-		log.SourceServiceNamespace,
-		log.DestinationServiceName,
-		log.DestinationServiceNamespace,
-		log.TrafficDirection,
-		log.TraceObservationPoint,
-		log.DropReasonDesc,
-		log.IsReply,
-		log.StartTime,
-		log.UpdatedTime,
-		1)
-	return err
-}
-
-// GetCiliumLogsMySQL
+// GetNetworkLogsMySQL
 func GetCiliumLogsMySQL(cfg types.ConfigDB, filterLog types.CiliumLog) ([]types.CiliumLog, []uint32, error) {
 	db := connectMySQL(cfg)
 	defer db.Close()
@@ -1452,23 +1358,23 @@ func GetCiliumLogsMySQL(cfg types.ConfigDB, filterLog types.CiliumLog) ([]types.
 	return resLog, resTotal, err
 }
 
+// UpdateCiliumLogsMySQL -- Update existing log with time and count
 func UpdateOrInsertCiliumLogsMySQL(cfg types.ConfigDB, ciliumlogs []types.CiliumLog) error {
 	var err error = nil
 	db := connectMySQL(cfg)
 	defer db.Close()
 
-	for _, kubearmorLog := range ciliumlogs {
-		if err = updateOrInsertCiliumLogMySQL(db, kubearmorLog); err != nil {
+	for _, ciliumLog := range ciliumlogs {
+		if err := updateOrInsertCiliumLogMySQL(db, ciliumLog); err != nil {
 			log.Error().Msg(err.Error())
 		}
 	}
 	return err
 }
 
-// UpdateCiliumLogsMySQL -- Update existing log with time and count
 func updateOrInsertCiliumLogMySQL(db *sql.DB, ciliumlog types.CiliumLog) error {
 	var err error
-	updateQueryString := `verdict = ? and ip_source = ? and ip_destination = ? and ip_version = ? and ip_encrypted = ? and l4_tcp_source_port = ? and 
+	queryString := `verdict = ? and ip_source = ? and ip_destination = ? and ip_version = ? and ip_encrypted = ? and l4_tcp_source_port = ? and 
 					l4_tcp_destination_port = ? and l4_udp_source_port = ? and l4_udp_destination_port = ? and l4_icmpv4_type = ? and 
 					l4_icmpv4_code = ? and l4_icmpv6_type = ? and l4_icmpv6_code = ? and source_namespace = ? and source_labels = ? and 
 					source_pod_name = ? and destination_namespace = ? and destination_labels = ? and destination_pod_name = ? and type = ? and 
@@ -1477,15 +1383,15 @@ func updateOrInsertCiliumLogMySQL(db *sql.DB, ciliumlog types.CiliumLog) error {
 					event_type_sub_type = ? and source_service_name = ? and source_service_namespace = ? and destination_service_name = ? and 
 					destination_service_namespace = ? and traffic_direction = ? and trace_observation_point = ? and drop_reason_desc = ? and is_reply = ? `
 
-	query := "UPDATE " + TableNetworkLogs_TableName + " SET total=total+1, updated_time=? WHERE " + updateQueryString + " "
+	query := "UPDATE " + TableNetworkLogs_TableName + " SET total=total+1, updated_time=? WHERE " + queryString + " "
 
-	stmt, err := db.Prepare(query)
+	updateStmt, err := db.Prepare(query)
 	if err != nil {
 		return err
 	}
-	defer stmt.Close()
+	defer updateStmt.Close()
 
-	result, err := stmt.Exec(
+	result, err := updateStmt.Exec(
 		ciliumlog.UpdatedTime,
 		ciliumlog.Verdict,
 		ciliumlog.IpSource,
@@ -1527,8 +1433,8 @@ func updateOrInsertCiliumLogMySQL(db *sql.DB, ciliumlog types.CiliumLog) error {
 		ciliumlog.DropReasonDesc,
 		ciliumlog.IsReply,
 	)
-
 	if err != nil {
+		log.Error().Msg(err.Error())
 		return err
 	}
 
@@ -1545,13 +1451,13 @@ func updateOrInsertCiliumLogMySQL(db *sql.DB, ciliumlog types.CiliumLog) error {
 
 		query := "INSERT INTO " + TableNetworkLogs_TableName + insertQueryString
 
-		stmt, err := db.Prepare(query)
+		insertStmt, err := db.Prepare(query)
 		if err != nil {
 			return err
 		}
-		defer stmt.Close()
+		defer insertStmt.Close()
 
-		_, err = stmt.Exec(
+		_, err = insertStmt.Exec(
 			ciliumlog.Verdict,
 			ciliumlog.IpSource,
 			ciliumlog.IpDestination,
@@ -1594,7 +1500,98 @@ func updateOrInsertCiliumLogMySQL(db *sql.DB, ciliumlog types.CiliumLog) error {
 			ciliumlog.StartTime,
 			ciliumlog.UpdatedTime,
 			1)
+		if err != nil {
+			log.Error().Msg(err.Error())
+		}
 	}
 
 	return err
+}
+
+func GetPodNamesMySQL(cfg types.ConfigDB, filter types.ObsPodDetail) ([]string, error) {
+	db := connectMySQL(cfg)
+	defer db.Close()
+
+	resPodNames := []string{}
+
+	var results *sql.Rows
+	var err error
+
+	// Get podnames from system table
+	query := "SELECT pod_name FROM " + TableSystemLogs_TableName + " "
+
+	var whereClause string
+	var sysargs []interface{}
+
+	if filter.ClusterName != "" {
+		concatWhereClause(&whereClause, "cluster_name")
+		sysargs = append(sysargs, filter.ClusterName)
+	}
+	if filter.Namespace != "" {
+		concatWhereClause(&whereClause, "namespace_name")
+		sysargs = append(sysargs, filter.Namespace)
+	}
+	if filter.PodName != "" {
+		concatWhereClause(&whereClause, "pod_name")
+		sysargs = append(sysargs, filter.PodName)
+	}
+	if filter.Labels != "" {
+		concatWhereClause(&whereClause, "labels")
+		sysargs = append(sysargs, filter.Labels)
+	}
+	if filter.ContainerName != "" {
+		concatWhereClause(&whereClause, "container_name")
+		sysargs = append(sysargs, filter.ContainerName)
+	}
+
+	results, err = db.Query(query+whereClause, sysargs...)
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return nil, err
+	}
+	defer results.Close()
+
+	for results.Next() {
+		var locPodName string
+		if err := results.Scan(
+			&locPodName,
+		); err != nil {
+			return nil, err
+		}
+		resPodNames = append(resPodNames, locPodName)
+	}
+
+	// Get podnames from network table
+	query = "SELECT source_pod_name FROM " + TableNetworkLogs_TableName + " "
+
+	whereClause = ""
+	var nwargs []interface{}
+
+	if filter.Namespace != "" {
+		concatWhereClause(&whereClause, "source_namespace")
+		nwargs = append(nwargs, filter.Namespace)
+	}
+	if filter.Labels != "" {
+		concatWhereClause(&whereClause, "source_labels")
+		nwargs = append(nwargs, filter.Labels)
+	}
+
+	results, err = db.Query(query+whereClause, nwargs...)
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return nil, err
+	}
+	defer results.Close()
+
+	for results.Next() {
+		var locPodName string
+		if err := results.Scan(
+			&locPodName,
+		); err != nil {
+			return nil, err
+		}
+		resPodNames = append(resPodNames, locPodName)
+	}
+
+	return resPodNames, err
 }
