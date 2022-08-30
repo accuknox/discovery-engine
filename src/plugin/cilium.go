@@ -831,14 +831,21 @@ func StartHubbleRelay(StopChan chan struct{}, cfg types.ConfigCiliumHubble) {
 			{
 				TcpFlags: []*flow.TCPFlags{
 					{SYN: true},
-					{FIN: true},
-					{RST: true},
-					{NS: true},
-					{ECE: true},
 				},
 			},
 			{
-				Protocol: []string{"udp", "icmp", "http", "dns"},
+				Protocol: []string{"udp"},
+				Reply:    []bool{false},
+			},
+			{
+				Protocol: []string{"icmp", "http", "dns"},
+			},
+		},
+		Blacklist: []*cilium.FlowFilter{
+			{
+				TcpFlags: []*flow.TCPFlags{
+					{ACK: true},
+				},
 			},
 		},
 	}
