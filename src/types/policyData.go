@@ -319,5 +319,5 @@ type Policy struct {
 	Clustername string
 	Labels      string
 	PolicyName  string
-	PolicyData  string
+	PolicyYaml  string
 }

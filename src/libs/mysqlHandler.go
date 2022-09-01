@@ -721,7 +721,7 @@ func CreatePolicyTableMySQL(cfg types.ConfigDB) error {
 			"	`namespace` varchar(50) DEFAULT NULL," +
 			"	`labels` text DEFAULT NULL," +
 			"	`policy_name` varchar(150) DEFAULT NULL," +
-			"	`policy_data` text DEFAULT NULL," +
+			"	`policy_yaml` text DEFAULT NULL," +
 			"	`updated_time` bigint NOT NULL," +
 			"	PRIMARY KEY (`id`)" +
 			"  );"
@@ -1642,7 +1642,7 @@ func updateOrInsertPolicyMySQL(policy types.Policy, db *sql.DB) error {
 	var err error
 	queryString := ` policy_name = ? `
 
-	query := "UPDATE " + PolicyTable_TableName + " SET policy_data=?, updated_time=? WHERE " + queryString + " "
+	query := "UPDATE " + PolicyTable_TableName + " SET policy_yaml=?, updated_time=? WHERE " + queryString + " "
 
 	updateStmt, err := db.Prepare(query)
 	if err != nil {
@@ -1651,7 +1651,7 @@ func updateOrInsertPolicyMySQL(policy types.Policy, db *sql.DB) error {
 	defer updateStmt.Close()
 
 	result, err := updateStmt.Exec(
-		policy.PolicyData,
+		policy.PolicyYaml,
 		ConvertStrToUnixTime("now"),
 		policy.PolicyName,
 	)
@@ -1665,7 +1665,7 @@ func updateOrInsertPolicyMySQL(policy types.Policy, db *sql.DB) error {
 	if err == nil && rowsAffected == 0 {
 
 		insertStmt, err := db.Prepare("INSERT INTO " + PolicyTable_TableName +
-			"(type,cluster_name,namespace,labels,policy_name,policy_data,updatedtime) values(?,?,?,?,?,?,?)")
+			"(type,cluster_name,namespace,labels,policy_name,policy_yaml,updatedtime) values(?,?,?,?,?,?,?)")
 		if err != nil {
 			return err
 		}
@@ -1677,7 +1677,7 @@ func updateOrInsertPolicyMySQL(policy types.Policy, db *sql.DB) error {
 			policy.Namespace,
 			policy.Labels,
 			policy.PolicyName,
-			policy.PolicyData,
+			policy.PolicyYaml,
 			ConvertStrToUnixTime("now"),
 		)
 		if err != nil {

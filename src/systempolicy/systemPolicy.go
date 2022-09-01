@@ -1361,7 +1361,7 @@ func insertSysPoliciesYamlToDB(policies []types.KnoxSystemPolicy) {
 			Namespace:   kubearmorPolicy.Metadata["namespace"],
 			Clustername: kubearmorPolicy.Metadata["clusterName"],
 			Labels:      label,
-			PolicyData:  policyData,
+			PolicyYaml:  policyData,
 		})
 	}
 
