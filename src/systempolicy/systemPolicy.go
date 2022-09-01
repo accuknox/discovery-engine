@@ -1327,7 +1327,6 @@ func GenFileSetForAllPodsInCluster(clusterName string, pods []types.Pod, settype
 }
 
 func insertSysPoliciesYamlToDB(policies []types.KnoxSystemPolicy) {
-	//policies := libs.GetSystemPolicies(CfgDB, "", "")
 	kubeArmorPolicies := plugin.ConvertKnoxSystemPolicyToKubeArmorPolicy(policies)
 
 	if len(kubeArmorPolicies) <= 0 {
@@ -1349,7 +1348,7 @@ func insertSysPoliciesYamlToDB(policies []types.KnoxSystemPolicy) {
 			log.Error().Msg(err.Error())
 			continue
 		}
-		policyData := string(yamlBytes)
+		policyYaml := string(yamlBytes)
 
 		for k, v := range kubearmorPolicy.Spec.Selector.MatchLabels {
 			label = k + "=" + v
@@ -1361,7 +1360,7 @@ func insertSysPoliciesYamlToDB(policies []types.KnoxSystemPolicy) {
 			Namespace:   kubearmorPolicy.Metadata["namespace"],
 			Clustername: kubearmorPolicy.Metadata["clusterName"],
 			Labels:      label,
-			PolicyYaml:  policyData,
+			PolicyYaml:  policyYaml,
 		})
 	}
 
