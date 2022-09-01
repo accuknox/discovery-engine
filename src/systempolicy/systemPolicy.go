@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/clarketm/json"
+	"sigs.k8s.io/yaml"
 
 	"github.com/accuknox/auto-policy-discovery/src/cluster"
 	cfg "github.com/accuknox/auto-policy-discovery/src/config"
@@ -985,6 +986,8 @@ func updateSysPolicies() {
 
 	wpfsPolicies := populateKnoxSysPolicyFromWPFSDb("", "", "", "")
 
+	go insertSysPoliciesYamlToDB(wpfsPolicies)
+
 	for _, wpfsPolicy := range wpfsPolicies {
 		isPolicyExist = false
 		sysPoliciesDb := libs.GetSystemPolicies(CfgDB, "", "")
@@ -1069,7 +1072,6 @@ func PopulateSystemPoliciesFromSystemLogs(sysLogs []types.KnoxSystemLog) []types
 				isWpfsDbUpdated = GenFileSetForAllPodsInCluster(clusterName, pods, SYS_OP_FILE, fileOpLogs) || isWpfsDbUpdated
 				if !cfg.CurrentCfg.ConfigSysPolicy.DeprecateOldMode {
 					discoveredSysPolicies = discoverFileOperationPolicy(discoveredSysPolicies, pod, fileOpLogs)
-					polCnt = len(discoveredSysPolicies)
 					log.Info().Msgf("discovered %d file policies from %d file logs",
 						len(discoveredSysPolicies), len(fileOpLogs))
 				}
@@ -1322,6 +1324,50 @@ func GenFileSetForAllPodsInCluster(clusterName string, pods []types.Pod, settype
 	}
 
 	return status
+}
+
+func insertSysPoliciesYamlToDB(policies []types.KnoxSystemPolicy) {
+	//policies := libs.GetSystemPolicies(CfgDB, "", "")
+	kubeArmorPolicies := plugin.ConvertKnoxSystemPolicyToKubeArmorPolicy(policies)
+
+	if len(kubeArmorPolicies) <= 0 {
+		return
+	}
+
+	res := []types.Policy{}
+
+	for _, kubearmorPolicy := range kubeArmorPolicies {
+		var label string
+
+		jsonBytes, err := json.Marshal(&kubearmorPolicy)
+		if err != nil {
+			log.Error().Msg(err.Error())
+			continue
+		}
+		yamlBytes, err := yaml.JSONToYAML(jsonBytes)
+		if err != nil {
+			log.Error().Msg(err.Error())
+			continue
+		}
+		policyData := string(yamlBytes)
+
+		for k, v := range kubearmorPolicy.Spec.Selector.MatchLabels {
+			label = k + "=" + v
+		}
+
+		res = append(res, types.Policy{
+			Type:        "system",
+			PolicyName:  kubearmorPolicy.Metadata["name"],
+			Namespace:   kubearmorPolicy.Metadata["namespace"],
+			Clustername: kubearmorPolicy.Metadata["clusterName"],
+			Labels:      label,
+			PolicyData:  policyData,
+		})
+	}
+
+	if err := libs.UpdateOrInsertPolicies(CfgDB, res); err != nil {
+		log.Error().Msgf(err.Error())
+	}
 }
 
 func DiscoverSystemPolicyMain() {
