@@ -1598,7 +1598,9 @@ func UpdateOrInsertPoliciesSQLite(cfg types.ConfigDB, policies []types.Policy) e
 	defer db.Close()
 
 	for _, pol := range policies {
-		updateOrInsertPolicySQLite(db, pol)
+		if err := updateOrInsertPolicySQLite(db, pol); err != nil {
+			log.Error().Msg(err.Error())
+		}
 	}
 
 	return nil

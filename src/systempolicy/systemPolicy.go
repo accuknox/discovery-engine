@@ -1339,7 +1339,7 @@ func insertSysPoliciesYamlToDB(policies []types.KnoxSystemPolicy) {
 	for _, kubearmorPolicy := range kubeArmorPolicies {
 		var label string
 
-		jsonBytes, err := json.Marshal(&kubearmorPolicy)
+		jsonBytes, err := json.Marshal(kubearmorPolicy)
 		if err != nil {
 			log.Error().Msg(err.Error())
 			continue

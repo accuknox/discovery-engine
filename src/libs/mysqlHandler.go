@@ -1629,7 +1629,9 @@ func UpdateOrInsertPoliciesMySQL(cfg types.ConfigDB, policies []types.Policy) er
 	defer db.Close()
 
 	for _, pol := range policies {
-		updateOrInsertPolicyMySQL(pol, db)
+		if err := updateOrInsertPolicyMySQL(pol, db); err != nil {
+			log.Error().Msg(err.Error())
+		}
 	}
 
 	return nil
