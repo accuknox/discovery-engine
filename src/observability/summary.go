@@ -3,6 +3,7 @@ package observability
 import (
 	"errors"
 	"strconv"
+	"strings"
 
 	opb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/observability"
 )
@@ -11,7 +12,8 @@ func GetSummaryData(request *opb.Request) (*opb.Response, error) {
 	resp := opb.Response{}
 	var err error = nil
 
-	if request.Type == "system" || request.Type == "all" {
+	if strings.Contains(request.Type, "process") || strings.Contains(request.Type, "file") ||
+		strings.Contains(request.Type, "network") || strings.Contains(request.Type, "all") {
 		proc, file, nw, podInfo := GetKubearmorSummaryData(request)
 
 		if len(proc) <= 0 && len(file) <= 0 && len(nw) <= 0 {
@@ -29,7 +31,7 @@ func GetSummaryData(request *opb.Request) (*opb.Response, error) {
 		resp.Label = podInfo.Labels
 		resp.ContainerName = podInfo.ContainerName
 
-		if len(proc) > 0 {
+		if len(proc) > 0 && (strings.Contains(request.Type, "process") || strings.Contains(request.Type, "all")) {
 			for _, loc_proc := range proc {
 				procResp = append(procResp, &opb.SysProcFileSummaryData{
 					ParentProcName: loc_proc.Source,
@@ -41,7 +43,7 @@ func GetSummaryData(request *opb.Request) (*opb.Response, error) {
 			}
 		}
 
-		if len(file) > 0 {
+		if len(file) > 0 && (strings.Contains(request.Type, "file") || strings.Contains(request.Type, "all")) {
 			for _, loc_file := range file {
 				fileResp = append(fileResp, &opb.SysProcFileSummaryData{
 					ParentProcName: loc_file.Source,
@@ -53,7 +55,7 @@ func GetSummaryData(request *opb.Request) (*opb.Response, error) {
 			}
 		}
 
-		if len(nw) > 0 {
+		if len(nw) > 0 && (strings.Contains(request.Type, "network") || strings.Contains(request.Type, "all")) {
 			for _, loc_nw := range nw {
 				if loc_nw.InOut == "IN" {
 					inNwResp = append(inNwResp, &opb.SysNwSummaryData{
@@ -82,24 +84,38 @@ func GetSummaryData(request *opb.Request) (*opb.Response, error) {
 		resp.OutNwData = outNwResp
 	}
 
-	if request.Type == "network" || request.Type == "all" {
-		nwSummaryData, podInfo := GetCiliumSummaryData(request)
+	if strings.Contains(request.Type, "ingress") || strings.Contains(request.Type, "egress") || strings.Contains(request.Type, "all") {
+		ingressData, egressData, podInfo := GetCiliumSummaryData(request)
 
-		if len(nwSummaryData) <= 0 && request.Type == "network" {
+		if len(ingressData) <= 0 && len(egressData) <= 0 && request.Type == "network" {
 			return nil, errors.New("no ingress/egress summary info present for the requested pod")
 		}
 
-		ingressEgressSummData := []*opb.CiliumSummData{}
+		ingressSummData := []*opb.CiliumSummData{}
+		egressSummData := []*opb.CiliumSummData{}
 
-		for _, locNwSummData := range nwSummaryData {
-			ingressEgressSummData = append(ingressEgressSummData, &opb.CiliumSummData{
-				SrcDestPod:  locNwSummData.SrcDestPod,
-				Protocol:    locNwSummData.Protocol,
-				Port:        locNwSummData.Port,
-				Count:       locNwSummData.Count,
-				Status:      locNwSummData.Status,
-				UpdatedTime: locNwSummData.UpdatedTime,
-			})
+		if len(ingressData) > 0 && (strings.Contains(request.Type, "ingress") || strings.Contains(request.Type, "all")) {
+			for _, locIngressData := range ingressData {
+				ingressSummData = append(ingressSummData, &opb.CiliumSummData{
+					Protocol:    locIngressData.Protocol,
+					Port:        locIngressData.Port,
+					Count:       locIngressData.Count,
+					Status:      locIngressData.Status,
+					UpdatedTime: locIngressData.UpdatedTime,
+				})
+			}
+		}
+
+		if len(egressData) > 0 && (strings.Contains(request.Type, "egress") || strings.Contains(request.Type, "all")) {
+			for _, locIngressData := range ingressData {
+				egressSummData = append(egressSummData, &opb.CiliumSummData{
+					Protocol:    locIngressData.Protocol,
+					Port:        locIngressData.Port,
+					Count:       locIngressData.Count,
+					Status:      locIngressData.Status,
+					UpdatedTime: locIngressData.UpdatedTime,
+				})
+			}
 		}
 
 		if request.Type == "network" {
@@ -107,7 +123,8 @@ func GetSummaryData(request *opb.Request) (*opb.Response, error) {
 			resp.Namespace = podInfo.Namespace
 			resp.Label = podInfo.Labels
 		}
-		resp.IngressEgressData = ingressEgressSummData
+		resp.IngressData = ingressSummData
+		resp.EgressData = egressSummData
 	}
 
 	return &resp, err

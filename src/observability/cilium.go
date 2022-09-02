@@ -201,14 +201,14 @@ func ProcessCiliumFlow(flowLog *flow.Flow) {
 	NetworkLogsMutex.Unlock()
 }
 
-func GetCiliumSummaryData(req *opb.Request) ([]types.NetObsData, types.ObsPodDetail) {
+func GetCiliumSummaryData(req *opb.Request) ([]types.NwObsIngressEgressData, []types.NwObsIngressEgressData, types.ObsPodDetail) {
 	var err error
-	var ingressEgressData []types.NetObsData
+	var ingressData, egressData []types.NwObsIngressEgressData
 	var podInfo types.ObsPodDetail
 
 	ciliumLogs, logCount, err := libs.GetCiliumLogs(CfgDB, types.CiliumLog{})
 	if err != nil {
-		return nil, types.ObsPodDetail{}
+		return nil, nil, types.ObsPodDetail{}
 	}
 
 	for netindex, netlog := range ciliumLogs {
@@ -219,15 +219,7 @@ func GetCiliumSummaryData(req *opb.Request) ([]types.NetObsData, types.ObsPodDet
 		}
 
 		t := time.Unix(netlog.UpdatedTime, 0)
-		var srcDestPod, protocol, port, status string
-
-		// Extract ingress/egress traffic
-		switch netlog.TrafficDirection {
-		case "INGRESS":
-			srcDestPod = netlog.SourcePodName + " <-- " + netlog.DestinationPodName
-		case "EGRESS":
-			srcDestPod = netlog.SourcePodName + " --> " + netlog.DestinationPodName
-		}
+		var protocol, port, status string
 
 		// Extract port and protocol
 		if netlog.L4TCPDestinationPort != 0 {
@@ -260,15 +252,34 @@ func GetCiliumSummaryData(req *opb.Request) ([]types.NetObsData, types.ObsPodDet
 			status = "AUDIT"
 		}
 
-		ingressEgressData = append(ingressEgressData, types.NetObsData{
-			Protocol:    protocol,
-			SrcDestPod:  srcDestPod,
-			Port:        port,
-			Count:       strconv.Itoa(int(logCount[netindex])),
-			UpdatedTime: t.Format(time.UnixDate),
-			Status:      status,
-		})
+		// Extract ingress/egress traffic
+		switch netlog.TrafficDirection {
+		case "INGRESS":
+			ingressData = append(ingressData, types.NwObsIngressEgressData{
+				Protocol:             protocol,
+				SrcPodName:           netlog.SourcePodName,
+				DestPodName:          netlog.DestinationPodName,
+				DestinationNamespace: netlog.DestinationNamespace,
+				DestinationLabel:     netlog.DestinationLabels,
+				Port:                 port,
+				Count:                strconv.Itoa(int(logCount[netindex])),
+				UpdatedTime:          t.Format(time.UnixDate),
+				Status:               status,
+			})
+		case "EGRESS":
+			egressData = append(egressData, types.NwObsIngressEgressData{
+				Protocol:             protocol,
+				SrcPodName:           netlog.SourcePodName,
+				DestPodName:          netlog.DestinationPodName,
+				DestinationNamespace: netlog.DestinationNamespace,
+				DestinationLabel:     netlog.DestinationLabels,
+				Port:                 port,
+				Count:                strconv.Itoa(int(logCount[netindex])),
+				UpdatedTime:          t.Format(time.UnixDate),
+				Status:               status,
+			})
+		}
 	}
 
-	return ingressEgressData, podInfo
+	return ingressData, egressData, podInfo
 }
