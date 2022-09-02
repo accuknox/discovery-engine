@@ -2164,12 +2164,19 @@ func writeNetworkPoliciesYamlToDB(policies []types.KnoxNetworkPolicy) {
 		}
 		policyYaml := string(yamlBytes)
 
-		for k, v := range ciliumPolicy.Spec.EndpointSelector.MatchLabels {
-			label = k + "=" + v
+		if ciliumPolicy.Spec.NodeSelector.MatchLabels != nil {
+			for k, v := range ciliumPolicy.Spec.NodeSelector.MatchLabels {
+				label = k + "=" + v
+			}
+		} else {
+			for k, v := range ciliumPolicy.Spec.EndpointSelector.MatchLabels {
+				label = k + "=" + v
+			}
 		}
 
 		res = append(res, types.Policy{
 			Type:        "network",
+			Kind:        ciliumPolicy.Kind,
 			PolicyName:  ciliumPolicy.Metadata["name"],
 			Namespace:   ciliumPolicy.Metadata["namespace"],
 			ClusterName: clusternames[index],

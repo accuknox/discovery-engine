@@ -18,7 +18,7 @@ const TableNetworkPolicy_TableName = "network_policy"
 const TableSystemPolicy_TableName = "system_policy"
 const TableSystemLogs_TableName = "system_logs"
 const TableNetworkLogs_TableName = "network_logs"
-const PolicyTable_TableName = "policy_table"
+const PolicyTable_TableName = "policy_yaml"
 
 // ================ //
 // == Connection == //
@@ -717,6 +717,7 @@ func CreatePolicyTableMySQL(cfg types.ConfigDB) error {
 		"CREATE TABLE IF NOT EXISTS `" + tableName + "` (" +
 			"	`id` INTEGER AUTO_INCREMENT," +
 			"	`type` varchar(50) DEFAULT NULL," +
+			"	`kind` varchar(50) DEFAULT NULL," +
 			"	`cluster_name` varchar(50) DEFAULT NULL," +
 			"	`namespace` varchar(50) DEFAULT NULL," +
 			"	`labels` text DEFAULT NULL," +
@@ -1665,7 +1666,7 @@ func updateOrInsertPolicyMySQL(policy types.Policy, db *sql.DB) error {
 	if err == nil && rowsAffected == 0 {
 
 		insertStmt, err := db.Prepare("INSERT INTO " + PolicyTable_TableName +
-			"(type,cluster_name,namespace,labels,policy_name,policy_yaml,updatedtime) values(?,?,?,?,?,?,?)")
+			"(type,kind,cluster_name,namespace,labels,policy_name,policy_yaml,updatedtime) values(?,?,?,?,?,?,?)")
 		if err != nil {
 			return err
 		}
@@ -1673,6 +1674,7 @@ func updateOrInsertPolicyMySQL(policy types.Policy, db *sql.DB) error {
 
 		_, err = insertStmt.Exec(
 			policy.Type,
+			policy.Kind,
 			policy.ClusterName,
 			policy.Namespace,
 			policy.Labels,

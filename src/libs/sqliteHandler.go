@@ -19,7 +19,7 @@ const TableNetworkPolicySQLite_TableName = "network_policy"
 const TableSystemPolicySQLite_TableName = "system_policy"
 const TableSystemLogsSQLite_TableName = "system_logs"
 const TableNetworkLogsSQLite_TableName = "network_logs"
-const PolicyTableSQLite_TableName = "policy_table"
+const PolicyTableSQLite_TableName = "policy_yaml"
 
 // ================ //
 // == Connection == //
@@ -687,6 +687,7 @@ func CreatePolicyTableSQLite(cfg types.ConfigDB) error {
 		"CREATE TABLE IF NOT EXISTS `" + tableName + "` (" +
 			"	`id` INTEGER AUTO_INCREMENT," +
 			"	`type` varchar(50) DEFAULT NULL," +
+			"	`kind` varchar(50) DEFAULT NULL," +
 			"	`cluster_name` varchar(50) DEFAULT NULL," +
 			"	`namespace` varchar(50) DEFAULT NULL," +
 			"	`labels` text DEFAULT NULL," +
@@ -1629,7 +1630,7 @@ func updateOrInsertPolicySQLite(db *sql.DB, policy types.Policy) error {
 	rowsAffected, err := result.RowsAffected()
 
 	if err == nil && rowsAffected == 0 {
-		insertStmt, err := db.Prepare("INSERT INTO " + PolicyTableSQLite_TableName + " (type,cluster_name,namespace,labels,policy_name,policy_yaml,updated_time) values(?,?,?,?,?,?,?)")
+		insertStmt, err := db.Prepare("INSERT INTO " + PolicyTableSQLite_TableName + " (type,kind,cluster_name,namespace,labels,policy_name,policy_yaml,updated_time) values(?,?,?,?,?,?,?,?)")
 		if err != nil {
 			return err
 		}
@@ -1637,6 +1638,7 @@ func updateOrInsertPolicySQLite(db *sql.DB, policy types.Policy) error {
 
 		_, err = insertStmt.Exec(
 			policy.Type,
+			policy.Kind,
 			policy.ClusterName,
 			policy.Namespace,
 			policy.Labels,

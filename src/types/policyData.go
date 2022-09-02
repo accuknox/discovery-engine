@@ -314,10 +314,11 @@ type KubeArmorPolicy struct {
 // == Policy DB == //
 // =============== //
 type Policy struct {
-	Type        string
-	Namespace   string
-	ClusterName string
-	Labels      string
-	PolicyName  string
-	PolicyYaml  string
+	Type        string `json:"type,omitempty"`
+	Kind        string `json:"kind,omitempty"`
+	Namespace   string `json:"namespace,omitempty"`
+	ClusterName string `json:"cluster_name,omitempty"`
+	Labels      string `json:"labels,omitempty"`
+	PolicyName  string `json:"policy_name,omitempty"`
+	PolicyYaml  string `json:"policy_yaml,omitempty"`
 }
