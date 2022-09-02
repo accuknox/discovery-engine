@@ -18,6 +18,7 @@ const TableNetworkPolicy_TableName = "network_policy"
 const TableSystemPolicy_TableName = "system_policy"
 const TableSystemLogs_TableName = "system_logs"
 const TableNetworkLogs_TableName = "network_logs"
+const PolicyTable_TableName = "policy_yaml"
 
 // ================ //
 // == Connection == //
@@ -703,6 +704,30 @@ func CreateTableNetworkLogsMySQL(cfg types.ConfigDB) error {
 			" 	);"
 
 	_, err := db.Query(query)
+	return err
+}
+
+func CreatePolicyTableMySQL(cfg types.ConfigDB) error {
+	db := connectMySQL(cfg)
+	defer db.Close()
+
+	tableName := PolicyTable_TableName
+
+	query :=
+		"CREATE TABLE IF NOT EXISTS `" + tableName + "` (" +
+			"	`id` INTEGER AUTO_INCREMENT," +
+			"	`type` varchar(50) DEFAULT NULL," +
+			"	`kind` varchar(50) DEFAULT NULL," +
+			"	`cluster_name` varchar(50) DEFAULT NULL," +
+			"	`namespace` varchar(50) DEFAULT NULL," +
+			"	`labels` text DEFAULT NULL," +
+			"	`policy_name` varchar(150) DEFAULT NULL," +
+			"	`policy_yaml` text DEFAULT NULL," +
+			"	`updated_time` bigint NOT NULL," +
+			"	PRIMARY KEY (`id`)" +
+			"  );"
+
+	_, err := db.Exec(query)
 	return err
 }
 
@@ -1594,4 +1619,73 @@ func GetPodNamesMySQL(cfg types.ConfigDB, filter types.ObsPodDetail) ([]string, 
 	}
 
 	return resPodNames, err
+}
+
+// =============== //
+// == Policy DB == //
+// =============== //
+
+func UpdateOrInsertPoliciesMySQL(cfg types.ConfigDB, policies []types.Policy) error {
+	db := connectMySQL(cfg)
+	defer db.Close()
+
+	for _, pol := range policies {
+		if err := updateOrInsertPolicyMySQL(pol, db); err != nil {
+			log.Error().Msg(err.Error())
+		}
+	}
+
+	return nil
+}
+
+func updateOrInsertPolicyMySQL(policy types.Policy, db *sql.DB) error {
+
+	var err error
+	queryString := ` policy_name = ? `
+
+	query := "UPDATE " + PolicyTable_TableName + " SET policy_yaml=?, updated_time=? WHERE " + queryString + " "
+
+	updateStmt, err := db.Prepare(query)
+	if err != nil {
+		return err
+	}
+	defer updateStmt.Close()
+
+	result, err := updateStmt.Exec(
+		policy.PolicyYaml,
+		ConvertStrToUnixTime("now"),
+		policy.PolicyName,
+	)
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+
+	if err == nil && rowsAffected == 0 {
+
+		insertStmt, err := db.Prepare("INSERT INTO " + PolicyTable_TableName +
+			"(type,kind,cluster_name,namespace,labels,policy_name,policy_yaml,updatedtime) values(?,?,?,?,?,?,?,?)")
+		if err != nil {
+			return err
+		}
+		defer insertStmt.Close()
+
+		_, err = insertStmt.Exec(
+			policy.Type,
+			policy.Kind,
+			policy.ClusterName,
+			policy.Namespace,
+			policy.Labels,
+			policy.PolicyName,
+			policy.PolicyYaml,
+			ConvertStrToUnixTime("now"),
+		)
+		if err != nil {
+			log.Error().Msg(err.Error())
+		}
+	}
+
+	return err
 }

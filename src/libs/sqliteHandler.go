@@ -19,6 +19,7 @@ const TableNetworkPolicySQLite_TableName = "network_policy"
 const TableSystemPolicySQLite_TableName = "system_policy"
 const TableSystemLogsSQLite_TableName = "system_logs"
 const TableNetworkLogsSQLite_TableName = "network_logs"
+const PolicyTableSQLite_TableName = "policy_yaml"
 
 // ================ //
 // == Connection == //
@@ -676,6 +677,30 @@ func CreateTableNetworkLogsSQLite(cfg types.ConfigDB) error {
 	return err
 }
 
+func CreatePolicyTableSQLite(cfg types.ConfigDB) error {
+	db := connectSQLite(cfg, cfg.SQLiteDBPath)
+	defer db.Close()
+
+	tableName := PolicyTableSQLite_TableName
+
+	query :=
+		"CREATE TABLE IF NOT EXISTS `" + tableName + "` (" +
+			"	`id` INTEGER AUTO_INCREMENT," +
+			"	`type` varchar(50) DEFAULT NULL," +
+			"	`kind` varchar(50) DEFAULT NULL," +
+			"	`cluster_name` varchar(50) DEFAULT NULL," +
+			"	`namespace` varchar(50) DEFAULT NULL," +
+			"	`labels` text DEFAULT NULL," +
+			"	`policy_name` varchar(150) DEFAULT NULL," +
+			"	`policy_yaml` text DEFAULT NULL," +
+			"	`updated_time` bigint NOT NULL," +
+			"	PRIMARY KEY (`id`)" +
+			"  );"
+
+	_, err := db.Exec(query)
+	return err
+}
+
 func concatWhereClauseSQLite(whereClause *string, field string) {
 	if *whereClause == "" {
 		*whereClause = " WHERE "
@@ -877,20 +902,24 @@ func UpdateWorkloadProcessFileSetSQLite(cfg types.ConfigDB, wpfs types.WorkloadP
 	return err
 }
 
+// =================== //
+// == Observability == //
+// =================== //
+
 // UpdateOrInsertKubearmorLogsSQLite -- Update existing log or insert a new log into DB
 func UpdateOrInsertKubearmorLogsSQLite(cfg types.ConfigDB, kubearmorlogmap map[types.KubeArmorLog]int) error {
 	db := connectSQLite(cfg, config.GetCfgObservabilityDBName())
 	defer db.Close()
 
 	start := time.Now().UnixNano() / int64(time.Millisecond)
-	log.Info().Msgf("sqlite update or insert %d\n", len(kubearmorlogmap))
+	log.Info().Msgf("sqlite update or insert %d", len(kubearmorlogmap))
 	for kubearmorlog, count := range kubearmorlogmap {
 		if err := updateOrInsertKubearmorLogsSQLite(db, kubearmorlog, count); err != nil {
 			log.Error().Msg(err.Error())
 		}
 	}
 	end := time.Now().UnixNano() / int64(time.Millisecond)
-	log.Info().Msgf("return sqlite update or insert %d time-taken-ms:%d\n", len(kubearmorlogmap), end-start)
+	log.Info().Msgf("return sqlite update or insert %d time-taken-ms:%d", len(kubearmorlogmap), end-start)
 	return nil
 }
 
@@ -1559,4 +1588,69 @@ func GetPodNamesSQLite(cfg types.ConfigDB, filter types.ObsPodDetail) ([]string,
 	}
 
 	return resPodNames, err
+}
+
+// =============== //
+// == Policy DB == //
+// =============== //
+
+func UpdateOrInsertPoliciesSQLite(cfg types.ConfigDB, policies []types.Policy) error {
+	db := connectSQLite(cfg, cfg.SQLiteDBPath)
+	defer db.Close()
+
+	for _, pol := range policies {
+		if err := updateOrInsertPolicySQLite(db, pol); err != nil {
+			log.Error().Msg(err.Error())
+		}
+	}
+
+	return nil
+}
+
+func updateOrInsertPolicySQLite(db *sql.DB, policy types.Policy) error {
+	var err error
+
+	query := "UPDATE " + PolicyTableSQLite_TableName + " SET policy_yaml = ?, updated_time = ? WHERE policy_name = ?"
+	updateStmt, err := db.Prepare(query)
+	if err != nil {
+		return err
+	}
+	defer updateStmt.Close()
+
+	result, err := updateStmt.Exec(
+		policy.PolicyYaml,
+		ConvertStrToUnixTime("now"),
+		policy.PolicyName,
+	)
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+
+	if err == nil && rowsAffected == 0 {
+		insertStmt, err := db.Prepare("INSERT INTO " + PolicyTableSQLite_TableName +
+			" (type,kind,cluster_name,namespace,labels,policy_name,policy_yaml,updated_time) values(?,?,?,?,?,?,?,?)")
+		if err != nil {
+			return err
+		}
+		defer insertStmt.Close()
+
+		_, err = insertStmt.Exec(
+			policy.Type,
+			policy.Kind,
+			policy.ClusterName,
+			policy.Namespace,
+			policy.Labels,
+			policy.PolicyName,
+			policy.PolicyYaml,
+			ConvertStrToUnixTime("now"),
+		)
+		if err != nil {
+			log.Error().Msg(err.Error())
+		}
+	}
+
+	return err
 }

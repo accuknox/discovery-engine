@@ -309,3 +309,16 @@ type KubeArmorPolicy struct {
 
 	Spec KnoxSystemSpec `json:"spec,omitempty" yaml:"spec,omitempty"`
 }
+
+// =============== //
+// == Policy DB == //
+// =============== //
+type Policy struct {
+	Type        string `json:"type,omitempty"`
+	Kind        string `json:"kind,omitempty"`
+	Namespace   string `json:"namespace,omitempty"`
+	ClusterName string `json:"cluster_name,omitempty"`
+	Labels      string `json:"labels,omitempty"`
+	PolicyName  string `json:"policy_name,omitempty"`
+	PolicyYaml  string `json:"policy_yaml,omitempty"`
+}

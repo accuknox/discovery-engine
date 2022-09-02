@@ -263,6 +263,9 @@ func CreateTablesIfNotExist(cfg types.ConfigDB) {
 		if err := CreateTableNetworkLogsMySQL(cfg); err != nil {
 			log.Error().Msg(err.Error())
 		}
+		if err := CreatePolicyTableMySQL(cfg); err != nil {
+			log.Error().Msg(err.Error())
+		}
 	} else if cfg.DBDriver == "sqlite3" {
 		if err := CreateTableNetworkPolicySQLite(cfg); err != nil {
 			log.Error().Msg(err.Error())
@@ -277,6 +280,9 @@ func CreateTablesIfNotExist(cfg types.ConfigDB) {
 			log.Error().Msg(err.Error())
 		}
 		if err := CreateTableNetworkLogsSQLite(cfg); err != nil {
+			log.Error().Msg(err.Error())
+		}
+		if err := CreatePolicyTableSQLite(cfg); err != nil {
 			log.Error().Msg(err.Error())
 		}
 	}
@@ -338,4 +344,18 @@ func GetPodNames(cfg types.ConfigDB, filter types.ObsPodDetail) ([]string, error
 		res, err = GetPodNamesSQLite(cfg, filter)
 	}
 	return res, err
+}
+
+// =============== //
+// == Policy DB == //
+// =============== //
+
+func UpdateOrInsertPolicies(cfg types.ConfigDB, policies []types.Policy) error {
+	var err = errors.New("unknown db driver")
+	if cfg.DBDriver == "mysql" {
+		err = UpdateOrInsertPoliciesMySQL(cfg, policies)
+	} else if cfg.DBDriver == "sqlite3" {
+		err = UpdateOrInsertPoliciesSQLite(cfg, policies)
+	}
+	return err
 }
