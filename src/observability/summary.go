@@ -12,8 +12,8 @@ func GetSummaryData(request *opb.Request) (*opb.Response, error) {
 	resp := opb.Response{}
 	var err error = nil
 
-	if strings.Contains(request.Type, "process") || strings.Contains(request.Type, "file") ||
-		strings.Contains(request.Type, "network") || strings.Contains(request.Type, "all") {
+	if strings.Contains(request.Type, "process") || strings.Contains(request.Type, "file") || strings.Contains(request.Type, "network") {
+
 		proc, file, nw, podInfo := GetKubearmorSummaryData(request)
 
 		if len(proc) <= 0 && len(file) <= 0 && len(nw) <= 0 {
@@ -31,7 +31,7 @@ func GetSummaryData(request *opb.Request) (*opb.Response, error) {
 		resp.Label = podInfo.Labels
 		resp.ContainerName = podInfo.ContainerName
 
-		if len(proc) > 0 && (strings.Contains(request.Type, "process") || strings.Contains(request.Type, "all")) {
+		if len(proc) > 0 && strings.Contains(request.Type, "process") {
 			for _, loc_proc := range proc {
 				procResp = append(procResp, &opb.SysProcFileSummaryData{
 					ParentProcName: loc_proc.Source,
@@ -43,7 +43,7 @@ func GetSummaryData(request *opb.Request) (*opb.Response, error) {
 			}
 		}
 
-		if len(file) > 0 && (strings.Contains(request.Type, "file") || strings.Contains(request.Type, "all")) {
+		if len(file) > 0 && strings.Contains(request.Type, "file") {
 			for _, loc_file := range file {
 				fileResp = append(fileResp, &opb.SysProcFileSummaryData{
 					ParentProcName: loc_file.Source,
@@ -55,7 +55,7 @@ func GetSummaryData(request *opb.Request) (*opb.Response, error) {
 			}
 		}
 
-		if len(nw) > 0 && (strings.Contains(request.Type, "network") || strings.Contains(request.Type, "all")) {
+		if len(nw) > 0 && strings.Contains(request.Type, "network") {
 			for _, loc_nw := range nw {
 				if loc_nw.InOut == "IN" {
 					inNwResp = append(inNwResp, &opb.SysNwSummaryData{
@@ -84,7 +84,8 @@ func GetSummaryData(request *opb.Request) (*opb.Response, error) {
 		resp.OutNwData = outNwResp
 	}
 
-	if strings.Contains(request.Type, "ingress") || strings.Contains(request.Type, "egress") || strings.Contains(request.Type, "all") {
+	if strings.Contains(request.Type, "ingress") || strings.Contains(request.Type, "egress") {
+
 		ingressData, egressData, podInfo := GetCiliumSummaryData(request)
 
 		if len(ingressData) <= 0 && len(egressData) <= 0 && request.Type == "network" {
@@ -94,7 +95,7 @@ func GetSummaryData(request *opb.Request) (*opb.Response, error) {
 		ingressSummData := []*opb.CiliumSummData{}
 		egressSummData := []*opb.CiliumSummData{}
 
-		if len(ingressData) > 0 && (strings.Contains(request.Type, "ingress") || strings.Contains(request.Type, "all")) {
+		if len(ingressData) > 0 && strings.Contains(request.Type, "ingress") {
 			for _, locIngressData := range ingressData {
 				ingressSummData = append(ingressSummData, &opb.CiliumSummData{
 					Protocol:    locIngressData.Protocol,
@@ -106,7 +107,7 @@ func GetSummaryData(request *opb.Request) (*opb.Response, error) {
 			}
 		}
 
-		if len(egressData) > 0 && (strings.Contains(request.Type, "egress") || strings.Contains(request.Type, "all")) {
+		if len(egressData) > 0 && strings.Contains(request.Type, "egress") {
 			for _, locIngressData := range ingressData {
 				egressSummData = append(egressSummData, &opb.CiliumSummData{
 					Protocol:    locIngressData.Protocol,
