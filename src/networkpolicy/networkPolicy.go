@@ -14,7 +14,9 @@ import (
 	logger "github.com/accuknox/auto-policy-discovery/src/logging"
 	"github.com/accuknox/auto-policy-discovery/src/plugin"
 	"github.com/accuknox/auto-policy-discovery/src/types"
+	"github.com/clarketm/json"
 	"github.com/google/go-cmp/cmp"
+	"sigs.k8s.io/yaml"
 
 	"github.com/robfig/cron"
 	"github.com/rs/zerolog"
@@ -2111,6 +2113,8 @@ func PopulateNetworkPoliciesFromNetworkLogs(networkLogs []types.KnoxNetworkLog) 
 			// update duplicated policy
 			newNetPolicies := UpdateDuplicatedPolicy(existingNetPolicies, discoveredPolicies, DomainToIPs, clusterName)
 
+			writeNetworkPoliciesYamlToDB(newNetPolicies)
+
 			if len(newNetPolicies) > 0 {
 				// insert discovered policies to db
 				if strings.Contains(NetworkPolicyTo, "db") {
@@ -2131,6 +2135,52 @@ func PopulateNetworkPoliciesFromNetworkLogs(networkLogs []types.KnoxNetworkLog) 
 	}
 
 	return discoveredNetworkPolicies
+}
+
+func writeNetworkPoliciesYamlToDB(policies []types.KnoxNetworkPolicy) {
+	clusternames := []string{}
+
+	for _, pol := range policies {
+		clusternames = append(clusternames, pol.Metadata["cluster_name"])
+	}
+
+	// convert knoxPolicy to CiliumPolicy
+	ciliumPolicies := plugin.ConvertKnoxPoliciesToCiliumPolicies(policies)
+
+	res := []types.Policy{}
+
+	for index, ciliumPolicy := range ciliumPolicies {
+		var label string
+
+		jsonBytes, err := json.Marshal(ciliumPolicy)
+		if err != nil {
+			log.Error().Msg(err.Error())
+			continue
+		}
+		yamlBytes, err := yaml.JSONToYAML(jsonBytes)
+		if err != nil {
+			log.Error().Msg(err.Error())
+			continue
+		}
+		policyYaml := string(yamlBytes)
+
+		for k, v := range ciliumPolicy.Spec.EndpointSelector.MatchLabels {
+			label = k + "=" + v
+		}
+
+		res = append(res, types.Policy{
+			Type:        "network",
+			PolicyName:  ciliumPolicy.Metadata["name"],
+			Namespace:   ciliumPolicy.Metadata["namespace"],
+			ClusterName: clusternames[index],
+			Labels:      label,
+			PolicyYaml:  policyYaml,
+		})
+	}
+
+	if err := libs.UpdateOrInsertPolicies(CfgDB, res); err != nil {
+		log.Error().Msgf(err.Error())
+	}
 }
 
 func DiscoverNetworkPolicyMain() {

@@ -1673,7 +1673,7 @@ func updateOrInsertPolicyMySQL(policy types.Policy, db *sql.DB) error {
 
 		_, err = insertStmt.Exec(
 			policy.Type,
-			policy.Clustername,
+			policy.ClusterName,
 			policy.Namespace,
 			policy.Labels,
 			policy.PolicyName,

@@ -316,7 +316,7 @@ type KubeArmorPolicy struct {
 type Policy struct {
 	Type        string
 	Namespace   string
-	Clustername string
+	ClusterName string
 	Labels      string
 	PolicyName  string
 	PolicyYaml  string

@@ -1637,7 +1637,7 @@ func updateOrInsertPolicySQLite(db *sql.DB, policy types.Policy) error {
 
 		_, err = insertStmt.Exec(
 			policy.Type,
-			policy.Clustername,
+			policy.ClusterName,
 			policy.Namespace,
 			policy.Labels,
 			policy.PolicyName,
