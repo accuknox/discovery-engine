@@ -1666,7 +1666,7 @@ func updateOrInsertPolicyMySQL(policy types.Policy, db *sql.DB) error {
 	if err == nil && rowsAffected == 0 {
 
 		insertStmt, err := db.Prepare("INSERT INTO " + PolicyTable_TableName +
-			"(type,kind,cluster_name,namespace,labels,policy_name,policy_yaml,updatedtime) values(?,?,?,?,?,?,?)")
+			"(type,kind,cluster_name,namespace,labels,policy_name,policy_yaml,updatedtime) values(?,?,?,?,?,?,?,?)")
 		if err != nil {
 			return err
 		}

@@ -1630,7 +1630,8 @@ func updateOrInsertPolicySQLite(db *sql.DB, policy types.Policy) error {
 	rowsAffected, err := result.RowsAffected()
 
 	if err == nil && rowsAffected == 0 {
-		insertStmt, err := db.Prepare("INSERT INTO " + PolicyTableSQLite_TableName + " (type,kind,cluster_name,namespace,labels,policy_name,policy_yaml,updated_time) values(?,?,?,?,?,?,?,?)")
+		insertStmt, err := db.Prepare("INSERT INTO " + PolicyTableSQLite_TableName +
+			" (type,kind,cluster_name,namespace,labels,policy_name,policy_yaml,updated_time) values(?,?,?,?,?,?,?,?)")
 		if err != nil {
 			return err
 		}
