@@ -986,7 +986,7 @@ func updateSysPolicies() {
 
 	wpfsPolicies := populateKnoxSysPolicyFromWPFSDb("", "", "", "")
 
-	go insertSysPoliciesYamlToDB(wpfsPolicies)
+	insertSysPoliciesYamlToDB(wpfsPolicies)
 
 	for _, wpfsPolicy := range wpfsPolicies {
 		isPolicyExist = false
@@ -1328,10 +1328,6 @@ func GenFileSetForAllPodsInCluster(clusterName string, pods []types.Pod, settype
 
 func insertSysPoliciesYamlToDB(policies []types.KnoxSystemPolicy) {
 	kubeArmorPolicies := plugin.ConvertKnoxSystemPolicyToKubeArmorPolicy(policies)
-
-	if len(kubeArmorPolicies) <= 0 {
-		return
-	}
 
 	res := []types.Policy{}
 
