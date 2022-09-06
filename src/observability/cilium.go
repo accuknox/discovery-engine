@@ -166,6 +166,7 @@ func convertFlowLogToCiliumLog(flowLog *flow.Flow) (types.CiliumLog, error) {
 	return ciliumLog, nil
 }
 
+// ProcessNetworkLogs : Process Incoming Network/Cilium logs
 func ProcessNetworkLogs() {
 
 	if len(NetworkLogs) <= 0 {
@@ -195,12 +196,14 @@ func ProcessNetworkLogs() {
 	ObsMutex.Unlock()
 }
 
+// ProcessCiliumFlow : Add cilium flow logs to global buffer
 func ProcessCiliumFlow(flowLog *flow.Flow) {
 	NetworkLogsMutex.Lock()
 	NetworkLogs = append(NetworkLogs, flowLog)
 	NetworkLogsMutex.Unlock()
 }
 
+// GetCiliumSummaryData : Fetch cilium summary data
 func GetCiliumSummaryData(req *opb.Request) ([]types.NwObsIngressEgressData, []types.NwObsIngressEgressData, types.ObsPodDetail) {
 	var err error
 	var ingressData, egressData []types.NwObsIngressEgressData
