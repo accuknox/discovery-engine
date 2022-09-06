@@ -28,7 +28,8 @@ message Response{
     repeated SysProcFileSummaryData FileData = 7;
     repeated SysNwSummaryData InNwData = 8;
     repeated SysNwSummaryData OutNwData = 9;
-    repeated CiliumSummData IngressEgressData = 10;
+    repeated CiliumSummData IngressData = 10;
+    repeated CiliumSummData EgressData = 11;
 }
 
 message SysProcFileSummaryData {
@@ -49,12 +50,15 @@ message SysNwSummaryData {
 }
 
 message CiliumSummData {
-    string SrcDestPod = 1;
-    string Protocol = 2;
-    string Port = 3;
-    string Count = 4;
-    string UpdatedTime = 5;
-    string Status = 6;
+    string SrcPod = 1;
+    string DestPod = 2;
+    string DestNamespace = 3;
+    string DestLabel = 4;
+    string Protocol = 5;
+    string Port = 6;
+    string Count = 7;
+    string UpdatedTime = 8;
+    string Status = 9;
 }
 
 message PodNameResponse {

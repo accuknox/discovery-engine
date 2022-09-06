@@ -160,21 +160,14 @@ type SysObsNwData struct {
 	Labels     string
 }
 
-type NetObsData struct {
-	Protocol    string
-	SrcDestPod  string
-	Port        string
-	Count       string
-	UpdatedTime string
-	Status      string
-}
-
 type NwObsIngressEgressData struct {
-	DestinationLabel     string
+	SrcPodName           string
+	DestPodName          string
 	DestinationNamespace string
+	DestinationLabel     string
 	Protocol             string
 	Port                 string
 	Status               string
-	Count                int
+	Count                string
 	UpdatedTime          string
 }

@@ -5,7 +5,6 @@ import (
 	"sync"
 
 	"github.com/accuknox/auto-policy-discovery/src/common"
-	"github.com/accuknox/auto-policy-discovery/src/config"
 	cfg "github.com/accuknox/auto-policy-discovery/src/config"
 	"github.com/accuknox/auto-policy-discovery/src/libs"
 	logger "github.com/accuknox/auto-policy-discovery/src/logging"
@@ -42,10 +41,10 @@ var (
 
 func initMutex() {
 	ObsMutex = &sync.Mutex{}
-	if config.GetCfgObservabilitySysObsStatus() {
+	if cfg.GetCfgObservabilitySysObsStatus() {
 		SystemLogsMutex = &sync.Mutex{}
 	}
-	if config.GetCfgObservabilitySysObsStatus() {
+	if cfg.GetCfgObservabilitySysObsStatus() {
 		NetworkLogsMutex = &sync.Mutex{}
 	}
 }
@@ -77,10 +76,10 @@ func InitObservability() {
 }
 
 func ObservabilityCronJob() {
-	if config.GetCfgObservabilitySysObsStatus() {
+	if cfg.GetCfgObservabilitySysObsStatus() {
 		ProcessSystemLogs()
 	}
-	if config.GetCfgObservabilityNetObsStatus() {
+	if cfg.GetCfgObservabilityNetObsStatus() {
 		ProcessNetworkLogs()
 	}
 }
