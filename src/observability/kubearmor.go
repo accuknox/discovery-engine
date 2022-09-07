@@ -231,6 +231,41 @@ func deDuplicateServerInOutConn(connList []types.SysObsNwData) []types.SysObsNwD
 	return result
 }
 
+func aggregateProcFileData(data []types.SysObsProcFileData) []types.SysObsProcFileData {
+	if len(data) <= 0 {
+		return nil
+	}
+	res := []types.SysObsProcFileData{}
+
+	for _, locData := range data {
+		locKey := types.SysObsProcFileMapKey{
+			Source:      locData.Source,
+			Destination: locData.Destination[:strings.LastIndex(locData.Destination, "/")+1],
+			Status:      locData.Status,
+		}
+
+		v := ProcFileMap[locKey]
+
+		ProcFileMap[locKey] = types.SysObsProcFileMapValue{
+			Count:       v.Count + locData.Count,
+			UpdatedTime: locData.UpdatedTime,
+		}
+	}
+
+	for k, v := range ProcFileMap {
+		res = append(res, types.SysObsProcFileData{
+			Source:      k.Source,
+			Destination: k.Destination,
+			Status:      k.Status,
+			Count:       v.Count,
+			UpdatedTime: v.UpdatedTime,
+		})
+		delete(ProcFileMap, k)
+	}
+
+	return res
+}
+
 func GetKubearmorSummaryData(req *opb.Request) ([]types.SysObsProcFileData, []types.SysObsProcFileData, []types.SysObsNwData, types.ObsPodDetail) {
 	var err error
 	var processData, fileData []types.SysObsProcFileData
@@ -286,6 +321,11 @@ func GetKubearmorSummaryData(req *opb.Request) ([]types.SysObsProcFileData, []ty
 
 	if len(nwData) > 0 {
 		nwData = deDuplicateServerInOutConn(nwData)
+	}
+
+	if req.Aggregate {
+		processData = aggregateProcFileData(processData)
+		fileData = aggregateProcFileData(fileData)
 	}
 
 	return processData, fileData, nwData, podInfo

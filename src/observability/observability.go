@@ -33,6 +33,7 @@ var (
 	ObsCronJob *cron.Cron
 	//Kubearmor log map
 	KubeArmorLogMap map[types.KubeArmorLog]int
+	ProcFileMap     map[types.SysObsProcFileMapKey]types.SysObsProcFileMapValue
 )
 
 // =================== //
@@ -51,6 +52,7 @@ func initMutex() {
 
 func initMap() {
 	KubeArmorLogMap = make(map[types.KubeArmorLog]int)
+	ProcFileMap = make(map[types.SysObsProcFileMapKey]types.SysObsProcFileMapValue)
 }
 
 func InitObservability() {

@@ -15,7 +15,8 @@ message Request{
     string ClusterName = 3;
     string Label = 4;
     string ContainerName = 5;
-    string Type = 6; 
+    string Type = 6;
+    bool Aggregate = 7;
 }
 
 message Response{
