@@ -1,4 +1,4 @@
-package systempolicy
+package common
 
 import (
 	"testing"
@@ -16,8 +16,8 @@ func TestAggregatePaths_1(t *testing.T) {
 	results := AggregatePaths(paths)
 
 	assert.Equal(t, len(results), 2)
-	assert.False(t, results[0].isDir)
-	assert.False(t, results[1].isDir)
+	assert.False(t, results[0].IsDir)
+	assert.False(t, results[1].IsDir)
 }
 
 func TestAggregatePaths_2(t *testing.T) {
@@ -31,7 +31,7 @@ func TestAggregatePaths_2(t *testing.T) {
 	results := AggregatePaths(paths)
 
 	assert.Equal(t, len(results), 1)
-	assert.True(t, results[0].isDir)
+	assert.True(t, results[0].IsDir)
 }
 
 func TestAggregatePaths_3(t *testing.T) {

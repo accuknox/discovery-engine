@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/accuknox/auto-policy-discovery/src/cluster"
+	"github.com/accuknox/auto-policy-discovery/src/common"
 	"github.com/accuknox/auto-policy-discovery/src/libs"
 	opb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/observability"
 	"github.com/accuknox/auto-policy-discovery/src/types"
@@ -235,12 +236,35 @@ func aggregateProcFileData(data []types.SysObsProcFileData) []types.SysObsProcFi
 	if len(data) <= 0 {
 		return nil
 	}
+
+	var destPaths, aggregatedDir []string
+	for _, locData := range data {
+		destPaths = append(destPaths, locData.Destination)
+	}
+	aggregatedSysPath := common.AggregatePaths(destPaths)
+
+	for _, sp := range aggregatedSysPath {
+		if sp.IsDir {
+			aggregatedDir = append(aggregatedDir, sp.Path)
+		}
+	}
+
 	res := []types.SysObsProcFileData{}
 
 	for _, locData := range data {
+		var destination string
+
+		for _, dir := range aggregatedDir {
+			if strings.HasPrefix(locData.Destination, dir) {
+				destination = dir
+				break
+			}
+			destination = locData.Destination
+		}
+
 		locKey := types.SysObsProcFileMapKey{
 			Source:      locData.Source,
-			Destination: locData.Destination[:strings.LastIndex(locData.Destination, "/")+1],
+			Destination: destination,
 			Status:      locData.Status,
 		}
 
@@ -324,7 +348,6 @@ func GetKubearmorSummaryData(req *opb.Request) ([]types.SysObsProcFileData, []ty
 	}
 
 	if req.Aggregate {
-		processData = aggregateProcFileData(processData)
 		fileData = aggregateProcFileData(fileData)
 	}
 
