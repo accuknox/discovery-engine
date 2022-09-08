@@ -16,6 +16,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	"github.com/accuknox/auto-policy-discovery/src/cluster"
+	"github.com/accuknox/auto-policy-discovery/src/common"
 	cfg "github.com/accuknox/auto-policy-discovery/src/config"
 	fc "github.com/accuknox/auto-policy-discovery/src/feedconsumer"
 	"github.com/accuknox/auto-policy-discovery/src/libs"
@@ -160,12 +161,6 @@ func ReplaceMultiubuntuPodName(logs []types.KnoxSystemLog, pods []types.Pod) {
 type SysLogKey struct {
 	Namespace string
 	PodName   string
-}
-
-// SysPath Structure
-type SysPath struct {
-	Path  string
-	isDir bool
 }
 
 // ================ //st
@@ -480,7 +475,7 @@ func discoverFileOperationPolicy(results []types.KnoxSystemPolicy, pod types.Pod
 
 	// step 3: aggregate file paths
 	for src, filePaths := range srcToDest {
-		aggregatedFilePaths := AggregatePaths(filePaths)
+		aggregatedFilePaths := common.AggregatePaths(filePaths)
 
 		// step 4: append spec to the policy
 		for _, filePath := range aggregatedFilePaths {
@@ -524,7 +519,7 @@ func discoverProcessOperationPolicy(results []types.KnoxSystemPolicy, pod types.
 
 	// step 3: aggregate process paths
 	for src, processPaths := range srcToDest {
-		aggregatedProcessPaths := AggregatePaths(processPaths)
+		aggregatedProcessPaths := common.AggregatePaths(processPaths)
 
 		// step 4: append spec to the policy
 		for _, processPath := range aggregatedProcessPaths {
@@ -808,9 +803,9 @@ func ConvertWPFSToKnoxSysPolicy(wpfsSet types.ResourceSetMap, pnMap types.Policy
 		policy.Metadata["type"] = wpfs.SetType
 
 		for _, fpath := range fsset {
-			path := SysPath{
+			path := common.SysPath{
 				Path:  fpath,
-				isDir: strings.HasSuffix(fpath, "/"),
+				IsDir: strings.HasSuffix(fpath, "/"),
 			}
 			src := ""
 			if wpfs.SetType == SYS_OP_NETWORK || strings.HasPrefix(wpfs.FromSource, "/") {
@@ -870,7 +865,7 @@ func buildSystemPolicy() types.KnoxSystemPolicy {
 	}
 }
 
-func updateSysPolicySpec(opType string, policy types.KnoxSystemPolicy, src string, pathSpec SysPath) types.KnoxSystemPolicy {
+func updateSysPolicySpec(opType string, policy types.KnoxSystemPolicy, src string, pathSpec common.SysPath) types.KnoxSystemPolicy {
 	if opType == SYS_OP_NETWORK {
 		matchProtocols := types.KnoxMatchProtocols{
 			Protocol: pathSpec.Path,
@@ -885,7 +880,7 @@ func updateSysPolicySpec(opType string, policy types.KnoxSystemPolicy, src strin
 		return policy
 	}
 	// matchDirectories
-	if pathSpec.isDir {
+	if pathSpec.IsDir {
 		path := pathSpec.Path
 		if !strings.HasSuffix(path, "/") {
 			path = path + "/"
@@ -1298,7 +1293,7 @@ func GenFileSetForAllPodsInCluster(clusterName string, pods []types.Pod, settype
 		mergedfs = removeDuplicates(append(fs, out[wpfs]...))
 		if !isNetworkOp {
 			// Path aggregation makes sense for file, process operations only
-			mergedfs = AggregatePathsExt(mergedfs) // merge and sort the filesets
+			mergedfs = common.AggregatePathsExt(mergedfs) // merge and sort the filesets
 		}
 
 		// Add/Update DB Entry
