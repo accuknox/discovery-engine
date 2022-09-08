@@ -171,3 +171,14 @@ type NwObsIngressEgressData struct {
 	Count                string
 	UpdatedTime          string
 }
+
+type SysObsProcFileMapKey struct {
+	Source      string
+	Destination string
+	Status      string
+}
+
+type SysObsProcFileMapValue struct {
+	Count       uint32
+	UpdatedTime string
+}
