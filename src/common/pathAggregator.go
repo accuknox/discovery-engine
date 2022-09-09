@@ -1,4 +1,4 @@
-package systempolicy
+package common
 
 import (
 	"path/filepath"
@@ -51,6 +51,12 @@ type HTTPDst struct {
 	MatchLabels string
 	ToPorts     []types.SpecPort
 	HTTPTree    map[string]map[string]*Node
+}
+
+// SysPath Structure
+type SysPath struct {
+	Path  string
+	IsDir bool
 }
 
 func (n *Node) generatePaths(results map[string]bool, parentPath string) {
@@ -248,7 +254,7 @@ func AggregatePaths(paths []string) []SysPath {
 		}
 		sysPath := SysPath{
 			Path:  path,
-			isDir: isDir,
+			IsDir: isDir,
 		}
 		results = append(results, sysPath)
 	}
@@ -296,7 +302,7 @@ func MergeAndAggregatePaths(dirs []string, paths []string) []SysPath {
 	for path, isDir := range aggregatedPaths {
 		sysPath := SysPath{
 			Path:  path,
-			isDir: isDir,
+			IsDir: isDir,
 		}
 		results = append(results, sysPath)
 	}
@@ -312,7 +318,7 @@ func AggregatePathsExt(paths []string) []string {
 	var flist []string
 	for _, sp := range results {
 		rec := sp.Path
-		if sp.isDir {
+		if sp.IsDir {
 			if !strings.HasSuffix(rec, "/") {
 				rec = rec + "/"
 			}

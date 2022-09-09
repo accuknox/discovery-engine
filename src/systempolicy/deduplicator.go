@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/accuknox/auto-policy-discovery/src/common"
 	"github.com/accuknox/auto-policy-discovery/src/config"
 	"github.com/accuknox/auto-policy-discovery/src/libs"
 	types "github.com/accuknox/auto-policy-discovery/src/types"
@@ -111,12 +112,12 @@ func UpdateProcessOperation(newPolicy types.KnoxSystemPolicy, existingPolicies [
 		}
 	}
 
-	mergedSysPaths := MergeAndAggregatePaths(dirs, paths)
+	mergedSysPaths := common.MergeAndAggregatePaths(dirs, paths)
 
 	// step 4: init and updated proecss spec
 	newPolicy.Spec.Process = types.KnoxSys{} // init
 	for _, pathSpec := range mergedSysPaths {
-		if pathSpec.isDir {
+		if pathSpec.IsDir {
 			matchDirs := types.KnoxMatchDirectories{
 				Dir: pathSpec.Path,
 			}
@@ -251,12 +252,12 @@ func UpdateFileOperation(newPolicy types.KnoxSystemPolicy, existingPolicies []ty
 		}
 	}
 
-	mergedSysPaths := MergeAndAggregatePaths(dirs, paths)
+	mergedSysPaths := common.MergeAndAggregatePaths(dirs, paths)
 
 	// step 4: init and updated file spec
 	newPolicy.Spec.File = types.KnoxSys{} // init
 	for _, pathSpec := range mergedSysPaths {
-		if pathSpec.isDir {
+		if pathSpec.IsDir {
 			matchDirs := types.KnoxMatchDirectories{
 				Dir: pathSpec.Path,
 			}
