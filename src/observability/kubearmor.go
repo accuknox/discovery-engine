@@ -96,6 +96,11 @@ func ProcessSystemLogs() {
 
 		if locLog.Type == "MatchedPolicy" || locLog.Type == "MatchedHostPolicy" {
 			locLog.Category = "Alert"
+			if locLog.Result == "Passed" {
+				locLog.Action = "Audit"
+			} else {
+				locLog.Action = "Deny"
+			}
 		} else {
 			locLog.Action = "Allow"
 			locLog.Category = "Log"
@@ -106,7 +111,7 @@ func ProcessSystemLogs() {
 			locLog.PodName = types.PolicyDiscoveryContainerPodName
 		}
 
-		if locLog.Type == "HostLog" {
+		if locLog.Type == "HostLog" || locLog.Type == "MatchedHostPolicy" {
 			locLog.ContainerName = locLog.HostName
 			locLog.NamespaceName = types.PolicyDiscoveryVMNamespace
 			locLog.PodName = types.PolicyDiscoveryVMPodName
