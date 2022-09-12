@@ -56,6 +56,11 @@ data:
         system-policy-to: "db"                    # db, file
         system-policy-dir: "./"
         deprecate-old-mode: true
+        namespace-filter:
+        - "!kube-system"
+        fromsource-filter:
+        - "knoxAutoPolicy"
+
       cluster:
         cluster-info-from: "k8sclient"            # k8sclient|accuknox
 
