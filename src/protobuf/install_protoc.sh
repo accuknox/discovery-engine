@@ -10,4 +10,5 @@ export PATH="$PATH:$HOME/.local/bin"
 
 rm protoc-3.15.8-linux-x86_64.zip
 
+go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
