@@ -14,7 +14,7 @@ name: Create discovery engine release after testing the image
 jobs:
   build:
     name: Create discovery engine Release
-    if: github.repository == 'accuknox/discovery-engine'
+    if: github.repository == 'kubearmor/discovery-engine'
     runs-on: ubuntu-20.04
     timeout-minutes: 20
     steps:
@@ -75,8 +75,8 @@ jobs:
         run: |
             value=`cat STABLE-RELEASE`
             if [ ${{ github.ref }} == refs/heads/$value ]; then
-              docker pull docker.io/accuknox/knoxautopolicy:$value
-              docker image accuknox/knoxautopolicy:$value accuknox/knoxautopolicy:stable
+              docker pull docker.io/kubearmor/knoxautopolicy:$value
+              docker image kubearmor/knoxautopolicy:$value kubearmor/knoxautopolicy:stable
               echo ::set-output name=tag::true
             else
               echo ::set-output name=tag::false

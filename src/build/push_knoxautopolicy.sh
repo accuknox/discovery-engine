@@ -1,7 +1,7 @@
 #!/bin/bash
 
 AUTOPOL_HOME=`dirname $(realpath "$0")`/../..
-[[ "$REPO" == "" ]] && REPO="accuknox/knoxautopolicy"
+[[ "$REPO" == "" ]] && REPO="kubearmor/knoxautopolicy"
 
 # check version
 VERSION=`git rev-parse --abbrev-ref HEAD`
