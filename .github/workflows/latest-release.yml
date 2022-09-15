@@ -14,7 +14,7 @@ name: Create discovery engine release after testing the image
 jobs:
   build:
     name: Create discovery engine Release
-    if: github.repository == 'accuknox/discovery-engine'
+    if: github.repository == 'kubearmor/discovery-engine'
     runs-on: ubuntu-20.04
     timeout-minutes: 20
     steps:
