@@ -52,7 +52,7 @@ func populatePbNetPolicyFromNetPolicy(KnoxNwPolicy types.KnoxNetworkPolicy) apb.
 			pbToCIDRs = append(pbToCIDRs, &pbToCIDR)
 		}
 
-		pbEgress.ToEndtities = append(pbEgress.ToEndtities, egress.ToEndtities...)
+		pbEgress.ToEndtities = append(pbEgress.ToEndtities, egress.ToEntities...)
 
 		for _, toService := range egress.ToServices {
 			pbToService := apb.SpecService{}
@@ -135,11 +135,13 @@ func populatePbNetPolicyFromNetPolicy(KnoxNwPolicy types.KnoxNetworkPolicy) apb.
 func extractNetworkPoliciesFromNetworkLogs(networkLogs []types.KnoxNetworkLog) []*apb.KnoxNetworkPolicy {
 
 	pbNetPolicies := []*apb.KnoxNetworkPolicy{}
-	netPolicies := netpolicy.PopulateNetworkPoliciesFromNetworkLogs(networkLogs)
+	netPoliciesPerNamespace := netpolicy.PopulateNetworkPoliciesFromNetworkLogs(networkLogs)
 
-	for _, netPolicy := range netPolicies {
-		pbNetPolicy := populatePbNetPolicyFromNetPolicy(netPolicy)
-		pbNetPolicies = append(pbNetPolicies, &pbNetPolicy)
+	for _, netPolicies := range netPoliciesPerNamespace {
+		for _, netPolicy := range netPolicies {
+			pbNetPolicy := populatePbNetPolicyFromNetPolicy(netPolicy)
+			pbNetPolicies = append(pbNetPolicies, &pbNetPolicy)
+		}
 	}
 
 	return pbNetPolicies

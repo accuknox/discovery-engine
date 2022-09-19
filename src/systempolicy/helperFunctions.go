@@ -115,7 +115,7 @@ func FilterSystemLogsByConfig(logs []types.KnoxSystemLog, pods []types.Pod) []ty
 			}
 
 			// 2. check pod labels
-			if (checkItems&2 > 0) && containLabelByConfiguration(filter.Labels, getLabelsFromPod(log.PodName, pods)) {
+			if (checkItems&2 > 0) && (log.Namespace == types.PolicyDiscoveryVMNamespace || log.Namespace == types.PolicyDiscoveryContainerNamespace || containLabelByConfiguration(filter.Labels, getLabelsFromPod(log.PodName, pods))) {
 				checkedItems = checkedItems | 1<<1
 			}
 
@@ -151,4 +151,26 @@ func FilterSystemLogsByConfig(logs []types.KnoxSystemLog, pods []types.Pod) []ty
 	}
 
 	return filteredLogs
+}
+
+func GetWPFSSources() []string {
+	res, _, err := libs.GetWorkloadProcessFileSet(CfgDB, types.WorkloadProcessFileSet{})
+	if err != nil {
+		log.Error().Msgf("could not fetch WPFS err=%s", err.Error())
+		return nil
+	}
+
+	if res == nil {
+		return nil
+	}
+
+	var fromSource []string
+
+	for wpfs, _ := range res {
+		if wpfs.FromSource != "" && wpfs.Namespace == types.PolicyDiscoveryVMNamespace {
+			fromSource = append(fromSource, wpfs.FromSource)
+		}
+	}
+
+	return fromSource
 }

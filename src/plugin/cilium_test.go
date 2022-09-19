@@ -69,8 +69,9 @@ func TestConvertCiliumFlowToKnoxLog(t *testing.T) {
 		{
 			"src_namespace": "default",
 			"src_pod_name": "redis-cart-74594bd569-gw2xb",
-			"dst_namespace": "reserved:host",
-			"dst_pod_name": "10.0.1.144",
+			"dst_reserved_labels": [
+				"reserved:host"
+			]
 			"protocol": 6,
 			"src_ip": "10.0.1.31",
 			"dst_ip": "10.0.1.144",
@@ -80,7 +81,7 @@ func TestConvertCiliumFlowToKnoxLog(t *testing.T) {
 			"action": "allow"
 		}
 	*/
-	logBytes := []byte("{\"src_namespace\":\"default\",\"src_pod_name\":\"redis-cart-74594bd569-gw2xb\",\"dst_namespace\":\"reserved:host\",\"dst_pod_name\":\"10.0.1.144\",\"protocol\":6,\"src_ip\":\"10.0.1.31\",\"dst_ip\":\"10.0.1.144\",\"src_port\":6379,\"dst_port\":60416,\"direction\":\"INGRESS\",\"action\":\"allow\"}")
+	logBytes := []byte("{\"src_namespace\":\"default\",\"src_pod_name\":\"redis-cart-74594bd569-gw2xb\",\"dst_reserved_labels\":[\"reserved:host\"],\"protocol\":6,\"src_ip\":\"10.0.1.31\",\"dst_ip\":\"10.0.1.144\",\"src_port\":6379,\"dst_port\":60416,\"direction\":\"INGRESS\",\"action\":\"allow\"}")
 	flow := &flow.Flow{}
 	json.Unmarshal(flowBytes, flow)
 
@@ -176,9 +177,7 @@ func TestConvertKnoxPolicyToCiliumPolicy(t *testing.T) {
 	expected := &types.CiliumNetworkPolicy{}
 	json.Unmarshal(ciliumBytes, expected)
 
-	svcs := []types.Service{}
-
-	actual := ConvertKnoxNetworkPolicyToCiliumPolicy(svcs, *knoxPolicy)
+	actual := ConvertKnoxNetworkPolicyToCiliumPolicy(*knoxPolicy)
 	if !cmp.Equal(*expected, actual) {
 		t.Errorf("they should be equal %v %v", expected, actual)
 	}

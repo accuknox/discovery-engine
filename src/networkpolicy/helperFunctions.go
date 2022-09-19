@@ -1,18 +1,21 @@
 package networkpolicy
 
 import (
-	"encoding/json"
 	"io/ioutil"
 	"math/bits"
+	"net"
 	"os"
 	"reflect"
 	"sort"
 	"strconv"
 	"strings"
 
+	"github.com/clarketm/json"
+
 	"github.com/accuknox/auto-policy-discovery/src/cluster"
 	"github.com/accuknox/auto-policy-discovery/src/libs"
 	"github.com/accuknox/auto-policy-discovery/src/plugin"
+	wpb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/worker"
 	types "github.com/accuknox/auto-policy-discovery/src/types"
 	"github.com/cilium/cilium/api/v1/flow"
 )
@@ -110,15 +113,29 @@ func FilterNetworkLogsByConfig(logs []types.KnoxNetworkLog, pods []types.Pod) []
 	for _, log := range logs {
 		filtered := false
 
-		if log.Protocol == 6 && !log.SynFlag { // In case of TCP only handle flows with SYN flag
+		// Ignore flows which have link-local IP addresses
+		if net.ParseIP(log.SrcIP).IsLinkLocalUnicast() ||
+			net.ParseIP(log.DstIP).IsLinkLocalUnicast() {
 			continue
 		}
 
-		if log.Protocol == 17 && log.IsReply && log.DstNamespace == "reserved:world" {
-			/*
-				fmt.Printf("dropping UDP SrcPort:%v DstPort:%v DstNamespace:%v\n",
-					log.SrcPort, log.DstPort, log.DstNamespace)
-			*/
+		if log.L7Protocol == libs.L7ProtocolHTTP && log.IsReply {
+			continue
+		}
+
+		if log.L7Protocol != libs.L7ProtocolHTTP && log.Protocol == libs.IPProtocolTCP && !log.SynFlag { // In case of TCP only handle flows with SYN flag
+			continue
+		}
+
+		if log.Protocol == libs.IPProtocolUDP && log.Direction == "TRAFFIC_DIRECTION_UNKNOWN" {
+			continue
+		}
+
+		if log.Protocol == libs.IPProtocolUDP && log.IsReply {
+			continue
+		}
+
+		if libs.IsICMP(log.Protocol) && log.IsReply {
 			continue
 		}
 
@@ -177,17 +194,12 @@ func FilterNetworkLogsByNamespace(targetNamespace string, logs []types.KnoxNetwo
 	filteredLogs := []types.KnoxNetworkLog{}
 
 	for _, log := range logs {
-		// case 1: src namespace == target namespace
 		if log.SrcNamespace == targetNamespace {
+			// Preferred case: group by src namespace
 			filteredLogs = append(filteredLogs, log)
-
-		}
-
-		// case 2: dst namespace == target namespace && src namespace == reserved: or kube-system or cilium
-		if log.DstNamespace == targetNamespace {
-			if strings.Contains(log.SrcNamespace, "reserved:") {
-				filteredLogs = append(filteredLogs, log)
-			}
+		} else if len(log.SrcReservedLabels) > 0 && log.DstNamespace == targetNamespace {
+			// When src is reserved: group by dst namespace
+			filteredLogs = append(filteredLogs, log)
 		}
 	}
 
@@ -219,14 +231,14 @@ func getNetworkLogs() []types.KnoxNetworkLog {
 				networkLogs = append(networkLogs, log)
 			}
 		}
-	} else if NetworkLogFrom == "kafka" {
-		// ================== //
-		// == Cilium kafka == //
-		// ================== //
-		log.Info().Msg("Get network log from the kafka consumer")
+	} else if NetworkLogFrom == "feed-consumer" {
+		// ==================== //
+		// == kafka / Pulsar == //
+		// ==================== //
+		log.Info().Msg("Get network log from the feed-consumer")
 
-		// get flows from kafka consumer
-		flows := plugin.GetCiliumFlowsFromKafka(OperationTrigger)
+		// get flows from kafka/pulsar consumer
+		flows := plugin.GetCiliumFlowsFromFeedConsumer(OperationTrigger)
 		if len(flows) == 0 || len(flows) < OperationTrigger {
 			return nil
 		}
@@ -523,20 +535,21 @@ func getFlowIDFromTrackMap2(aggregatedLabel string, dst Dst) []int {
 func updateDNSFlows(networkLogs []types.KnoxNetworkLog) {
 	// step 1: update dnsToIPs map
 	for _, log := range networkLogs {
-		if log.DNSRes != "" && log.DNSResIPs != nil {
+		if log.DNSRes != "" && len(log.DNSResIPs) > 0 {
 			domainName := log.DNSRes
+			newDNSIPs := log.DNSResIPs
 
 			// udpate DNS to IPs map
-			if ips, ok := DomainToIPs[domainName]; ok {
-				for _, ip := range ips {
-					if !libs.ContainsElement(ips, ip) {
-						ips = append(ips, ip)
+			if dnsIps, ok := DomainToIPs[domainName]; ok {
+				for _, ip := range newDNSIPs {
+					if !libs.ContainsElement(dnsIps, ip) {
+						dnsIps = append(dnsIps, ip)
 					}
 				}
 
-				DomainToIPs[domainName] = ips
+				DomainToIPs[domainName] = dnsIps
 			} else {
-				DomainToIPs[domainName] = ips
+				DomainToIPs[domainName] = newDNSIPs
 			}
 		}
 	}
@@ -544,7 +557,7 @@ func updateDNSFlows(networkLogs []types.KnoxNetworkLog) {
 	// step 2: update dns query logs
 	for i, log := range networkLogs {
 		// traffic go to the outside of the cluster,
-		if log.DstNamespace == "reserved:world" {
+		if libs.ContainsElement(log.DstReservedLabels, ReservedWorld) {
 			// filter if the ip is from the DNS query
 			dns := getDomainNameFromDNSToIP(log)
 			if dns != "" {
@@ -557,7 +570,7 @@ func updateDNSFlows(networkLogs []types.KnoxNetworkLog) {
 func getDomainNameFromDNSToIP(log types.KnoxNetworkLog) string {
 	for domain, ips := range DomainToIPs {
 		// here, pod name is ip addr (external)
-		if libs.ContainsElement(ips, log.DstPodName) {
+		if libs.ContainsElement(ips, log.DstIP) {
 			return domain
 		}
 	}
@@ -624,30 +637,33 @@ func removeDstFromMergedDstSlice(dsts []MergedPortDst, remove MergedPortDst) []M
 // == Kubernetes Services/Endpoints == //
 // =================================== //
 
-func checkK8sExternalService(log types.KnoxNetworkLog, endpoints []types.Endpoint) (types.Endpoint, bool) {
-	for _, endpoint := range endpoints {
-		for _, port := range endpoint.Endpoints {
-			if (libs.GetProtocol(log.Protocol) == strings.ToUpper(port.Protocol)) &&
-				log.DstPort == port.Port &&
-				log.DstIP == port.IP {
-				return endpoint, true
+func checkK8sService(log types.KnoxNetworkLog, services []types.Service) (types.Service, bool) {
+	for _, svc := range services {
+		if log.DstIP == svc.ClusterIP {
+			return svc, true
+		} else if svc.Type == "NodePort" {
+			if libs.ContainsElement(svc.ExternalIPs, log.DstIP) &&
+				svc.NodePort == log.DstPort &&
+				svc.Protocol == libs.GetProtocol(log.Protocol) {
+				return svc, true
 			}
+		} else if libs.ContainsElement(svc.ExternalIPs, log.DstIP) {
+			return svc, true
 		}
 	}
-
-	return types.Endpoint{}, false
+	return types.Service{}, false
 }
 
 func isExposedPort(protocol int, port int) bool {
-	if protocol == 6 { // tcp
+	if protocol == libs.IPProtocolTCP {
 		if libs.ContainsElement(K8sServiceTCPPorts, port) {
 			return true
 		}
-	} else if protocol == 17 { // udp
+	} else if protocol == libs.IPProtocolUDP {
 		if libs.ContainsElement(K8sServiceUDPPorts, port) {
 			return true
 		}
-	} else if protocol == 132 { // sctp
+	} else if protocol == libs.IPProtocolSCTP {
 		if libs.ContainsElement(K8sServiceSCTPPorts, port) {
 			return true
 		}
@@ -734,18 +750,41 @@ func clearTrackFlowIDMaps() {
 // == File Outputs == //
 // ================== //
 
-func WriteNetworkPoliciesToFile(cluster, namespace string, services []types.Service) {
+func WriteNetworkPoliciesToFile(cluster, namespace string) {
 	// retrieve the latest policies from the db
-	latestPolicies := libs.GetNetworkPolicies(CfgDB, cluster, namespace, "latest")
+	latestPolicies := libs.GetNetworkPolicies(CfgDB, cluster, namespace, "latest", "", "")
 
 	// write discovered policies to files
-	libs.WriteKnoxNetPolicyToYamlFile(namespace, latestPolicies)
+	// libs.WriteKnoxNetPolicyToYamlFile(namespace, latestPolicies)
 
 	// convert knoxPolicy to CiliumPolicy
-	ciliumPolicies := plugin.ConvertKnoxPoliciesToCiliumPolicies(services, latestPolicies)
+	ciliumPolicies := plugin.ConvertKnoxPoliciesToCiliumPolicies(latestPolicies)
 
 	// write discovered policies to files
 	libs.WriteCiliumPolicyToYamlFile(namespace, ciliumPolicies)
+}
+
+func GetNetPolicy(cluster, namespace string) *wpb.WorkerResponse {
+	latestPolicies := libs.GetNetworkPolicies(CfgDB, cluster, namespace, "latest", "", "")
+	log.Info().Msgf("No. of latestPolicies - %d", len(latestPolicies))
+	ciliumPolicies := plugin.ConvertKnoxPoliciesToCiliumPolicies(latestPolicies)
+
+	var response wpb.WorkerResponse
+	for i := range ciliumPolicies {
+		ciliumpolicy := wpb.CiliumPolicy{}
+
+		val, err := json.Marshal(&ciliumPolicies[i])
+		if err != nil {
+			log.Error().Msg(err.Error())
+		}
+		ciliumpolicy.Data = val
+
+		response.Ciliumpolicy = append(response.Ciliumpolicy, &ciliumpolicy)
+	}
+	response.Res = "OK"
+	response.Kubearmorpolicy = nil
+
+	return &response
 }
 
 // ====================== //

@@ -1,0 +1,62 @@
+application:
+  name: knoxautopolicy
+  network:
+    operation-mode: 1                         # 1: cronjob | 2: one-time-job
+    cron-job-time-interval: "0h0m10s"         # format: XhYmZs
+    operation-trigger: 1000
+    network-log-from: "hubble"                    # db|hubble
+    network-log-file: "./flow.json"           # file path
+    network-policy-to: "db"              # db, file
+    network-policy-dir: "./"
+    network-policy-types: 3
+    network-policy-rule-types: 511
+  system:
+    operation-mode: 1                         # 1: cronjob | 2: one-time-job
+    cron-job-time-interval: "0h0m10s"         # format: XhYmZs
+    system-log-from: "kubearmor"                     # db|kubearmor
+    system-log-file: "./log.json"             # file path
+    system-policy-to: "db"               # db, file
+    system-policy-dir: "./"
+    deprecate-old-mode: true
+  cluster:
+    cluster-info-from: "k8sclient"            # k8sclient|accuknox
+
+database:
+  driver: mysql
+  host: mysql.{{ .Release.Namespace }}.svc.cluster.local
+  port: 3306
+  user: root
+  password: password
+  dbname: knoxautopolicy
+  table-configuration: auto_policy_config
+  table-network-log: network_log
+  table-network-policy: network_policy
+  table-system-log: system_log
+  table-system-policy: system_policy
+
+feed-consumer:
+  kafka:
+    broker-address-family: v4
+    session-timeout-ms: 6000
+    auto-offset-reset: "earliest"
+    bootstrap-servers: "dev-kafka-kafka-bootstrap.accuknox-dev-kafka.svc.cluster.local:9092"
+    group-id: policy.cilium
+    topics:
+      - cilium-alerts
+      - kubearmor-alerts
+    ssl:
+      enabled: false
+    events:
+      buffer: 50
+
+logging:
+  level: "INFO"
+
+# kubectl -n kube-system port-forward service/hubble-relay --address 0.0.0.0 --address :: 4245:80
+cilium-hubble:
+  url: hubble-relay.{{ .Values.cilium_ns }}.svc.cluster.local
+  port: 80
+
+kubearmor:
+  url: kubearmor.{{ .Values.kubearmor_ns }}.svc.cluster.local
+  port: 32767

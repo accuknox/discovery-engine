@@ -1,7 +1,6 @@
 package systempolicy
 
 import (
-	"encoding/json"
 	"errors"
 	"hash/fnv"
 	"io/ioutil"
@@ -13,13 +12,19 @@ import (
 	"strings"
 	"time"
 
+	"github.com/clarketm/json"
+	"sigs.k8s.io/yaml"
+
 	"github.com/accuknox/auto-policy-discovery/src/cluster"
+	"github.com/accuknox/auto-policy-discovery/src/common"
 	cfg "github.com/accuknox/auto-policy-discovery/src/config"
-	"github.com/accuknox/auto-policy-discovery/src/feedconsumer"
+	fc "github.com/accuknox/auto-policy-discovery/src/feedconsumer"
 	"github.com/accuknox/auto-policy-discovery/src/libs"
 	logger "github.com/accuknox/auto-policy-discovery/src/logging"
 	"github.com/accuknox/auto-policy-discovery/src/plugin"
+	wpb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/worker"
 	types "github.com/accuknox/auto-policy-discovery/src/types"
+
 	"github.com/rs/zerolog"
 
 	"github.com/robfig/cron"
@@ -158,17 +163,12 @@ type SysLogKey struct {
 	PodName   string
 }
 
-// SysPath Structure
-type SysPath struct {
-	Path  string
-	isDir bool
-}
-
 // ================ //st
 // == System Log == //
 // ================ //
 
 func getSystemLogs() []types.KnoxSystemLog {
+	cfgDB := types.ConfigDB{}
 	systemLogs := []types.KnoxSystemLog{}
 
 	if SystemLogFrom == "file" {
@@ -200,7 +200,11 @@ func getSystemLogs() []types.KnoxSystemLog {
 		}
 
 		// raw json --> knoxSystemLog
-		systemLogs = plugin.ConvertMySQLKubeArmorLogsToKnoxSystemLogs(jsonLogs)
+		if cfgDB.DBDriver == "mysql" {
+			systemLogs = plugin.ConvertMySQLKubeArmorLogsToKnoxSystemLogs(jsonLogs)
+		} else if cfgDB.DBDriver == "sqlite3" {
+			systemLogs = plugin.ConvertSQLiteKubeArmorLogsToKnoxSystemLogs(jsonLogs)
+		}
 
 		// replace the pod names in prepared-logs with the working pod names
 		pods := cluster.GetPodsFromK8sClient()
@@ -222,14 +226,16 @@ func getSystemLogs() []types.KnoxSystemLog {
 
 		// convert kubearmor relay logs -> knox system logs
 		for _, relayLog := range relayLogs {
-			log := plugin.ConvertKubeArmorLogToKnoxSystemLog(relayLog)
-			systemLogs = append(systemLogs, log)
+			log, err := plugin.ConvertKubeArmorLogToKnoxSystemLog(relayLog)
+			if err == nil {
+				systemLogs = append(systemLogs, log)
+			}
 		}
-	} else if SystemLogFrom == "kafka" {
-		log.Info().Msg("Get system log from kafka consumer")
+	} else if SystemLogFrom == "feed-consumer" {
+		log.Info().Msg("Get system log from feed-consumer")
 
-		// get system logs from kafka consumer
-		sysLogs := plugin.GetSystemLogsFromKafkaConsumer(OperationTrigger)
+		// get system logs from kafka/pulsar
+		sysLogs := plugin.GetSystemLogsFromFeedConsumer(OperationTrigger)
 		if len(sysLogs) == 0 || len(sysLogs) < OperationTrigger {
 			return nil
 		}
@@ -246,35 +252,133 @@ func getSystemLogs() []types.KnoxSystemLog {
 	return systemLogs
 }
 
-func populateKnoxSysPolicyFromWPFSDb() []types.KnoxSystemPolicy {
-	res, pnMap, err := libs.GetWorkloadProcessFileSet(CfgDB, types.WorkloadProcessFileSet{})
+func populateKnoxSysPolicyFromWPFSDb(namespace, clustername, labels, fromsource string) []types.KnoxSystemPolicy {
+	wpfs := types.WorkloadProcessFileSet{
+		Namespace:   namespace,
+		ClusterName: clustername,
+		Labels:      labels,
+		FromSource:  fromsource,
+	}
+	res, pnMap, err := libs.GetWorkloadProcessFileSet(CfgDB, wpfs)
 	if err != nil {
-		log.Error().Msgf("cudnot fetch WPFS err=%s", err.Error())
+		log.Error().Msgf("could not fetch WPFS err=%s", err.Error())
 		return nil
 	}
 	log.Info().Msgf("found %d WPFS records", len(res))
 	return ConvertWPFSToKnoxSysPolicy(res, pnMap)
 }
 
-func WriteSystemPoliciesToFile_Ext() {
-	sysPols := populateKnoxSysPolicyFromWPFSDb()
+func WriteSystemPoliciesToFile_Ext(namespace, clustername, labels, fromsource string) {
+	kubearmorK8SPolicies := extractK8SSystemPolicies(namespace, clustername, labels, fromsource)
+	for _, pol := range kubearmorK8SPolicies {
+		fname := "kubearmor_policies_" + pol.Metadata["clusterName"] + "_" + pol.Metadata["namespace"] + "_" + pol.Metadata["containername"] + "_" + pol.Metadata["name"]
+		delete(pol.Metadata, "clusterName")
+		delete(pol.Metadata, "containername")
+		libs.WriteKubeArmorPolicyToYamlFile(fname, []types.KubeArmorPolicy{pol})
+	}
 
-	kubeArmorPolicies := plugin.ConvertKnoxSystemPolicyToKubeArmorPolicy(sysPols)
-	for _, pol := range kubeArmorPolicies {
-		fname := "kubearmor_policies_" + pol.Metadata["clusterName"] + "_" + pol.Metadata["namespace"] + "_" + pol.Metadata["containername"] + "_" + libs.RandSeq(8)
+	kubearmorVMPolicies, sources := extractVMSystemPolicies(types.PolicyDiscoveryVMNamespace, clustername, labels, fromsource)
+	for index, pol := range kubearmorVMPolicies {
+		locSrc := strings.ReplaceAll(sources[index], "/", "-")
+		fname := "kubearmor_policies_" + pol.Metadata["namespace"] + "_" + pol.Metadata["containername"] + locSrc
 		delete(pol.Metadata, "clusterName")
 		delete(pol.Metadata, "containername")
 		libs.WriteKubeArmorPolicyToYamlFile(fname, []types.KubeArmorPolicy{pol})
 	}
 }
 
-func WriteSystemPoliciesToFile(namespace string) {
+func WriteSystemPoliciesToFile(namespace, clustername, labels, fromsource string) {
 	latestPolicies := libs.GetSystemPolicies(CfgDB, namespace, "latest")
 	if len(latestPolicies) > 0 {
 		kubeArmorPolicies := plugin.ConvertKnoxSystemPolicyToKubeArmorPolicy(latestPolicies)
 		libs.WriteKubeArmorPolicyToYamlFile("kubearmor_policies", kubeArmorPolicies)
 	}
-	WriteSystemPoliciesToFile_Ext()
+	WriteSystemPoliciesToFile_Ext(namespace, clustername, labels, fromsource)
+}
+
+func GetSysPolicy(namespace, clustername, labels, fromsource string) *wpb.WorkerResponse {
+
+	kubearmorK8SPolicies := extractK8SSystemPolicies(namespace, clustername, labels, fromsource)
+	kubearmorVMPolicies, _ := extractVMSystemPolicies(types.PolicyDiscoveryVMNamespace, clustername, labels, fromsource)
+
+	var response wpb.WorkerResponse
+
+	// system policy for k8s
+	for i := range kubearmorK8SPolicies {
+		kubearmorpolicy := wpb.KubeArmorPolicy{}
+
+		delete(kubearmorK8SPolicies[i].Metadata, "clusterName")
+		delete(kubearmorK8SPolicies[i].Metadata, "containername")
+
+		val, err := json.Marshal(&kubearmorK8SPolicies[i])
+		if err != nil {
+			log.Error().Msgf("kubearmorK8SPolicy json marshal failed err=%v", err.Error())
+		}
+		kubearmorpolicy.Data = val
+
+		response.Kubearmorpolicy = append(response.Kubearmorpolicy, &kubearmorpolicy)
+	}
+
+	// system policy for VM
+	for i := range kubearmorVMPolicies {
+		kubearmorpolicy := wpb.KubeArmorPolicy{}
+
+		delete(kubearmorVMPolicies[i].Metadata, "clusterName")
+		delete(kubearmorVMPolicies[i].Metadata, "containername")
+
+		val, err := json.Marshal(&kubearmorVMPolicies[i])
+		if err != nil {
+			log.Error().Msgf("kubearmorVMPolicy json marshal failed err=%v", err.Error())
+		}
+		kubearmorpolicy.Data = val
+
+		response.Kubearmorpolicy = append(response.Kubearmorpolicy, &kubearmorpolicy)
+	}
+
+	response.Res = "OK"
+	response.Ciliumpolicy = nil
+
+	return &response
+}
+
+func extractK8SSystemPolicies(namespace, clustername, labels, fromsource string) []types.KubeArmorPolicy {
+	sysPols := populateKnoxSysPolicyFromWPFSDb(namespace, clustername, labels, fromsource)
+	policies := plugin.ConvertKnoxSystemPolicyToKubeArmorPolicy(sysPols)
+
+	var result []types.KubeArmorPolicy
+	for _, pol := range policies {
+		if pol.Metadata["namespace"] != types.PolicyDiscoveryVMNamespace {
+			result = append(result, pol)
+		}
+	}
+	return result
+}
+
+func extractVMSystemPolicies(namespace, clustername, labels, fromSource string) ([]types.KubeArmorPolicy, []string) {
+
+	var frmSrcSlice []string
+	var resFromSrc []string
+
+	if fromSource == "" {
+		frmSrcSlice = GetWPFSSources()
+	} else {
+		frmSrcSlice = append(frmSrcSlice, fromSource)
+	}
+
+	var result []types.KubeArmorPolicy
+
+	for _, fromSource := range frmSrcSlice {
+		sysPols := populateKnoxSysPolicyFromWPFSDb(namespace, clustername, labels, fromSource)
+		policies := plugin.ConvertKnoxSystemPolicyToKubeArmorPolicy(sysPols)
+
+		for _, pol := range policies {
+			if pol.Metadata["namespace"] == types.PolicyDiscoveryVMNamespace {
+				result = append(result, pol)
+				resFromSrc = append(resFromSrc, fromSource)
+			}
+		}
+	}
+	return result, resFromSrc
 }
 
 // ============================= //
@@ -371,7 +475,7 @@ func discoverFileOperationPolicy(results []types.KnoxSystemPolicy, pod types.Pod
 
 	// step 3: aggregate file paths
 	for src, filePaths := range srcToDest {
-		aggregatedFilePaths := AggregatePaths(filePaths)
+		aggregatedFilePaths := common.AggregatePaths(filePaths)
 
 		// step 4: append spec to the policy
 		for _, filePath := range aggregatedFilePaths {
@@ -415,7 +519,7 @@ func discoverProcessOperationPolicy(results []types.KnoxSystemPolicy, pod types.
 
 	// step 3: aggregate process paths
 	for src, processPaths := range srcToDest {
-		aggregatedProcessPaths := AggregatePaths(processPaths)
+		aggregatedProcessPaths := common.AggregatePaths(processPaths)
 
 		// step 4: append spec to the policy
 		for _, processPath := range aggregatedProcessPaths {
@@ -621,7 +725,7 @@ func hashInt(s string) uint32 {
 func mergeSysPolicies(pols []types.KnoxSystemPolicy) []types.KnoxSystemPolicy {
 	var results []types.KnoxSystemPolicy
 	for _, pol := range pols {
-		pol.Metadata["name"] = "autopol-system-" + strconv.FormatUint(uint64(hashInt(pol.Metadata["labels"])), 10)
+		pol.Metadata["name"] = "autopol-system-" + strconv.FormatUint(uint64(hashInt(pol.Metadata["labels"]+pol.Metadata["namespace"]+pol.Metadata["clustername"]+pol.Metadata["containername"])), 10)
 		i := checkIfMetadataMatches(pol, results)
 		if i < 0 {
 			results = append(results, pol)
@@ -699,9 +803,9 @@ func ConvertWPFSToKnoxSysPolicy(wpfsSet types.ResourceSetMap, pnMap types.Policy
 		policy.Metadata["type"] = wpfs.SetType
 
 		for _, fpath := range fsset {
-			path := SysPath{
+			path := common.SysPath{
 				Path:  fpath,
-				isDir: strings.HasSuffix(fpath, "/"),
+				IsDir: strings.HasSuffix(fpath, "/"),
 			}
 			src := ""
 			if wpfs.SetType == SYS_OP_NETWORK || strings.HasPrefix(wpfs.FromSource, "/") {
@@ -716,11 +820,13 @@ func ConvertWPFSToKnoxSysPolicy(wpfsSet types.ResourceSetMap, pnMap types.Policy
 		policy.Metadata["labels"] = wpfs.Labels
 		policy.Metadata["name"] = pnMap[wpfs]
 
-		labels := strings.Split(wpfs.Labels, ",")
-		for _, label := range labels {
-			k := strings.Split(label, "=")[0]
-			v := strings.Split(label, "=")[1]
-			policy.Spec.Selector.MatchLabels[k] = v
+		if wpfs.Labels != "" {
+			labels := strings.Split(wpfs.Labels, ",")
+			for _, label := range labels {
+				k := strings.Split(label, "=")[0]
+				v := strings.Split(label, "=")[1]
+				policy.Spec.Selector.MatchLabels[k] = v
+			}
 		}
 
 		results = append(results, policy)
@@ -759,7 +865,7 @@ func buildSystemPolicy() types.KnoxSystemPolicy {
 	}
 }
 
-func updateSysPolicySpec(opType string, policy types.KnoxSystemPolicy, src string, pathSpec SysPath) types.KnoxSystemPolicy {
+func updateSysPolicySpec(opType string, policy types.KnoxSystemPolicy, src string, pathSpec common.SysPath) types.KnoxSystemPolicy {
 	if opType == SYS_OP_NETWORK {
 		matchProtocols := types.KnoxMatchProtocols{
 			Protocol: pathSpec.Path,
@@ -774,13 +880,14 @@ func updateSysPolicySpec(opType string, policy types.KnoxSystemPolicy, src strin
 		return policy
 	}
 	// matchDirectories
-	if pathSpec.isDir {
+	if pathSpec.IsDir {
 		path := pathSpec.Path
 		if !strings.HasSuffix(path, "/") {
 			path = path + "/"
 		}
 		matchDirs := types.KnoxMatchDirectories{
-			Dir: path,
+			Dir:       path,
+			Recursive: true,
 		}
 
 		if opType == SYS_OP_FILE {
@@ -872,7 +979,9 @@ func updateSysPolicies() {
 	var locSysPolicies []types.KnoxSystemPolicy
 	var isPolicyExist bool
 
-	wpfsPolicies := populateKnoxSysPolicyFromWPFSDb()
+	wpfsPolicies := populateKnoxSysPolicyFromWPFSDb("", "", "", "")
+
+	insertSysPoliciesYamlToDB(wpfsPolicies)
 
 	for _, wpfsPolicy := range wpfsPolicies {
 		isPolicyExist = false
@@ -918,7 +1027,6 @@ func InitSysPolicyDiscoveryConfiguration() {
 
 func PopulateSystemPoliciesFromSystemLogs(sysLogs []types.KnoxSystemLog) []types.KnoxSystemPolicy {
 
-	isWpfsDbUpdated := false
 	discoveredSystemPolicies := []types.KnoxSystemPolicy{}
 
 	// delete duplicate logs
@@ -927,11 +1035,11 @@ func PopulateSystemPoliciesFromSystemLogs(sysLogs []types.KnoxSystemLog) []types
 	// get cluster names, iterate each cluster
 	clusteredLogs := clusteringSystemLogsByCluster(sysLogs)
 
+	existingPolicies := libs.GetSystemPolicies(CfgDB, "", "")
+	log.Info().Msgf("len(tot-syslogs):%d len(existingPolicies):%d", len(sysLogs), len(existingPolicies))
 	for clusterName, sysLogs := range clusteredLogs {
 		// get existing system policies in db
-		existingPolicies := libs.GetSystemPolicies(CfgDB, "", "")
-		log.Info().Msgf("System policy discovery started for cluster [%s] len(existingPolicies):%d len(sysLogs):%d",
-			clusterName, len(existingPolicies), len(sysLogs))
+		log.Info().Msgf("system policy discovery cluster [%s] len(sysLogs):%d", clusterName, len(sysLogs))
 
 		// get k8s pods
 		pods := cluster.GetPods(clusterName)
@@ -952,13 +1060,13 @@ func PopulateSystemPoliciesFromSystemLogs(sysLogs []types.KnoxSystemLog) []types
 			}
 
 			polCnt := 0
+			isWpfsDbUpdated := false
 			// 1. discover file operation system policy
 			if SystemPolicyTypes&SYS_OP_FILE_INT > 0 {
 				fileOpLogs := getOperationLogs(SYS_OP_FILE, perPodlogs)
 				isWpfsDbUpdated = GenFileSetForAllPodsInCluster(clusterName, pods, SYS_OP_FILE, fileOpLogs) || isWpfsDbUpdated
 				if !cfg.CurrentCfg.ConfigSysPolicy.DeprecateOldMode {
 					discoveredSysPolicies = discoverFileOperationPolicy(discoveredSysPolicies, pod, fileOpLogs)
-					polCnt = len(discoveredSysPolicies)
 					log.Info().Msgf("discovered %d file policies from %d file logs",
 						len(discoveredSysPolicies), len(fileOpLogs))
 				}
@@ -1010,7 +1118,7 @@ func PopulateSystemPoliciesFromSystemLogs(sysLogs []types.KnoxSystemLog) []types
 			}
 
 			if strings.Contains(SystemPolicyTo, "file") {
-				WriteSystemPoliciesToFile(sysKey.Namespace)
+				WriteSystemPoliciesToFile(sysKey.Namespace, "", "", "")
 			}
 		}
 	}
@@ -1133,6 +1241,7 @@ func removeDuplicates(arr []string) []string {
 
 // GenFileSetForAllPodsInCluster Generate process specific fileset across all pods in a cluster
 func GenFileSetForAllPodsInCluster(clusterName string, pods []types.Pod, settype string, slogs []types.KnoxSystemLog) bool {
+	cfgDB := types.ConfigDB{}
 	res := types.ResourceSetMap{} // key: WorkloadProcess - val: Accesss File Set
 	wpfs := types.WorkloadProcessFileSet{}
 	isNetworkOp := false
@@ -1149,9 +1258,14 @@ func GenFileSetForAllPodsInCluster(clusterName string, pods []types.Pod, settype
 		wpfs.SetType = settype
 		labels, err := GetPodLabels(slog.ClusterName, slog.PodName, slog.Namespace, pods)
 		if err != nil {
-			log.Error().Msgf("cudnot get pod labels for podname=%s ns=%s", slog.PodName, slog.Namespace)
+			log.Error().Msgf("could not get pod labels for podname=%s ns=%s", slog.PodName, slog.Namespace)
 			continue
 		}
+
+		if slog.Namespace == types.PolicyDiscoveryContainerNamespace {
+			labels = append(labels, "kubearmor.io/container.name="+slog.ContainerName)
+		}
+
 		wpfs.Labels = strings.Join(labels[:], ",")
 
 		if isNetworkOp {
@@ -1179,7 +1293,7 @@ func GenFileSetForAllPodsInCluster(clusterName string, pods []types.Pod, settype
 		mergedfs = removeDuplicates(append(fs, out[wpfs]...))
 		if !isNetworkOp {
 			// Path aggregation makes sense for file, process operations only
-			mergedfs = AggregatePathsExt(mergedfs) // merge and sort the filesets
+			mergedfs = common.AggregatePathsExt(mergedfs) // merge and sort the filesets
 		}
 
 		// Add/Update DB Entry
@@ -1190,8 +1304,13 @@ func GenFileSetForAllPodsInCluster(clusterName string, pods []types.Pod, settype
 		} else {
 			if !reflect.DeepEqual(mergedfs, out[wpfs]) {
 				log.Info().Msgf("updating wpfs db entry for wpfs=%+v", wpfs)
-				err = libs.UpdateWorkloadProcessFileSetMySQL(CfgDB, wpfs, mergedfs)
-				status = true
+				if cfgDB.DBDriver == "mysql" {
+					err = libs.UpdateWorkloadProcessFileSetMySQL(CfgDB, wpfs, mergedfs)
+					status = true
+				} else if cfgDB.DBDriver == "sqlite3" {
+					err = libs.UpdateWorkloadProcessFileSetSQLite(CfgDB, wpfs, mergedfs)
+					status = true
+				}
 			}
 		}
 		if err != nil {
@@ -1200,6 +1319,46 @@ func GenFileSetForAllPodsInCluster(clusterName string, pods []types.Pod, settype
 	}
 
 	return status
+}
+
+func insertSysPoliciesYamlToDB(policies []types.KnoxSystemPolicy) {
+	kubeArmorPolicies := plugin.ConvertKnoxSystemPolicyToKubeArmorPolicy(policies)
+
+	res := []types.Policy{}
+
+	for _, kubearmorPolicy := range kubeArmorPolicies {
+		var label string
+
+		jsonBytes, err := json.Marshal(kubearmorPolicy)
+		if err != nil {
+			log.Error().Msg(err.Error())
+			continue
+		}
+		yamlBytes, err := yaml.JSONToYAML(jsonBytes)
+		if err != nil {
+			log.Error().Msg(err.Error())
+			continue
+		}
+		policyYaml := string(yamlBytes)
+
+		for k, v := range kubearmorPolicy.Spec.Selector.MatchLabels {
+			label = k + "=" + v
+		}
+
+		res = append(res, types.Policy{
+			Type:        "system",
+			Kind:        kubearmorPolicy.Kind,
+			PolicyName:  kubearmorPolicy.Metadata["name"],
+			Namespace:   kubearmorPolicy.Metadata["namespace"],
+			ClusterName: kubearmorPolicy.Metadata["clusterName"],
+			Labels:      label,
+			PolicyYaml:  policyYaml,
+		})
+	}
+
+	if err := libs.UpdateOrInsertPolicies(CfgDB, res); err != nil {
+		log.Error().Msgf(err.Error())
+	}
 }
 
 func DiscoverSystemPolicyMain() {
@@ -1222,7 +1381,6 @@ func DiscoverSystemPolicyMain() {
 	}
 
 	PopulateSystemPoliciesFromSystemLogs(allSystemkLogs)
-
 }
 
 // ==================================== //
@@ -1233,8 +1391,10 @@ func StartSystemLogRcvr() {
 	for {
 		if cfg.GetCfgSystemLogFrom() == "kubearmor" {
 			plugin.StartKubeArmorRelay(SystemStopChan, cfg.GetCfgKubeArmor())
-		} else if cfg.GetCfgSystemLogFrom() == "kafka" {
-			feedconsumer.StartConsumer()
+		} else if cfg.GetCfgSystemLogFrom() == "feed-consumer" {
+			fc.ConsumerMutex.Lock()
+			fc.StartConsumer()
+			fc.ConsumerMutex.Unlock()
 		}
 		time.Sleep(time.Second * 2)
 	}

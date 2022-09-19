@@ -1,27 +1,71 @@
-# This is an example .goreleaser.yml file with some sensible defaults.
-# Make sure to check the documentation at https://goreleaser.com
+project_name: knoxAutoPolicy
+
 before:
   hooks:
     # You may remove this if you don't use go modules.
     - go mod tidy
     # you may remove this if you don't need go generate
     - go generate ./...
+
 builds:
-  - env:
-      - CGO_ENABLED=1
+  - binary: "opt/knoxAutoPolicy/src/knoxAutoPolicy"
+    id: knoxAutoPolicy
     goos:
       - linux
         #- windows
         #- darwin
     goarch:
       - amd64
+      
 archives:
-  - replacements:
-      darwin: Darwin
-      linux: Linux
-      windows: Windows
-      386: i386
-      amd64: x86_64
+  - id: "knoxAutoPolicy"
+    builds:
+      - "knoxAutoPolicy"
+    name_template: "{{.ProjectName}}_{{.Version}}_{{.Os}}-{{.Arch}}"
+    files:
+      - src: ./conf/local-file.yaml
+        dst: /opt/knoxAutoPolicy
+        strip_parent: true
+      - src: ./packaging/knoxAutoPolicy.service
+        dst: /usr/lib/systemd/system
+        strip_parent: true
+
+nfpms:
+  - id: "knoxAutoPolicy"
+    builds:
+      - "knoxAutoPolicy"
+    formats:
+      - deb
+      - rpm
+    replaces:
+      - knoxAutoPolicy
+    maintainer: "Ankur Kothiwal <ankur.kothiwal@accuknox.com>"
+    description: |
+      Auto policy discovery engine
+    file_name_template: "{{.ProjectName}}_{{.Version}}_{{.Os}}-{{.Arch}}"
+    bindir: /
+    contents:
+      - dst: /opt/knoxAutoPolicy
+        type: dir
+      - src: ./conf/local-file.yaml
+        dst: /opt/knoxAutoPolicy/conf/local-file.yaml
+        type: config
+      - src: ./packaging/knoxAutoPolicy.service
+        dst: /usr/lib/systemd/system/knoxAutoPolicy.service
+        type: config
+      - src: /opt/knoxAutoPolicy/src/knoxAutoPolicy
+        dst: /usr/local/bin/knoxAutoPolicy
+        type: symlink
+    scripts:
+      postinstall: packaging/post-install.sh
+    overrides:
+      deb:
+        dependencies:
+          - make
+      rpm:
+        dependencies:
+          - make
+
 checksum:
   name_template: 'checksums.txt'
 snapshot:

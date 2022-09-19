@@ -1,0 +1,114 @@
+syntax = "proto3";
+
+package v1.insight;
+
+option go_package = "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/insight";
+
+service Insight {
+    rpc GetInsightData (Request) returns (Response);
+}
+
+//Request
+message Request {
+    string request = 1;
+    string source = 2;
+    // common
+    string clusterName = 3;
+    string namespace = 4;
+    string containerName = 5;
+    string labels = 6;
+    // system
+    string fromSource = 7;
+    string duration = 8;
+    // network
+    string type = 9;
+    string rule = 10;
+}
+
+// Response
+message InsightResponse {
+    string ClusterName = 1;
+    string NameSpace = 2;
+    string Labels = 3;
+    repeated SystemInsightData SystemResource = 4;
+    repeated NetworkInsightData NetworkResource = 5;
+}
+
+message Response {
+    repeated InsightResponse Res = 1;
+}
+
+//System
+message SystemInsightData {
+    string ClusterName = 1;
+    string Namespace = 2;
+    string Labels = 3;
+    string ContainerName = 4;
+    repeated SystemData SysResource = 5;
+}
+
+message SystemData {
+    string fromSource = 1;
+    repeated string processPaths = 2;
+    repeated string filePaths = 3;
+    repeated string networkProtocol = 4;
+}
+
+// Network
+message NetworkInsightData {
+    string ClusterName = 1;
+    string Namespace = 2;
+    string Labels = 3;
+    string Type = 4;
+    string Rule = 5;
+    repeated NetworkData NetResource = 6;
+}
+
+message NetworkData {
+    string Labels = 1;
+    repeated Egress Egressess = 2;
+    repeated Ingress Ingressess = 3;
+}
+
+message Egress {
+    map<string, string> MatchLabels = 1;
+    repeated SpecPort ToPorts = 2;
+    repeated SpecCIDR ToCIDRs = 3;
+    repeated string ToEndtities = 4;
+    repeated SpecService ToServices = 5;
+    repeated SpecFQDN ToFQDNs = 6;
+    repeated SpecHTTP ToHTTPs = 7;
+}
+
+message SpecPort {
+    string Port = 1;
+    string Protocol = 2;
+}
+
+message SpecCIDR {
+    repeated string CIDRs = 1;
+    repeated string Except =2;
+}
+
+message SpecService {
+    string ServiceName = 1;
+    string Namespace = 2;
+}
+
+message SpecFQDN {
+    repeated string MatchNames = 1;
+}
+
+message SpecHTTP {
+    string Method = 1;
+    string Path = 2;
+    bool Aggregated = 3;
+}
+
+message Ingress {
+    map<string, string> MatchLabels = 1;
+    repeated SpecPort ToPorts = 2;
+    repeated SpecHTTP ToHTTPs = 3;
+    repeated SpecCIDR FromCIDRs = 4;
+    repeated string FromEntities = 5;
+}

@@ -181,6 +181,7 @@ func GetPodsFromK8sClient() []types.Pod {
 			Namespace: pod.Namespace,
 			PodName:   pod.Name,
 			Labels:    []string{},
+			PodIP:     pod.Status.PodIP,
 		}
 
 		for k, v := range pod.Labels {
@@ -293,6 +294,8 @@ func GetServicesFromK8sClient() []types.Service {
 		for k, v := range svc.Labels {
 			k8sService.Labels = append(k8sService.Labels, k+"="+v)
 		}
+
+		k8sService.ExternalIPs = append(k8sService.ExternalIPs, svc.Spec.ExternalIPs...)
 
 		for _, port := range svc.Spec.Ports {
 			k8sService.ClusterIP = string(svc.Spec.ClusterIP)

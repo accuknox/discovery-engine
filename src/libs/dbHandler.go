@@ -17,11 +17,17 @@ var LastFlowID int64 = 0
 // == Network Policy == //
 // ==================== //
 
-func GetNetworkPolicies(cfg types.ConfigDB, cluster, namespace, status string) []types.KnoxNetworkPolicy {
+func GetNetworkPolicies(cfg types.ConfigDB, cluster, namespace, status, nwtype, rule string) []types.KnoxNetworkPolicy {
 	results := []types.KnoxNetworkPolicy{}
 
 	if cfg.DBDriver == "mysql" {
-		docs, err := GetNetworkPoliciesFromMySQL(cfg, cluster, namespace, status)
+		docs, err := GetNetworkPoliciesFromMySQL(cfg, cluster, namespace, status, nwtype, rule)
+		if err != nil {
+			return results
+		}
+		results = docs
+	} else if cfg.DBDriver == "sqlite3" {
+		docs, err := GetNetworkPoliciesFromSQLite(cfg, cluster, namespace, status)
 		if err != nil {
 			return results
 		}
@@ -35,7 +41,13 @@ func GetNetworkPoliciesBySelector(cfg types.ConfigDB, cluster, namespace, status
 	results := []types.KnoxNetworkPolicy{}
 
 	if cfg.DBDriver == "mysql" {
-		docs, err := GetNetworkPoliciesFromMySQL(cfg, cluster, namespace, status)
+		docs, err := GetNetworkPoliciesFromMySQL(cfg, cluster, namespace, status, "", "")
+		if err != nil {
+			return nil, err
+		}
+		results = docs
+	} else if cfg.DBDriver == "sqlite3" {
+		docs, err := GetNetworkPoliciesFromSQLite(cfg, cluster, namespace, status)
 		if err != nil {
 			return nil, err
 		}
@@ -68,6 +80,22 @@ func UpdateOutdatedNetworkPolicy(cfg types.ConfigDB, outdatedPolicy string, late
 		if err := UpdateOutdatedNetworkPolicyFromMySQL(cfg, outdatedPolicy, latestPolicy); err != nil {
 			log.Error().Msg(err.Error())
 		}
+	} else if cfg.DBDriver == "sqlite3" {
+		if err := UpdateOutdatedNetworkPolicyFromSQLite(cfg, outdatedPolicy, latestPolicy); err != nil {
+			log.Error().Msg(err.Error())
+		}
+	}
+}
+
+func UpdateNetworkPolicy(cfg types.ConfigDB, policy types.KnoxNetworkPolicy) {
+	if cfg.DBDriver == "mysql" {
+		if err := UpdateNetworkPolicyToMySQL(cfg, policy); err != nil {
+			log.Error().Msg(err.Error())
+		}
+	} else if cfg.DBDriver == "sqlite3" {
+		if err := UpdateNetworkPolicyToSQLite(cfg, policy); err != nil {
+			log.Error().Msg(err.Error())
+		}
 	}
 }
 
@@ -76,7 +104,12 @@ func InsertNetworkPolicies(cfg types.ConfigDB, policies []types.KnoxNetworkPolic
 		if err := InsertNetworkPoliciesToMySQL(cfg, policies); err != nil {
 			log.Error().Msg(err.Error())
 		}
+	} else if cfg.DBDriver == "sqlite3" {
+		if err := InsertNetworkPoliciesToSQLite(cfg, policies); err != nil {
+			log.Error().Msg(err.Error())
+		}
 	}
+
 }
 
 // ================ //
@@ -102,6 +135,10 @@ func UpdateOutdatedSystemPolicy(cfg types.ConfigDB, outdatedPolicy string, lates
 		if err := UpdateOutdatedNetworkPolicyFromMySQL(cfg, outdatedPolicy, latestPolicy); err != nil {
 			log.Error().Msg(err.Error())
 		}
+	} else if cfg.DBDriver == "sqlite3" {
+		if err := UpdateOutdatedNetworkPolicyFromSQLite(cfg, outdatedPolicy, latestPolicy); err != nil {
+			log.Error().Msg(err.Error())
+		}
 	}
 }
 
@@ -110,6 +147,12 @@ func GetSystemPolicies(cfg types.ConfigDB, namespace, status string) []types.Kno
 
 	if cfg.DBDriver == "mysql" {
 		docs, err := GetSystemPoliciesFromMySQL(cfg, namespace, status)
+		if err != nil {
+			return results
+		}
+		results = docs
+	} else if cfg.DBDriver == "sqlite3" {
+		docs, err := GetSystemPoliciesFromSQLite(cfg, namespace, status)
 		if err != nil {
 			return results
 		}
@@ -124,6 +167,10 @@ func InsertSystemPolicies(cfg types.ConfigDB, policies []types.KnoxSystemPolicy)
 		if err := InsertSystemPoliciesToMySQL(cfg, policies); err != nil {
 			log.Error().Msg(err.Error())
 		}
+	} else if cfg.DBDriver == "sqlite3" {
+		if err := InsertSystemPoliciesToSQLite(cfg, policies); err != nil {
+			log.Error().Msg(err.Error())
+		}
 	}
 }
 
@@ -132,12 +179,23 @@ func UpdateSystemPolicy(cfg types.ConfigDB, policy types.KnoxSystemPolicy) {
 		if err := UpdateSystemPolicyToMySQL(cfg, policy); err != nil {
 			log.Error().Msg(err.Error())
 		}
+	} else if cfg.DBDriver == "sqlite3" {
+		if err := UpdateSystemPolicyToSQLite(cfg, policy); err != nil {
+			log.Error().Msg(err.Error())
+		}
 	}
+
 }
 
 func GetWorkloadProcessFileSet(cfg types.ConfigDB, wpfs types.WorkloadProcessFileSet) (map[types.WorkloadProcessFileSet][]string, types.PolicyNameMap, error) {
 	if cfg.DBDriver == "mysql" {
 		res, pnMap, err := GetWorkloadProcessFileSetMySQL(cfg, wpfs)
+		if err != nil {
+			log.Error().Msg(err.Error())
+		}
+		return res, pnMap, err
+	} else if cfg.DBDriver == "sqlite3" {
+		res, pnMap, err := GetWorkloadProcessFileSetSQLite(cfg, wpfs)
 		if err != nil {
 			log.Error().Msg(err.Error())
 		}
@@ -149,6 +207,8 @@ func GetWorkloadProcessFileSet(cfg types.ConfigDB, wpfs types.WorkloadProcessFil
 func InsertWorkloadProcessFileSet(cfg types.ConfigDB, wpfs types.WorkloadProcessFileSet, fs []string) error {
 	if cfg.DBDriver == "mysql" {
 		return InsertWorkloadProcessFileSetMySQL(cfg, wpfs, fs)
+	} else if cfg.DBDriver == "sqlite3" {
+		return InsertWorkloadProcessFileSetSQLite(cfg, wpfs, fs)
 	}
 	return errors.New("no db driver")
 }
@@ -156,6 +216,8 @@ func InsertWorkloadProcessFileSet(cfg types.ConfigDB, wpfs types.WorkloadProcess
 func ClearWPFSDb(cfg types.ConfigDB, wpfs types.WorkloadProcessFileSet, duration int64) error {
 	if cfg.DBDriver == "mysql" {
 		return ClearWPFSDbMySQL(cfg, wpfs, duration)
+	} else if cfg.DBDriver == "sqlite3" {
+		return ClearWPFSDbSQLite(cfg, wpfs, duration)
 	}
 	return errors.New("no db driver")
 }
@@ -167,6 +229,18 @@ func ClearWPFSDb(cfg types.ConfigDB, wpfs types.WorkloadProcessFileSet, duration
 func ClearDBTables(cfg types.ConfigDB) {
 	if cfg.DBDriver == "mysql" {
 		if err := ClearDBTablesMySQL(cfg); err != nil {
+			log.Error().Msg(err.Error())
+		}
+	} else if cfg.DBDriver == "sqlite3" {
+		if err := ClearDBTablesSQLite(cfg); err != nil {
+			log.Error().Msg(err.Error())
+		}
+	}
+}
+
+func ClearNetworkDBTable(cfg types.ConfigDB) {
+	if cfg.DBDriver == "mysql" {
+		if err := ClearNetworkDBTableMySQL(cfg); err != nil {
 			log.Error().Msg(err.Error())
 		}
 	}
@@ -183,5 +257,105 @@ func CreateTablesIfNotExist(cfg types.ConfigDB) {
 		if err := CreateTableWorkLoadProcessFileSetMySQL(cfg); err != nil {
 			log.Error().Msg(err.Error())
 		}
+		if err := CreateTableSystemLogsMySQL(cfg); err != nil {
+			log.Error().Msg(err.Error())
+		}
+		if err := CreateTableNetworkLogsMySQL(cfg); err != nil {
+			log.Error().Msg(err.Error())
+		}
+		if err := CreatePolicyTableMySQL(cfg); err != nil {
+			log.Error().Msg(err.Error())
+		}
+	} else if cfg.DBDriver == "sqlite3" {
+		if err := CreateTableNetworkPolicySQLite(cfg); err != nil {
+			log.Error().Msg(err.Error())
+		}
+		if err := CreateTableSystemPolicySQLite(cfg); err != nil {
+			log.Error().Msg(err.Error())
+		}
+		if err := CreateTableWorkLoadProcessFileSetSQLite(cfg); err != nil {
+			log.Error().Msg(err.Error())
+		}
+		if err := CreateTableSystemLogsSQLite(cfg); err != nil {
+			log.Error().Msg(err.Error())
+		}
+		if err := CreateTableNetworkLogsSQLite(cfg); err != nil {
+			log.Error().Msg(err.Error())
+		}
+		if err := CreatePolicyTableSQLite(cfg); err != nil {
+			log.Error().Msg(err.Error())
+		}
 	}
+}
+
+// =================== //
+// == Observability == //
+// =================== //
+func UpdateOrInsertKubearmorLogs(cfg types.ConfigDB, kubearmorLogMap map[types.KubeArmorLog]int) error {
+	var err = errors.New("unknown db driver")
+	if cfg.DBDriver == "mysql" {
+		err = UpdateOrInsertKubearmorLogsMySQL(cfg, kubearmorLogMap)
+	} else if cfg.DBDriver == "sqlite3" {
+		err = UpdateOrInsertKubearmorLogsSQLite(cfg, kubearmorLogMap)
+	}
+	return err
+}
+
+func GetKubearmorLogs(cfg types.ConfigDB, filterLog types.KubeArmorLog) ([]types.KubeArmorLog, []uint32, error) {
+	kubearmorLog := []types.KubeArmorLog{}
+	totalCount := []uint32{}
+	var err = errors.New("unknown db driver")
+	if cfg.DBDriver == "mysql" {
+		kubearmorLog, totalCount, err = GetSystemLogsMySQL(cfg, filterLog)
+	} else if cfg.DBDriver == "sqlite3" {
+		kubearmorLog, totalCount, err = GetSystemLogsSQLite(cfg, filterLog)
+	}
+	return kubearmorLog, totalCount, err
+}
+
+func UpdateOrInsertCiliumLogs(cfg types.ConfigDB, ciliumLogs []types.CiliumLog) error {
+	var err = errors.New("unknown db driver")
+	if cfg.DBDriver == "mysql" {
+		err = UpdateOrInsertCiliumLogsMySQL(cfg, ciliumLogs)
+	} else if cfg.DBDriver == "sqlite3" {
+		err = UpdateOrInsertCiliumLogsSQLite(cfg, ciliumLogs)
+	}
+	return err
+}
+
+func GetCiliumLogs(cfg types.ConfigDB, ciliumFilter types.CiliumLog) ([]types.CiliumLog, []uint32, error) {
+	ciliumLogs := []types.CiliumLog{}
+	ciliumTotalCount := []uint32{}
+	var err = errors.New("unknown db driver")
+	if cfg.DBDriver == "mysql" {
+		ciliumLogs, ciliumTotalCount, err = GetCiliumLogsMySQL(cfg, ciliumFilter)
+	} else if cfg.DBDriver == "sqlite3" {
+		ciliumLogs, ciliumTotalCount, err = GetCiliumLogsSQLite(cfg, ciliumFilter)
+	}
+	return ciliumLogs, ciliumTotalCount, err
+}
+
+func GetPodNames(cfg types.ConfigDB, filter types.ObsPodDetail) ([]string, error) {
+	res := []string{}
+	var err = errors.New("unknown db driver")
+	if cfg.DBDriver == "mysql" {
+		res, err = GetPodNamesMySQL(cfg, filter)
+	} else if cfg.DBDriver == "sqlite3" {
+		res, err = GetPodNamesSQLite(cfg, filter)
+	}
+	return res, err
+}
+
+// =============== //
+// == Policy DB == //
+// =============== //
+
+func UpdateOrInsertPolicies(cfg types.ConfigDB, policies []types.Policy) error {
+	var err = errors.New("unknown db driver")
+	if cfg.DBDriver == "mysql" {
+		err = UpdateOrInsertPoliciesMySQL(cfg, policies)
+	} else if cfg.DBDriver == "sqlite3" {
+		err = UpdateOrInsertPoliciesSQLite(cfg, policies)
+	}
+	return err
 }
