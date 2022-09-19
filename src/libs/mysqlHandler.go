@@ -18,7 +18,7 @@ const TableNetworkPolicy_TableName = "network_policy"
 const TableSystemPolicy_TableName = "system_policy"
 const TableSystemLogs_TableName = "system_logs"
 const TableNetworkLogs_TableName = "network_logs"
-const PolicyTable_TableName = "policy_yaml"
+const PolicyYaml_TableName = "policy_yaml"
 
 // ================ //
 // == Connection == //
@@ -711,7 +711,7 @@ func CreatePolicyTableMySQL(cfg types.ConfigDB) error {
 	db := connectMySQL(cfg)
 	defer db.Close()
 
-	tableName := PolicyTable_TableName
+	tableName := PolicyYaml_TableName
 
 	query :=
 		"CREATE TABLE IF NOT EXISTS `" + tableName + "` (" +
@@ -1625,12 +1625,54 @@ func GetPodNamesMySQL(cfg types.ConfigDB, filter types.ObsPodDetail) ([]string, 
 // == Policy DB == //
 // =============== //
 
-func UpdateOrInsertPoliciesMySQL(cfg types.ConfigDB, policies []types.Policy) error {
+func GetPolicyYamlsMySQL(cfg types.ConfigDB, policyType string) ([]types.PolicyYaml, error) {
+	db := connectMySQL(cfg)
+	defer db.Close()
+
+	policies := []types.PolicyYaml{}
+
+	var results *sql.Rows
+	var err error
+
+	query := "SELECT type,kind,cluster_name,namespace,labels,policy_name,policy_yaml FROM " + PolicyYaml_TableName
+	query = query + "WHERE type = ?"
+
+	results, err = db.Query(query, policyType)
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return nil, err
+	}
+	defer results.Close()
+
+	for results.Next() {
+		var labels string
+		policy := types.PolicyYaml{}
+
+		if err := results.Scan(
+			&policy.Type,
+			&policy.Kind,
+			&policy.Cluster,
+			&policy.Namespace,
+			&labels,
+			&policy.Name,
+			&policy.Yaml,
+		); err != nil {
+			return nil, err
+		}
+
+		policy.Labels = LabelMapFromString(labels)
+		policies = append(policies, policy)
+	}
+
+	return policies, nil
+}
+
+func UpdateOrInsertPolicyYamlsMySQL(cfg types.ConfigDB, policies []types.PolicyYaml) error {
 	db := connectMySQL(cfg)
 	defer db.Close()
 
 	for _, pol := range policies {
-		if err := updateOrInsertPolicyMySQL(pol, db); err != nil {
+		if err := updateOrInsertPolicyYamlMySQL(pol, db); err != nil {
 			log.Error().Msg(err.Error())
 		}
 	}
@@ -1638,12 +1680,11 @@ func UpdateOrInsertPoliciesMySQL(cfg types.ConfigDB, policies []types.Policy) er
 	return nil
 }
 
-func updateOrInsertPolicyMySQL(policy types.Policy, db *sql.DB) error {
-
+func updateOrInsertPolicyYamlMySQL(policy types.PolicyYaml, db *sql.DB) error {
 	var err error
 	queryString := ` policy_name = ? `
 
-	query := "UPDATE " + PolicyTable_TableName + " SET policy_yaml=?, updated_time=? WHERE " + queryString + " "
+	query := "UPDATE " + PolicyYaml_TableName + " SET policy_yaml=?, updated_time=? WHERE " + queryString + " "
 
 	updateStmt, err := db.Prepare(query)
 	if err != nil {
@@ -1652,9 +1693,9 @@ func updateOrInsertPolicyMySQL(policy types.Policy, db *sql.DB) error {
 	defer updateStmt.Close()
 
 	result, err := updateStmt.Exec(
-		policy.PolicyYaml,
+		policy.Yaml,
 		ConvertStrToUnixTime("now"),
-		policy.PolicyName,
+		policy.Name,
 	)
 	if err != nil {
 		log.Error().Msg(err.Error())
@@ -1665,7 +1706,7 @@ func updateOrInsertPolicyMySQL(policy types.Policy, db *sql.DB) error {
 
 	if err == nil && rowsAffected == 0 {
 
-		insertStmt, err := db.Prepare("INSERT INTO " + PolicyTable_TableName +
+		insertStmt, err := db.Prepare("INSERT INTO " + PolicyYaml_TableName +
 			"(type,kind,cluster_name,namespace,labels,policy_name,policy_yaml,updated_time) values(?,?,?,?,?,?,?,?)")
 		if err != nil {
 			return err
@@ -1675,11 +1716,11 @@ func updateOrInsertPolicyMySQL(policy types.Policy, db *sql.DB) error {
 		_, err = insertStmt.Exec(
 			policy.Type,
 			policy.Kind,
-			policy.ClusterName,
+			policy.Cluster,
 			policy.Namespace,
-			policy.Labels,
-			policy.PolicyName,
-			policy.PolicyYaml,
+			LabelMapToString(policy.Labels),
+			policy.Name,
+			policy.Yaml,
 			ConvertStrToUnixTime("now"),
 		)
 		if err != nil {

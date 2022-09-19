@@ -87,6 +87,12 @@ func UpdateOutdatedNetworkPolicy(cfg types.ConfigDB, outdatedPolicy string, late
 	}
 }
 
+func UpdateNetworkPolicies(cfg types.ConfigDB, policies []types.KnoxNetworkPolicy) {
+	for _, policy := range policies {
+		UpdateNetworkPolicy(cfg, policy)
+	}
+}
+
 func UpdateNetworkPolicy(cfg types.ConfigDB, policy types.KnoxNetworkPolicy) {
 	if cfg.DBDriver == "mysql" {
 		if err := UpdateNetworkPolicyToMySQL(cfg, policy); err != nil {
@@ -349,13 +355,30 @@ func GetPodNames(cfg types.ConfigDB, filter types.ObsPodDetail) ([]string, error
 // =============== //
 // == Policy DB == //
 // =============== //
+func GetPolicyYamls(cfg types.ConfigDB, policyType string) ([]types.PolicyYaml, error) {
+	var err error
+	var results []types.PolicyYaml
 
-func UpdateOrInsertPolicies(cfg types.ConfigDB, policies []types.Policy) error {
+	if cfg.DBDriver == "mysql" {
+		results, err = GetPolicyYamlsMySQL(cfg, policyType)
+		if err != nil {
+			return nil, err
+		}
+	} else if cfg.DBDriver == "sqlite3" {
+		results, err = GetPolicyYamlsSQLite(cfg, policyType)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return results, nil
+}
+
+func UpdateOrInsertPolicyYamls(cfg types.ConfigDB, policies []types.PolicyYaml) error {
 	var err = errors.New("unknown db driver")
 	if cfg.DBDriver == "mysql" {
-		err = UpdateOrInsertPoliciesMySQL(cfg, policies)
+		err = UpdateOrInsertPolicyYamlsMySQL(cfg, policies)
 	} else if cfg.DBDriver == "sqlite3" {
-		err = UpdateOrInsertPoliciesSQLite(cfg, policies)
+		err = UpdateOrInsertPolicyYamlsSQLite(cfg, policies)
 	}
 	return err
 }

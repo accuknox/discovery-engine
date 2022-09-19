@@ -917,8 +917,9 @@ func IsExistingPolicySpec(existingPolicies []types.KnoxNetworkPolicy, newPolicy 
 // == Update Duplicated Network Policy == //
 // ====================================== //
 
-func UpdateDuplicatedPolicy(existingPolicies []types.KnoxNetworkPolicy, discoveredPolicies []types.KnoxNetworkPolicy, dnsToIPs map[string][]string, clusterName string) []types.KnoxNetworkPolicy {
+func UpdateDuplicatedPolicy(existingPolicies []types.KnoxNetworkPolicy, discoveredPolicies []types.KnoxNetworkPolicy, dnsToIPs map[string][]string, clusterName string) ([]types.KnoxNetworkPolicy, []types.KnoxNetworkPolicy) {
 	newPolicies := []types.KnoxNetworkPolicy{}
+	updatedPolicies := []types.KnoxNetworkPolicy{}
 
 	existIngressPolicies := map[Selector]types.KnoxNetworkPolicy{}
 	existEgressPolicies := map[Selector]types.KnoxNetworkPolicy{}
@@ -939,14 +940,15 @@ func UpdateDuplicatedPolicy(existingPolicies []types.KnoxNetworkPolicy, discover
 	for _, newPolicy := range discoveredPolicies {
 		lblArr := getLabelArrayFromMap(newPolicy.Spec.Selector.MatchLabels)
 		selector := Selector{newPolicy.Kind, strings.Join(lblArr, ",")}
+
 		if newPolicy.Metadata["type"] == PolicyTypeIngress {
 			existPolicy, ok := existIngressPolicies[selector]
 			if ok {
 				// Ingress policy for this endpoint exists already
 				mergedPolicy, updated := mergeIngressPolicies(existPolicy, []types.KnoxNetworkPolicy{newPolicy})
 				if updated {
+					mergedPolicy.Metadata["status"] = "updated"
 					existIngressPolicies[selector] = mergedPolicy
-					libs.UpdateNetworkPolicy(CfgDB, mergedPolicy)
 				}
 			} else {
 				// Ingress policy for this endpoint does not exists previously
@@ -959,8 +961,8 @@ func UpdateDuplicatedPolicy(existingPolicies []types.KnoxNetworkPolicy, discover
 				// Egress policy for this endpoint exists already
 				mergedPolicy, updated := mergeEgressPolicies(existPolicy, []types.KnoxNetworkPolicy{newPolicy})
 				if updated {
+					mergedPolicy.Metadata["status"] = "updated"
 					existEgressPolicies[selector] = mergedPolicy
-					libs.UpdateNetworkPolicy(CfgDB, mergedPolicy)
 				}
 			} else {
 				// Egress policy for this endpoint does not exists previously
@@ -970,5 +972,18 @@ func UpdateDuplicatedPolicy(existingPolicies []types.KnoxNetworkPolicy, discover
 		}
 	}
 
-	return newPolicies
+	for _, policy := range existIngressPolicies {
+		if policy.Metadata["status"] == "updated" {
+			delete(policy.Metadata, "status")
+			updatedPolicies = append(updatedPolicies, policy)
+		}
+	}
+	for _, policy := range existEgressPolicies {
+		if policy.Metadata["status"] == "updated" {
+			delete(policy.Metadata, "status")
+			updatedPolicies = append(updatedPolicies, policy)
+		}
+	}
+
+	return newPolicies, updatedPolicies
 }

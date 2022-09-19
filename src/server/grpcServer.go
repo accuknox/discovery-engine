@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 
 	"github.com/rs/zerolog"
 
@@ -10,14 +11,15 @@ import (
 	core "github.com/accuknox/auto-policy-discovery/src/config"
 	fc "github.com/accuknox/auto-policy-discovery/src/feedconsumer"
 	logger "github.com/accuknox/auto-policy-discovery/src/logging"
-	networker "github.com/accuknox/auto-policy-discovery/src/networkpolicy"
+	network "github.com/accuknox/auto-policy-discovery/src/networkpolicy"
 	obs "github.com/accuknox/auto-policy-discovery/src/observability"
-	sysworker "github.com/accuknox/auto-policy-discovery/src/systempolicy"
+	system "github.com/accuknox/auto-policy-discovery/src/systempolicy"
 
 	"github.com/accuknox/auto-policy-discovery/src/insight"
 	"github.com/accuknox/auto-policy-discovery/src/libs"
 	apb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/analyzer"
 	fpb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/consumer"
+	dpb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/discovery"
 	ipb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/insight"
 	opb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/observability"
 	wpb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/worker"
@@ -62,9 +64,9 @@ func (s *workerServer) Start(ctx context.Context, in *wpb.WorkerRequest) (*wpb.W
 
 	if in.GetPolicytype() != "" {
 		if in.GetPolicytype() == "network" {
-			networker.StartNetworkWorker()
+			network.StartNetworkWorker()
 		} else if in.GetPolicytype() == "system" {
-			sysworker.StartSystemWorker()
+			system.StartSystemWorker()
 		}
 		response += "Starting " + in.GetPolicytype() + " policy discovery"
 	}
@@ -76,9 +78,9 @@ func (s *workerServer) Stop(ctx context.Context, in *wpb.WorkerRequest) (*wpb.Wo
 	log.Info().Msg("Stop worker called")
 
 	if in.GetPolicytype() == "network" {
-		networker.StopNetworkWorker()
+		network.StopNetworkWorker()
 	} else if in.GetPolicytype() == "system" {
-		sysworker.StopSystemWorker()
+		system.StopSystemWorker()
 	} else {
 		return &wpb.WorkerResponse{Res: "No policy type, choose 'network' or 'system', not [" + in.GetPolicytype() + "]"}, nil
 	}
@@ -92,9 +94,9 @@ func (s *workerServer) GetWorkerStatus(ctx context.Context, in *wpb.WorkerReques
 	status := ""
 
 	if in.GetPolicytype() == "network" {
-		status = networker.NetworkWorkerStatus
+		status = network.NetworkWorkerStatus
 	} else if in.GetPolicytype() == "system" {
-		status = sysworker.SystemWorkerStatus
+		status = system.SystemWorkerStatus
 	} else {
 		return &wpb.WorkerResponse{Res: "No policy type, choose 'network' or 'system', not [" + in.GetPolicytype() + "]"}, nil
 	}
@@ -106,19 +108,68 @@ func (s *workerServer) Convert(ctx context.Context, in *wpb.WorkerRequest) (*wpb
 
 	if in.GetPolicytype() == "network" {
 		log.Info().Msg("Convert network policy called")
-		networker.InitNetPolicyDiscoveryConfiguration()
-		networker.WriteNetworkPoliciesToFile(in.GetClustername(), in.GetNamespace())
-		return networker.GetNetPolicy(in.Clustername, in.Namespace), nil
+		network.InitNetPolicyDiscoveryConfiguration()
+		network.WriteNetworkPoliciesToFile(in.GetClustername(), in.GetNamespace())
+		return network.GetNetPolicy(in.Clustername, in.Namespace), nil
 	} else if in.GetPolicytype() == "system" {
 		log.Info().Msg("Convert system policy called")
-		sysworker.InitSysPolicyDiscoveryConfiguration()
-		sysworker.WriteSystemPoliciesToFile(in.GetNamespace(), in.GetClustername(), in.GetLabels(), in.GetFromsource())
-		return sysworker.GetSysPolicy(in.Namespace, in.Clustername, in.Labels, in.Fromsource), nil
+		system.InitSysPolicyDiscoveryConfiguration()
+		system.WriteSystemPoliciesToFile(in.GetNamespace(), in.GetClustername(), in.GetLabels(), in.GetFromsource())
+		return system.GetSysPolicy(in.Namespace, in.Clustername, in.Labels, in.Fromsource), nil
 	} else {
 		log.Info().Msg("Convert policy called, but no policy type")
 	}
 
 	return &wpb.WorkerResponse{Res: "ok"}, nil
+}
+
+// ====================== //
+// == Discovery Service == //
+// ====================== //
+type discoveryServer struct {
+	dpb.UnimplementedDiscoveryServer
+}
+
+func (ds *discoveryServer) GetPolicy(req *dpb.GetPolicyRequest, srv dpb.Discovery_GetPolicyServer) error {
+	consumer := libs.NewPolicyConsumer(req)
+
+	if !consumer.IsTypeSystem() && !consumer.IsTypeNetwork() {
+		return errors.New("Invalid Request")
+	}
+
+	var yamlFromDB []types.PolicyYaml
+	if consumer.IsTypeSystem() {
+		yamlFromDB = append(yamlFromDB, system.GetPolicyYamlFromDB(consumer)...)
+	}
+	if consumer.IsTypeNetwork() {
+		yamlFromDB = append(yamlFromDB, network.GetPolicyYamlFromDB(consumer)...)
+	}
+
+	for i := range yamlFromDB {
+		err := libs.SendPolicyYamlInGrpcStream(srv, &yamlFromDB[i])
+		if err != nil {
+			return err
+		}
+	}
+
+	if !req.GetFollow() {
+		// client only needs the discovered policy in DB.
+		// Not policy update events.
+		return nil
+	}
+
+	if consumer.IsTypeSystem() {
+		system.PolicyStore.AddConsumer(consumer)
+		defer system.PolicyStore.RemoveConsumer(consumer)
+	}
+
+	if consumer.IsTypeNetwork() {
+		network.PolicyStore.AddConsumer(consumer)
+		defer network.PolicyStore.RemoveConsumer(consumer)
+	}
+
+	// consume policy update events
+	return libs.RelayPolicyEventToGrpcStream(srv, consumer)
 }
 
 // ====================== //
@@ -228,6 +279,7 @@ func GetNewServer() *grpc.Server {
 	analyzerServer := &analyzerServer{}
 	insightServer := &insightServer{}
 	observabilityServer := &observabilityServer{}
+	discoveryServer := &discoveryServer{}
 
 	// register gRPC servers
 	wpb.RegisterWorkerServer(s, workerServer)
@@ -235,6 +287,7 @@ func GetNewServer() *grpc.Server {
 	apb.RegisterAnalyzerServer(s, analyzerServer)
 	ipb.RegisterInsightServer(s, insightServer)
 	opb.RegisterObservabilityServer(s, observabilityServer)
+	dpb.RegisterDiscoveryServer(s, discoveryServer)
 
 	if cfg.GetCurrentCfg().ConfigClusterMgmt.ClusterInfoFrom != "k8sclient" {
 		// start consumer automatically
@@ -244,10 +297,10 @@ func GetNewServer() *grpc.Server {
 	}
 
 	// start net worker automatically
-	networker.StartNetworkWorker()
+	network.StartNetworkWorker()
 
 	// start sys worker automatically
-	sysworker.StartSystemWorker()
+	system.StartSystemWorker()
 
 	// start observability
 	obs.InitObservability()

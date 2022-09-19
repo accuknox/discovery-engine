@@ -1,5 +1,8 @@
 package types
 
+// LabelMap stores the label of an endpoint
+type LabelMap = map[string]string
+
 // ========================= //
 // == Knox Network Policy == //
 // ========================= //
@@ -310,15 +313,20 @@ type KubeArmorPolicy struct {
 	Spec KnoxSystemSpec `json:"spec,omitempty" yaml:"spec,omitempty"`
 }
 
-// =============== //
-// == Policy DB == //
-// =============== //
-type Policy struct {
-	Type        string `json:"type,omitempty"`
-	Kind        string `json:"kind,omitempty"`
-	Namespace   string `json:"namespace,omitempty"`
-	ClusterName string `json:"cluster_name,omitempty"`
-	Labels      string `json:"labels,omitempty"`
-	PolicyName  string `json:"policy_name,omitempty"`
-	PolicyYaml  string `json:"policy_yaml,omitempty"`
+// PolicyFilter is used for GetFlow RPC in Discovery Service.
+type PolicyFilter struct {
+	Cluster   string
+	Namespace string
+	Labels    LabelMap
+}
+
+// PolicyYaml stores a policy in YAML format along with its metadata
+type PolicyYaml struct {
+	Type      string   `json:"type,omitempty"`
+	Kind      string   `json:"kind,omitempty"`
+	Name      string   `json:"name,omitempty"`
+	Namespace string   `json:"namespace,omitempty"`
+	Cluster   string   `json:"cluster,omitempty"`
+	Labels    LabelMap `json:"labels,omitempty"`
+	Yaml      []byte   `json:"yaml,omitempty"`
 }

@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package v1.discovery;
 
-option go_package = "github.com/accuknox/knoxAutoPolicy/protos/v1/discovery";
+option go_package = "github.com/kubearmor/discovery-engine/src/protobuf/v1/discovery";
 
 service Discovery {
   rpc GetPolicy(GetPolicyRequest) returns (stream GetPolicyResponse) {}
@@ -23,5 +23,4 @@ message GetPolicyResponse {
   repeated string label = 4;
   string name = 5;
   bytes yaml = 6;
-  string error = 100;
 }
