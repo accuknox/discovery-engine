@@ -8,8 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const ShouldBeEqual = "they should be equal"
-
 func TestGetLatestCIDRs(t *testing.T) {
 	exist1 := types.KnoxNetworkPolicy{
 		Metadata: map[string]string{
@@ -127,7 +125,7 @@ func TestGetLastedHTTPPolicy(t *testing.T) {
 
 	existings := []types.KnoxNetworkPolicy{exist1, exist2}
 
-	result := GetLastedHTTPPolicy(existings, httpPolicy)
+	result := GetLatestHTTPPolicy(existings, httpPolicy)
 	assert.Equal(t, result[0], exist1, ShouldBeEqual)
 }
 
@@ -186,7 +184,7 @@ func TestGetLatestEntityPolicy(t *testing.T) {
 
 			Egress: []types.Egress{
 				types.Egress{
-					ToEndtities: []string{"testEntity"},
+					ToEntities: []string{"testEntity"},
 				},
 			},
 		},
@@ -431,7 +429,7 @@ func TestUpdateEntity(t *testing.T) {
 
 			Egress: []types.Egress{
 				types.Egress{
-					ToEndtities: []string{"testEntity"},
+					ToEntities: []string{"testEntity"},
 				},
 			},
 		},
@@ -439,11 +437,11 @@ func TestUpdateEntity(t *testing.T) {
 
 	newPolicy := types.KnoxNetworkPolicy{}
 	libs.DeepCopy(&newPolicy, &existPolicy)
-	newPolicy.Spec.Egress[0].ToEndtities[0] = "newEntity"
+	newPolicy.Spec.Egress[0].ToEntities[0] = "newEntity"
 
 	expected := types.KnoxNetworkPolicy{}
 	libs.DeepCopy(&expected, &newPolicy)
-	expected.Spec.Egress[0].ToEndtities = append(expected.Spec.Egress[0].ToEndtities, "testEntity")
+	expected.Spec.Egress[0].ToEntities = append(expected.Spec.Egress[0].ToEntities, "testEntity")
 
 	existings := []types.KnoxNetworkPolicy{existPolicy}
 

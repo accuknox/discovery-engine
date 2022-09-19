@@ -2,37 +2,67 @@ syntax = "proto3";
 
 package v1.observability;
 
-option go_package = "github.com/accuknox/knoxAutoPolicy/protos/v1/observability";
+option go_package = "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/observability";
 
 service Observability {
-    rpc SysObservabilityData (Data) returns (Response);
+    rpc Summary(Request) returns (Response);
+    rpc GetPodNames (Request) returns (PodNameResponse);
 }
 
-message Data {
-    string request = 1;
-    string clusterName = 2;
-    string namespace = 3;
-    string containerName =4;
-    string labels = 5;
-    string fromSource = 6;
-    string duration = 7;
-}
-
-message SysObsResponseData {
-    string ClusterName = 1;
+message Request{
+    string PodName = 1;
     string NameSpace = 2;
-    string Labels = 3;
-    string ContainerName = 4;
-    repeated SysProcessFileData Resources = 5;
+    string ClusterName = 3;
+    string Label = 4;
+    string ContainerName = 5;
+    string Type = 6;
+    bool Aggregate = 7;
 }
 
-message SysProcessFileData {
-    string fromSource = 1;
-    repeated string processPaths = 2;
-    repeated string filePaths = 3;
-    repeated string networkPaths = 4;
+message Response{
+    string PodName = 1;
+    string ClusterName = 2;
+    string Namespace = 3;
+    string Label = 4;
+    string ContainerName = 5;
+    repeated SysProcFileSummaryData ProcessData = 6;
+    repeated SysProcFileSummaryData FileData = 7;
+    repeated SysNwSummaryData InNwData = 8;
+    repeated SysNwSummaryData OutNwData = 9;
+    repeated CiliumSummData IngressData = 10;
+    repeated CiliumSummData EgressData = 11;
 }
 
-message Response {
-    repeated SysObsResponseData Data = 1;
+message SysProcFileSummaryData {
+    string ProcName = 1;
+    string ParentProcName = 2;
+    string Count = 3;
+    string UpdatedTime = 4;
+    string Status = 5;
 }
+
+message SysNwSummaryData {
+    string Protocol = 1;
+    string Command = 2;
+    string IP = 3;
+    string Port = 4;
+    string Labels = 5;
+    string Namespace = 6;
+}
+
+message CiliumSummData {
+    string SrcPod = 1;
+    string DestPod = 2;
+    string DestNamespace = 3;
+    string DestLabel = 4;
+    string Protocol = 5;
+    string Port = 6;
+    string Count = 7;
+    string UpdatedTime = 8;
+    string Status = 9;
+}
+
+message PodNameResponse {
+    repeated string PodName = 1;
+}
+

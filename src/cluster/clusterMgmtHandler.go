@@ -228,6 +228,7 @@ func GetServicesFromCluster(cluster types.Cluster) []types.Service {
 			ServiceName: svcCluster.ServiceName,
 			Type:        svcCluster.Types,
 			Labels:      []string{},
+			ClusterIP:   svcCluster.ClusterIP,
 		}
 
 		for _, label := range svcCluster.Labels {
@@ -376,6 +377,7 @@ func GetPodsFromCluster(cluster types.Cluster) []types.Pod {
 			Namespace: podCluster.Namespace,
 			PodName:   podCluster.PodName,
 			Labels:    []string{},
+			PodIP:     podCluster.PodIP,
 		}
 
 		for _, label := range podCluster.Labels {

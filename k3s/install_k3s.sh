@@ -3,7 +3,7 @@
 # Copyright 2022 Authors of auto-policy-discovery
 
 # create a single-node K3s cluster
-curl -sfL https://get.k3s.io | K3S_KUBECONFIG_MODE="644" INSTALL_K3S_EXEC="--disable=traefik --docker" sh -
+curl -sfL https://get.k3s.io | K3S_KUBECONFIG_MODE="644" INSTALL_K3S_EXEC="--disable=traefik" sh -
 [[ $? != 0 ]] && echo "Failed to install k3s" && exit 1
 
 KUBEDIR=$HOME/.kube

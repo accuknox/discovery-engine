@@ -15,7 +15,7 @@ spec:
     spec:
       serviceAccountName: knoxautopolicy
       containers:
-      - image: accuknox/knoxautopolicy:dev
+      - image: accuknox/knoxautopolicy:stable
         imagePullPolicy: Always
         name: knoxautopolicy
         ports:
@@ -29,4 +29,116 @@ spec:
         - name: config-volume
           configMap:
             name: knoxautopolicy-config
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: knoxautopolicy-config
+data:
+  conf.yaml: |-
+    application:
+      name: knoxautopolicy
+      network:
+        operation-mode: 1                         # 1: cronjob | 2: one-time-job
+        cron-job-time-interval: "0h0m10s"         # format: XhYmZs
+        operation-trigger: 1000
+        network-log-from: "hubble"                # db|hubble|feed-consumer
+        network-log-file: "./flow.json"           # file path
+        network-policy-to: "db"                   # db, file
+        network-policy-dir: "./"
+        namespace-filter:
+        - "!kube-system"
+      system:
+        operation-mode: 1                         # 1: cronjob | 2: one-time-job
+        cron-job-time-interval: "0h0m10s"         # format: XhYmZs
+        system-log-from: "kubearmor"              # db|kubearmor|feed-consumer
+        system-log-file: "./log.json"             # file path
+        system-policy-to: "db"                    # db, file
+        system-policy-dir: "./"
+        deprecate-old-mode: true
+        namespace-filter:
+        - "!kube-system"
+        fromsource-filter:
+        - "knoxAutoPolicy"
 
+      cluster:
+        cluster-info-from: "k8sclient"            # k8sclient|accuknox
+
+    observability: 
+      enable: true
+      cron-job-time-interval: "0h0m10s"         # format: XhYmZs
+      dbname: ./accuknox-obs.db
+      system-observability: true
+      network-observability: true
+
+    database:
+      driver: sqlite3
+      host: mysql.explorer.svc.cluster.local
+      port: 3306
+      user: root
+      password: password
+      dbname: knoxautopolicy
+      table-configuration: auto_policy_config
+      table-network-log: network_log
+      table-network-policy: network_policy
+      table-system-log: system_log
+      table-system-policy: system_policy
+
+    feed-consumer:
+      driver: "pulsar"
+      servers:
+        - "pulsar-proxy.accuknox-dev-pulsar.svc.cluster.local:6650"
+      topic: 
+        cilium: "persistent://accuknox/datapipeline/ciliumalertsflowv1"
+        kubearmor: "persistent://accuknox/datapipeline/kubearmoralertsflowv1"
+      encryption:
+        enable: false
+        ca-cert: /kafka-ssl/ca.pem 
+      auth:
+        enable: false
+        cert: /kafka-ssl/user.cert.pem
+        key: /kafka-ssl/user.key.pem
+
+    logging:
+      level: "INFO"
+
+    # kubectl -n kube-system port-forward service/hubble-relay --address 0.0.0.0 --address :: 4245:80
+    cilium-hubble:
+      url: hubble-relay.kube-system.svc.cluster.local
+      port: 80
+
+    kubearmor:
+      url: kubearmor.kube-system.svc.cluster.local
+      port: 32767
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: knoxautopolicy
+  labels:
+    service: knoxautopolicy
+spec:
+  ports:
+  - port: 9089
+    targetPort: 9089
+    protocol: TCP
+  selector:
+    container: knoxautopolicy
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: knoxautopolicy
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: knoxautopolicy
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+- kind: ServiceAccount
+  name: knoxautopolicy
+  namespace: explorer

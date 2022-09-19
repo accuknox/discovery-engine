@@ -3,12 +3,17 @@ package plugin
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/accuknox/auto-policy-discovery/src/common"
+	"github.com/accuknox/auto-policy-discovery/src/config"
 	"github.com/accuknox/auto-policy-discovery/src/libs"
+	obs "github.com/accuknox/auto-policy-discovery/src/observability"
 	"github.com/accuknox/auto-policy-discovery/src/types"
 	pb "github.com/kubearmor/KubeArmor/protobuf"
 	"google.golang.org/grpc"
@@ -18,13 +23,25 @@ import (
 var KubeArmorRelayLogs []*pb.Log
 var KubeArmorRelayLogsMutex *sync.Mutex
 
-var KubeArmorKafkaLogs []*types.KnoxSystemLog
-var KubeArmorKafkaLogsMutex *sync.Mutex
+var KubeArmorFCLogs []*types.KnoxSystemLog
+var KubeArmorFCLogsMutex *sync.Mutex
+
+func generateProcessPaths(fromSrc []types.KnoxFromSource) []string {
+	var processpaths []string
+	for _, locfrmsrc := range fromSrc {
+		processpaths = append(processpaths, locfrmsrc.Path)
+	}
+	return processpaths
+}
 
 func ConvertKnoxSystemPolicyToKubeArmorPolicy(knoxPolicies []types.KnoxSystemPolicy) []types.KubeArmorPolicy {
 	results := []types.KubeArmorPolicy{}
 
 	for _, policy := range knoxPolicies {
+		filePathsFromSrc := []string{}
+		processPaths := []string{}
+		resPath := []string{}
+
 		kubePolicy := types.KubeArmorPolicy{
 			APIVersion: "security.kubearmor.com/v1",
 			Kind:       "KubeArmorPolicy",
@@ -36,9 +53,111 @@ func ConvertKnoxSystemPolicyToKubeArmorPolicy(knoxPolicies []types.KnoxSystemPol
 		kubePolicy.Metadata["containername"] = policy.Metadata["containername"]
 		kubePolicy.Metadata["name"] = policy.Metadata["name"]
 
+		if policy.Metadata["namespace"] == types.PolicyDiscoveryVMNamespace {
+			kubePolicy.Kind = "KubeArmorHostPolicy"
+		}
+
 		kubePolicy.Spec = policy.Spec
 
+		if kubePolicy.Kind == "KubeArmorPolicy" {
+			dirRule := types.KnoxMatchDirectories{
+				Dir:       types.PreConfiguredKubearmorRule,
+				Recursive: true,
+			}
+			kubePolicy.Spec.File.MatchDirectories = append(policy.Spec.File.MatchDirectories, dirRule)
+		}
+
+		for _, procpath := range kubePolicy.Spec.Process.MatchPaths {
+			processPaths = append(processPaths, procpath.Path)
+		}
+
+		for _, matchpaths := range kubePolicy.Spec.File.MatchPaths {
+			filePathsFromSrc = append(filePathsFromSrc, generateProcessPaths(matchpaths.FromSource)...)
+		}
+		for _, matchpaths := range kubePolicy.Spec.File.MatchDirectories {
+			filePathsFromSrc = append(filePathsFromSrc, generateProcessPaths(matchpaths.FromSource)...)
+		}
+
+		filePathsFromSrc = common.StringDeDuplication(filePathsFromSrc)
+		procPaths := common.StringDeDuplication(processPaths)
+
+		for _, file := range filePathsFromSrc {
+			isPathExist := false
+			for _, proc := range procPaths {
+				if proc == file {
+					isPathExist = true
+					continue
+				}
+			}
+			if !isPathExist {
+				resPath = append(resPath, file)
+			}
+		}
+
+		resPath = common.StringDeDuplication(resPath)
+
+		for _, path := range resPath {
+			kubePolicy.Spec.Process.MatchPaths = append(kubePolicy.Spec.Process.MatchPaths, types.KnoxMatchPaths{
+				Path: path,
+			})
+		}
+
 		results = append(results, kubePolicy)
+	}
+
+	return results
+}
+
+func ConvertSQLiteKubeArmorLogsToKnoxSystemLogs(docs []map[string]interface{}) []types.KnoxSystemLog {
+	results := []types.KnoxSystemLog{}
+
+	for _, doc := range docs {
+		syslog := types.SystemLogEvent{}
+
+		b, err := json.Marshal(doc)
+		if err != nil {
+			log.Error().Msg(err.Error())
+			continue
+		}
+
+		if err := json.Unmarshal(b, &syslog); err != nil {
+			log.Error().Msg(err.Error())
+		}
+
+		sources := strings.Split(syslog.Source, " ")
+		source := ""
+		if len(sources) >= 1 {
+			source = sources[0]
+		}
+
+		resources := strings.Split(syslog.Resource, " ")
+		resource := ""
+		if len(resources) >= 1 {
+			resource = resources[0]
+		}
+
+		readOnly := false
+		if syslog.Data != "" && strings.Contains(syslog.Data, "O_RDONLY") {
+			readOnly = true
+		}
+
+		knoxSysLog := types.KnoxSystemLog{
+			ClusterName:    syslog.ClusterName,
+			HostName:       syslog.HostName,
+			Namespace:      syslog.NamespaceName,
+			ContainerName:  syslog.ContainerName,
+			PodName:        syslog.PodName,
+			Source:         source,
+			SourceOrigin:   syslog.Source,
+			Operation:      syslog.Operation,
+			ResourceOrigin: syslog.Resource,
+			Resource:       resource,
+			Data:           syslog.Data,
+			ReadOnly:       readOnly,
+			Result:         syslog.Result,
+		}
+
+		results = append(results, knoxSysLog)
 	}
 
 	return results
@@ -102,17 +221,25 @@ func ConvertMySQLKubeArmorLogsToKnoxSystemLogs(docs []map[string]interface{}) []
 func ConvertKubeArmorSystemLogsToKnoxSystemLogs(dbDriver string, docs []map[string]interface{}) []types.KnoxSystemLog {
 	if dbDriver == "mysql" {
 		return ConvertMySQLKubeArmorLogsToKnoxSystemLogs(docs)
+	} else if dbDriver == "sqlite3" {
+		return ConvertSQLiteKubeArmorLogsToKnoxSystemLogs(docs)
 	}
 
 	return []types.KnoxSystemLog{}
 }
 
-func ConvertKubeArmorLogToKnoxSystemLog(relayLog *pb.Log) types.KnoxSystemLog {
+func ConvertKubeArmorLogToKnoxSystemLog(relayLog *pb.Log) (types.KnoxSystemLog, error) {
 
 	sources := strings.Split(relayLog.Source, " ")
 	source := ""
 	if len(sources) >= 1 {
 		source = sources[0]
+	}
+
+	// check if source is absolute path and does not terminate in "/"
+	if !filepath.IsAbs(source) || strings.HasSuffix(source, "/") {
+		log.Error().Msgf("invalid source [%s]. %+v", source, relayLog)
+		return types.KnoxSystemLog{}, errors.New("invalid file source")
 	}
 
 	resources := strings.Split(relayLog.Resource, " ")
@@ -121,9 +248,27 @@ func ConvertKubeArmorLogToKnoxSystemLog(relayLog *pb.Log) types.KnoxSystemLog {
 		resource = resources[0]
 	}
 
+	// check if resource is absolute path. "/" is ok.
+	if (relayLog.Operation == "File" || relayLog.Operation == "Process") && !filepath.IsAbs(resource) {
+		log.Error().Msgf("invalid resource [%s]. %+v", resource, relayLog)
+		return types.KnoxSystemLog{}, errors.New("invalid file resource")
+	}
+
 	readOnly := false
 	if relayLog.Data != "" && strings.Contains(relayLog.Data, "O_RDONLY") {
 		readOnly = true
+	}
+
+	if strings.Contains(source, "runc") {
+		source = ""
+	}
+
+	if strings.Contains(resource, "runc") {
+		resource = ""
+	}
+
+	if strings.HasPrefix(resource, types.PreConfiguredKubearmorRule) {
+		return types.KnoxSystemLog{}, errors.New("predefined file resource")
 	}
 
 	knoxSystemLog := types.KnoxSystemLog{
@@ -142,7 +287,19 @@ func ConvertKubeArmorLogToKnoxSystemLog(relayLog *pb.Log) types.KnoxSystemLog {
 		Result:         relayLog.Result,
 	}
 
-	return knoxSystemLog
+	if relayLog.Type == "HostLog" {
+		knoxSystemLog.ContainerName = relayLog.HostName
+		knoxSystemLog.Namespace = types.PolicyDiscoveryVMNamespace
+		knoxSystemLog.PodName = types.PolicyDiscoveryVMPodName
+	}
+
+	if relayLog.Type == "ContainerLog" && relayLog.NamespaceName == types.PolicyDiscoveryContainerNamespace {
+		knoxSystemLog.ContainerName = relayLog.ContainerName
+		knoxSystemLog.Namespace = types.PolicyDiscoveryContainerNamespace
+		knoxSystemLog.PodName = types.PolicyDiscoveryContainerPodName
+	}
+
+	return knoxSystemLog, nil
 }
 
 // ========================= //
@@ -188,6 +345,32 @@ func GetSystemAlertsFromKubeArmorRelay(trigger int) []*pb.Log {
 	return results
 }
 
+func ignoreLogFromRelayWithSource(filter []string, log *pb.Log) bool {
+	for _, srcFilter := range filter {
+		if strings.Contains(log.Source, srcFilter) {
+			return true
+		}
+	}
+	return false
+}
+
+func ignoreLogFromRelayWithNamespace(nsFilter, nsNotFilter []string, log *pb.Log) bool {
+	if len(nsFilter) > 0 {
+		for _, ns := range nsFilter {
+			if !strings.Contains(log.NamespaceName, ns) {
+				return true
+			}
+		}
+	} else if len(nsNotFilter) > 0 {
+		for _, notns := range nsNotFilter {
+			if strings.Contains(log.NamespaceName, notns) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 var KubeArmorRelayStarted = false
 
 func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay) {
@@ -201,6 +384,10 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 	client := pb.NewLogServiceClient(conn)
 	req := pb.RequestMessage{}
 	req.Filter = "all"
+
+	nsFilter := config.CurrentCfg.ConfigSysPolicy.NsFilter
+	nsNotFilter := config.CurrentCfg.ConfigSysPolicy.NsNotFilter
+	fromSourceFilter := config.CurrentCfg.ConfigSysPolicy.FromSourceFilter
 
 	//Stream Logs
 	go func(client pb.LogServiceClient) {
@@ -226,9 +413,21 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 					return
 				}
 
+				if ignoreLogFromRelayWithNamespace(nsFilter, nsNotFilter, res) {
+					continue
+				}
+
+				if ignoreLogFromRelayWithSource(fromSourceFilter, res) {
+					continue
+				}
+
 				KubeArmorRelayLogsMutex.Lock()
 				KubeArmorRelayLogs = append(KubeArmorRelayLogs, res)
 				KubeArmorRelayLogsMutex.Unlock()
+
+				if config.GetCfgObservabilityEnable() {
+					obs.ProcessKubearmorLog(res)
+				}
 			}
 		}
 	}(client)
@@ -259,6 +458,7 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 
 				log := pb.Log{
 					ClusterName:   res.ClusterName,
+					ContainerName: res.ContainerName,
 					HostName:      res.HostName,
 					NamespaceName: res.NamespaceName,
 					PodName:       res.PodName,
@@ -267,34 +467,47 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 					Resource:      res.Resource,
 					Data:          res.Data,
 					Result:        res.Result,
+					Type:          res.Type,
+				}
+
+				if ignoreLogFromRelayWithNamespace(nsFilter, nsNotFilter, &log) {
+					continue
+				}
+
+				if ignoreLogFromRelayWithSource(fromSourceFilter, &log) {
+					continue
 				}
 
 				KubeArmorRelayLogsMutex.Lock()
 				KubeArmorRelayLogs = append(KubeArmorRelayLogs, &log)
 				KubeArmorRelayLogsMutex.Unlock()
+
+				if config.GetCfgObservabilityEnable() {
+					obs.ProcessKubearmorAlert(&log)
+				}
 			}
 		}
 	}()
 }
 
-func GetSystemLogsFromKafkaConsumer(trigger int) []*types.KnoxSystemLog {
+func GetSystemLogsFromFeedConsumer(trigger int) []*types.KnoxSystemLog {
 	results := []*types.KnoxSystemLog{}
-	KubeArmorKafkaLogsMutex.Lock()
-	defer KubeArmorKafkaLogsMutex.Unlock()
-	if len(KubeArmorKafkaLogs) == 0 {
-		log.Info().Msgf("KubeArmor kafka traffic flow not exist")
+	KubeArmorFCLogsMutex.Lock()
+	defer KubeArmorFCLogsMutex.Unlock()
+	if len(KubeArmorFCLogs) == 0 {
+		log.Info().Msgf("KubeArmor feed-consumer traffic flow not exist")
 		return results
 	}
 
-	if len(KubeArmorKafkaLogs) < trigger {
-		log.Info().Msgf("The number of KubeArmor traffic flow [%d] is less than trigger [%d]", len(KubeArmorKafkaLogs), trigger)
+	if len(KubeArmorFCLogs) < trigger {
+		log.Info().Msgf("The number of KubeArmor traffic flow [%d] is less than trigger [%d]", len(KubeArmorFCLogs), trigger)
 		return results
 	}
 
-	results = KubeArmorKafkaLogs                  // copy
-	KubeArmorKafkaLogs = []*types.KnoxSystemLog{} // reset
+	results = KubeArmorFCLogs                  // copy
+	KubeArmorFCLogs = []*types.KnoxSystemLog{} // reset
 
-	log.Info().Msgf("The total number of KubeArmor kafka traffic flow: [%d]", len(results))
+	log.Info().Msgf("The total number of KubeArmor feed-consumer traffic flow: [%d]", len(results))
 
 	return results
 }

@@ -2,21 +2,23 @@ package server
 
 import (
 	"context"
-	"errors"
 
 	"github.com/rs/zerolog"
 
 	analyzer "github.com/accuknox/auto-policy-discovery/src/analyzer"
 	cfg "github.com/accuknox/auto-policy-discovery/src/config"
 	core "github.com/accuknox/auto-policy-discovery/src/config"
-	"github.com/accuknox/auto-policy-discovery/src/feedconsumer"
+	fc "github.com/accuknox/auto-policy-discovery/src/feedconsumer"
 	logger "github.com/accuknox/auto-policy-discovery/src/logging"
 	networker "github.com/accuknox/auto-policy-discovery/src/networkpolicy"
+	obs "github.com/accuknox/auto-policy-discovery/src/observability"
 	sysworker "github.com/accuknox/auto-policy-discovery/src/systempolicy"
 
+	"github.com/accuknox/auto-policy-discovery/src/insight"
 	"github.com/accuknox/auto-policy-discovery/src/libs"
 	apb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/analyzer"
 	fpb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/consumer"
+	ipb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/insight"
 	opb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/observability"
 	wpb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/worker"
 	"github.com/accuknox/auto-policy-discovery/src/types"
@@ -101,14 +103,17 @@ func (s *workerServer) GetWorkerStatus(ctx context.Context, in *wpb.WorkerReques
 }
 
 func (s *workerServer) Convert(ctx context.Context, in *wpb.WorkerRequest) (*wpb.WorkerResponse, error) {
+
 	if in.GetPolicytype() == "network" {
 		log.Info().Msg("Convert network policy called")
 		networker.InitNetPolicyDiscoveryConfiguration()
-		networker.WriteNetworkPoliciesToFile("", "", []types.Service{})
+		networker.WriteNetworkPoliciesToFile(in.GetClustername(), in.GetNamespace())
+		return networker.GetNetPolicy(in.Clustername, in.Namespace), nil
 	} else if in.GetPolicytype() == "system" {
 		log.Info().Msg("Convert system policy called")
 		sysworker.InitSysPolicyDiscoveryConfiguration()
-		sysworker.WriteSystemPoliciesToFile("")
+		sysworker.WriteSystemPoliciesToFile(in.GetNamespace(), in.GetClustername(), in.GetLabels(), in.GetFromsource())
+		return sysworker.GetSysPolicy(in.Namespace, in.Clustername, in.Labels, in.Fromsource), nil
 	} else {
 		log.Info().Msg("Convert policy called, but no policy type")
 	}
@@ -126,19 +131,23 @@ type consumerServer struct {
 
 func (s *consumerServer) Start(ctx context.Context, in *fpb.ConsumerRequest) (*fpb.ConsumerResponse, error) {
 	log.Info().Msg("Start consumer called")
-	feedconsumer.StartConsumer()
+	fc.ConsumerMutex.Lock()
+	fc.StartConsumer()
+	fc.ConsumerMutex.Unlock()
 	return &fpb.ConsumerResponse{Res: "ok"}, nil
 }
 
 func (s *consumerServer) Stop(ctx context.Context, in *fpb.ConsumerRequest) (*fpb.ConsumerResponse, error) {
 	log.Info().Msg("Stop consumer called")
-	feedconsumer.StopConsumer()
+	fc.ConsumerMutex.Lock()
+	fc.StopConsumer()
+	fc.ConsumerMutex.Unlock()
 	return &fpb.ConsumerResponse{Res: "ok"}, nil
 }
 
 func (s *consumerServer) GetWorkerStatus(ctx context.Context, in *fpb.ConsumerRequest) (*fpb.ConsumerResponse, error) {
 	log.Info().Msg("Get consumer status called")
-	return &fpb.ConsumerResponse{Res: feedconsumer.Status}, nil
+	return &fpb.ConsumerResponse{Res: fc.Status}, nil
 }
 
 // ====================== //
@@ -161,35 +170,46 @@ func (s *analyzerServer) GetSystemPolicies(ctx context.Context, in *apb.SystemLo
 	return &pbSystemPolicies, nil
 }
 
+// ============= //
+// == Insight == //
+// ============= //
+
+type insightServer struct {
+	ipb.InsightServer
+}
+
+func (s *insightServer) GetInsightData(ctx context.Context, in *ipb.Request) (*ipb.Response, error) {
+	resp, err := insight.GetInsightData(types.InsightRequest{
+		Request:       in.Request,
+		Source:        in.Source,
+		ClusterName:   in.ClusterName,
+		Namespace:     in.Namespace,
+		ContainerName: in.ContainerName,
+		Labels:        in.Labels,
+		FromSource:    in.FromSource,
+		Duration:      in.Duration,
+		Type:          in.Type,
+		Rule:          in.Rule,
+	})
+	return &resp, err
+}
+
 // =================== //
 // == Observability == //
 // =================== //
-
 type observabilityServer struct {
 	opb.ObservabilityServer
 }
 
-func (s *observabilityServer) SysObservabilityData(ctx context.Context, in *opb.Data) (*opb.Response, error) {
+//Service to fetch summary data
+func (s *observabilityServer) Summary(ctx context.Context, in *opb.Request) (*opb.Response, error) {
+	resp, err := obs.GetSummaryData(in)
+	return resp, err
+}
 
-	var wpfs types.WorkloadProcessFileSet
-
-	wpfs.ContainerName = in.ContainerName
-	wpfs.ClusterName = in.ClusterName
-	wpfs.FromSource = in.FromSource
-	wpfs.Namespace = in.Namespace
-	wpfs.Labels = in.Labels
-
-	if in.Request == "observe" {
-		wpfs.FromSource = "" // Forcing wpfs.FromSource to "" as it is not a search string
-		resp, err := sysworker.GetSystemObsData(wpfs)
-		return &resp, err
-	}
-	if in.Request == "dbclear" {
-		err := sysworker.ClearSysDb(wpfs, in.Duration)
-		return &opb.Response{}, err
-	}
-
-	return nil, errors.New("not a valid request, use observe/dbclear")
+func (s *observabilityServer) GetPodNames(ctx context.Context, in *opb.Request) (*opb.PodNameResponse, error) {
+	resp, err := obs.GetPodNames(in)
+	return &resp, err
 }
 
 // ================= //
@@ -206,17 +226,21 @@ func GetNewServer() *grpc.Server {
 	workerServer := &workerServer{}
 	consumerServer := &consumerServer{}
 	analyzerServer := &analyzerServer{}
+	insightServer := &insightServer{}
 	observabilityServer := &observabilityServer{}
 
 	// register gRPC servers
 	wpb.RegisterWorkerServer(s, workerServer)
 	fpb.RegisterConsumerServer(s, consumerServer)
 	apb.RegisterAnalyzerServer(s, analyzerServer)
+	ipb.RegisterInsightServer(s, insightServer)
 	opb.RegisterObservabilityServer(s, observabilityServer)
 
 	if cfg.GetCurrentCfg().ConfigClusterMgmt.ClusterInfoFrom != "k8sclient" {
 		// start consumer automatically
-		feedconsumer.StartConsumer()
+		fc.ConsumerMutex.Lock()
+		fc.StartConsumer()
+		fc.ConsumerMutex.Unlock()
 	}
 
 	// start net worker automatically
@@ -224,6 +248,9 @@ func GetNewServer() *grpc.Server {
 
 	// start sys worker automatically
 	sysworker.StartSystemWorker()
+
+	// start observability
+	obs.InitObservability()
 
 	return s
 }

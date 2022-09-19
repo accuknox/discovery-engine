@@ -44,7 +44,7 @@ func populatePbSysPolicyFromSysPolicy(KnoxSysPolicy types.KnoxSystemPolicy) apb.
 			pbKnoxFromSrc := apb.KnoxFromSource{}
 			pbKnoxFromSrc.Path = knoxFromSource.Path
 			pbKnoxFromSrc.Dir = knoxFromSource.Dir
-			pbKnoxFromSrc.Recursive = knoxFromSource.Recursive
+			//pbKnoxFromSrc.Recursive = knoxFromSource.Recursive
 			pbKnoxMatchPath.FromSource = append(pbKnoxMatchPath.FromSource, &pbKnoxFromSrc)
 		}
 		pbProcKnoxMatchPaths = append(pbProcKnoxMatchPaths, &pbKnoxMatchPath)
@@ -60,7 +60,7 @@ func populatePbSysPolicyFromSysPolicy(KnoxSysPolicy types.KnoxSystemPolicy) apb.
 			pbKnoxFromSrc := apb.KnoxFromSource{}
 			pbKnoxFromSrc.Path = knoxFromSource.Path
 			pbKnoxFromSrc.Dir = knoxFromSource.Dir
-			pbKnoxFromSrc.Recursive = knoxFromSource.Recursive
+			//pbKnoxFromSrc.Recursive = knoxFromSource.Recursive
 			pbKnoxMatchDir.FromSource = append(pbKnoxMatchDir.FromSource, &pbKnoxFromSrc)
 		}
 		pbProcKnoxMatchDirectories = append(pbProcKnoxMatchDirectories, &pbKnoxMatchDir)
@@ -76,7 +76,7 @@ func populatePbSysPolicyFromSysPolicy(KnoxSysPolicy types.KnoxSystemPolicy) apb.
 			pbKnoxFromSrc := apb.KnoxFromSource{}
 			pbKnoxFromSrc.Path = knoxFromSource.Path
 			pbKnoxFromSrc.Dir = knoxFromSource.Dir
-			pbKnoxFromSrc.Recursive = knoxFromSource.Recursive
+			//pbKnoxFromSrc.Recursive = knoxFromSource.Recursive
 			pbKnoxMatchPath.FromSource = append(pbKnoxMatchPath.FromSource, &pbKnoxFromSrc)
 		}
 		pbFileKnoxMatchPaths = append(pbFileKnoxMatchPaths, &pbKnoxMatchPath)
@@ -92,7 +92,7 @@ func populatePbSysPolicyFromSysPolicy(KnoxSysPolicy types.KnoxSystemPolicy) apb.
 			pbKnoxFromSrc := apb.KnoxFromSource{}
 			pbKnoxFromSrc.Path = knoxFromSource.Path
 			pbKnoxFromSrc.Dir = knoxFromSource.Dir
-			pbKnoxFromSrc.Recursive = knoxFromSource.Recursive
+			//pbKnoxFromSrc.Recursive = knoxFromSource.Recursive
 			pbKnoxMatchDir.FromSource = append(pbKnoxMatchDir.FromSource, &pbKnoxFromSrc)
 		}
 		pbFileKnoxMatchDirectories = append(pbFileKnoxMatchDirectories, &pbKnoxMatchDir)
@@ -106,7 +106,7 @@ func populatePbSysPolicyFromSysPolicy(KnoxSysPolicy types.KnoxSystemPolicy) apb.
 			pbFromSrc := apb.KnoxFromSource{}
 			pbFromSrc.Path = fromSrc.Path
 			pbFromSrc.Dir = fromSrc.Dir
-			pbFromSrc.Recursive = fromSrc.Recursive
+			//pbFromSrc.Recursive = fromSrc.Recursive
 			pbMatchProtocol.FromSource = append(pbMatchProtocol.FromSource, &pbFromSrc)
 		}
 		pbKnoxMatchProtocols = append(pbKnoxMatchProtocols, &pbMatchProtocol)

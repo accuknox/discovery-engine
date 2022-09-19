@@ -10,16 +10,18 @@ import (
 	"sync"
 	"time"
 
+	"github.com/accuknox/auto-policy-discovery/src/config"
 	"github.com/accuknox/auto-policy-discovery/src/libs"
 	logger "github.com/accuknox/auto-policy-discovery/src/logging"
+	obs "github.com/accuknox/auto-policy-discovery/src/observability"
 	"github.com/accuknox/auto-policy-discovery/src/types"
 	"github.com/rs/zerolog"
 	"google.golang.org/grpc"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
-	// "github.com/cilium/cilium/pkg/policy/api"
+	"github.com/cilium/cilium/api/v1/flow"
 	cilium "github.com/cilium/cilium/api/v1/flow"
 	"github.com/cilium/cilium/api/v1/observer"
+	cu "github.com/cilium/cilium/pkg/k8s/apis/cilium.io/utils"
 )
 
 var CiliumReserved string = "reserved:"
@@ -59,8 +61,8 @@ var Verdict = map[string]int{
 
 var CiliumFlows []*cilium.Flow
 var CiliumFlowsMutex *sync.Mutex
-var CiliumFlowsKafka []*types.KnoxNetworkLog
-var CiliumFlowsKafkaMutex *sync.Mutex
+var CiliumFlowsFC []*types.KnoxNetworkLog
+var CiliumFlowsFCMutex *sync.Mutex
 
 var log *zerolog.Logger
 
@@ -68,8 +70,8 @@ func init() {
 	log = logger.GetInstance()
 	CiliumFlowsMutex = &sync.Mutex{}
 	KubeArmorRelayLogsMutex = &sync.Mutex{}
-	CiliumFlowsKafkaMutex = &sync.Mutex{}
-	KubeArmorKafkaLogsMutex = &sync.Mutex{}
+	CiliumFlowsFCMutex = &sync.Mutex{}
+	KubeArmorFCLogsMutex = &sync.Mutex{}
 }
 
 // ====================== //
@@ -103,26 +105,39 @@ func getL4Ports(l4 *cilium.Layer4) (int, int) {
 	}
 }
 
-func getProtocol(l4 *cilium.Layer4) int {
-	if l4.GetTCP() != nil {
-		return 6
-	} else if l4.GetUDP() != nil {
-		return 17
-	} else if l4.GetICMPv4() != nil {
-		return 1
+func getICMPType(l4 *cilium.Layer4) int {
+	if l4.GetICMPv4() != nil {
+		return int(l4.GetICMPv4().GetType())
+	} else if l4.GetICMPv6() != nil {
+		return int(l4.GetICMPv6().GetType())
 	} else {
-		return 0 // unknown?
+		return -1
 	}
 }
 
-func getReservedLabelIfExist(labels []string) string {
+func getProtocol(l4 *cilium.Layer4) int {
+	if l4.GetTCP() != nil {
+		return libs.IPProtocolTCP
+	} else if l4.GetUDP() != nil {
+		return libs.IPProtocolUDP
+	} else if l4.GetICMPv4() != nil {
+		return libs.IPProtocolICMP
+	} else if l4.GetICMPv6() != nil {
+		return libs.IPProtocolICMPv6
+	} else {
+		return libs.IPProtoUnknown
+	}
+}
+
+func getReservedLabelsIfExist(labels []string) []string {
+	var reservedLabels []string
 	for _, label := range labels {
 		if strings.HasPrefix(label, "reserved:") {
-			return label
+			reservedLabels = append(reservedLabels, label)
 		}
 	}
 
-	return ""
+	return reservedLabels
 }
 
 func getHTTP(flow *cilium.Flow) (string, string) {
@@ -167,30 +182,17 @@ func ConvertCiliumFlowToKnoxNetworkLog(ciliumFlow *cilium.Flow) (types.KnoxNetwo
 	log.Direction = ciliumFlow.GetTrafficDirection().String()
 
 	// set namespace
-	if ciliumFlow.Source.Namespace == "" {
-		log.SrcNamespace = getReservedLabelIfExist(ciliumFlow.Source.Labels)
-	} else {
-		log.SrcNamespace = ciliumFlow.Source.Namespace
-	}
-
-	if ciliumFlow.Destination.Namespace == "" {
-		log.DstNamespace = getReservedLabelIfExist(ciliumFlow.Destination.Labels)
-	} else {
-		log.DstNamespace = ciliumFlow.Destination.Namespace
-	}
+	log.SrcNamespace = ciliumFlow.Source.Namespace
+	log.DstNamespace = ciliumFlow.Destination.Namespace
 
 	// set pod
-	if ciliumFlow.Source.PodName == "" {
-		log.SrcPodName = ciliumFlow.IP.Source
-	} else {
-		log.SrcPodName = ciliumFlow.Source.GetPodName()
-	}
+	log.SrcPodName = ciliumFlow.Source.GetPodName()
+	log.DstPodName = ciliumFlow.Destination.GetPodName()
 
-	if ciliumFlow.Destination.PodName == "" {
-		log.DstPodName = ciliumFlow.IP.Destination
-	} else {
-		log.DstPodName = ciliumFlow.Destination.GetPodName()
-	}
+	// copy reservedLabels
+	log.DstReservedLabels = getReservedLabelsIfExist(ciliumFlow.Destination.Labels)
+	log.SrcReservedLabels = getReservedLabelsIfExist(ciliumFlow.Source.Labels)
+
 	log.IsReply = ciliumFlow.GetIsReply().GetValue()
 
 	// get L3
@@ -204,11 +206,22 @@ func ConvertCiliumFlowToKnoxNetworkLog(ciliumFlow *cilium.Flow) (types.KnoxNetwo
 	// get L4
 	if ciliumFlow.L4 != nil {
 		log.Protocol = getProtocol(ciliumFlow.L4)
-		if log.Protocol == 6 && ciliumFlow.L4.GetTCP() != nil { // if tcp,
-			log.SynFlag = isSynFlagOnly(ciliumFlow.L4.GetTCP())
+
+		if libs.IsICMP(log.Protocol) {
+			log.ICMPType = getICMPType(ciliumFlow.L4)
+			// Sometimes, ICMP flow for certain `type` (like EchoReply)
+			// does not have the `IsReply` flag set in the Cilium Flow.
+			// So we cannot fully rely on `IsReply` flag in case of ICMP flows.
+			if libs.IsReplyICMP(log.ICMPType) {
+				log.IsReply = true
+			}
+		} else { // tcp & udp
+			log.SrcPort, log.DstPort = getL4Ports(ciliumFlow.L4)
 		}
 
-		log.SrcPort, log.DstPort = getL4Ports(ciliumFlow.L4)
+		if log.Protocol == libs.IPProtocolTCP {
+			log.SynFlag = isSynFlagOnly(ciliumFlow.L4.GetTCP())
+		}
 	} else {
 		return log, false
 	}
@@ -219,6 +232,7 @@ func ConvertCiliumFlowToKnoxNetworkLog(ciliumFlow *cilium.Flow) (types.KnoxNetwo
 		if log.HTTPMethod == "" && log.HTTPPath == "" {
 			return log, false
 		}
+		log.L7Protocol = libs.L7ProtocolHTTP
 	}
 
 	// get L7 DNS
@@ -234,12 +248,103 @@ func ConvertCiliumFlowToKnoxNetworkLog(ciliumFlow *cilium.Flow) (types.KnoxNetwo
 			ips := ciliumFlow.L7.GetDns().GetIps()
 
 			log.DNSRes = query
-			log.DNSResIPs = []string{}
-			log.DNSResIPs = append(log.DNSResIPs, ips...)
+			log.DNSResIPs = ips
+			log.L7Protocol = libs.L7ProtocolDNS
 		}
 	}
 
 	return log, true
+}
+
+func ConvertSQLiteCiliumLogsToKnoxNetworkLogs(docs []map[string]interface{}) []types.KnoxNetworkLog {
+	logs := []types.KnoxNetworkLog{}
+
+	for _, doc := range docs {
+		ciliumFlow := &cilium.Flow{}
+		var err error
+
+		primitiveDoc := map[string]interface{}{
+			"traffic_direction": convertTrafficDirectionToInt(doc["traffic_direction"]),
+			"verdict":           convertVerdictToInt(doc["verdict"]),
+			"policy_match_type": doc["policy_match_type"],
+			"drop_reason":       doc["drop_reason"],
+		}
+
+		flowByte, err := json.Marshal(primitiveDoc)
+		if err != nil {
+			log.Error().Msg("Error while unmarshing primitives :" + err.Error())
+			continue
+		}
+
+		err = json.Unmarshal(flowByte, ciliumFlow)
+		if err != nil {
+			log.Error().Msg("Error while unmarshing primitives :" + err.Error())
+			continue
+		}
+
+		if doc["event_type"] != nil {
+			err = json.Unmarshal(doc["event_type"].([]byte), &ciliumFlow.EventType)
+			if err != nil {
+				log.Error().Msg("Error while unmarshing event type :" + err.Error())
+				continue
+			}
+		}
+
+		if doc["source"] != nil {
+			err = json.Unmarshal(doc["source"].([]byte), &ciliumFlow.Source)
+			if err != nil {
+				log.Error().Msg("Error while unmarshing source :" + err.Error())
+				continue
+			}
+		}
+
+		if doc["destination"] != nil {
+			err = json.Unmarshal(doc["destination"].([]byte), &ciliumFlow.Destination)
+			if err != nil {
+				log.Error().Msg("Error while unmarshing destination :" + err.Error())
+				continue
+			}
+		}
+
+		if doc["ip"] != nil {
+			err = json.Unmarshal(doc["ip"].([]byte), &ciliumFlow.IP)
+			if err != nil {
+				log.Error().Msg("Error while unmarshing ip :" + err.Error())
+				continue
+			}
+		}
+
+		if doc["l4"] != nil {
+			err = json.Unmarshal(doc["l4"].([]byte), &ciliumFlow.L4)
+			if err != nil {
+				log.Error().Msg("Error while unmarshing l4 :" + err.Error())
+				continue
+			}
+		}
+
+		if doc["l7"] != nil {
+			l7Byte := doc["l7"].([]byte)
+			if len(l7Byte) != 0 {
+				err = json.Unmarshal(l7Byte, &ciliumFlow.L7)
+				if err != nil {
+					log.Error().Msg("Error while unmarshing l7 :" + err.Error())
+					continue
+				}
+			}
+		}
+
+		if log, valid := ConvertCiliumFlowToKnoxNetworkLog(ciliumFlow); valid {
+			// get flow id
+			log.FlowID = int(doc["id"].(uint32))
+
+			// get cluster name
+			log.ClusterName = doc["cluster_name"].(string)
+
+			logs = append(logs, log)
+		}
+	}
+
+	return logs
 }
 
 func ConvertMySQLCiliumLogsToKnoxNetworkLogs(docs []map[string]interface{}) []types.KnoxNetworkLog {
@@ -355,6 +460,8 @@ func ConvertMongodCiliumLogsToKnoxNetworkLogs(docs []map[string]interface{}) []t
 func ConvertCiliumNetworkLogsToKnoxNetworkLogs(dbDriver string, docs []map[string]interface{}) []types.KnoxNetworkLog {
 	if dbDriver == "mysql" {
 		return ConvertMySQLCiliumLogsToKnoxNetworkLogs(docs)
+	} else if dbDriver == "sqlite3" {
+		return ConvertSQLiteCiliumLogsToKnoxNetworkLogs(docs)
 	} else if dbDriver == "mongo" {
 		return ConvertMongodCiliumLogsToKnoxNetworkLogs(docs)
 	} else {
@@ -416,7 +523,6 @@ func buildNewCiliumNetworkPolicy(inPolicy types.KnoxNetworkPolicy) types.CiliumN
 	ciliumPolicy := types.CiliumNetworkPolicy{}
 
 	ciliumPolicy.APIVersion = "cilium.io/v2"
-	ciliumPolicy.Kind = "CiliumNetworkPolicy"
 	ciliumPolicy.Metadata = map[string]string{}
 	for k, v := range inPolicy.Metadata {
 		if k == "name" || k == "namespace" {
@@ -424,13 +530,18 @@ func buildNewCiliumNetworkPolicy(inPolicy types.KnoxNetworkPolicy) types.CiliumN
 		}
 	}
 
-	// update selector matchLabels
-	ciliumPolicy.Spec.Selector.MatchLabels = inPolicy.Spec.Selector.MatchLabels
+	if inPolicy.Kind == types.KindKnoxHostNetworkPolicy {
+		ciliumPolicy.Kind = cu.ResourceTypeCiliumClusterwideNetworkPolicy
+		ciliumPolicy.Spec.NodeSelector.MatchLabels = inPolicy.Spec.Selector.MatchLabels
+	} else {
+		ciliumPolicy.Kind = cu.ResourceTypeCiliumNetworkPolicy
+		ciliumPolicy.Spec.EndpointSelector.MatchLabels = inPolicy.Spec.Selector.MatchLabels
+	}
 
 	return ciliumPolicy
 }
 
-func ConvertKnoxNetworkPolicyToCiliumPolicy(services []types.Service, inPolicy types.KnoxNetworkPolicy) types.CiliumNetworkPolicy {
+func ConvertKnoxNetworkPolicyToCiliumPolicy(inPolicy types.KnoxNetworkPolicy) types.CiliumNetworkPolicy {
 	ciliumPolicy := buildNewCiliumNetworkPolicy(inPolicy)
 
 	// ====== //
@@ -442,45 +553,11 @@ func ConvertKnoxNetworkPolicyToCiliumPolicy(services []types.Service, inPolicy t
 		for _, knoxEgress := range inPolicy.Spec.Egress {
 			ciliumEgress := types.CiliumEgress{}
 
-			// ====================== //
-			// build label-based rule //
-			// ====================== //
 			if knoxEgress.MatchLabels != nil {
+				// ====================== //
+				// build label-based rule //
+				// ====================== //
 				ciliumEgress.ToEndpoints = []types.CiliumEndpoint{{knoxEgress.MatchLabels}}
-
-				// ================ //
-				// build L4 toPorts //
-				// ================ //
-				for _, toPort := range knoxEgress.ToPorts {
-					if toPort.Port == "" { // if port number is none, skip
-						continue
-					}
-
-					if ciliumEgress.ToPorts == nil {
-						ciliumEgress.ToPorts = []types.CiliumPortList{}
-						ciliumPort := types.CiliumPortList{}
-						ciliumPort.Ports = []types.CiliumPort{}
-						ciliumEgress.ToPorts = append(ciliumEgress.ToPorts, ciliumPort)
-
-						// =============== //
-						// build HTTP rule //
-						// =============== //
-						if len(knoxEgress.ToHTTPs) > 0 {
-							ciliumEgress.ToPorts[0].Rules = map[string][]types.SubRule{}
-
-							httpRules := []types.SubRule{}
-							for _, http := range knoxEgress.ToHTTPs {
-								// matchPattern
-								httpRules = append(httpRules, map[string]string{"method": http.Method,
-									"path": http.Path})
-							}
-							ciliumEgress.ToPorts[0].Rules = map[string][]types.SubRule{"http": httpRules}
-						}
-					}
-
-					port := types.CiliumPort{Port: toPort.Port, Protocol: strings.ToUpper(toPort.Protocol)}
-					ciliumEgress.ToPorts[0].Ports = append(ciliumEgress.ToPorts[0].Ports, port)
-				}
 			} else if len(knoxEgress.ToCIDRs) > 0 {
 				// =============== //
 				// build CIDR rule //
@@ -489,34 +566,30 @@ func ConvertKnoxNetworkPolicyToCiliumPolicy(services []types.Service, inPolicy t
 					cidrs := []string{}
 					cidrs = append(cidrs, toCIDR.CIDRs...)
 					ciliumEgress.ToCIDRs = cidrs
-
-					// update toPorts if exist
-					for _, toPort := range knoxEgress.ToPorts {
-						if toPort.Port == "" { // if port number is none, skip
-							continue
-						}
-
-						if ciliumEgress.ToPorts == nil {
-							ciliumEgress.ToPorts = []types.CiliumPortList{}
-							ciliumPort := types.CiliumPortList{}
-							ciliumPort.Ports = []types.CiliumPort{}
-							ciliumEgress.ToPorts = append(ciliumEgress.ToPorts, ciliumPort)
-						}
-
-						port := types.CiliumPort{Port: toPort.Port, Protocol: strings.ToUpper(toPort.Protocol)}
-						ciliumEgress.ToPorts[0].Ports = append(ciliumEgress.ToPorts[0].Ports, port)
-					}
 				}
-			} else if len(knoxEgress.ToEndtities) > 0 {
+			} else if len(knoxEgress.ToEntities) > 0 {
 				// ================= //
 				// build Entity rule //
 				// ================= //
-				for _, entity := range knoxEgress.ToEndtities {
+				for _, entity := range knoxEgress.ToEntities {
 					if ciliumEgress.ToEntities == nil {
 						ciliumEgress.ToEntities = []string{}
 					}
-
 					ciliumEgress.ToEntities = append(ciliumEgress.ToEntities, entity)
+				}
+			} else if len(knoxEgress.ToFQDNs) > 0 {
+				// =============== //
+				// build FQDN rule //
+				// =============== //
+				for _, fqdn := range knoxEgress.ToFQDNs {
+					if ciliumEgress.ToFQDNs == nil {
+						ciliumEgress.ToFQDNs = []types.CiliumFQDN{}
+					}
+
+					// FQDN (+ToPorts)
+					for _, matchName := range fqdn.MatchNames {
+						ciliumEgress.ToFQDNs = append(ciliumEgress.ToFQDNs, map[string]string{"matchName": matchName})
+					}
 				}
 			} else if len(knoxEgress.ToServices) > 0 {
 				// ================== //
@@ -536,39 +609,51 @@ func ConvertKnoxNetworkPolicyToCiliumPolicy(services []types.Service, inPolicy t
 
 					ciliumEgress.ToServices = append(ciliumEgress.ToServices, ciliumService)
 				}
-			} else if len(knoxEgress.ToFQDNs) > 0 {
-				// =============== //
-				// build FQDN rule //
-				// =============== //
-				for _, fqdn := range knoxEgress.ToFQDNs {
-					// TODO: static core-dns
-					ciliumEgress.ToEndpoints, ciliumEgress.ToPorts = getCoreDNSEndpoint(services)
+			}
 
-					egressFqdn := types.CiliumEgress{}
-
-					if egressFqdn.ToFQDNs == nil {
-						egressFqdn.ToFQDNs = []types.CiliumFQDN{}
-					}
-
-					// FQDN (+ToPorts)
-					for _, matchName := range fqdn.MatchNames {
-						egressFqdn.ToFQDNs = append(egressFqdn.ToFQDNs, map[string]string{"matchName": matchName})
-					}
-
-					for _, port := range knoxEgress.ToPorts {
-						if egressFqdn.ToPorts == nil {
-							egressFqdn.ToPorts = []types.CiliumPortList{}
-							ciliumPort := types.CiliumPortList{}
-							ciliumPort.Ports = []types.CiliumPort{}
-							egressFqdn.ToPorts = append(egressFqdn.ToPorts, ciliumPort)
-						}
-
-						ciliumPort := types.CiliumPort{Port: port.Port, Protocol: strings.ToUpper(port.Protocol)}
-						egressFqdn.ToPorts[0].Ports = append(egressFqdn.ToPorts[0].Ports, ciliumPort)
-					}
-
-					ciliumPolicy.Spec.Egress = append(ciliumPolicy.Spec.Egress, egressFqdn)
+			// ================ //
+			// build L4 toPorts //
+			// ================ //
+			for _, toPort := range knoxEgress.ToPorts {
+				if toPort.Port == "" { // if port number is none, skip
+					continue
 				}
+
+				if ciliumEgress.ToPorts == nil {
+					ciliumEgress.ToPorts = []types.CiliumPortList{{Ports: []types.CiliumPort{}}}
+				}
+
+				// =============== //
+				// build HTTP rule //
+				// =============== //
+				if len(knoxEgress.ToHTTPs) > 0 {
+					ciliumEgress.ToPorts[0].Rules = map[string][]types.SubRule{}
+
+					httpRules := []types.SubRule{}
+					for _, http := range knoxEgress.ToHTTPs {
+						// matchPattern
+						httpRules = append(httpRules, map[string]string{"method": http.Method,
+							"path": http.Path})
+					}
+					ciliumEgress.ToPorts[0].Rules = map[string][]types.SubRule{"http": httpRules}
+				}
+
+				port := types.CiliumPort{Port: toPort.Port, Protocol: strings.ToUpper(toPort.Protocol)}
+				ciliumEgress.ToPorts[0].Ports = append(ciliumEgress.ToPorts[0].Ports, port)
+			}
+
+			// ================ //
+			// build ICMP rule  //
+			// ================ //
+			for _, icmp := range knoxEgress.ICMPs {
+				if ciliumEgress.ICMPs == nil {
+					ciliumEgress.ICMPs = []types.CiliumICMP{{Fields: []types.CiliumICMPField{}}}
+				}
+				newField := types.CiliumICMPField{
+					Family: icmp.Family,
+					Type:   icmp.Type,
+				}
+				ciliumEgress.ICMPs[0].Fields = append(ciliumEgress.ICMPs[0].Fields, newField)
 			}
 
 			ciliumPolicy.Spec.Egress = append(ciliumPolicy.Spec.Egress, ciliumEgress)
@@ -589,36 +674,6 @@ func ConvertKnoxNetworkPolicyToCiliumPolicy(services []types.Service, inPolicy t
 			// ================= //
 			if knoxIngress.MatchLabels != nil {
 				ciliumIngress.FromEndpoints = []types.CiliumEndpoint{{knoxIngress.MatchLabels}}
-
-				// ================ //
-				// build L4 toPorts //
-				// ================ //
-				for _, toPort := range knoxIngress.ToPorts {
-					if ciliumIngress.ToPorts == nil {
-						ciliumIngress.ToPorts = []types.CiliumPortList{}
-						ciliumPort := types.CiliumPortList{}
-						ciliumPort.Ports = []types.CiliumPort{}
-						ciliumIngress.ToPorts = append(ciliumIngress.ToPorts, ciliumPort)
-
-						// =============== //
-						// build HTTP rule //
-						// =============== //
-						if len(knoxIngress.ToHTTPs) > 0 {
-							ciliumIngress.ToPorts[0].Rules = map[string][]types.SubRule{}
-
-							httpRules := []types.SubRule{}
-							for _, http := range knoxIngress.ToHTTPs {
-								// matchPattern
-								httpRules = append(httpRules, map[string]string{"method": http.Method,
-									"path": http.Path})
-							}
-							ciliumIngress.ToPorts[0].Rules = map[string][]types.SubRule{"http": httpRules}
-						}
-					}
-
-					port := types.CiliumPort{Port: toPort.Port, Protocol: strings.ToUpper(toPort.Protocol)}
-					ciliumIngress.ToPorts[0].Ports = append(ciliumIngress.ToPorts[0].Ports, port)
-				}
 			}
 
 			// =============== //
@@ -638,6 +693,47 @@ func ConvertKnoxNetworkPolicyToCiliumPolicy(services []types.Service, inPolicy t
 				ciliumIngress.FromEntities = append(ciliumIngress.FromEntities, entity)
 			}
 
+			// ================ //
+			// build L4 toPorts //
+			// ================ //
+			for _, toPort := range knoxIngress.ToPorts {
+				if ciliumIngress.ToPorts == nil {
+					ciliumIngress.ToPorts = []types.CiliumPortList{{Ports: []types.CiliumPort{}}}
+				}
+
+				// =============== //
+				// build HTTP rule //
+				// =============== //
+				if len(knoxIngress.ToHTTPs) > 0 {
+					ciliumIngress.ToPorts[0].Rules = map[string][]types.SubRule{}
+
+					httpRules := []types.SubRule{}
+					for _, http := range knoxIngress.ToHTTPs {
+						// matchPattern
+						httpRules = append(httpRules, map[string]string{"method": http.Method,
+							"path": http.Path})
+					}
+					ciliumIngress.ToPorts[0].Rules = map[string][]types.SubRule{"http": httpRules}
+				}
+
+				port := types.CiliumPort{Port: toPort.Port, Protocol: strings.ToUpper(toPort.Protocol)}
+				ciliumIngress.ToPorts[0].Ports = append(ciliumIngress.ToPorts[0].Ports, port)
+			}
+
+			// ================ //
+			// build ICMP rule  //
+			// ================ //
+			for _, icmp := range knoxIngress.ICMPs {
+				if ciliumIngress.ICMPs == nil {
+					ciliumIngress.ICMPs = []types.CiliumICMP{{Fields: []types.CiliumICMPField{}}}
+				}
+				newField := types.CiliumICMPField{
+					Family: icmp.Family,
+					Type:   icmp.Type,
+				}
+				ciliumIngress.ICMPs[0].Fields = append(ciliumIngress.ICMPs[0].Fields, newField)
+			}
+
 			ciliumPolicy.Spec.Ingress = append(ciliumPolicy.Spec.Ingress, ciliumIngress)
 		}
 
@@ -646,11 +742,11 @@ func ConvertKnoxNetworkPolicyToCiliumPolicy(services []types.Service, inPolicy t
 	return ciliumPolicy
 }
 
-func ConvertKnoxPoliciesToCiliumPolicies(services []types.Service, policies []types.KnoxNetworkPolicy) []types.CiliumNetworkPolicy {
+func ConvertKnoxPoliciesToCiliumPolicies(policies []types.KnoxNetworkPolicy) []types.CiliumNetworkPolicy {
 	ciliumPolicies := []types.CiliumNetworkPolicy{}
 
 	for _, policy := range policies {
-		ciliumPolicy := ConvertKnoxNetworkPolicyToCiliumPolicy(services, policy)
+		ciliumPolicy := ConvertKnoxNetworkPolicyToCiliumPolicy(policy)
 		ciliumPolicies = append(ciliumPolicies, ciliumPolicy)
 	}
 
@@ -730,11 +826,28 @@ func StartHubbleRelay(StopChan chan struct{}, cfg types.ConfigCiliumHubble) {
 	client := observer.NewObserverClient(conn)
 
 	req := &observer.GetFlowsRequest{
-		Follow:    true,
-		Whitelist: nil,
-		Blacklist: nil,
-		Since:     timestamppb.Now(),
-		Until:     nil,
+		Follow: true,
+		Whitelist: []*cilium.FlowFilter{
+			{
+				TcpFlags: []*flow.TCPFlags{
+					{SYN: true},
+				},
+			},
+			{
+				Protocol: []string{"udp"},
+				Reply:    []bool{false},
+			},
+			{
+				Protocol: []string{"icmp", "http", "dns"},
+			},
+		},
+		Blacklist: []*cilium.FlowFilter{
+			{
+				TcpFlags: []*flow.TCPFlags{
+					{ACK: true},
+				},
+			},
+		},
 	}
 
 	stream, err := client.GetFlows(context.Background(), req)
@@ -761,30 +874,34 @@ func StartHubbleRelay(StopChan chan struct{}, cfg types.ConfigCiliumHubble) {
 				CiliumFlowsMutex.Lock()
 				CiliumFlows = append(CiliumFlows, flow)
 				CiliumFlowsMutex.Unlock()
+
+				if config.GetCfgObservabilityEnable() {
+					obs.ProcessCiliumFlow(flow)
+				}
 			}
 		}
 	}
 }
 
-func GetCiliumFlowsFromKafka(trigger int) []*types.KnoxNetworkLog {
+func GetCiliumFlowsFromFeedConsumer(trigger int) []*types.KnoxNetworkLog {
 	results := []*types.KnoxNetworkLog{}
 
-	CiliumFlowsKafkaMutex.Lock()
-	defer CiliumFlowsKafkaMutex.Unlock()
-	if len(CiliumFlowsKafka) == 0 {
-		log.Info().Msgf("Cilium kafka traffic flow not exist")
+	CiliumFlowsFCMutex.Lock()
+	defer CiliumFlowsFCMutex.Unlock()
+	if len(CiliumFlowsFC) == 0 {
+		log.Info().Msgf("Cilium feed-consumer traffic flow not exist")
 		return results
 	}
 
-	if len(CiliumFlowsKafka) < trigger {
-		log.Info().Msgf("The number of cilium kafka traffic flow [%d] is less than trigger [%d]", len(CiliumFlowsKafka), trigger)
+	if len(CiliumFlowsFC) < trigger {
+		log.Info().Msgf("The number of cilium feed-consumer traffic flow [%d] is less than trigger [%d]", len(CiliumFlowsFC), trigger)
 		return results
 	}
 
-	results = CiliumFlowsKafka                   // copy
-	CiliumFlowsKafka = []*types.KnoxNetworkLog{} // reset
+	results = CiliumFlowsFC                   // copy
+	CiliumFlowsFC = []*types.KnoxNetworkLog{} // reset
 
-	log.Info().Msgf("The total number of cilium kafka traffic flow: [%d]", len(results))
+	log.Info().Msgf("The total number of cilium feed-consumer traffic flow: [%d]", len(results))
 
 	return results
 }

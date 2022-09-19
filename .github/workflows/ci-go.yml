@@ -2,9 +2,11 @@ name: ci-go
 
 on:
   push:
-    branches: [master,dev,AK-Dev]
+    branches:
+      - '**'  # matches every branch
   pull_request:
-    branches: [master,dev,AK-Dev]
+    branches:
+      - '**'  # matches every branch
 
 jobs:
   go-fmt:
@@ -15,7 +17,7 @@ jobs:
 
       - uses: actions/setup-go@v2
         with:
-          go-version: v1.16
+          go-version: v1.18
 
       - name: Check gofmt
         run: gofmt -s -d $(find . -type f -name '*.go' -print)
@@ -40,11 +42,11 @@ jobs:
 
       - uses: actions/setup-go@v2
         with:
-          go-version: v1.16
+          go-version: v1.18
 
       - name: Run Gosec Security Scanner
         run: |
-          go get -u github.com/securego/gosec/v2/cmd/gosec
+          go install github.com/securego/gosec/v2/cmd/gosec@latest
           go get .
           gosec -exclude=G204,G304,G107 -exclude-dir=protobuf/ ./...  
         working-directory: src

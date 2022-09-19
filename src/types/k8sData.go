@@ -28,9 +28,10 @@ type Service struct {
 	Protocol  string `json:"protocol,omitempty" bson:"protocol,omitempty"`
 	ClusterIP string `json:"cluster_ip,omitempty" bson:"cluster_ip,omitempty"`
 
-	ServicePort int `json:"service_port" bson:"service_port"`
-	NodePort    int `json:"node_port" bson:"node_port"`
-	TargetPort  int `json:"target_port" bson:"target_port"`
+	ServicePort int      `json:"service_port" bson:"service_port"`
+	NodePort    int      `json:"node_port" bson:"node_port"`
+	TargetPort  int      `json:"target_port" bson:"target_port"`
+	ExternalIPs []string `json:"external_ip" bson:"external_ip"`
 
 	Selector map[string]string `json:"selector" bson:"selector"`
 }
@@ -40,4 +41,5 @@ type Pod struct {
 	Namespace string   `json:"namespace" bson:"namespace"`
 	PodName   string   `json:"pod_name" bson:"pod_name"`
 	Labels    []string `json:"labels" bson:"labels"`
+	PodIP     string   `json:"pod_ip" bson:"pod_ip"`
 }

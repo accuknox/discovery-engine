@@ -38,3 +38,13 @@ clean:
 .PHONY: image
 image:
 	cd $(CURDIR)/build; $(MAKE)
+
+.PHONY: local-release
+local-release: build
+ifeq (, $(shell which goreleaser))
+	@{ \
+	set -e ;\
+	go install github.com/goreleaser/goreleaser@latest ;\
+	}
+endif
+	cd $(CURDIR); VERSION=$(shell git describe --tags --always --dirty) goreleaser release --rm-dist --skip-publish --skip-sign --skip-validate --snapshot

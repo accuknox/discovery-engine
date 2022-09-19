@@ -1,37 +1,52 @@
 application:
   name: knoxautopolicy
   network:
-    operation-mode: 1                         # 1: cronjob | 2: one-time-job
+    operation-mode: 1                            # 1: cronjob | 2: one-time-job
     operation-trigger: 100
-    cron-job-time-interval: "0h0m10s"         # format: XhYmZs 
+    cron-job-time-interval: "0h0m10s"             # format: XhYmZs 
     network-log-limit: 10000
-    network-log-from: "hubble"                # db|hubble|kafka
-      #network-log-file: "/home/rahul/feeds.json"           # file path
-    network-policy-to: "db"              # db, file
+    network-log-from: "hubble"                    # db|hubble|feed-consumer
+    #network-log-file: "/home/rahul/feeds.json"   # file path
+    network-policy-to: "db"                       # db, file
     network-policy-dir: "./"
+    namespace-filter:
+      - "!kube-system"
   system:
     operation-mode: 1                         # 1: cronjob | 2: one-time-job
     operation-trigger: 5
     cron-job-time-interval: "0h0m10s"         # format: XhYmZs
-    system-log-from: "kubearmor"                     # db|kubearmor|kafka
+    system-log-from: "kubearmor"              # db|kubearmor|feed-consumer
     system-log-limit: 10000
-      #system-policy-types: 1
-      #system-log-file: "./log.json"             # file path
-    system-policy-to: "db"               # db, file
+    #system-policy-types: 1
+    #system-log-file: "./log.json"            # file path
+    system-policy-to: "db"                    # db, file
     system-policy-dir: "./"
     deprecate-old-mode: true
+    namespace-filter:
+      - "!kube-system"
+    fromsource-filter:
+      - "knoxAutoPolicy"
+
   cluster:
     cluster-info-from: "k8sclient"            # k8sclient|accuknox
     #cluster-mgmt-url: "http://cluster-management-service.accuknox-dev-cluster-mgmt.svc.cluster.local/cm"
     cluster-mgmt-url: "http://localhost:8080"
 
+observability: 
+  enable: true
+  cron-job-time-interval: "0h0m10s"         # format: XhYmZs
+  dbname: ./accuknox-obs.db
+  system-observability: true
+  network-observability: true
+
 database:
-  driver: mysql
+  driver: sqlite3
   host: 127.0.0.1
   port: 3306
   user: root
   password: password
   dbname: accuknox
+  sqlite-db-path: ./accuknox-pol.db
   table-network-log: network_log
   table-network-policy: network_policy
   table-system-log: system_log
@@ -49,3 +64,40 @@ cilium-hubble:
 kubearmor:
   url: localhost
   port: 32767
+
+feed-consumer:
+  driver: "pulsar" # kafka | pulsar
+  servers:
+    - "localhost:6650"
+  topic: 
+    cilium: "persistent://accuknox/datapipeline/ciliumalertsrawflow"
+    kubearmor: "persistent://accuknox/datapipeline/kubearmoralertsrawflow"
+    # cilium: "cilium-alerts"
+    # kubearmor: "kubearmor-alerts"
+  encryption:
+    enable: false
+    ca-cert: /kafka-ssl/ca.pem 
+  auth:
+    enable: false
+    cert: /kafka-ssl/user.cert.pem
+    key: /kafka-ssl/user.key.pem
+    # keystore:
+    #   path: /kafka-ssl/user.p12
+    #   password: DHmHwNYy22At
+
+  # The following feed-consumer fields has default values
+  # set in the code. The likelihood of these value getting
+  # changed are very less. These fields can be used for
+  # troubleshooting purpose.
+  # -----------------------------------------------
+  # message-offset: "latest" # earliest | latest
+  # number-of-consumers: 1
+  # consumer-group: knoxautopolicy
+  # event-buffer-size: 50
+  # kafka:
+  #   server-address-family: v4
+  #   session-timeout: 6000 # in millisecond
+  # pulsar:
+  #   connection-timeout: 10 # in second
+  #   operation-timeout: 30 # in second
+  # -----------------------------------------------

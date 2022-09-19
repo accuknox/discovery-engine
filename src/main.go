@@ -1,8 +1,10 @@
 package main
 
 import (
+	"math/rand"
 	"net"
 	"os"
+	"time"
 
 	"github.com/accuknox/auto-policy-discovery/src/config"
 	libs "github.com/accuknox/auto-policy-discovery/src/libs"
@@ -35,6 +37,9 @@ func init() {
 
 	// 3. setup the tables in db
 	libs.CreateTablesIfNotExist(config.GetCfgDB())
+
+	// 4. Seed random number generator
+	rand.Seed(time.Now().UnixNano())
 }
 
 // ========== //

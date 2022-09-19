@@ -57,6 +57,7 @@ func LoadConfigDB() types.ConfigDB {
 	cfgDB.DBName = viper.GetString("database.dbname")
 
 	cfgDB.DBHost = viper.GetString("database.host")
+	cfgDB.SQLiteDBPath = viper.GetString("database.sqlite-db-path")
 	/*
 		fix for #405
 		dbAddr, err := net.LookupIP(cfgDB.DBHost)
@@ -130,7 +131,7 @@ func LoadConfigFromFile() {
 		NetworkPolicyDir: viper.GetString("application.network.network-policy-dir"),
 
 		NetPolicyTypes:     3,
-		NetPolicyRuleTypes: 511,
+		NetPolicyRuleTypes: 1023,
 		NetPolicyCIDRBits:  32,
 
 		NetLogFilters: []types.NetworkLogFilter{},
@@ -141,6 +142,8 @@ func LoadConfigFromFile() {
 
 		NetSkipCertVerification: viper.GetBool("application.network.skip-cert-verification"),
 	}
+
+	CurrentCfg.ConfigNetPolicy.NsFilter, CurrentCfg.ConfigNetPolicy.NsNotFilter = getConfigNsFilter("application.network.namespace-filter")
 
 	// load system policy discovery
 	CurrentCfg.ConfigSysPolicy = types.ConfigSystemPolicy{
@@ -163,10 +166,21 @@ func LoadConfigFromFile() {
 		FileFromSource:    true,
 	}
 
+	CurrentCfg.ConfigSysPolicy.NsFilter, CurrentCfg.ConfigSysPolicy.NsNotFilter = getConfigNsFilter("application.system.namespace-filter")
+	CurrentCfg.ConfigSysPolicy.FromSourceFilter = viper.GetStringSlice("application.system.fromsource-filter")
+
 	// load cluster resource info
 	CurrentCfg.ConfigClusterMgmt = types.ConfigClusterMgmt{
 		ClusterInfoFrom: viper.GetString("application.cluster.cluster-info-from"),
 		ClusterMgmtURL:  viper.GetString("application.cluster.cluster-mgmt-url"),
+	}
+
+	CurrentCfg.ConfigObservability = types.ConfigObservability{
+		Enable:              viper.GetBool("observability.enable"),
+		CronJobTimeInterval: "@every " + viper.GetString("observability.cron-job-time-interval"),
+		DBName:              viper.GetString("observability.dbname"),
+		SysObservability:    viper.GetBool("observability.system-observability"),
+		NetObservability:    viper.GetBool("observability.network-observability"),
 	}
 
 	// load database
@@ -361,4 +375,45 @@ func GetCfgClusterInfoFrom() string {
 
 func GetCfgClusterMgmtURL() string {
 	return CurrentCfg.ConfigClusterMgmt.ClusterMgmtURL
+}
+
+// ============================ //
+// == Get Observability Info == //
+// ============================ //
+
+func GetCfgObservabilityEnable() bool {
+	return CurrentCfg.ConfigObservability.Enable
+}
+
+func GetCfgObservabilityCronJobTime() string {
+	return CurrentCfg.ConfigObservability.CronJobTimeInterval
+}
+
+func GetCfgObservabilityDBName() string {
+	return CurrentCfg.ConfigObservability.DBName
+}
+
+func GetCfgObservabilitySysObsStatus() bool {
+	return CurrentCfg.ConfigObservability.SysObservability
+}
+
+func GetCfgObservabilityNetObsStatus() bool {
+	return CurrentCfg.ConfigObservability.NetObservability
+}
+
+// ======================= //
+// == Extract NS Filter == //
+// ======================= //
+
+func getConfigNsFilter(config string) ([]string, []string) {
+	var ns, notNs []string
+	namespaces := viper.GetStringSlice(config)
+	for _, n := range namespaces {
+		if n[0] == '!' {
+			notNs = append(notNs, n[1:])
+		} else {
+			ns = append(ns, n)
+		}
+	}
+	return ns, notNs
 }

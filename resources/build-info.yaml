@@ -187,7 +187,6 @@ argocd:
   #*********************************************************************************************#
   #               Argocd Configuration for dev Environment.
   #*********************************************************************************************#
-
   snapshot:
     server: "argocd-dev.accuknox.com"                  #Argocd server name or url
     credentials: "argocdcred"                          #Credentials for Argocd

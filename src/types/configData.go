@@ -1,12 +1,13 @@
 package types
 
 type ConfigDB struct {
-	DBDriver string `json:"db_driver,omitempty" bson:"db_driver,omitempty"`
-	DBHost   string `json:"db_host,omitempty" bson:"db_host,omitempty"`
-	DBPort   string `json:"db_port,omitempty" bson:"db_port,omitempty"`
-	DBUser   string `json:"db_user,omitempty" bson:"db_user,omitempty"`
-	DBPass   string `json:"db_pass,omitempty" bson:"db_pass,omitempty"`
-	DBName   string `json:"db_name,omitempty" bson:"db_name,omitempty"`
+	DBDriver     string `json:"db_driver,omitempty" bson:"db_driver,omitempty"`
+	DBHost       string `json:"db_host,omitempty" bson:"db_host,omitempty"`
+	DBPort       string `json:"db_port,omitempty" bson:"db_port,omitempty"`
+	DBUser       string `json:"db_user,omitempty" bson:"db_user,omitempty"`
+	DBPass       string `json:"db_pass,omitempty" bson:"db_pass,omitempty"`
+	DBName       string `json:"db_name,omitempty" bson:"db_name,omitempty"`
+	SQLiteDBPath string `json:"sqlite_db_path,omitempty" bson:"sqlite_db_path,omitempty"`
 }
 
 type ConfigCiliumHubble struct {
@@ -39,6 +40,9 @@ type ConfigNetworkPolicy struct {
 	NetworkLogFile   string `json:"network_log_file,omitempty" bson:"network_log_file,omitempty"`
 	NetworkPolicyTo  string `json:"network_policy_to,omitempty" bson:"network_policy_to,omitempty"`
 	NetworkPolicyDir string `json:"network_policy_dir,omitempty" bson:"network_policy_dir,omitempty"`
+
+	NsFilter    []string `json:"network_policy_ns_filter,omitempty" bson:"network_policy_ns_filter,omitempty"`
+	NsNotFilter []string `json:"network_policy_ns_not_filter,omitempty" bson:"network_policy_ns_not_filter,omitempty"`
 
 	NetPolicyTypes     int `json:"network_policy_types,omitempty" bson:"network_policy_types,omitempty"`
 	NetPolicyRuleTypes int `json:"network_policy_rule_types,omitempty" bson:"network_policy_rule_types,omitempty"`
@@ -79,6 +83,10 @@ type ConfigSystemPolicy struct {
 
 	SystemLogFilters []SystemLogFilter `json:"system_policy_log_filters,omitempty" bson:"system_policy_log_filters,omitempty"`
 
+	NsFilter         []string `json:"system_policy_ns_filter,omitempty" bson:"system_policy_ns_filter,omitempty"`
+	NsNotFilter      []string `json:"system_policy_ns_not_filter,omitempty" bson:"system_policy_ns_not_filter,omitempty"`
+	FromSourceFilter []string `json:"system_fromsource_filter,omitempty" bson:"system_fromsource_filter,omitempty"`
+
 	ProcessFromSource bool `json:"system_policy_proc_fromsource,omitempty" bson:"system_policy_proc_fromsource,omitempty"`
 	FileFromSource    bool `json:"system_policy_file_fromsource,omitempty" bson:"system_policy_file_fromsource,omitempty"`
 }
@@ -86,6 +94,14 @@ type ConfigSystemPolicy struct {
 type ConfigClusterMgmt struct {
 	ClusterInfoFrom string `json:"cluster_info_from,omitempty" bson:"cluster_info_from,omitempty"`
 	ClusterMgmtURL  string `json:"cluster_mgmt_url,omitempty" bson:"cluster_mgmt_url,omitempty"`
+}
+
+type ConfigObservability struct {
+	Enable              bool   `json:"enable,omitempty" bson:"enable,omitempty"`
+	CronJobTimeInterval string `json:"cronjob_time_interval,omitempty" bson:"cronjob_time_interval,omitempty"`
+	DBName              string `json:"db_name,omitempty" bson:"db_name,omitempty"`
+	SysObservability    bool   `json:"sys_observability,omitempty" bson:"sys_observability,omitempty"`
+	NetObservability    bool   `json:"net_observability,omitempty" bson:"net_observability,omitempty"`
 }
 
 type Configuration struct {
@@ -96,7 +112,8 @@ type Configuration struct {
 	ConfigCiliumHubble   ConfigCiliumHubble   `json:"config_cilium_hubble,omitempty" bson:"config_cilium_hubble,omitempty"`
 	ConfigKubeArmorRelay ConfigKubeArmorRelay `json:"config_kubearmor_relay,omitempty" bson:"config_kubearmor_relay,omitempty"`
 
-	ConfigNetPolicy   ConfigNetworkPolicy `json:"config_network_policy,omitempty" bson:"config_network_policy,omitempty"`
-	ConfigSysPolicy   ConfigSystemPolicy  `json:"config_system_policy,omitempty" bson:"config_system_policy,omitempty"`
-	ConfigClusterMgmt ConfigClusterMgmt   `json:"config_cluster_mgmt,omitempty" bson:"config_cluster_mgmt,omitempty"`
+	ConfigNetPolicy     ConfigNetworkPolicy `json:"config_network_policy,omitempty" bson:"config_network_policy,omitempty"`
+	ConfigSysPolicy     ConfigSystemPolicy  `json:"config_system_policy,omitempty" bson:"config_system_policy,omitempty"`
+	ConfigClusterMgmt   ConfigClusterMgmt   `json:"config_cluster_mgmt,omitempty" bson:"config_cluster_mgmt,omitempty"`
+	ConfigObservability ConfigObservability `json:"config_observability,omitempty" bson:"config_observability,omitempty"`
 }

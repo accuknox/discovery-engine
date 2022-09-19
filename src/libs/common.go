@@ -3,7 +3,6 @@ package libs
 import (
 	"bytes"
 	"crypto/rand"
-	"encoding/json"
 	"flag"
 	"math/big"
 	"net"
@@ -15,12 +14,15 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/clarketm/json"
+
+	cfg "github.com/accuknox/auto-policy-discovery/src/config"
 	logger "github.com/accuknox/auto-policy-discovery/src/logging"
 	"github.com/accuknox/auto-policy-discovery/src/types"
 	"github.com/rs/zerolog"
 	"github.com/spf13/viper"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"gopkg.in/yaml.v2"
+	"sigs.k8s.io/yaml"
 )
 
 var log *zerolog.Logger
@@ -31,6 +33,35 @@ var GitCommit string
 var GitBranch string
 var BuildDate string
 var Version string
+
+const (
+	IPProtoUnknown   = -1
+	IPProtocolICMP   = 1
+	IPProtocolTCP    = 6
+	IPProtocolUDP    = 17
+	IPProtocolICMPv6 = 58
+	IPProtocolSCTP   = 132
+)
+
+const (
+	L7ProtocolDNS  = "dns"
+	L7ProtocolHTTP = "http"
+)
+
+var protocolMap = map[int]string{
+	IPProtoUnknown:   "Unknown",
+	IPProtocolICMP:   "ICMP",
+	IPProtocolTCP:    "TCP",
+	IPProtocolUDP:    "UDP",
+	IPProtocolICMPv6: "ICMPv6",
+	IPProtocolSCTP:   "SCTP",
+}
+
+// Array for ICMP type which can be considered as ICMP reply packets.
+// TODO: Identity all the ICMP reply types
+var ICMPReplyType = []int{
+	0, // EchoReply
+}
 
 func printBuildDetails() {
 	if GitCommit == "" {
@@ -50,6 +81,10 @@ func init() {
 // =================== //
 
 func SetDefaultConfig() {
+
+	// Observability module
+	viper.SetDefault("observability", false)
+
 	// Application->Network config
 	viper.SetDefault("application.network.operation-mode", 1)
 	viper.SetDefault("application.network.operation-trigger", 100)
@@ -80,6 +115,7 @@ func SetDefaultConfig() {
 	viper.SetDefault("database.dbname", "accuknox")
 	viper.SetDefault("database.host", "127.0.0.1")
 	viper.SetDefault("database.port", "3306")
+	viper.SetDefault("database.sqlite-db-path", "./accuknox.db")
 	viper.SetDefault("database.table-network-policy", "network_policy")
 	viper.SetDefault("database.table-system-policy", "system_policy")
 
@@ -93,6 +129,17 @@ func SetDefaultConfig() {
 	// kubearmor config
 	viper.SetDefault("kubearmor.url", "localhost")
 	viper.SetDefault("kubearmor.port", "32767")
+
+	// feed-consumer config
+	viper.SetDefault("feed-consumer.number-of-consumers", "1")
+	viper.SetDefault("feed-consumer.event-buffer-size", "50")
+	viper.SetDefault("feed-consumer.consumer-group", "knoxautopolicy")
+	viper.SetDefault("feed-consumer.message-offset", "latest")
+	viper.SetDefault("feed-consumer.kafka.server-address-family", "v4")
+	viper.SetDefault("feed-consumer.kafka.session-timeout", "6000")
+	viper.SetDefault("feed-consumer.pulsar.connection-timeout", "10")
+	viper.SetDefault("feed-consumer.pulsar.operation-timeout", "30")
+
 }
 
 type cfgArray []string
@@ -210,14 +257,21 @@ func GetExternalIPAddr() string {
 }
 
 func GetProtocol(protocol int) string {
-	protocolMap := map[int]string{
-		1:   "ICMP",
-		6:   "TCP",
-		17:  "UDP",
-		132: "STCP",
-	}
-
 	return protocolMap[protocol]
+}
+
+func IsICMP(protocol int) bool {
+	if protocol == IPProtocolICMP || protocol == IPProtocolICMPv6 {
+		return true
+	}
+	return false
+}
+
+func IsReplyICMP(icmpType int) bool {
+	if ContainsElement(ICMPReplyType, icmpType) {
+		return true
+	}
+	return false
 }
 
 // ============ //
@@ -338,12 +392,15 @@ func GetCommandOutput(cmd string, args []string) string {
 // == File I/O == //
 // ============== //
 
+func getPolicyDir(cfgPath string) string {
+	if cfgPath == "" {
+		return GetEnv("POLICY_DIR", "./")
+	}
+	return cfgPath
+}
+
 func writeYamlByte(f *os.File, b []byte) {
 	if _, err := f.Write(b); err != nil {
-		log.Error().Msg(err.Error())
-	}
-
-	if _, err := f.WriteString("---\n"); err != nil {
 		log.Error().Msg(err.Error())
 	}
 
@@ -363,7 +420,7 @@ func writeJsonByte(f *os.File, b []byte) {
 }
 
 func WriteKnoxNetPolicyToYamlFile(namespace string, policies []types.KnoxNetworkPolicy) {
-	fileName := GetEnv("POLICY_DIR", "./")
+	fileName := getPolicyDir(cfg.CurrentCfg.ConfigNetPolicy.NetworkPolicyDir)
 	if namespace != "" {
 		fileName = fileName + "knox_net_policies_" + namespace + ".yaml"
 	} else {
@@ -400,7 +457,7 @@ func WriteKnoxNetPolicyToYamlFile(namespace string, policies []types.KnoxNetwork
 }
 
 func WriteCiliumPolicyToYamlFile(namespace string, policies []types.CiliumNetworkPolicy) {
-	fileName := GetEnv("POLICY_DIR", "./")
+	fileName := getPolicyDir(cfg.CurrentCfg.ConfigNetPolicy.NetworkPolicyDir)
 	if namespace != "" {
 		fileName = fileName + "cilium_policies_" + namespace + ".yaml"
 	} else {
@@ -420,11 +477,17 @@ func WriteCiliumPolicyToYamlFile(namespace string, policies []types.CiliumNetwor
 	}
 
 	for i := range policies {
-		b, err := yaml.Marshal(&policies[i])
+		jsonBytes, err := json.Marshal(&policies[i])
 		if err != nil {
 			log.Error().Msg(err.Error())
+			continue
 		}
-		writeYamlByte(f, b)
+		yamlBytes, err := yaml.JSONToYAML(jsonBytes)
+		if err != nil {
+			log.Error().Msg(err.Error())
+			continue
+		}
+		writeYamlByte(f, yamlBytes)
 	}
 
 	if err := f.Close(); err != nil {
@@ -433,7 +496,7 @@ func WriteCiliumPolicyToYamlFile(namespace string, policies []types.CiliumNetwor
 }
 
 func WriteKubeArmorPolicyToYamlFile(fname string, policies []types.KubeArmorPolicy) {
-	fileName := GetEnv("POLICY_DIR", "./")
+	fileName := getPolicyDir(cfg.CurrentCfg.ConfigSysPolicy.SystemPolicyDir)
 	fileName = fileName + fname + ".yaml"
 
 	if err := os.Remove(fileName); err != nil {
@@ -449,11 +512,17 @@ func WriteKubeArmorPolicyToYamlFile(fname string, policies []types.KubeArmorPoli
 	}
 
 	for i := range policies {
-		b, err := yaml.Marshal(&policies[i])
+		jsonBytes, err := json.Marshal(&policies[i])
 		if err != nil {
 			log.Error().Msg(err.Error())
+			continue
 		}
-		writeYamlByte(f, b)
+		yamlBytes, err := yaml.JSONToYAML(jsonBytes)
+		if err != nil {
+			log.Error().Msg(err.Error())
+			continue
+		}
+		writeYamlByte(f, yamlBytes)
 	}
 
 	if err := f.Close(); err != nil {
@@ -461,8 +530,8 @@ func WriteKubeArmorPolicyToYamlFile(fname string, policies []types.KubeArmorPoli
 	}
 }
 
-func WriteSysObsDataToJsonFile(obsData types.SysObsResponseData) {
-	fileName := GetEnv("POLICY_DIR", "./")
+func WriteSysObsDataToJsonFile(obsData types.SysInsightResponseData) {
+	fileName := getPolicyDir(cfg.CurrentCfg.ConfigSysPolicy.SystemPolicyDir)
 	fileName = fileName + "sys_observability_data" + ".json"
 
 	if err := os.Remove(fileName); err != nil {

@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.labels.app }}
+  labels:
+{{ toYaml .Values.labels | indent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  
+  selector:
+    matchLabels:
+      app: {{ .Values.labels.app }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.labels.app }}
+      annotations:
+        checksum.helm.kubernetes.io/configmap: {{ include (print $.Chart.Name "/templates/dev-config.yaml") . | sha256sum }}
+        checksum.helm.kubernetes.io/secret: {{ include (print $.Chart.Name "/templates/kafka-secret.yaml") . | sha256sum }}
+        checksum.helm.kubernetes.io/secret: {{ include (print $.Chart.Name "/templates/secret.yaml") . | sha256sum }}
+    spec:
+      imagePullSecrets:
+      - name: agent-creds
+      containers:
+      - image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+        name: knoxautopolicy
+        ports:
+        - containerPort: 9089
+          protocol: TCP
+        volumeMounts:
+{{ toYaml .Values.volumeMounts | indent 10 }}
+        resources: 
+{{ toYaml .Values.resources | indent 10 }}
+      volumes:
+{{ toYaml .Values.volumes | indent 8 }}
+

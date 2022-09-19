@@ -10,10 +10,24 @@ type SpecCIDR struct {
 	Except []string `json:"except,omitempty" yaml:"except,omitempty" bson:"except,omitempty"`
 }
 
+// SpecICMP Structure
+type SpecICMP struct {
+	Family string `json:"family,omitempty" yaml:"family,omitempty" bson:"family,omitempty"`
+	Type   uint8  `json:"type" yaml:"type,omitempty" bson:"type,omitempty"`
+}
+
+func (x SpecICMP) Equal(y SpecICMP) bool {
+	return x.Family == y.Family && x.Type == y.Type
+}
+
 // SpecPort Structure
 type SpecPort struct {
 	Port     string `json:"port,omitempty" yaml:"port,omitempty" bson:"port,omitempty"`
 	Protocol string `json:"protocol,omitempty" yaml:"protocol,omitempty" bson:"protocol,omitempty"`
+}
+
+func (x SpecPort) Equal(y SpecPort) bool {
+	return x.Port == y.Port && x.Protocol == y.Protocol
 }
 
 // SpecService Structure
@@ -42,6 +56,7 @@ type Selector struct {
 // Ingress Structure
 type Ingress struct {
 	MatchLabels map[string]string `json:"matchLabels,omitempty" yaml:"matchLabels,omitempty" bson:"matchLabels,omitempty"`
+	ICMPs       []SpecICMP        `json:"icmps,omitempty" yaml:"icmps,omitempty" bson:"icmps,omitempty"`
 	ToPorts     []SpecPort        `json:"toPorts,omitempty" yaml:"toPorts,omitempty" bson:"toPorts,omitempty"`
 	ToHTTPs     []SpecHTTP        `json:"toHTTPs,omitempty" yaml:"toHTTPs,omitempty" bson:"toHTTPs,omitempty"`
 
@@ -52,13 +67,44 @@ type Ingress struct {
 // Egress Structure
 type Egress struct {
 	MatchLabels map[string]string `json:"matchLabels,omitempty" yaml:"matchLabels,omitempty" bson:"matchLabels,omitempty"`
+	ICMPs       []SpecICMP        `json:"icmps,omitempty" yaml:"icmps,omitempty" bson:"icmps,omitempty"`
 	ToPorts     []SpecPort        `json:"toPorts,omitempty" yaml:"toPorts,omitempty" bson:"toPorts,omitempty"`
 
-	ToCIDRs     []SpecCIDR    `json:"toCIDRs,omitempty" yaml:"toCIDRs,omitempty" bson:"toCIDRs,omitempty"`
-	ToEndtities []string      `json:"toEntities,omitempty" yaml:"toEntities,omitempty" bson:"toEntities,omitempty"`
-	ToServices  []SpecService `json:"toServices,omitempty" yaml:"toServices,omitempty" bson:"toServices,omitempty"`
-	ToFQDNs     []SpecFQDN    `json:"toFQDNs,omitempty" yaml:"toFQDNs,omitempty" bson:"toFQDNs,omitempty"`
-	ToHTTPs     []SpecHTTP    `json:"toHTTPs,omitempty" yaml:"toHTTPs,omitempty" bson:"toHTTPs,omitempty"`
+	ToCIDRs    []SpecCIDR    `json:"toCIDRs,omitempty" yaml:"toCIDRs,omitempty" bson:"toCIDRs,omitempty"`
+	ToEntities []string      `json:"toEntities,omitempty" yaml:"toEntities,omitempty" bson:"toEntities,omitempty"`
+	ToServices []SpecService `json:"toServices,omitempty" yaml:"toServices,omitempty" bson:"toServices,omitempty"`
+	ToFQDNs    []SpecFQDN    `json:"toFQDNs,omitempty" yaml:"toFQDNs,omitempty" bson:"toFQDNs,omitempty"`
+	ToHTTPs    []SpecHTTP    `json:"toHTTPs,omitempty" yaml:"toHTTPs,omitempty" bson:"toHTTPs,omitempty"`
+}
+
+type L47Rule interface {
+	GetICMPRules() []SpecICMP
+	GetPortRules() []SpecPort
+	GetHTTPRules() []SpecHTTP
+}
+
+func (x Ingress) GetICMPRules() []SpecICMP {
+	return x.ICMPs
+}
+
+func (x Ingress) GetPortRules() []SpecPort {
+	return x.ToPorts
+}
+
+func (x Ingress) GetHTTPRules() []SpecHTTP {
+	return x.ToHTTPs
+}
+
+func (x Egress) GetICMPRules() []SpecICMP {
+	return x.ICMPs
+}
+
+func (x Egress) GetPortRules() []SpecPort {
+	return x.ToPorts
+}
+
+func (x Egress) GetHTTPRules() []SpecHTTP {
+	return x.ToHTTPs
 }
 
 // Spec Structure
@@ -82,6 +128,7 @@ type KnoxNetworkPolicy struct {
 	Spec Spec `json:"spec,omitempty" yaml:"spec,omitempty" bson:"spec,omitempty"`
 
 	GeneratedTime int64 `json:"generatedTime,omitempty" yaml:"generatedTime,omitempty" bson:"generatedTime,omitempty"`
+	UpdatedTime   int64 `json:"updatedTime,omitempty" yaml:"updatedTime,omitempty" bson:"updatedTime,omitempty"`
 }
 
 // =========================== //
@@ -128,29 +175,41 @@ type CiliumService struct {
 	K8sService CiliumK8sService `json:"k8sService,omitempty" yaml:"k8sService,omitempty"`
 }
 
+// CiliumICMP Structure
+type CiliumICMP struct {
+	Fields []CiliumICMPField `json:"fields,omitempty" yaml:"fields,omitempty"`
+}
+
+// CiliumICMPField Structure
+type CiliumICMPField struct {
+	Family string `json:"family,omitempty" yaml:"family,omitempty"`
+	Type   uint8  `json:"type" yaml:"type,omitempty"`
+}
+
 // CiliumEgress Structure
 type CiliumEgress struct {
 	ToEndpoints []CiliumEndpoint `json:"toEndpoints,omitempty" yaml:"toEndpoints,omitempty"`
 	ToPorts     []CiliumPortList `json:"toPorts,omitempty" yaml:"toPorts,omitempty"`
-
-	ToCIDRs    []string        `json:"toCIDR,omitempty" yaml:"toCIDR,omitempty"`
-	ToEntities []string        `json:"toEntities,omitempty" yaml:"toEntities,omitempty"`
-	ToServices []CiliumService `json:"toServices,omitempty" yaml:"toServices,omitempty"`
-	ToFQDNs    []CiliumFQDN    `json:"toFQDNs,omitempty" yaml:"toFQDNs,omitempty"`
+	ICMPs       []CiliumICMP     `json:"icmps,omitempty" yaml:"icmps,omitempty"`
+	ToCIDRs     []string         `json:"toCIDR,omitempty" yaml:"toCIDR,omitempty"`
+	ToEntities  []string         `json:"toEntities,omitempty" yaml:"toEntities,omitempty"`
+	ToServices  []CiliumService  `json:"toServices,omitempty" yaml:"toServices,omitempty"`
+	ToFQDNs     []CiliumFQDN     `json:"toFQDNs,omitempty" yaml:"toFQDNs,omitempty"`
 }
 
 // CiliumIngress Structure
 type CiliumIngress struct {
 	FromEndpoints []CiliumEndpoint `json:"fromEndpoints,omitempty" yaml:"fromEndpoints,omitempty"`
 	ToPorts       []CiliumPortList `json:"toPorts,omitempty" yaml:"toPorts,omitempty"`
-
-	FromCIDRs    []string `json:"fromCIDR,omitempty" yaml:"fromCIDR,omitempty"`
-	FromEntities []string `json:"fromEntities,omitempty" yaml:"fromEntities,omitempty"`
+	ICMPs         []CiliumICMP     `json:"icmps,omitempty" yaml:"icmps,omitempty"`
+	FromCIDRs     []string         `json:"fromCIDR,omitempty" yaml:"fromCIDR,omitempty"`
+	FromEntities  []string         `json:"fromEntities,omitempty" yaml:"fromEntities,omitempty"`
 }
 
 // CiliumSpec Structure
 type CiliumSpec struct {
-	Selector Selector `json:"endpointSelector,omitempty" yaml:"endpointSelector,omitempty"`
+	NodeSelector     Selector `json:"nodeSelector,omitempty" yaml:"nodeSelector,omitempty"`
+	EndpointSelector Selector `json:"endpointSelector,omitempty" yaml:"endpointSelector,omitempty"`
 
 	Egress  []CiliumEgress  `json:"egress,omitempty" yaml:"egress,omitempty"`
 	Ingress []CiliumIngress `json:"ingress,omitempty" yaml:"ingress,omitempty"`
@@ -170,9 +229,8 @@ type CiliumNetworkPolicy struct {
 
 // KnoxFromSource Structure
 type KnoxFromSource struct {
-	Path      string `json:"path,omitempty" yaml:"path,omitempty"`
-	Dir       string `json:"dir,omitempty" yaml:"dir,omitempty"`
-	Recursive bool   `json:"resursive,omitempty" yaml:"resursive,omitempty"`
+	Path string `json:"path,omitempty" yaml:"path,omitempty"`
+	Dir  string `json:"dir,omitempty" yaml:"dir,omitempty"`
 }
 
 // KnoxMatchPaths Structure
@@ -186,6 +244,7 @@ type KnoxMatchPaths struct {
 // KnoxMatchDirectories Structure
 type KnoxMatchDirectories struct {
 	Dir        string           `json:"dir,omitempty" yaml:"dir,omitempty"`
+	Recursive  bool             `json:"recursive,omitempty" yaml:"resursive,omitempty"`
 	ReadOnly   bool             `json:"readOnly,omitempty" yaml:"readOnly,omitempty"`
 	OwnerOnly  bool             `json:"ownerOnly,omitempty" yaml:"ownerOnly,omitempty"`
 	FromSource []KnoxFromSource `json:"fromSource,omitempty" yaml:"fromSource,omitempty"`
@@ -234,6 +293,8 @@ type KnoxSystemPolicy struct {
 	Spec KnoxSystemSpec `json:"spec,omitempty" yaml:"spec,omitempty" bson:"spec,omitempty"`
 
 	GeneratedTime int64 `json:"generatedTime,omitempty" yaml:"generatedTime,omitempty" bson:"generatedTime,omitempty"`
+	UpdatedTime   int64 `json:"updatedTime,omitempty" yaml:"updatedTime,omitempty" bson:"updatedTime,omitempty"`
+	Latest        bool  `json:"latest,omitempty" yaml:"latest,omitempty" bson:"latest,omitempty"`
 }
 
 // ============================= //
@@ -247,4 +308,17 @@ type KubeArmorPolicy struct {
 	Metadata   map[string]string `json:"metadata,omitempty" yaml:"metadata,omitempty"`
 
 	Spec KnoxSystemSpec `json:"spec,omitempty" yaml:"spec,omitempty"`
+}
+
+// =============== //
+// == Policy DB == //
+// =============== //
+type Policy struct {
+	Type        string `json:"type,omitempty"`
+	Kind        string `json:"kind,omitempty"`
+	Namespace   string `json:"namespace,omitempty"`
+	ClusterName string `json:"cluster_name,omitempty"`
+	Labels      string `json:"labels,omitempty"`
+	PolicyName  string `json:"policy_name,omitempty"`
+	PolicyYaml  string `json:"policy_yaml,omitempty"`
 }
