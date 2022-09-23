@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"crypto/rand"
 	"flag"
+	"fmt"
 	"math/big"
 	"net"
 	"os"
 	"os/exec"
 	"os/signal"
 	"reflect"
+	"sort"
 	"strings"
 	"syscall"
 	"time"
@@ -583,4 +585,57 @@ func ConvertStrToUnixTime(strTime string) int64 {
 
 	t, _ := time.Parse(TimeFormSimple, strTime)
 	return t.UTC().Unix()
+}
+
+// IsLabelMapSubset check whether m2 is a subset of m1
+func IsLabelMapSubset(m1, m2 types.LabelMap) bool {
+	match := true
+	for k, v := range m2 {
+		if m1[k] != v {
+			match = false
+			break
+		}
+	}
+	return match
+}
+
+// LabelMapFromLabelArray converts []string to map[string]string
+func LabelMapFromLabelArray(labels []string) types.LabelMap {
+	labelMap := types.LabelMap{}
+	for _, label := range labels {
+		kvPair := strings.FieldsFunc(label, labelKVSplitter)
+		if len(kvPair) != 2 {
+			continue
+		}
+		labelMap[kvPair[0]] = kvPair[1]
+	}
+	return labelMap
+}
+
+// LabelMapToLabelArray converts map[string]string to sorted []string
+func LabelMapToLabelArray(labelMap types.LabelMap) (labels []string) {
+	for k, v := range labelMap {
+		labels = append(labels, fmt.Sprintf("%s=%s", k, v))
+	}
+
+	sort.Strings(labels)
+	return
+}
+
+// LabelMapToString converts map[string]string to string
+func LabelMapToString(lm types.LabelMap) string {
+	return strings.Join(LabelMapToLabelArray(lm), ",")
+}
+
+// LabelMapFromString converts string to map[string]string
+func LabelMapFromString(labels string) types.LabelMap {
+	return LabelMapFromLabelArray(strings.FieldsFunc(labels, labelArrSplitter))
+}
+
+func labelKVSplitter(r rune) bool {
+	return r == ':' || r == '='
+}
+
+func labelArrSplitter(r rune) bool {
+	return r == ',' || r == ';'
 }

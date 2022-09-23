@@ -272,8 +272,6 @@ func WriteSystemPoliciesToFile_Ext(namespace, clustername, labels, fromsource st
 	kubearmorK8SPolicies := extractK8SSystemPolicies(namespace, clustername, labels, fromsource)
 	for _, pol := range kubearmorK8SPolicies {
 		fname := "kubearmor_policies_" + pol.Metadata["clusterName"] + "_" + pol.Metadata["namespace"] + "_" + pol.Metadata["containername"] + "_" + pol.Metadata["name"]
-		delete(pol.Metadata, "clusterName")
-		delete(pol.Metadata, "containername")
 		libs.WriteKubeArmorPolicyToYamlFile(fname, []types.KubeArmorPolicy{pol})
 	}
 
@@ -281,8 +279,6 @@ func WriteSystemPoliciesToFile_Ext(namespace, clustername, labels, fromsource st
 	for index, pol := range kubearmorVMPolicies {
 		locSrc := strings.ReplaceAll(sources[index], "/", "-")
 		fname := "kubearmor_policies_" + pol.Metadata["namespace"] + "_" + pol.Metadata["containername"] + locSrc
-		delete(pol.Metadata, "clusterName")
-		delete(pol.Metadata, "containername")
 		libs.WriteKubeArmorPolicyToYamlFile(fname, []types.KubeArmorPolicy{pol})
 	}
 }
@@ -307,9 +303,6 @@ func GetSysPolicy(namespace, clustername, labels, fromsource string) *wpb.Worker
 	for i := range kubearmorK8SPolicies {
 		kubearmorpolicy := wpb.KubeArmorPolicy{}
 
-		delete(kubearmorK8SPolicies[i].Metadata, "clusterName")
-		delete(kubearmorK8SPolicies[i].Metadata, "containername")
-
 		val, err := json.Marshal(&kubearmorK8SPolicies[i])
 		if err != nil {
 			log.Error().Msgf("kubearmorK8SPolicy json marshal failed err=%v", err.Error())
@@ -322,9 +315,6 @@ func GetSysPolicy(namespace, clustername, labels, fromsource string) *wpb.Worker
 	// system policy for VM
 	for i := range kubearmorVMPolicies {
 		kubearmorpolicy := wpb.KubeArmorPolicy{}
-
-		delete(kubearmorVMPolicies[i].Metadata, "clusterName")
-		delete(kubearmorVMPolicies[i].Metadata, "containername")
 
 		val, err := json.Marshal(&kubearmorVMPolicies[i])
 		if err != nil {
@@ -1322,13 +1312,15 @@ func GenFileSetForAllPodsInCluster(clusterName string, pods []types.Pod, settype
 }
 
 func insertSysPoliciesYamlToDB(policies []types.KnoxSystemPolicy) {
+	clusters := []string{}
+	for _, policy := range policies {
+		clusters = append(clusters, policy.Metadata["cluster_name"])
+	}
+
 	kubeArmorPolicies := plugin.ConvertKnoxSystemPolicyToKubeArmorPolicy(policies)
 
-	res := []types.Policy{}
-
-	for _, kubearmorPolicy := range kubeArmorPolicies {
-		var label string
-
+	res := []types.PolicyYaml{}
+	for i, kubearmorPolicy := range kubeArmorPolicies {
 		jsonBytes, err := json.Marshal(kubearmorPolicy)
 		if err != nil {
 			log.Error().Msg(err.Error())
@@ -1339,24 +1331,22 @@ func insertSysPoliciesYamlToDB(policies []types.KnoxSystemPolicy) {
 			log.Error().Msg(err.Error())
 			continue
 		}
-		policyYaml := string(yamlBytes)
 
-		for k, v := range kubearmorPolicy.Spec.Selector.MatchLabels {
-			label = k + "=" + v
+		policyYaml := types.PolicyYaml{
+			Type:      types.PolicyTypeSystem,
+			Kind:      kubearmorPolicy.Kind,
+			Name:      kubearmorPolicy.Metadata["name"],
+			Namespace: kubearmorPolicy.Metadata["namespace"],
+			Cluster:   clusters[i],
+			Labels:    kubearmorPolicy.Spec.Selector.MatchLabels,
+			Yaml:      yamlBytes,
 		}
+		res = append(res, policyYaml)
 
-		res = append(res, types.Policy{
-			Type:        "system",
-			Kind:        kubearmorPolicy.Kind,
-			PolicyName:  kubearmorPolicy.Metadata["name"],
-			Namespace:   kubearmorPolicy.Metadata["namespace"],
-			ClusterName: kubearmorPolicy.Metadata["clusterName"],
-			Labels:      label,
-			PolicyYaml:  policyYaml,
-		})
+		PolicyStore.Publish(&policyYaml)
 	}
 
-	if err := libs.UpdateOrInsertPolicies(CfgDB, res); err != nil {
+	if err := libs.UpdateOrInsertPolicyYamls(CfgDB, res); err != nil {
 		log.Error().Msgf(err.Error())
 	}
 }

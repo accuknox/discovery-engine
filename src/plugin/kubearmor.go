@@ -49,8 +49,6 @@ func ConvertKnoxSystemPolicyToKubeArmorPolicy(knoxPolicies []types.KnoxSystemPol
 		}
 
 		kubePolicy.Metadata["namespace"] = policy.Metadata["namespace"]
-		kubePolicy.Metadata["clusterName"] = policy.Metadata["clusterName"]
-		kubePolicy.Metadata["containername"] = policy.Metadata["containername"]
 		kubePolicy.Metadata["name"] = policy.Metadata["name"]
 
 		if policy.Metadata["namespace"] == types.PolicyDiscoveryVMNamespace {

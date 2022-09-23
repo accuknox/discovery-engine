@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package v1.discovery;
+
+option go_package = "github.com/kubearmor/discovery-engine/src/protobuf/v1/discovery";
+
+service Discovery {
+  rpc GetPolicy(GetPolicyRequest) returns (stream GetPolicyResponse) {}
+}
+
+message GetPolicyRequest {
+  bool follow = 1;
+  repeated string kind = 2;
+  string cluster = 3;
+  string namespace = 4;
+  repeated string label = 5;
+}
+
+message GetPolicyResponse {
+  string kind = 1;
+  string cluster = 2;
+  string namespace = 3;
+  repeated string label = 4;
+  string name = 5;
+  bytes yaml = 6;
+}

@@ -19,7 +19,7 @@ const TableNetworkPolicySQLite_TableName = "network_policy"
 const TableSystemPolicySQLite_TableName = "system_policy"
 const TableSystemLogsSQLite_TableName = "system_logs"
 const TableNetworkLogsSQLite_TableName = "network_logs"
-const PolicyTableSQLite_TableName = "policy_yaml"
+const PolicyYamlSQLite_TableName = "policy_yaml"
 
 // ================ //
 // == Connection == //
@@ -681,7 +681,7 @@ func CreatePolicyTableSQLite(cfg types.ConfigDB) error {
 	db := connectSQLite(cfg, cfg.SQLiteDBPath)
 	defer db.Close()
 
-	tableName := PolicyTableSQLite_TableName
+	tableName := PolicyYamlSQLite_TableName
 
 	query :=
 		"CREATE TABLE IF NOT EXISTS `" + tableName + "` (" +
@@ -1594,12 +1594,54 @@ func GetPodNamesSQLite(cfg types.ConfigDB, filter types.ObsPodDetail) ([]string,
 // == Policy DB == //
 // =============== //
 
-func UpdateOrInsertPoliciesSQLite(cfg types.ConfigDB, policies []types.Policy) error {
+func GetPolicyYamlsSQLite(cfg types.ConfigDB, policyType string) ([]types.PolicyYaml, error) {
+	db := connectSQLite(cfg, cfg.SQLiteDBPath)
+	defer db.Close()
+
+	policies := []types.PolicyYaml{}
+
+	var results *sql.Rows
+	var err error
+
+	query := "SELECT type,kind,cluster_name,namespace,labels,policy_name,policy_yaml FROM " + PolicyYaml_TableName
+	query = query + " WHERE type = ?"
+
+	results, err = db.Query(query, policyType)
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return nil, err
+	}
+	defer results.Close()
+
+	for results.Next() {
+		var labels string
+		policy := types.PolicyYaml{}
+
+		if err := results.Scan(
+			&policy.Type,
+			&policy.Kind,
+			&policy.Cluster,
+			&policy.Namespace,
+			&labels,
+			&policy.Name,
+			&policy.Yaml,
+		); err != nil {
+			return nil, err
+		}
+
+		policy.Labels = LabelMapFromString(labels)
+		policies = append(policies, policy)
+	}
+
+	return policies, nil
+}
+
+func UpdateOrInsertPolicyYamlsSQLite(cfg types.ConfigDB, policies []types.PolicyYaml) error {
 	db := connectSQLite(cfg, cfg.SQLiteDBPath)
 	defer db.Close()
 
 	for _, pol := range policies {
-		if err := updateOrInsertPolicySQLite(db, pol); err != nil {
+		if err := updateOrInsertPolicyYamlSQLite(db, pol); err != nil {
 			log.Error().Msg(err.Error())
 		}
 	}
@@ -1607,10 +1649,10 @@ func UpdateOrInsertPoliciesSQLite(cfg types.ConfigDB, policies []types.Policy) e
 	return nil
 }
 
-func updateOrInsertPolicySQLite(db *sql.DB, policy types.Policy) error {
+func updateOrInsertPolicyYamlSQLite(db *sql.DB, policy types.PolicyYaml) error {
 	var err error
 
-	query := "UPDATE " + PolicyTableSQLite_TableName + " SET policy_yaml = ?, updated_time = ? WHERE policy_name = ?"
+	query := "UPDATE " + PolicyYamlSQLite_TableName + " SET policy_yaml = ?, updated_time = ? WHERE policy_name = ?"
 	updateStmt, err := db.Prepare(query)
 	if err != nil {
 		return err
@@ -1618,9 +1660,9 @@ func updateOrInsertPolicySQLite(db *sql.DB, policy types.Policy) error {
 	defer updateStmt.Close()
 
 	result, err := updateStmt.Exec(
-		policy.PolicyYaml,
+		policy.Yaml,
 		ConvertStrToUnixTime("now"),
-		policy.PolicyName,
+		policy.Name,
 	)
 	if err != nil {
 		log.Error().Msg(err.Error())
@@ -1630,7 +1672,7 @@ func updateOrInsertPolicySQLite(db *sql.DB, policy types.Policy) error {
 	rowsAffected, err := result.RowsAffected()
 
 	if err == nil && rowsAffected == 0 {
-		insertStmt, err := db.Prepare("INSERT INTO " + PolicyTableSQLite_TableName +
+		insertStmt, err := db.Prepare("INSERT INTO " + PolicyYamlSQLite_TableName +
 			" (type,kind,cluster_name,namespace,labels,policy_name,policy_yaml,updated_time) values(?,?,?,?,?,?,?,?)")
 		if err != nil {
 			return err
@@ -1640,11 +1682,11 @@ func updateOrInsertPolicySQLite(db *sql.DB, policy types.Policy) error {
 		_, err = insertStmt.Exec(
 			policy.Type,
 			policy.Kind,
-			policy.ClusterName,
+			policy.Cluster,
 			policy.Namespace,
-			policy.Labels,
-			policy.PolicyName,
-			policy.PolicyYaml,
+			LabelMapToString(policy.Labels),
+			policy.Name,
+			policy.Yaml,
 			ConvertStrToUnixTime("now"),
 		)
 		if err != nil {

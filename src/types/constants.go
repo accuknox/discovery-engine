@@ -1,5 +1,7 @@
 package types
 
+import cu "github.com/cilium/cilium/pkg/k8s/apis/cilium.io/utils"
+
 const (
 	// KubeArmor VM
 	PolicyDiscoveryVMNamespace = "accuknox-vm-namespace"
@@ -15,9 +17,23 @@ const (
 	// RecordSeparator - DB separator flag
 	RecordSeparator = "^^"
 
-	// Cilium constants
+	// Network Policy
 	KindKnoxNetworkPolicy     = "KnoxNetworkPolicy"
 	KindKnoxHostNetworkPolicy = "KnoxHostNetworkPolicy"
+
+	// Cilium Policy
+	KindCiliumNetworkPolicy            = cu.ResourceTypeCiliumNetworkPolicy
+	KindCiliumClusterwideNetworkPolicy = cu.ResourceTypeCiliumClusterwideNetworkPolicy
+
+	// Kubernetes Policy
+	KindK8sNetworkPolicy = "NetworkPolicy"
+
+	// KubeArmor Policy
+	KindKubeArmorPolicy     = "KubeArmorPolicy"
+	KindKubeArmorHostPolicy = "KubeArmorHostPolicy"
+
+	PolicyTypeSystem  = "system"
+	PolicyTypeNetwork = "network"
 
 	// Binary Name Filters
 	FilterBinaryKnoxAutoPolicy = "knoxAutoPolicy"
