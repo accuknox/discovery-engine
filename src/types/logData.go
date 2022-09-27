@@ -21,7 +21,7 @@ type KnoxNetworkLog struct {
 	DstIP    string `json:"dst_ip,omitempty" bson:"dst_ip"`
 	SrcPort  int    `json:"src_port,omitempty" bson:"src_port"`
 	DstPort  int    `json:"dst_port,omitempty" bson:"dst_port"`
-	ICMPType int    `json:"icmp_type, omitempty" bson:"icmp_type"`
+	ICMPType int    `json:"icmp_type,omitempty" bson:"icmp_type"`
 
 	SynFlag bool `json:"syn_flag,omitempty" bson:"syn_flag"` // for tcp
 	IsReply bool `json:"is_reply,omitempty" bson:"is_reply"` // is_reply
