@@ -48,6 +48,8 @@ message SysNwSummaryData {
     string Port = 4;
     string Labels = 5;
     string Namespace = 6;
+    string Count = 7;
+    string UpdatedTime = 8;
 }
 
 message CiliumSummData {

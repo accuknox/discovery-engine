@@ -17,7 +17,7 @@ func GetSummaryData(request *opb.Request) (*opb.Response, error) {
 		proc, file, nw, podInfo := GetKubearmorSummaryData(request)
 
 		if len(proc) <= 0 && len(file) <= 0 && len(nw) <= 0 {
-			return nil, errors.New("no system summary info present for the requested pod")
+			return nil, errors.New("no system summary info present for the requested pod name")
 		}
 
 		procResp := []*opb.SysProcFileSummaryData{}
@@ -59,21 +59,25 @@ func GetSummaryData(request *opb.Request) (*opb.Response, error) {
 			for _, loc_nw := range nw {
 				if loc_nw.InOut == "IN" {
 					inNwResp = append(inNwResp, &opb.SysNwSummaryData{
-						Protocol:  loc_nw.Protocol,
-						Command:   loc_nw.Command,
-						IP:        loc_nw.PodSvcIP,
-						Port:      loc_nw.ServerPort,
-						Labels:    loc_nw.Labels,
-						Namespace: loc_nw.Namespace,
+						Protocol:    loc_nw.Protocol,
+						Command:     loc_nw.Command,
+						IP:          loc_nw.PodSvcIP,
+						Port:        loc_nw.ServerPort,
+						Labels:      loc_nw.Labels,
+						Namespace:   loc_nw.Namespace,
+						Count:       strconv.Itoa(int(loc_nw.Count)),
+						UpdatedTime: loc_nw.UpdatedTime,
 					})
 				} else if loc_nw.InOut == "OUT" {
 					outNwResp = append(outNwResp, &opb.SysNwSummaryData{
-						Protocol:  loc_nw.Protocol,
-						Command:   loc_nw.Command,
-						IP:        loc_nw.PodSvcIP,
-						Port:      loc_nw.ServerPort,
-						Labels:    loc_nw.Labels,
-						Namespace: loc_nw.Namespace,
+						Protocol:    loc_nw.Protocol,
+						Command:     loc_nw.Command,
+						IP:          loc_nw.PodSvcIP,
+						Port:        loc_nw.ServerPort,
+						Labels:      loc_nw.Labels,
+						Namespace:   loc_nw.Namespace,
+						Count:       strconv.Itoa(int(loc_nw.Count)),
+						UpdatedTime: loc_nw.UpdatedTime,
 					})
 				}
 			}

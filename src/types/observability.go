@@ -151,13 +151,15 @@ type SysObsProcFileData struct {
 }
 
 type SysObsNwData struct {
-	InOut      string
-	Protocol   string
-	Command    string
-	PodSvcIP   string
-	ServerPort string
-	Namespace  string
-	Labels     string
+	InOut       string
+	Protocol    string
+	Command     string
+	PodSvcIP    string
+	ServerPort  string
+	Namespace   string
+	Labels      string
+	Count       uint32
+	UpdatedTime string
 }
 
 type NwObsIngressEgressData struct {
