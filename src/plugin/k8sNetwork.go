@@ -1,7 +1,6 @@
 package plugin
 
 import (
-	"fmt"
 	"strconv"
 
 	"github.com/accuknox/auto-policy-discovery/src/config"
@@ -36,9 +35,14 @@ func ConvertKnoxNetPolicyToK8sNetworkPolicy(clustername, namespace string) []nv1
 		if len(knp.Spec.Egress) > 0 {
 
 			for _, eg := range knp.Spec.Egress {
-
 				var egressRule nv1.NetworkPolicyEgressRule
-				protocol := v1.ProtocolTCP
+				var protocol v1.Protocol
+
+				if eg.ToPorts[0].Protocol == string(v1.ProtocolTCP) {
+					protocol = v1.ProtocolTCP
+				} else if eg.ToPorts[0].Protocol == string(v1.ProtocolUDP) {
+					protocol = v1.ProtocolUDP
+				}
 				portVal, _ := strconv.ParseInt(eg.ToPorts[0].Port, 10, 32)
 
 				port := nv1.NetworkPolicyPort{
@@ -66,9 +70,14 @@ func ConvertKnoxNetPolicyToK8sNetworkPolicy(clustername, namespace string) []nv1
 
 		if len(knp.Spec.Ingress) > 0 {
 			for _, ing := range knp.Spec.Ingress {
-
 				var ingressRule nv1.NetworkPolicyIngressRule
-				protocol := v1.ProtocolTCP
+				var protocol v1.Protocol
+
+				if ing.ToPorts[0].Protocol == string(v1.ProtocolTCP) {
+					protocol = v1.ProtocolTCP
+				} else if ing.ToPorts[0].Protocol == string(v1.ProtocolUDP) {
+					protocol = v1.ProtocolUDP
+				}
 				portVal, _ := strconv.ParseInt(ing.ToPorts[0].Port, 10, 32)
 
 				port := nv1.NetworkPolicyPort{
@@ -95,8 +104,6 @@ func ConvertKnoxNetPolicyToK8sNetworkPolicy(clustername, namespace string) []nv1
 
 		res = append(res, k8NetPol)
 	}
-
-	fmt.Printf("ERS ==> res: %v\n", res)
 
 	return res
 }
