@@ -179,11 +179,13 @@ func fetchSysServerConnDetail(log types.KubeArmorLog) (types.SysObsNwData, error
 	if strings.Contains(log.Data, "tcp_connect") || strings.Contains(log.Data, "SYS_CONNECT") {
 		conn.InOut = "OUT"
 		conn.Count++
-		conn.UpdatedTime = time.UnixDate
+		t := time.Unix(log.UpdatedTime, 0)
+		conn.UpdatedTime = t.Format(time.UnixDate)
 	} else if strings.Contains(log.Data, "tcp_accept") || strings.Contains(log.Data, "SYS_ACCEPT") {
 		conn.InOut = "IN"
 		conn.Count++
-		conn.UpdatedTime = time.UnixDate
+		t := time.Unix(log.UpdatedTime, 0)
+		conn.UpdatedTime = t.Format(time.UnixDate)
 	} else {
 		return types.SysObsNwData{}, err
 	}
