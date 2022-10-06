@@ -54,7 +54,7 @@ func ConvertKnoxNetPolicyToK8sNetworkPolicy(clustername, namespace string) []nv1
 				}
 
 				to := nv1.NetworkPolicyPeer{
-					NamespaceSelector: &metav1.LabelSelector{
+					PodSelector: &metav1.LabelSelector{
 						MatchLabels: eg.MatchLabels,
 					},
 				}
@@ -89,7 +89,7 @@ func ConvertKnoxNetPolicyToK8sNetworkPolicy(clustername, namespace string) []nv1
 				}
 
 				from := nv1.NetworkPolicyPeer{
-					NamespaceSelector: &metav1.LabelSelector{
+					PodSelector: &metav1.LabelSelector{
 						MatchLabels: ing.MatchLabels,
 					},
 				}
