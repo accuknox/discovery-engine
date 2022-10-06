@@ -39,7 +39,7 @@ func ConvertKnoxNetPolicyToK8sNetworkPolicy(clustername, namespace string) []nv1
 
 				var egressRule nv1.NetworkPolicyEgressRule
 				protocol := v1.ProtocolTCP
-				portVal, _ := strconv.Atoi(eg.ToPorts[0].Port)
+				portVal, _ := strconv.ParseInt(eg.ToPorts[0].Port, 10, 32)
 
 				port := nv1.NetworkPolicyPort{
 					Port: &intstr.IntOrString{
@@ -69,7 +69,7 @@ func ConvertKnoxNetPolicyToK8sNetworkPolicy(clustername, namespace string) []nv1
 
 				var ingressRule nv1.NetworkPolicyIngressRule
 				protocol := v1.ProtocolTCP
-				portVal, _ := strconv.Atoi(ing.ToPorts[0].Port)
+				portVal, _ := strconv.ParseInt(ing.ToPorts[0].Port, 10, 32)
 
 				port := nv1.NetworkPolicyPort{
 					Port: &intstr.IntOrString{
