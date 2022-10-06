@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/rs/zerolog"
 
@@ -106,11 +107,11 @@ func (s *workerServer) GetWorkerStatus(ctx context.Context, in *wpb.WorkerReques
 
 func (s *workerServer) Convert(ctx context.Context, in *wpb.WorkerRequest) (*wpb.WorkerResponse, error) {
 
-	if in.GetPolicytype() == "network" {
+	if strings.Contains(in.GetPolicytype(), "network") {
 		log.Info().Msg("Convert network policy called")
 		network.InitNetPolicyDiscoveryConfiguration()
 		network.WriteNetworkPoliciesToFile(in.GetClustername(), in.GetNamespace())
-		return network.GetNetPolicy(in.Clustername, in.Namespace), nil
+		return network.GetNetPolicy(in.Clustername, in.Namespace, in.GetPolicytype()), nil
 	} else if in.GetPolicytype() == "system" {
 		log.Info().Msg("Convert system policy called")
 		system.InitSysPolicyDiscoveryConfiguration()

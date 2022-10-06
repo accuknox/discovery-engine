@@ -2,6 +2,8 @@ package cluster
 
 import (
 	"errors"
+	"sort"
+	"strings"
 
 	"github.com/accuknox/auto-policy-discovery/src/config"
 	"github.com/accuknox/auto-policy-discovery/src/types"
@@ -61,4 +63,27 @@ func GetAllClusterResources(cluster string) ([]string, []types.Service, []types.
 
 		return namespaces, services, endpoints, pods, nil
 	}
+}
+
+// ExtractPodSvcInfoFromIP -- Extract respective podname/ns/labels from pod/svc ip
+func ExtractPodSvcInfoFromIP(ip, clustername string) (string, string, string) {
+	podSvcName := ip
+
+	_, services, _, pods, err := GetAllClusterResources(clustername)
+	if err != nil {
+		return podSvcName, "", ""
+	}
+
+	for _, pod := range pods {
+		if pod.PodIP == ip {
+			return "pod/" + pod.PodName, strings.Join(sort.StringSlice(pod.Labels), ","), pod.Namespace
+		}
+	}
+	for _, svc := range services {
+		if svc.ClusterIP == ip {
+			return "svc/" + svc.ServiceName, strings.Join(svc.Labels, ","), svc.Namespace
+		}
+	}
+
+	return podSvcName, "", ""
 }

@@ -3,7 +3,6 @@ package observability
 import (
 	"encoding/json"
 	"errors"
-	"sort"
 	"strings"
 	"time"
 
@@ -149,28 +148,6 @@ func ProcessKubearmorAlert(kubearmorAlert *pb.Log) {
 	SystemLogsMutex.Unlock()
 }
 
-func extractPodSvcInfoFromIP(ip, clustername string) (string, string, string) {
-	podSvcName := ip
-
-	_, services, _, pods, err := cluster.GetAllClusterResources(clustername)
-	if err != nil {
-		return podSvcName, "", ""
-	}
-
-	for _, pod := range pods {
-		if pod.PodIP == ip {
-			return "pod/" + pod.PodName, strings.Join(sort.StringSlice(pod.Labels), ","), pod.Namespace
-		}
-	}
-	for _, svc := range services {
-		if svc.ClusterIP == ip {
-			return "svc/" + svc.ServiceName, strings.Join(svc.Labels, ","), svc.Namespace
-		}
-	}
-
-	return podSvcName, "", ""
-}
-
 func fetchSysServerConnDetail(log types.KubeArmorLog) (types.SysObsNwData, error) {
 	conn := types.SysObsNwData{}
 	err := errors.New("not a valid incoming/outgoing connection")
@@ -195,7 +172,7 @@ func fetchSysServerConnDetail(log types.KubeArmorLog) (types.SysObsNwData, error
 		resslice := strings.Split(log.Resource, " ")
 		for _, locres := range resslice {
 			if strings.Contains(locres, "remoteip") {
-				conn.PodSvcIP, conn.Labels, conn.Namespace = extractPodSvcInfoFromIP(strings.Split(locres, "=")[1], log.ClusterName)
+				conn.PodSvcIP, conn.Labels, conn.Namespace = cluster.ExtractPodSvcInfoFromIP(strings.Split(locres, "=")[1], log.ClusterName)
 			}
 			if strings.Contains(locres, "port") {
 				conn.ServerPort = strings.Split(locres, "=")[1]
