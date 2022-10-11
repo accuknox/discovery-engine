@@ -789,6 +789,7 @@ func GetNetPolicy(cluster, namespace, policyType string) *wpb.WorkerResponse {
 			val, err := json.Marshal(&ciliumPolicies[i])
 			if err != nil {
 				log.Error().Msg(err.Error())
+				continue
 			}
 			ciliumpolicy.Data = val
 
@@ -804,6 +805,7 @@ func GetNetPolicy(cluster, namespace, policyType string) *wpb.WorkerResponse {
 			val, err := json.Marshal(&policies[i])
 			if err != nil {
 				log.Error().Msg(err.Error())
+				continue
 			}
 			genericNetPol.Data = val
 
