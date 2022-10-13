@@ -195,8 +195,8 @@ argocd:
     project: "useronboarding"                          #specify poject name in argocd
     cluster:
       project: "mimetic-kit-294408"                    #Kubernetes project name
-      name: "accuknox-saas-dev"                        #Kubernetes cluster name
-      region: "us-central1-c"                          #Kubernetes cluster Region
+      name: "accuknox-saas-dev2"                        #Kubernetes cluster name
+      region: "us-west1-c"                          #Kubernetes cluster Region
       
 
   enable: false
