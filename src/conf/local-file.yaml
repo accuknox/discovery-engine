@@ -1,18 +1,18 @@
 application:
   name: knoxautopolicy
   network:
-    operation-mode: 1                            # 1: cronjob | 2: one-time-job
-    operation-trigger: 100
+    operation-mode: 1                             # 1: cronjob | 2: one-time-job
+    operation-trigger: 5
     cron-job-time-interval: "0h0m10s"             # format: XhYmZs 
     network-log-limit: 10000
-    network-log-from: "hubble"                    # db|hubble|feed-consumer
+    network-log-from: "kubearmor"                 # db|hubble|feed-consumer|kubearmor
     #network-log-file: "/home/rahul/feeds.json"   # file path
     network-policy-to: "db"                       # db, file
     network-policy-dir: "./"
     namespace-filter:
       - "!kube-system"
   system:
-    operation-mode: 1                       # 1: cronjob | 2: one-time-job
+    operation-mode: 1                         # 1: cronjob | 2: one-time-job
     operation-trigger: 5
     cron-job-time-interval: "0h0m10s"         # format: XhYmZs
     system-log-from: "kubearmor"              # db|kubearmor|feed-consumer

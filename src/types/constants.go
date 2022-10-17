@@ -37,4 +37,8 @@ const (
 
 	// Binary Name Filters
 	FilterBinaryKnoxAutoPolicy = "knoxAutoPolicy"
+
+	// K8sNetworkPolicy
+	K8sNwPolicyAPIVersion = "networking.k8s.io/v1"
+	K8sNwPolicyKind       = "NetworkPolicy"
 )

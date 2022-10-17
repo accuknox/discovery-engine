@@ -23,14 +23,11 @@ message WorkerRequest {
 
 message WorkerResponse {
     string res = 1;
-    repeated KubeArmorPolicy kubearmorpolicy = 2;
-    repeated CiliumPolicy ciliumpolicy = 3;
+    repeated Policy kubearmorpolicy = 2;
+    repeated Policy ciliumpolicy = 3;
+    repeated Policy k8sNetworkpolicy = 4;
 }
 
-message KubeArmorPolicy {
-    bytes Data = 1;
-}
-
-message CiliumPolicy {
+message Policy {
     bytes Data = 1;
 }

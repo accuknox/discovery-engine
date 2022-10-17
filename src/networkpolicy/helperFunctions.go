@@ -288,6 +288,16 @@ func getNetworkLogs() []types.KnoxNetworkLog {
 		if err := logFile.Close(); err != nil {
 			log.Error().Msg(err.Error())
 		}
+	} else if NetworkLogFrom == "kubearmor" {
+		// =============== //
+		// == Kubearmor == //
+		// =============== //
+		log.Info().Msg("Get network log from Kubearmor")
+
+		kaNwLogs := plugin.GetNetworkLogsFromKubeArmor()
+
+		// convert kubearmor log/alert to KnoxNetworkLog
+		networkLogs = plugin.ConvertKubeArmorNetLogToKnoxNetLog(kaNwLogs)
 	} else {
 		log.Error().Msgf("Network log source not correct: %s", NetworkLogFrom)
 		return nil
@@ -764,22 +774,44 @@ func WriteNetworkPoliciesToFile(cluster, namespace string) {
 	libs.WriteCiliumPolicyToYamlFile(namespace, ciliumPolicies)
 }
 
-func GetNetPolicy(cluster, namespace string) *wpb.WorkerResponse {
-	latestPolicies := libs.GetNetworkPolicies(CfgDB, cluster, namespace, "latest", "", "")
-	log.Info().Msgf("No. of latestPolicies - %d", len(latestPolicies))
-	ciliumPolicies := plugin.ConvertKnoxPoliciesToCiliumPolicies(latestPolicies)
+func GetNetPolicy(cluster, namespace, policyType string) *wpb.WorkerResponse {
 
 	var response wpb.WorkerResponse
-	for i := range ciliumPolicies {
-		ciliumpolicy := wpb.CiliumPolicy{}
 
-		val, err := json.Marshal(&ciliumPolicies[i])
-		if err != nil {
-			log.Error().Msg(err.Error())
+	if strings.Contains(policyType, "cilium") {
+		latestPolicies := libs.GetNetworkPolicies(CfgDB, cluster, namespace, "latest", "", "")
+		log.Info().Msgf("No. of latestPolicies - %d", len(latestPolicies))
+		ciliumPolicies := plugin.ConvertKnoxPoliciesToCiliumPolicies(latestPolicies)
+
+		for i := range ciliumPolicies {
+			ciliumpolicy := wpb.Policy{}
+
+			val, err := json.Marshal(&ciliumPolicies[i])
+			if err != nil {
+				log.Error().Msg(err.Error())
+				continue
+			}
+			ciliumpolicy.Data = val
+
+			response.Ciliumpolicy = append(response.Ciliumpolicy, &ciliumpolicy)
 		}
-		ciliumpolicy.Data = val
+		response.K8SNetworkpolicy = nil
+	} else if strings.Contains(policyType, "generic") {
+		policies := plugin.ConvertKnoxNetPolicyToK8sNetworkPolicy(cluster, namespace)
 
-		response.Ciliumpolicy = append(response.Ciliumpolicy, &ciliumpolicy)
+		for i := range policies {
+			genericNetPol := wpb.Policy{}
+
+			val, err := json.Marshal(&policies[i])
+			if err != nil {
+				log.Error().Msg(err.Error())
+				continue
+			}
+			genericNetPol.Data = val
+
+			response.K8SNetworkpolicy = append(response.K8SNetworkpolicy, &genericNetPol)
+		}
+		response.Ciliumpolicy = nil
 	}
 	response.Res = "OK"
 	response.Kubearmorpolicy = nil

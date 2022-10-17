@@ -6,10 +6,12 @@ import (
 	"errors"
 	"net"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/accuknox/auto-policy-discovery/src/cluster"
 	"github.com/accuknox/auto-policy-discovery/src/common"
 	"github.com/accuknox/auto-policy-discovery/src/config"
 	"github.com/accuknox/auto-policy-discovery/src/libs"
@@ -21,6 +23,7 @@ import (
 
 // Global Variable
 var KubeArmorRelayLogs []*pb.Log
+var KubeArmorNetworkLogs []*pb.Log
 var KubeArmorRelayLogsMutex *sync.Mutex
 
 var KubeArmorFCLogs []*types.KnoxSystemLog
@@ -426,6 +429,12 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 				if config.GetCfgObservabilityEnable() {
 					obs.ProcessKubearmorLog(res)
 				}
+
+				if config.CurrentCfg.ConfigNetPolicy.NetworkLogFrom == "kubearmor" {
+					if res.Operation == "Network" && strings.Contains(res.Data, "tcp_") {
+						KubeArmorNetworkLogs = append(KubeArmorNetworkLogs, res)
+					}
+				}
 			}
 		}
 	}(client)
@@ -483,6 +492,13 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 				if config.GetCfgObservabilityEnable() {
 					obs.ProcessKubearmorAlert(&log)
 				}
+
+				if config.CurrentCfg.ConfigNetPolicy.NetworkLogFrom == "kubearmor" {
+					if log.Operation == "Network" && (strings.Contains(log.Data, "tcp_") ||
+						strings.Contains(log.Resource, "UDP")) {
+						KubeArmorNetworkLogs = append(KubeArmorNetworkLogs, &log)
+					}
+				}
 			}
 		}
 	}()
@@ -506,6 +522,86 @@ func GetSystemLogsFromFeedConsumer(trigger int) []*types.KnoxSystemLog {
 	KubeArmorFCLogs = []*types.KnoxSystemLog{} // reset
 
 	log.Info().Msgf("The total number of KubeArmor feed-consumer traffic flow: [%d]", len(results))
+
+	return results
+}
+
+func GetNetworkLogsFromKubeArmor() []*pb.Log {
+	if len(KubeArmorNetworkLogs) <= 0 {
+		return nil
+	}
+
+	results := KubeArmorNetworkLogs    // copy
+	KubeArmorNetworkLogs = []*pb.Log{} // reset
+
+	log.Info().Msgf("The total number of KubeArmor network log : [%d]", len(results))
+
+	return results
+}
+
+func ConvertKubeArmorNetLogToKnoxNetLog(kaNwLogs []*pb.Log) []types.KnoxNetworkLog {
+	if len(kaNwLogs) <= 0 {
+		return nil
+	}
+
+	results := []types.KnoxNetworkLog{}
+
+	for _, kalog := range kaNwLogs {
+		var ip, port string
+		locKnoxLog := types.KnoxNetworkLog{
+			ClusterName:       kalog.ClusterName,
+			SrcNamespace:      kalog.NamespaceName,
+			SrcReservedLabels: strings.Split(kalog.Labels, ","),
+			SrcPodName:        kalog.PodName,
+		}
+
+		// Direction
+		if strings.Contains(kalog.Data, "tcp_") {
+			locKnoxLog.Protocol = libs.IPProtocolTCP
+			if strings.Contains(kalog.Data, "tcp_accept") {
+				locKnoxLog.Direction = "INGRESS"
+			} else if strings.Contains(kalog.Data, "tcp_connect") {
+				locKnoxLog.Direction = "EGRESS"
+			}
+
+			// Extract IP and port
+			resslice := strings.Split(kalog.Resource, " ")
+			for _, locres := range resslice {
+				if strings.Contains(locres, "remoteip") {
+					ip = strings.Split(locres, "=")[1]
+				}
+				if strings.Contains(locres, "port") {
+					port = strings.Split(locres, "=")[1]
+				}
+			}
+
+			if ip == "127.0.0.1" {
+				// ignore adding policies with pod IP pointing to localhost
+				continue
+			}
+
+			destPod, destLabels, destNs := cluster.ExtractPodSvcInfoFromIP(ip, kalog.ClusterName)
+
+			if ip != destPod && strings.Contains(destPod, "pod") {
+				locKnoxLog.DstPodName = strings.Split(destPod, "/")[1]
+				locKnoxLog.DstReservedLabels = strings.Split(destLabels, ",")
+				locKnoxLog.DstNamespace = destNs
+			}
+			locKnoxLog.DstIP = ip
+			locKnoxLog.DstPort, _ = strconv.Atoi(port)
+			locKnoxLog.SynFlag = true
+		} else {
+			locKnoxLog.Protocol = libs.IPProtocolUDP
+		}
+
+		if kalog.Result != "Passed" {
+			locKnoxLog.Action = "Deny"
+		} else {
+			locKnoxLog.Action = "Allow"
+		}
+
+		results = append(results, locKnoxLog)
+	}
 
 	return results
 }
