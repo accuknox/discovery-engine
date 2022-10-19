@@ -1,6 +1,7 @@
 package libs
 
 import (
+	"database/sql"
 	"errors"
 
 	"github.com/accuknox/auto-policy-discovery/src/types"
@@ -291,6 +292,9 @@ func CreateTablesIfNotExist(cfg types.ConfigDB) {
 		if err := CreatePolicyTableSQLite(cfg); err != nil {
 			log.Error().Msg(err.Error())
 		}
+		if err := CreateSystemSummaryTableSQLite(cfg); err != nil {
+			log.Error().Msg(err.Error())
+		}
 	}
 }
 
@@ -381,4 +385,106 @@ func UpdateOrInsertPolicyYamls(cfg types.ConfigDB, policies []types.PolicyYaml) 
 		err = UpdateOrInsertPolicyYamlsSQLite(cfg, policies)
 	}
 	return err
+}
+
+// ============= //
+// == Summary == //
+// ============= //
+func UpsertSystemSummary(cfg types.ConfigDB, summaryMap map[types.SystemSummary]types.SysSummaryTimeCount) error {
+	var err = errors.New("unknown db driver")
+	if cfg.DBDriver == "mysql" {
+		err = UpsertSystemSummaryMySQL(cfg, summaryMap)
+	} else if cfg.DBDriver == "sqlite3" {
+		err = UpsertSystemSummarySQLite(cfg, summaryMap)
+	}
+	return err
+}
+
+func upsertSysSummarySQL(db *sql.DB, summary types.SystemSummary, timeCount types.SysSummaryTimeCount) error {
+	queryString := `cluster_name = ? and cluster_id = ? and namespace_name = ? and namespace_id = ? and container_name = ? and container_image = ? 
+					and container_id = ? and podname = ? and operation = ? and labels = ? and deployment_name = ? and source = ? and destination = ? 
+					and destination_namespace = ? and destination_labels = ? and type = ? and ip = ? and port = ? and protocol = ? and action = ?`
+
+	query := "UPDATE " + TableSystemSummarySQLite + " SET count=count+?, updated_time=? WHERE " + queryString + " "
+
+	updateStmt, err := db.Prepare(query)
+	if err != nil {
+		return err
+	}
+	defer updateStmt.Close()
+
+	result, err := updateStmt.Exec(
+		timeCount.Count,
+		timeCount.UpdatedTime,
+		summary.ClusterName,
+		summary.ClusterId,
+		summary.NamespaceName,
+		summary.NamespaceId,
+		summary.ContainerName,
+		summary.ContainerImage,
+		summary.ContainerID,
+		summary.PodName,
+		summary.Operation,
+		summary.Labels,
+		summary.Deployment,
+		summary.Source,
+		summary.Destination,
+		summary.DestNamespace,
+		summary.DestLabels,
+		summary.NwType,
+		summary.IP,
+		summary.Port,
+		summary.Protocol,
+		summary.Action,
+	)
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+
+	if err == nil && rowsAffected == 0 {
+
+		insertQueryString := `(cluster_name,cluster_id,namespace_name,namespace_id,container_name,container_image,container_id,podname,operation,labels,deployment_name,
+				source,destination,destination_namespace,destination_labels,type,ip,port,protocol,action,count,updated_time) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+
+		insertQuery := "INSERT INTO " + TableSystemSummarySQLite + insertQueryString
+
+		insertStmt, err := db.Prepare(insertQuery)
+		if err != nil {
+			return err
+		}
+		defer insertStmt.Close()
+
+		_, err = insertStmt.Exec(
+			summary.ClusterName,
+			summary.ClusterId,
+			summary.NamespaceName,
+			summary.NamespaceId,
+			summary.ContainerName,
+			summary.ContainerImage,
+			summary.ContainerID,
+			summary.PodName,
+			summary.Operation,
+			summary.Labels,
+			summary.Deployment,
+			summary.Source,
+			summary.Destination,
+			summary.DestNamespace,
+			summary.DestLabels,
+			summary.NwType,
+			summary.IP,
+			summary.Port,
+			summary.Protocol,
+			summary.Action,
+			timeCount.Count,
+			timeCount.UpdatedTime)
+		if err != nil {
+			log.Error().Msg(err.Error())
+			return err
+		}
+	}
+
+	return nil
 }

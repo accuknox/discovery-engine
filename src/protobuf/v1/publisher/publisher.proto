@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package v1.publisher;
+
+option go_package = "github.com/kubearmor/discovery-engine/src/protobuf/v1/publisher";
+
+service Publisher {
+    rpc GetSummary (SummaryRequest) returns (stream SummaryResponse);
+}
+
+message SummaryRequest{
+    bool Follow = 1;
+    string ClusterName = 2;
+    string Namespace = 3;
+    string Labels = 4;
+    string PodName = 5;
+    string DeploymentName = 6;
+    string Operation = 7;
+}
+
+message SummaryResponse{
+    string ClusterName = 1;
+    int32 ClusterId = 2;
+    string NamespaceName = 3;
+    int32 NamespaceId = 4;
+    string ContainerName = 5;
+    string ContainerImage = 6;
+    string ContainerId = 7;
+    string PodName = 8;
+    int32 PodId = 9;
+    string Operation = 10;
+    string Labels = 11;
+    string DeploymentName = 12;
+    string Source = 13;
+    string Destination = 14;
+    string DestNamespace = 15;
+    string DesLabels = 16;
+    string NwType = 17;
+    string IP = 18;
+    int32 Port = 19;
+    string Protocol = 20;
+    string Action = 21;
+    int32 Count = 22;
+    int64 UpdatedTime = 23;
+}

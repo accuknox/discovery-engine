@@ -420,3 +420,42 @@ func GetClusterNameFromK8sClient() string {
 
 	return "default"
 }
+
+// ================= //
+// == Deployments == //
+// ================= //
+
+func GetDeploymentsFromK8sClient() []types.Deployment {
+	results := []types.Deployment{}
+
+	client := ConnectK8sClient()
+	if client == nil {
+		return results
+	}
+
+	// get namespaces from k8s api client
+	deployments, err := client.AppsV1().Deployments("").List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return results
+	}
+
+	for _, d := range deployments.Items {
+		if d.Namespace == "kube-system" {
+			continue
+		}
+
+		var label string
+
+		for k, v := range d.Spec.Selector.MatchLabels {
+			label = k + "=" + v
+		}
+
+		results = append(results, types.Deployment{
+			Name:      d.Name,
+			Namespace: d.Namespace,
+			Labels:    label,
+		})
+	}
+	return results
+}

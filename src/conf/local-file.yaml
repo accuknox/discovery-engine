@@ -2,7 +2,7 @@ application:
   name: knoxautopolicy
   network:
     operation-mode: 1                             # 1: cronjob | 2: one-time-job
-    operation-trigger: 5
+    operation-trigger: 1
     cron-job-time-interval: "0h0m10s"             # format: XhYmZs 
     network-log-limit: 10000
     network-log-from: "kubearmor"                 # db|hubble|feed-consumer|kubearmor
@@ -37,7 +37,12 @@ observability:
   cron-job-time-interval: "0h0m10s"         # format: XhYmZs
   dbname: ./accuknox-obs.db
   system-observability: true
-  network-observability: true
+  network-observability: false
+  write-logs-to-db: true
+
+publisher: 
+  enable: true
+  cron-job-time-interval: "0h1m00s"         # format: XhYmZs
 
 database:
   driver: sqlite3

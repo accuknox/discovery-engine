@@ -43,3 +43,10 @@ type Pod struct {
 	Labels    []string `json:"labels" bson:"labels"`
 	PodIP     string   `json:"pod_ip" bson:"pod_ip"`
 }
+
+// Deployment Structure
+type Deployment struct {
+	Name      string `json:"name" bson:"name"`
+	Namespace string `json:"namespace" bson:"namespace"`
+	Labels    string `json:"labels" bson:"labels"`
+}
