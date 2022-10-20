@@ -137,7 +137,7 @@ func RelaySummaryEventToGrpcStream(stream grpc.ServerStream, consumer *SummaryCo
 		select {
 		case <-stream.Context().Done():
 			// client disconnected
-			RemoveConsumer(SummaryConsumer, consumer)
+			SysSummaryStore.RemoveConsumer(consumer)
 			return nil
 		case summary, ok := <-consumer.Events:
 			if !ok {
