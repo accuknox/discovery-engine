@@ -1,0 +1,72 @@
+application:
+  name: knoxautopolicy
+  network:
+    operation-mode: 1                             # 1: cronjob | 2: one-time-job
+    operation-trigger: 5
+    cron-job-time-interval: "0h0m10s"             # format: XhYmZs 
+    network-log-limit: 10000
+    network-log-from: "kubearmor"                 # db|hubble|feed-consumer|kubearmor
+    network-policy-to: "db"                       # db, file
+    network-policy-dir: "./"
+    namespace-filter:
+      - "!kube-system"
+  system:
+    operation-mode: 1                         # 1: cronjob | 2: one-time-job
+    operation-trigger: 5
+    cron-job-time-interval: "0h0m10s"         # format: XhYmZs
+    system-log-from: "kubearmor"              # db|kubearmor|feed-consumer
+    system-log-limit: 10000
+    system-policy-to: "db"                    # db, file
+    system-policy-dir: "./"
+    deprecate-old-mode: true
+    namespace-filter:
+      - "!kube-system"
+    fromsource-filter:
+      - "knoxAutoPolicy"
+
+  cluster:
+    cluster-info-from: "k8sclient"            # k8sclient|accuknox
+    cluster-mgmt-url: "http://localhost:8080"
+
+observability: 
+  enable: true
+  cron-job-time-interval: "0h0m10s"         # format: XhYmZs
+  dbname: ./accuknox-obs.db
+  system-observability: true
+  network-observability: true
+
+database:
+  driver: sqlite3
+  sqlite-db-path: ./accuknox-pol.db
+  table-network-log: network_log
+  table-network-policy: network_policy
+  table-system-log: system_log
+  table-system-alert: system_alert
+  table-system-policy: system_policy
+
+logging:
+  level: "INFO"
+
+cilium-hubble:
+  url: hubble-relay.kube-system.svc.cluster.local
+  port: 80
+
+kubearmor:
+  url: kubearmor.kube-system.svc.cluster.local
+  port: 32767
+
+feed-consumer:
+  driver: "pulsar" # kafka | pulsar
+  servers:
+    - "localhost:6650"
+  topic: 
+    cilium: "persistent://accuknox/datapipeline/ciliumalertsrawflow"
+    kubearmor: "persistent://accuknox/datapipeline/kubearmoralertsrawflow"
+  encryption:
+    enable: false
+    ca-cert: /kafka-ssl/ca.pem 
+  auth:
+    enable: false
+    cert: /kafka-ssl/user.cert.pem
+    key: /kafka-ssl/user.key.pem
+    

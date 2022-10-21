@@ -1,0 +1,85 @@
+replicacount: 1
+
+discoveryEngineImage:
+   repository: accuknox/knoxautopolicy:stable
+   pullPolicy: Always 
+
+#lables
+labels:
+  app: discovery-engine
+
+#deployment name
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+#ServiceAccount
+serviceAccount: 
+  create: true
+  name: discovery-engine
+  Namespace: 
+  
+service:
+  enabled: true
+  name: discovery-engine
+  type: ClusterIP
+  protocol: TCP
+  port: 9089
+  targetPort: 9089
+
+#role
+clusterRole:
+  create: true
+  name: discovery-engine-role
+  rules:
+  - apiGroups: [""]
+    resources: ["pods", "svc", "deployments"]
+    verbs: ["get", "list", "watch"]
+  
+#clusterroleBinding
+clusterRoleBinding:
+  create: true
+  name: discovery-engine-role-binding
+  roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: ClusterRole
+    name: discovery-engine-role
+  subjects:
+  - kind: ServiceAccount
+    name: discovery-engine
+    
+containerPortDiscoveryEngine:
+  - containerPort: 9089
+
+#Configmap DiscoveryEngine
+configmapDiscoveryEngine:
+  name: discovery-engine-config
+  enabled: true
+  app: configmapfiles/discovery-engine/conf.yaml
+
+#volumes DiscoveryEngine
+volumesDiscoveryEngine:
+- name: discovery-engine-config-volume
+  configMap:
+    name: discovery-engine-config
+
+#volumeMounts DiscoveryEngine
+volumeMountsDiscoveryEngine:
+- name: discovery-engine-config-volume
+  mountPath: /conf
+  readOnly: true
+
+#resource DiscoveryEngine
+resourcesDiscoveryEngine:
+  requests:
+    cpu: 800m
+    memory: 2Gi
+  limits:
+    cpu: 800m
+    memory: 2Gi
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

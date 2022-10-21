@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.labels.app }}
+  labels:
+{{ toYaml .Values.labels | indent 4 }} 
+spec:
+   {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+{{ toYaml .Values.labels | indent 8 }}
+  template:
+    metadata:
+      labels:
+{{ toYaml .Values.labels | indent 8 }} 
+      annotations:
+        checksum.helm.kubernetes.io/configmap: {{ include (print $.Chart.Name "/templates/configmapfiles.yaml") . | sha256sum }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      volumes:
+        {{- toYaml .Values.volumesDiscoveryEngine | nindent 8 }}
+      containers:
+      - name: {{ .Values.labels.app }}
+        image: "{{ .Values.discoveryEngineImage.repository }}"
+        imagePullPolicy: {{ .Values.discoveryEngineImage.pullPolicy }}
+        resources:
+          {{- toYaml .Values.resourcesDiscoveryEngine | nindent 12 }}
+        volumeMounts:
+          {{- toYaml .Values.volumeMountsDiscoveryEngine | nindent 12 }}
+        ports:
+          {{- toYaml .Values.containerPortDiscoveryEngine | nindent 12 }}
+          
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
