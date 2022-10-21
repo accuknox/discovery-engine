@@ -98,7 +98,7 @@ func convertSysLogToSysSummaryMap(syslogs []*pb.Log) {
 			if err != nil {
 				continue
 			}
-			port, _ := strconv.Atoi(portStr)
+			port, _ := strconv.ParseInt(portStr, 10, 32)
 			sysSummary.NwType = nwrule
 			sysSummary.IP = ip
 			sysSummary.Port = int32(port)
