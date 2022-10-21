@@ -1,0 +1,8 @@
+{{- if .Values.configmapDiscoveryEngine.enabled -}}
+apiVersion: v1
+kind: ConfigMap
+metadata: 
+  name: {{ .Values.configmapDiscoveryEngine.name}} 
+data:
+  conf.yaml: {{ tpl (.Files.Get .Values.configmapDiscoveryEngine.app) . | quote }}
+{{- end }}
