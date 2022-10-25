@@ -181,6 +181,12 @@ func LoadConfigFromFile() {
 		DBName:              viper.GetString("observability.dbname"),
 		SysObservability:    viper.GetBool("observability.system-observability"),
 		NetObservability:    viper.GetBool("observability.network-observability"),
+		WriteLogsToDB:       viper.GetBool("observability.write-logs-to-db"),
+	}
+
+	CurrentCfg.ConfigPublisher = types.ConfigPublisher{
+		Enable:              viper.GetBool("publisher.enable"),
+		CronJobTimeInterval: "@every " + viper.GetString("publisher.cron-job-time-interval"),
 	}
 
 	// load database
@@ -401,6 +407,10 @@ func GetCfgObservabilityNetObsStatus() bool {
 	return CurrentCfg.ConfigObservability.NetObservability
 }
 
+func GetCfgObservabilityWriteLogsToDB() bool {
+	return CurrentCfg.ConfigObservability.WriteLogsToDB
+}
+
 // ======================= //
 // == Extract NS Filter == //
 // ======================= //
@@ -416,4 +426,16 @@ func getConfigNsFilter(config string) ([]string, []string) {
 		}
 	}
 	return ns, notNs
+}
+
+// ========================== //
+// == Get Publisher Config == //
+// ========================== //
+
+func GetCfgPublisherEnable() bool {
+	return CurrentCfg.ConfigPublisher.Enable
+}
+
+func GetCfgPublisherCronJobTime() string {
+	return CurrentCfg.ConfigPublisher.CronJobTimeInterval
 }

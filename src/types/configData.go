@@ -102,6 +102,12 @@ type ConfigObservability struct {
 	DBName              string `json:"db_name,omitempty" bson:"db_name,omitempty"`
 	SysObservability    bool   `json:"sys_observability,omitempty" bson:"sys_observability,omitempty"`
 	NetObservability    bool   `json:"net_observability,omitempty" bson:"net_observability,omitempty"`
+	WriteLogsToDB       bool   `json:"write_logs_to_db,omitempty" bson:"write_logs_to_db,omitempty"`
+}
+
+type ConfigPublisher struct {
+	Enable              bool   `json:"enable,omitempty" bson:"enable,omitempty"`
+	CronJobTimeInterval string `json:"cronjob_time_interval,omitempty" bson:"cronjob_time_interval,omitempty"`
 }
 
 type Configuration struct {
@@ -116,4 +122,5 @@ type Configuration struct {
 	ConfigSysPolicy     ConfigSystemPolicy  `json:"config_system_policy,omitempty" bson:"config_system_policy,omitempty"`
 	ConfigClusterMgmt   ConfigClusterMgmt   `json:"config_cluster_mgmt,omitempty" bson:"config_cluster_mgmt,omitempty"`
 	ConfigObservability ConfigObservability `json:"config_observability,omitempty" bson:"config_observability,omitempty"`
+	ConfigPublisher     ConfigPublisher     `json:"config_summarizer,omitempty" bson:"config_summarizer,omitempty"`
 }

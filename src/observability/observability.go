@@ -28,12 +28,16 @@ var (
 	// Hubble relay logs
 	NetworkLogs []*flow.Flow
 	// Mutex
-	SystemLogsMutex, NetworkLogsMutex, ObsMutex *sync.Mutex
-	// Observability Cronjob
-	ObsCronJob *cron.Cron
+	SystemLogsMutex, NetworkLogsMutex, ObsMutex, PublisherMutex *sync.Mutex
+	// Cronjobs
+	ObsCronJob, PublisherCronJob *cron.Cron
 	//Kubearmor log map
 	KubeArmorLogMap map[types.KubeArmorLog]int
 	ProcFileMap     map[types.SysObsProcFileMapKey]types.SysObsProcFileMapValue
+	// Memory maps for summary
+	PublisherMap, SummarizerMap map[types.SystemSummary]types.SysSummaryTimeCount
+	// SummaryStore Publisher
+	SysSummaryStore SummaryStore
 )
 
 // =================== //
@@ -53,6 +57,7 @@ func initMutex() {
 func initMap() {
 	KubeArmorLogMap = make(map[types.KubeArmorLog]int)
 	ProcFileMap = make(map[types.SysObsProcFileMapKey]types.SysObsProcFileMapValue)
+	SummarizerMap = make(map[types.SystemSummary]types.SysSummaryTimeCount)
 }
 
 func InitObservability() {
@@ -74,6 +79,30 @@ func InitObservability() {
 		}
 		ObsCronJob.Start()
 		log.Info().Msg("Observability cron job started")
+	}
+
+	if cfg.GetCfgPublisherEnable() {
+		// Init variables
+		SysSummaryStore = SummaryStore{
+			Consumers: make(map[*SummaryConsumer]struct{}),
+			Mutex:     sync.Mutex{},
+		}
+
+		// Init mutex
+		PublisherMutex = &sync.Mutex{}
+
+		// Define memory map
+		PublisherMap = make(map[types.SystemSummary]types.SysSummaryTimeCount)
+
+		// Define cron job
+		PublisherCronJob = cron.New()
+		err := PublisherCronJob.AddFunc(cfg.GetCfgPublisherCronJobTime(), ProcessSystemSummary) // time interval
+		if err != nil {
+			log.Error().Msg(err.Error())
+			return
+		}
+		PublisherCronJob.Start()
+		log.Info().Msg("Publisher cron job started")
 	}
 }
 

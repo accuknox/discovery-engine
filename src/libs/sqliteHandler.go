@@ -20,6 +20,7 @@ const TableSystemPolicySQLite_TableName = "system_policy"
 const TableSystemLogsSQLite_TableName = "system_logs"
 const TableNetworkLogsSQLite_TableName = "network_logs"
 const PolicyYamlSQLite_TableName = "policy_yaml"
+const TableSystemSummarySQLite = "system_summary"
 
 // ================ //
 // == Connection == //
@@ -693,6 +694,42 @@ func CreatePolicyTableSQLite(cfg types.ConfigDB) error {
 			"	`labels` text DEFAULT NULL," +
 			"	`policy_name` varchar(150) DEFAULT NULL," +
 			"	`policy_yaml` text DEFAULT NULL," +
+			"	`updated_time` bigint NOT NULL," +
+			"	PRIMARY KEY (`id`)" +
+			"  );"
+
+	_, err := db.Exec(query)
+	return err
+}
+
+func CreateSystemSummaryTableSQLite(cfg types.ConfigDB) error {
+	db := connectSQLite(cfg, config.GetCfgObservabilityDBName())
+	defer db.Close()
+
+	query :=
+		"CREATE TABLE IF NOT EXISTS `" + TableSystemSummarySQLite + "` (" +
+			"	`id` INTEGER AUTO_INCREMENT," +
+			"	`cluster_name` varchar(50) DEFAULT NULL," +
+			"	`cluster_id` int DEFAULT NULL," +
+			"	`namespace_name` varchar(50) DEFAULT NULL," +
+			"	`namespace_id` int DEFAULT NULL," +
+			"	`container_name` varchar(50) DEFAULT NULL," +
+			"	`container_image` varchar(100) DEFAULT NULL," +
+			"	`container_id` varchar(150) DEFAULT NULL," +
+			"	`podname` varchar(50) DEFAULT NULL," +
+			"	`operation` varchar(10) DEFAULT NULL," +
+			"	`labels` varchar(100) DEFAULT NULL," +
+			"	`deployment_name` varchar(50) DEFAULT NULL," +
+			"	`source` varchar(100) DEFAULT NULL," +
+			"	`destination` varchar(100) DEFAULT NULL," +
+			"	`destination_namespace` varchar(50) DEFAULT NULL," +
+			"	`destination_labels` varchar(50) DEFAULT NULL," +
+			"	`type` varchar(10) DEFAULT NULL," +
+			"	`ip` int DEFAULT NULL," +
+			"	`port` varchar(10) DEFAULT NULL," +
+			"	`protocol` varchar(10) DEFAULT NULL," +
+			"	`action` varchar(10) DEFAULT NULL," +
+			"	`count` int NOT NULL," +
 			"	`updated_time` bigint NOT NULL," +
 			"	PRIMARY KEY (`id`)" +
 			"  );"
@@ -1695,4 +1732,21 @@ func updateOrInsertPolicyYamlSQLite(db *sql.DB, policy types.PolicyYaml) error {
 	}
 
 	return err
+}
+
+// ================ //
+// == Summary DB == //
+// ================ //
+func UpsertSystemSummarySQLite(cfg types.ConfigDB, sysSummary map[types.SystemSummary]types.SysSummaryTimeCount) error {
+	db := connectSQLite(cfg, config.GetCfgObservabilityDBName())
+	defer db.Close()
+
+	for ss, sstc := range sysSummary {
+		if err := upsertSysSummarySQL(db, ss, sstc); err != nil {
+			log.Error().Msg(err.Error())
+			return err
+		}
+	}
+
+	return nil
 }

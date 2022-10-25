@@ -96,12 +96,34 @@ type NetworkSummary struct {
 }
 
 type SystemSummary struct {
-	Operation   string `json:"Operation,omitempty"`
-	Source      string `json:"Source,omitempty"`
-	Resource    string `json:"Resource,omitempty"`
-	Action      string `json:"Action,omitempty"`
-	UpdatedTime int64  `json:"UpdatedTime,omitempty"`
-	Count       int32  `json:"Count,omitempty"`
+	ClusterName    string `json:"ClusterName,omitempty"`
+	ClusterId      int32  `json:"ClusterId,omitempty"`
+	NamespaceName  string `json:"Namespace,omitempty"`
+	NamespaceId    int32  `json:"NamespaceId,omitempty"`
+	ContainerName  string `json:"ContainerName,omitempty"`
+	ContainerImage string `json:"ContainerImage,omitempty"`
+	ContainerID    string `json:"ContainerID,omitempty"`
+	PodName        string `json:"PodName,omitempty"`
+	PodId          int32  `json:"PodId,omitempty"`
+	Operation      string `json:"Operation,omitempty"`
+	Labels         string `json:"Labels,omitempty"`
+	Deployment     string `json:"Deployment,omitempty"`
+	Source         string `json:"Source,omitempty"`
+	Destination    string `json:"Resource,omitempty"`
+	DestNamespace  string `json:"DestNamespace,omitempty"`
+	DestLabels     string `json:"DestLabels,omitempty"`
+	NwType         string `json:"Type,omitempty"`
+	IP             string `json:"IP,omitempty"`
+	Port           int32  `json:"Port,omitempty"`
+	Protocol       string `json:"Protocol,omitempty"`
+	Action         string `json:"Action,omitempty"`
+	Count          int32  `json:"Count,omitempty"`
+	UpdatedTime    int64  `json:"UpdatedTime,omitempty"`
+}
+
+type SysSummaryTimeCount struct {
+	Count       int32 `json:"Count,omitempty"`
+	UpdatedTime int64 `json:"UpdatedTime,omitempty"`
 }
 
 type KubeArmorLog struct {

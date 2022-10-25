@@ -8,6 +8,7 @@ import (
 
 	"github.com/accuknox/auto-policy-discovery/src/cluster"
 	"github.com/accuknox/auto-policy-discovery/src/common"
+	"github.com/accuknox/auto-policy-discovery/src/config"
 	"github.com/accuknox/auto-policy-discovery/src/libs"
 	opb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/observability"
 	"github.com/accuknox/auto-policy-discovery/src/types"
@@ -80,58 +81,75 @@ func ProcessSystemLogs() {
 	ObsMutex.Lock()
 	res := []types.KubeArmorLog{}
 
-	for _, kubearmorLog := range locSysLogs {
-		locPbLog := pb.Log{}
-		locLog := types.KubeArmorLog{}
+	if config.GetCfgObservabilityWriteLogsToDB() {
+		for _, kubearmorLog := range locSysLogs {
+			locPbLog := pb.Log{}
+			locLog := types.KubeArmorLog{}
 
-		jsonLog, _ := json.Marshal(kubearmorLog)
-		if err := json.Unmarshal(jsonLog, &locPbLog); err != nil {
-			log.Error().Msg(err.Error())
-			ObsMutex.Unlock()
-			return
-		}
-
-		locLog = convertKubearmorPbLogToKubearmorLog(locPbLog)
-
-		if locLog.Type == "MatchedPolicy" || locLog.Type == "MatchedHostPolicy" {
-			locLog.Category = "Alert"
-			if locLog.Result == "Passed" {
-				locLog.Action = "Audit"
-			} else {
-				locLog.Action = "Deny"
+			jsonLog, _ := json.Marshal(kubearmorLog)
+			if err := json.Unmarshal(jsonLog, &locPbLog); err != nil {
+				log.Error().Msg(err.Error())
+				ObsMutex.Unlock()
+				return
 			}
-		} else {
-			locLog.Action = "Allow"
-			locLog.Category = "Log"
+
+			locLog = convertKubearmorPbLogToKubearmorLog(locPbLog)
+
+			if locLog.Type == "MatchedPolicy" || locLog.Type == "MatchedHostPolicy" {
+				locLog.Category = "Alert"
+				if locLog.Result == "Passed" {
+					locLog.Action = "Audit"
+				} else {
+					locLog.Action = "Deny"
+				}
+			} else {
+				locLog.Action = "Allow"
+				locLog.Category = "Log"
+			}
+
+			if locLog.Type == "ContainerLog" && locLog.NamespaceName == types.PolicyDiscoveryContainerNamespace {
+				locLog.NamespaceName = types.PolicyDiscoveryContainerNamespace
+				locLog.PodName = types.PolicyDiscoveryContainerPodName
+			}
+
+			if locLog.Type == "HostLog" || locLog.Type == "MatchedHostPolicy" {
+				locLog.ContainerName = locLog.HostName
+				locLog.NamespaceName = types.PolicyDiscoveryVMNamespace
+				locLog.PodName = types.PolicyDiscoveryVMPodName
+			}
+
+			if locLog.Operation != "Network" {
+				locLog.Source = strings.Split(locLog.Source, " ")[0]
+				locLog.Resource = strings.Split(locLog.Resource, " ")[0]
+				locLog.Data = ""
+			}
+
+			res = append(res, locLog)
 		}
 
-		if locLog.Type == "ContainerLog" && locLog.NamespaceName == types.PolicyDiscoveryContainerNamespace {
-			locLog.NamespaceName = types.PolicyDiscoveryContainerNamespace
-			locLog.PodName = types.PolicyDiscoveryContainerPodName
+		groupKubeArmorLogs(res)
+
+		if err := libs.UpdateOrInsertKubearmorLogs(CfgDB, KubeArmorLogMap); err != nil {
+			log.Error().Msg(err.Error())
 		}
 
-		if locLog.Type == "HostLog" || locLog.Type == "MatchedHostPolicy" {
-			locLog.ContainerName = locLog.HostName
-			locLog.NamespaceName = types.PolicyDiscoveryVMNamespace
-			locLog.PodName = types.PolicyDiscoveryVMPodName
-		}
-
-		if locLog.Operation != "Network" {
-			locLog.Source = strings.Split(locLog.Source, " ")[0]
-			locLog.Resource = strings.Split(locLog.Resource, " ")[0]
-			locLog.Data = ""
-		}
-
-		res = append(res, locLog)
+		clearKubeArmorLogMap()
 	}
 
-	groupKubeArmorLogs(res)
+	// Convert kubearmor sys logs to SystemSummaryMap
+	convertSysLogToSysSummaryMap(locSysLogs)
 
-	if err := libs.UpdateOrInsertKubearmorLogs(CfgDB, KubeArmorLogMap); err != nil {
+	// update summary map to DB
+	if err := libs.UpsertSystemSummary(CfgDB, SummarizerMap); err != nil {
 		log.Error().Msg(err.Error())
 	}
 
-	clearKubeArmorLogMap()
+	if config.GetCfgPublisherEnable() {
+		// Update publisher map with summarizer map
+		updatePublisherMap()
+	}
+
+	//clearSummarizerMap()
 
 	ObsMutex.Unlock()
 }

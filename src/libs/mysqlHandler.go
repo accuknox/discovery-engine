@@ -1730,3 +1730,20 @@ func updateOrInsertPolicyYamlMySQL(policy types.PolicyYaml, db *sql.DB) error {
 
 	return err
 }
+
+// ================ //
+// == Summary DB == //
+// ================ //
+func UpsertSystemSummaryMySQL(cfg types.ConfigDB, sysSummary map[types.SystemSummary]types.SysSummaryTimeCount) error {
+	db := connectMySQL(cfg)
+	defer db.Close()
+
+	for ss, sstc := range sysSummary {
+		if err := upsertSysSummarySQL(db, ss, sstc); err != nil {
+			log.Error().Msg(err.Error())
+			return err
+		}
+	}
+
+	return nil
+}

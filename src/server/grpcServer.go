@@ -8,7 +8,6 @@ import (
 	"github.com/rs/zerolog"
 
 	analyzer "github.com/accuknox/auto-policy-discovery/src/analyzer"
-	cfg "github.com/accuknox/auto-policy-discovery/src/config"
 	core "github.com/accuknox/auto-policy-discovery/src/config"
 	fc "github.com/accuknox/auto-policy-discovery/src/feedconsumer"
 	logger "github.com/accuknox/auto-policy-discovery/src/logging"
@@ -23,6 +22,7 @@ import (
 	dpb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/discovery"
 	ipb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/insight"
 	opb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/observability"
+	ppb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/publisher"
 	wpb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/worker"
 	"github.com/accuknox/auto-policy-discovery/src/types"
 
@@ -124,9 +124,9 @@ func (s *workerServer) Convert(ctx context.Context, in *wpb.WorkerRequest) (*wpb
 	return &wpb.WorkerResponse{Res: "ok"}, nil
 }
 
-// ====================== //
+// ======================= //
 // == Discovery Service == //
-// ====================== //
+// ======================= //
 type discoveryServer struct {
 	dpb.UnimplementedDiscoveryServer
 }
@@ -135,7 +135,7 @@ func (ds *discoveryServer) GetPolicy(req *dpb.GetPolicyRequest, srv dpb.Discover
 	consumer := libs.NewPolicyConsumer(req)
 
 	if !consumer.IsTypeSystem() && !consumer.IsTypeNetwork() {
-		return errors.New("Invalid Request")
+		return errors.New("invalid request")
 	}
 
 	var yamlFromDB []types.PolicyYaml
@@ -264,6 +264,22 @@ func (s *observabilityServer) GetPodNames(ctx context.Context, in *opb.Request) 
 	return &resp, err
 }
 
+// =============== //
+// == Publisher == //
+// =============== //
+type publisherServer struct {
+	ppb.PublisherServer
+}
+
+func (ds *discoveryServer) GetSummary(req *ppb.SummaryRequest, srv ppb.Publisher_GetSummaryServer) error {
+	consumer := obs.NewSummaryConsumer(req)
+
+	// Add a new consumer
+	obs.SysSummaryStore.AddConsumer(consumer)
+
+	return obs.RelaySummaryEventToGrpcStream(srv, consumer)
+}
+
 // ================= //
 // == gRPC server == //
 // ================= //
@@ -281,6 +297,7 @@ func GetNewServer() *grpc.Server {
 	insightServer := &insightServer{}
 	observabilityServer := &observabilityServer{}
 	discoveryServer := &discoveryServer{}
+	publisherServer := &publisherServer{}
 
 	// register gRPC servers
 	wpb.RegisterWorkerServer(s, workerServer)
@@ -289,8 +306,9 @@ func GetNewServer() *grpc.Server {
 	ipb.RegisterInsightServer(s, insightServer)
 	opb.RegisterObservabilityServer(s, observabilityServer)
 	dpb.RegisterDiscoveryServer(s, discoveryServer)
+	ppb.RegisterPublisherServer(s, publisherServer)
 
-	if cfg.GetCurrentCfg().ConfigClusterMgmt.ClusterInfoFrom != "k8sclient" {
+	if core.GetCurrentCfg().ConfigClusterMgmt.ClusterInfoFrom != "k8sclient" {
 		// start consumer automatically
 		fc.ConsumerMutex.Lock()
 		fc.StartConsumer()
