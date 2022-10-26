@@ -253,7 +253,7 @@ type observabilityServer struct {
 	opb.ObservabilityServer
 }
 
-//Service to fetch summary data
+// Service to fetch summary data
 func (s *observabilityServer) Summary(ctx context.Context, in *opb.Request) (*opb.Response, error) {
 	resp, err := obs.GetSummaryData(in)
 	return resp, err
@@ -271,7 +271,7 @@ type publisherServer struct {
 	ppb.PublisherServer
 }
 
-func (ds *discoveryServer) GetSummary(req *ppb.SummaryRequest, srv ppb.Publisher_GetSummaryServer) error {
+func (ps *publisherServer) GetSummary(req *ppb.SummaryRequest, srv ppb.Publisher_GetSummaryServer) error {
 	consumer := obs.NewSummaryConsumer(req)
 
 	// Add a new consumer
