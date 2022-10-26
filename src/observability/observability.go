@@ -36,8 +36,6 @@ var (
 	ProcFileMap     map[types.SysObsProcFileMapKey]types.SysObsProcFileMapValue
 	// Memory maps for summary
 	PublisherMap, SummarizerMap map[types.SystemSummary]types.SysSummaryTimeCount
-	// SummaryStore Publisher
-	SysSummaryStore SummaryStore
 )
 
 // =================== //
@@ -82,12 +80,6 @@ func InitObservability() {
 	}
 
 	if cfg.GetCfgPublisherEnable() {
-		// Init variables
-		SysSummaryStore = SummaryStore{
-			Consumers: make(map[*SummaryConsumer]struct{}),
-			Mutex:     sync.Mutex{},
-		}
-
 		// Init mutex
 		PublisherMutex = &sync.Mutex{}
 

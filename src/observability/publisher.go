@@ -9,16 +9,9 @@ func ProcessSystemSummary() {
 		return
 	}
 
-	var locmap map[types.SystemSummary]types.SysSummaryTimeCount
-
 	PublisherMutex.Lock()
-	locmap = PublisherMap
-	for ss := range PublisherMap {
-		delete(PublisherMap, ss)
-	}
-
 	// publish summary map in GRPC
-	for ss, sstc := range locmap {
+	for ss, sstc := range PublisherMap {
 		var locSummary types.SystemSummary = ss
 
 		// update count/time
@@ -26,10 +19,10 @@ func ProcessSystemSummary() {
 		locSummary.UpdatedTime = sstc.UpdatedTime
 
 		// publish data to feeder grpc
-		SysSummaryStore.Publish(&locSummary)
+		SummaryStore.Publish(&locSummary)
 
 		// clear each published entry from data map
-		delete(locmap, ss)
+		delete(PublisherMap, ss)
 	}
 	PublisherMutex.Unlock()
 }
