@@ -108,7 +108,8 @@ func validateSummaryRequest(consumer *SummaryConsumer, summary types.SystemSumma
 }
 
 func convertSystemSummaryToGrpcResponse(summary *types.SystemSummary) *ppb.SummaryResponse {
-	clusterId, _ := strconv.Atoi(summary.ClusterId)
+
+	clusterId, _ := strconv.ParseInt(summary.ClusterId, 0, 32)
 	return &ppb.SummaryResponse{
 		ClusterName:    summary.ClusterName,
 		ClusterId:      int32(clusterId),
