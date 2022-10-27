@@ -122,7 +122,7 @@ func convertSystemSummaryToGrpcResponse(summary *types.SystemSummary) *ppb.Summa
 		Source:         summary.Source,
 		Destination:    summary.Destination,
 		DestNamespace:  summary.DestNamespace,
-		DesLabels:      summary.DestLabels,
+		DestLabels:     summary.DestLabels,
 		NwType:         summary.NwType,
 		IP:             summary.IP,
 		Port:           summary.Port,
