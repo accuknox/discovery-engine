@@ -1,6 +1,7 @@
 package observability
 
 import (
+	"strconv"
 	"sync"
 
 	ppb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/publisher"
@@ -107,9 +108,10 @@ func validateSummaryRequest(consumer *SummaryConsumer, summary types.SystemSumma
 }
 
 func convertSystemSummaryToGrpcResponse(summary *types.SystemSummary) *ppb.SummaryResponse {
+	clusterId, _ := strconv.Atoi(summary.ClusterId)
 	return &ppb.SummaryResponse{
 		ClusterName:    summary.ClusterName,
-		ClusterId:      summary.ClusterId,
+		ClusterId:      int32(clusterId),
 		NamespaceName:  summary.ContainerName,
 		NamespaceId:    summary.NamespaceId,
 		ContainerName:  summary.ContainerName,
