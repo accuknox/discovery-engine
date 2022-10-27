@@ -275,9 +275,9 @@ func (ps *publisherServer) GetSummary(req *ppb.SummaryRequest, srv ppb.Publisher
 	consumer := obs.NewSummaryConsumer(req)
 
 	// Add a new consumer
-	obs.SummaryStore.AddConsumer(consumer)
+	obs.SysSummary.AddConsumer(consumer)
 
-	return obs.SummaryStore.RelaySummaryEventToGrpcStream(srv, consumer)
+	return obs.SysSummary.RelaySummaryEventToGrpcStream(srv, consumer)
 }
 
 // ================= //

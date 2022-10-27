@@ -19,7 +19,7 @@ func ProcessSystemSummary() {
 		locSummary.UpdatedTime = sstc.UpdatedTime
 
 		// publish data to feeder grpc
-		SummaryStore.Publish(&locSummary)
+		SysSummary.Publish(&locSummary)
 
 		// clear each published entry from data map
 		delete(PublisherMap, ss)

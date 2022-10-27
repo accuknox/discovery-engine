@@ -19,15 +19,15 @@ type SummaryConsumer struct {
 	Events        chan *types.SystemSummary
 }
 
-type Store struct {
+type SummaryStore struct {
 	Consumers map[*SummaryConsumer]struct{}
 	Mutex     sync.Mutex
 }
 
-var SummaryStore Store
+var SysSummary SummaryStore
 
 func init() {
-	SummaryStore = Store{
+	SysSummary = SummaryStore{
 		Consumers: map[*SummaryConsumer]struct{}{},
 		Mutex:     sync.Mutex{},
 	}
@@ -47,7 +47,7 @@ func NewSummaryConsumer(req *ppb.SummaryRequest) *SummaryConsumer {
 }
 
 // AddConsumer adds a new SummaryConsumer to the store
-func (sc *Store) AddConsumer(c *SummaryConsumer) {
+func (sc *SummaryStore) AddConsumer(c *SummaryConsumer) {
 	sc.Mutex.Lock()
 	defer sc.Mutex.Unlock()
 
@@ -56,7 +56,7 @@ func (sc *Store) AddConsumer(c *SummaryConsumer) {
 }
 
 // RemoveConsumer removes a SummaryConsumer from the store
-func (sc *Store) RemoveConsumer(c *SummaryConsumer) {
+func (sc *SummaryStore) RemoveConsumer(c *SummaryConsumer) {
 	sc.Mutex.Lock()
 	defer sc.Mutex.Unlock()
 
@@ -64,7 +64,8 @@ func (sc *Store) RemoveConsumer(c *SummaryConsumer) {
 	delete(sc.Consumers, c)
 }
 
-func (sc *Store) Publish(summary *types.SystemSummary) {
+// Publish -- Publish messages to gRPC stream
+func (sc *SummaryStore) Publish(summary *types.SystemSummary) {
 	sc.Mutex.Lock()
 	defer sc.Mutex.Unlock()
 
@@ -143,7 +144,7 @@ func sendSummaryInGrpcStream(stream grpc.ServerStream, summary *types.SystemSumm
 }
 
 // RelaySummaryEventToGrpcStream
-func (sc *Store) RelaySummaryEventToGrpcStream(stream grpc.ServerStream, consumer *SummaryConsumer) error {
+func (sc *SummaryStore) RelaySummaryEventToGrpcStream(stream grpc.ServerStream, consumer *SummaryConsumer) error {
 	for {
 		select {
 		case <-stream.Context().Done():
