@@ -113,7 +113,7 @@ func convertSystemSummaryToGrpcResponse(summary *types.SystemSummary) *ppb.Summa
 	return &ppb.SummaryResponse{
 		ClusterName:    summary.ClusterName,
 		ClusterId:      int32(clusterId),
-		NamespaceName:  summary.ContainerName,
+		NamespaceName:  summary.NamespaceName,
 		NamespaceId:    summary.NamespaceId,
 		ContainerName:  summary.ContainerName,
 		ContainerId:    summary.ContainerID,
