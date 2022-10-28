@@ -70,6 +70,11 @@ data:
       dbname: ./accuknox-obs.db
       system-observability: true
       network-observability: true
+      write-logs-to-db: true
+
+    publisher: 
+      enable: true
+      cron-job-time-interval: "0h1m00s"         # format: XhYmZs
 
     database:
       driver: sqlite3
