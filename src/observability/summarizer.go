@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/accuknox/auto-policy-discovery/src/cluster"
+	"github.com/accuknox/auto-policy-discovery/src/config"
 	"github.com/accuknox/auto-policy-discovery/src/types"
 	pb "github.com/kubearmor/KubeArmor/protobuf"
 )
@@ -40,12 +41,6 @@ func extractNetworkInfoFromSystemLog(netLog pb.Log) (string, string, string, str
 	return ip, destNs, destLabel, port, protocol, nwrule, nil
 }
 
-func clearSummarizerMap() {
-	for ss := range SummarizerMap {
-		delete(SummarizerMap, ss)
-	}
-}
-
 func convertSysLogToSysSummaryMap(syslogs []*pb.Log) {
 
 	deployments := cluster.GetDeploymentsFromK8sClient()
@@ -75,7 +70,13 @@ func convertSysLogToSysSummaryMap(syslogs []*pb.Log) {
 			sysSummary.Action = "Allow"
 		}
 
-		sysSummary.ClusterName = syslog.ClusterName
+		if config.GetCfgClusterName() == "" {
+			sysSummary.ClusterName = syslog.ClusterName
+		} else {
+			sysSummary.ClusterName = config.GetCfgClusterName()
+		}
+
+		sysSummary.ClusterId = config.GetCfgWorkspaceId()
 		sysSummary.NamespaceName = syslog.NamespaceName
 		sysSummary.ContainerName = syslog.ContainerName
 		sysSummary.ContainerImage = syslog.ContainerImage

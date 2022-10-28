@@ -1,6 +1,7 @@
 package observability
 
 import (
+	"strconv"
 	"sync"
 
 	ppb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/publisher"
@@ -24,6 +25,15 @@ type SummaryStore struct {
 	Mutex     sync.Mutex
 }
 
+var SysSummary SummaryStore
+
+func init() {
+	SysSummary = SummaryStore{
+		Consumers: map[*SummaryConsumer]struct{}{},
+		Mutex:     sync.Mutex{},
+	}
+}
+
 // NewSummaryConsumer - Consumer struct for publisher
 func NewSummaryConsumer(req *ppb.SummaryRequest) *SummaryConsumer {
 	return &SummaryConsumer{
@@ -43,6 +53,7 @@ func (sc *SummaryStore) AddConsumer(c *SummaryConsumer) {
 	defer sc.Mutex.Unlock()
 
 	sc.Consumers[c] = struct{}{}
+	log.Info().Msgf("New consumer added")
 }
 
 // RemoveConsumer removes a SummaryConsumer from the store
@@ -50,9 +61,11 @@ func (sc *SummaryStore) RemoveConsumer(c *SummaryConsumer) {
 	sc.Mutex.Lock()
 	defer sc.Mutex.Unlock()
 
+	log.Info().Msgf("Consumer removed")
 	delete(sc.Consumers, c)
 }
 
+// Publish -- Publish messages to gRPC stream
 func (sc *SummaryStore) Publish(summary *types.SystemSummary) {
 	sc.Mutex.Lock()
 	defer sc.Mutex.Unlock()
@@ -95,10 +108,12 @@ func validateSummaryRequest(consumer *SummaryConsumer, summary types.SystemSumma
 }
 
 func convertSystemSummaryToGrpcResponse(summary *types.SystemSummary) *ppb.SummaryResponse {
+
+	clusterId, _ := strconv.ParseInt(summary.ClusterId, 0, 32)
 	return &ppb.SummaryResponse{
 		ClusterName:    summary.ClusterName,
-		ClusterId:      summary.ClusterId,
-		NamespaceName:  summary.ContainerName,
+		ClusterId:      int32(clusterId),
+		NamespaceName:  summary.NamespaceName,
 		NamespaceId:    summary.NamespaceId,
 		ContainerName:  summary.ContainerName,
 		ContainerId:    summary.ContainerID,
@@ -110,7 +125,7 @@ func convertSystemSummaryToGrpcResponse(summary *types.SystemSummary) *ppb.Summa
 		Source:         summary.Source,
 		Destination:    summary.Destination,
 		DestNamespace:  summary.DestNamespace,
-		DesLabels:      summary.DestLabels,
+		DestLabels:     summary.DestLabels,
 		NwType:         summary.NwType,
 		IP:             summary.IP,
 		Port:           summary.Port,
@@ -132,12 +147,12 @@ func sendSummaryInGrpcStream(stream grpc.ServerStream, summary *types.SystemSumm
 }
 
 // RelaySummaryEventToGrpcStream
-func RelaySummaryEventToGrpcStream(stream grpc.ServerStream, consumer *SummaryConsumer) error {
+func (sc *SummaryStore) RelaySummaryEventToGrpcStream(stream grpc.ServerStream, consumer *SummaryConsumer) error {
 	for {
 		select {
 		case <-stream.Context().Done():
 			// client disconnected
-			SysSummaryStore.RemoveConsumer(consumer)
+			sc.RemoveConsumer(consumer)
 			return nil
 		case summary, ok := <-consumer.Events:
 			if !ok {

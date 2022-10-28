@@ -1,6 +1,8 @@
 package config
 
 import (
+	"os"
+
 	types "github.com/accuknox/auto-policy-discovery/src/types"
 	"github.com/spf13/viper"
 )
@@ -117,6 +119,10 @@ func LoadConfigFromFile() {
 
 	CurrentCfg.Status = 1 // 1: active 0: inactive
 
+	// Load cluster related config
+	CurrentCfg.ClusterName = os.Getenv("cluster_name")
+	CurrentCfg.WorkspaceID = os.Getenv("workspace_id")
+
 	// load network policy discovery
 	CurrentCfg.ConfigNetPolicy = types.ConfigNetworkPolicy{
 		OperationMode:           viper.GetInt("application.network.operation-mode"),
@@ -217,6 +223,18 @@ func GetCurrentCfg() types.Configuration {
 
 func GetCfgDB() types.ConfigDB {
 	return CurrentCfg.ConfigDB
+}
+
+// =============================== //
+// == Get Cluster Configuration == //
+// =============================== //
+
+func GetCfgClusterName() string {
+	return CurrentCfg.ClusterName
+}
+
+func GetCfgWorkspaceId() string {
+	return CurrentCfg.WorkspaceID
 }
 
 // ============================= //
