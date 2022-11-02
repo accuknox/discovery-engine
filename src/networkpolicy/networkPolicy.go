@@ -1598,13 +1598,31 @@ func mergeIngressPolicies(existPolicy types.KnoxNetworkPolicy, policies []types.
 						}
 					}
 				}
+			} else if len(newIngress.FromCIDRs) > 0 && len(newIngress.ToPorts) > 0 {
+				newCIDR := newIngress.FromCIDRs[0].CIDRs[0]
+				newToPort := newIngress.ToPorts[0]
+
+				for _, existIngress := range mergedPolicy.Spec.Ingress {
+					if len(existIngress.FromCIDRs) == 0 || len(existIngress.ToPorts) == 0 {
+						continue
+					}
+					existCIDR := existIngress.FromCIDRs[0].CIDRs[0]
+					existToPort := existIngress.ToPorts[0]
+
+					if existCIDR == newCIDR && existToPort == newToPort {
+						ingressMatched = true
+						break
+					}
+				}
 			}
+
 			if !ingressMatched {
 				mergedPolicy.Spec.Ingress = append(mergedPolicy.Spec.Ingress, newIngress)
 				updated = true
 			}
 		}
 	}
+
 	return mergedPolicy, updated
 }
 
@@ -1668,7 +1686,24 @@ func mergeEgressPolicies(existPolicy types.KnoxNetworkPolicy, policies []types.K
 						}
 					}
 				}
+			} else if len(newEgress.ToCIDRs) > 0 && len(newEgress.ToPorts) > 0 {
+				newCIDR := newEgress.ToCIDRs[0].CIDRs[0]
+				newToPort := newEgress.ToPorts[0]
+
+				for _, existEgress := range mergedPolicy.Spec.Egress {
+					if len(existEgress.ToCIDRs) == 0 || len(existEgress.ToPorts) == 0 {
+						continue
+					}
+					existCIDR := existEgress.ToCIDRs[0].CIDRs[0]
+					existToPort := existEgress.ToPorts[0]
+
+					if existCIDR == newCIDR && existToPort == newToPort {
+						egressMatched = true
+						break
+					}
+				}
 			}
+
 			if !egressMatched {
 				mergedPolicy.Spec.Egress = append(mergedPolicy.Spec.Egress, newEgress)
 				updated = true
@@ -1858,6 +1893,49 @@ func convertKnoxNetworkLogToKnoxNetworkPolicy(log *types.KnoxNetworkLog, pods []
 			ePolicy.Metadata["namespace"] = log.SrcNamespace
 			egressPolicy = &ePolicy
 		}
+	} else if log.DstPodName == "" && len(log.DstReservedLabels) == 0 && log.Direction == "EGRESS" {
+		// Egress Policy
+		ePolicy := buildNewKnoxEgressPolicy()
+		egress := types.Egress{}
+
+		ePolicy.Spec.Selector.MatchLabels = getEndpointMatchLabels(log.SrcPodName, pods)
+
+		var cidrs []string
+		cidrs = append(cidrs, "0.0.0.0/32")
+
+		egress.ToCIDRs = append(egress.ToCIDRs, types.SpecCIDR{
+			CIDRs: cidrs,
+		})
+
+		egress.ToPorts = append(egress.ToPorts, types.SpecPort{
+			Port:     strconv.Itoa(log.DstPort),
+			Protocol: libs.GetProtocol(log.Protocol),
+		})
+
+		ePolicy.Spec.Egress = append(ePolicy.Spec.Egress, egress)
+		ePolicy.Metadata["namespace"] = log.SrcNamespace
+		egressPolicy = &ePolicy
+	} else if log.DstPodName == "" && len(log.DstReservedLabels) == 0 && log.Direction == "INGRESS" {
+		iPolicy := buildNewKnoxIngressPolicy()
+		ingress := types.Ingress{}
+
+		iPolicy.Spec.Selector.MatchLabels = getEndpointMatchLabels(log.SrcPodName, pods)
+
+		var cidrs []string
+		cidrs = append(cidrs, "0.0.0.0/32")
+
+		ingress.FromCIDRs = append(ingress.FromCIDRs, types.SpecCIDR{
+			CIDRs: cidrs,
+		})
+
+		ingress.ToPorts = append(ingress.ToPorts, types.SpecPort{
+			Port:     strconv.Itoa(log.DstPort),
+			Protocol: libs.GetProtocol(log.Protocol),
+		})
+
+		iPolicy.Spec.Ingress = append(iPolicy.Spec.Ingress, ingress)
+		iPolicy.Metadata["namespace"] = log.SrcNamespace
+		ingressPolicy = &iPolicy
 	}
 
 	if !isValidPolicy(ingressPolicy) {
@@ -2134,47 +2212,78 @@ func PopulateNetworkPoliciesFromNetworkLogs(networkLogs []types.KnoxNetworkLog) 
 
 func writeNetworkPoliciesYamlToDB(policies []types.KnoxNetworkPolicy) {
 	clusters := []string{}
+	res := []types.PolicyYaml{}
 
 	for _, pol := range policies {
 		clusters = append(clusters, pol.Metadata["cluster_name"])
 	}
 
-	// convert knoxPolicy to CiliumPolicy
-	ciliumPolicies := plugin.ConvertKnoxPoliciesToCiliumPolicies(policies)
+	if cfg.CurrentCfg.ConfigNetPolicy.NetworkLogFrom == "kubearmor" {
+		k8sNetPolicies := plugin.ConvertKnoxNetPolicyToK8sNetworkPolicy("", "", policies)
 
-	res := []types.PolicyYaml{}
+		for i, np := range k8sNetPolicies {
+			jsonBytes, err := json.Marshal(np)
+			if err != nil {
+				log.Error().Msg(err.Error())
+				continue
+			}
+			yamlBytes, err := yaml.JSONToYAML(jsonBytes)
+			if err != nil {
+				log.Error().Msg(err.Error())
+				continue
+			}
 
-	for i, ciliumPolicy := range ciliumPolicies {
-		jsonBytes, err := json.Marshal(ciliumPolicy)
-		if err != nil {
-			log.Error().Msg(err.Error())
-			continue
+			policyYaml := types.PolicyYaml{
+				Type:      types.PolicyTypeNetwork,
+				Kind:      np.Kind,
+				Name:      np.Name,
+				Namespace: np.Namespace,
+				Cluster:   clusters[i],
+				Labels:    np.Labels,
+				Yaml:      yamlBytes,
+			}
+			res = append(res, policyYaml)
+
+			PolicyStore.Publish(&policyYaml)
 		}
-		yamlBytes, err := yaml.JSONToYAML(jsonBytes)
-		if err != nil {
-			log.Error().Msg(err.Error())
-			continue
-		}
 
-		var labels types.LabelMap
-		if ciliumPolicy.Kind == cu.ResourceTypeCiliumNetworkPolicy {
-			labels = ciliumPolicy.Spec.EndpointSelector.MatchLabels
-		} else {
-			labels = ciliumPolicy.Spec.NodeSelector.MatchLabels
-		}
+	} else {
 
-		policyYaml := types.PolicyYaml{
-			Type:      types.PolicyTypeNetwork,
-			Kind:      ciliumPolicy.Kind,
-			Name:      ciliumPolicy.Metadata["name"],
-			Namespace: ciliumPolicy.Metadata["namespace"],
-			Cluster:   clusters[i],
-			Labels:    labels,
-			Yaml:      yamlBytes,
-		}
-		res = append(res, policyYaml)
+		// convert knoxPolicy to CiliumPolicy
+		ciliumPolicies := plugin.ConvertKnoxPoliciesToCiliumPolicies(policies)
 
-		PolicyStore.Publish(&policyYaml)
+		for i, ciliumPolicy := range ciliumPolicies {
+			jsonBytes, err := json.Marshal(ciliumPolicy)
+			if err != nil {
+				log.Error().Msg(err.Error())
+				continue
+			}
+			yamlBytes, err := yaml.JSONToYAML(jsonBytes)
+			if err != nil {
+				log.Error().Msg(err.Error())
+				continue
+			}
+
+			var labels types.LabelMap
+			if ciliumPolicy.Kind == cu.ResourceTypeCiliumNetworkPolicy {
+				labels = ciliumPolicy.Spec.EndpointSelector.MatchLabels
+			} else {
+				labels = ciliumPolicy.Spec.NodeSelector.MatchLabels
+			}
+
+			policyYaml := types.PolicyYaml{
+				Type:      types.PolicyTypeNetwork,
+				Kind:      ciliumPolicy.Kind,
+				Name:      ciliumPolicy.Metadata["name"],
+				Namespace: ciliumPolicy.Metadata["namespace"],
+				Cluster:   clusters[i],
+				Labels:    labels,
+				Yaml:      yamlBytes,
+			}
+			res = append(res, policyYaml)
+
+			PolicyStore.Publish(&policyYaml)
+		}
 	}
 
 	if err := libs.UpdateOrInsertPolicyYamls(CfgDB, res); err != nil {
