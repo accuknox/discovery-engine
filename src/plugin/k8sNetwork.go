@@ -60,16 +60,18 @@ func ConvertKnoxNetPolicyToK8sNetworkPolicy(clustername, namespace string, knoxN
 					}
 				}
 
-				if len(eg.ToCIDRs) == 0 {
-					to = nv1.NetworkPolicyPeer{
-						PodSelector: &metav1.LabelSelector{
-							MatchLabels: eg.MatchLabels,
-						},
-					}
-				} else {
+				if len(eg.ToCIDRs) > 0 {
 					to = nv1.NetworkPolicyPeer{
 						IPBlock: &nv1.IPBlock{
 							CIDR: eg.ToCIDRs[0].CIDRs[0],
+						},
+					}
+				}
+
+				if len(eg.MatchLabels) > 0 {
+					to = nv1.NetworkPolicyPeer{
+						PodSelector: &metav1.LabelSelector{
+							MatchLabels: eg.MatchLabels,
 						},
 					}
 				}
@@ -112,16 +114,18 @@ func ConvertKnoxNetPolicyToK8sNetworkPolicy(clustername, namespace string, knoxN
 					}
 				}
 
-				if len(ing.FromCIDRs) == 0 {
-					from = nv1.NetworkPolicyPeer{
-						PodSelector: &metav1.LabelSelector{
-							MatchLabels: ing.MatchLabels,
-						},
-					}
-				} else {
+				if len(ing.FromCIDRs) > 0 {
 					from = nv1.NetworkPolicyPeer{
 						IPBlock: &nv1.IPBlock{
 							CIDR: ing.FromCIDRs[0].CIDRs[0],
+						},
+					}
+				}
+
+				if len(ing.MatchLabels) > 0 {
+					from = nv1.NetworkPolicyPeer{
+						PodSelector: &metav1.LabelSelector{
+							MatchLabels: ing.MatchLabels,
 						},
 					}
 				}

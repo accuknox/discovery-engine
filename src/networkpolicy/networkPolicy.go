@@ -2222,6 +2222,7 @@ func writeNetworkPoliciesYamlToDB(policies []types.KnoxNetworkPolicy) {
 		k8sNetPolicies := plugin.ConvertKnoxNetPolicyToK8sNetworkPolicy("", "", policies)
 
 		for i, np := range k8sNetPolicies {
+			np.ClusterName = ""
 			jsonBytes, err := json.Marshal(np)
 			if err != nil {
 				log.Error().Msg(err.Error())
