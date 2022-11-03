@@ -1750,3 +1750,24 @@ func UpsertSystemSummarySQLite(cfg types.ConfigDB, sysSummary map[types.SystemSu
 
 	return nil
 }
+
+// adding purge db
+func PurgeOldDBEntriesSQLite(cfg types.ConfigDB) error {
+	db := connectSQLite(cfg, cfg.SQLiteDBPath)
+	defer db.Close()
+
+	timeNow := (ConvertStrToUnixTime("now"))
+	purgeTime := (config.GetCfgPublisherCronJobTime()) //sec )
+	PurgeTimeValue, err := strconv.ParseInt(purgeTime, 10, 64)
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return err
+	}
+	ConvertedValue := timeNow - PurgeTimeValue
+	query := "DELETE FROM DB WHERE updated_time < ? " + strconv.Itoa(int(ConvertedValue))
+	if _, err := db.Query(query); err != nil {
+		return err
+	}
+	return nil
+
+}
