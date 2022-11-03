@@ -5,9 +5,7 @@ metadata:
   labels:
 {{ toYaml .Values.labels | indent 4 }} 
 spec:
-   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
-  {{- end }}
   selector:
     matchLabels:
 {{ toYaml .Values.labels | indent 8 }}
