@@ -19,6 +19,7 @@ message WorkerRequest {
     string clustername = 5;
     string labels = 6;
     string fromsource = 7;
+    bool includenetwork = 8;
 }
 
 message WorkerResponse {
