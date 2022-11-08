@@ -31,7 +31,6 @@ func ConvertKnoxNetPolicyToK8sNetworkPolicy(clustername, namespace string, knoxN
 		k8NetPol.Labels = knp.Spec.Selector.MatchLabels
 
 		if len(knp.Spec.Egress) > 0 {
-
 			for _, eg := range knp.Spec.Egress {
 				var egressRule nv1.NetworkPolicyEgressRule
 				port := nv1.NetworkPolicyPort{}
@@ -60,24 +59,18 @@ func ConvertKnoxNetPolicyToK8sNetworkPolicy(clustername, namespace string, knoxN
 					}
 				}
 
-				if len(eg.ToCIDRs) > 0 {
-					to = nv1.NetworkPolicyPeer{
-						IPBlock: &nv1.IPBlock{
-							CIDR: eg.ToCIDRs[0].CIDRs[0],
-						},
-					}
-				}
-
 				if len(eg.MatchLabels) > 0 {
 					to = nv1.NetworkPolicyPeer{
 						PodSelector: &metav1.LabelSelector{
 							MatchLabels: eg.MatchLabels,
 						},
 					}
+					egressRule.To = append(egressRule.To, to)
+				} else {
+					egressRule.To = nil
 				}
 
 				egressRule.Ports = append(egressRule.Ports, port)
-				egressRule.To = append(egressRule.To, to)
 
 				k8NetPol.Spec.Egress = append(k8NetPol.Spec.Egress, egressRule)
 			}
@@ -114,30 +107,25 @@ func ConvertKnoxNetPolicyToK8sNetworkPolicy(clustername, namespace string, knoxN
 					}
 				}
 
-				if len(ing.FromCIDRs) > 0 {
-					from = nv1.NetworkPolicyPeer{
-						IPBlock: &nv1.IPBlock{
-							CIDR: ing.FromCIDRs[0].CIDRs[0],
-						},
-					}
-				}
-
 				if len(ing.MatchLabels) > 0 {
 					from = nv1.NetworkPolicyPeer{
 						PodSelector: &metav1.LabelSelector{
 							MatchLabels: ing.MatchLabels,
 						},
 					}
+					ingressRule.From = append(ingressRule.From, from)
+				} else {
+					ingressRule.From = nil
 				}
 
 				ingressRule.Ports = append(ingressRule.Ports, port)
-				ingressRule.From = append(ingressRule.From, from)
 
 				k8NetPol.Spec.Ingress = append(k8NetPol.Spec.Ingress, ingressRule)
 			}
 			k8NetPol.Spec.PolicyTypes = append(k8NetPol.Spec.PolicyTypes, nv1.PolicyType(nv1.PolicyTypeIngress))
 		}
 
+		k8NetPol.Spec.PodSelector.MatchLabels = k8NetPol.Labels
 		res = append(res, k8NetPol)
 	}
 
