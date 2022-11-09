@@ -422,6 +422,11 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 					continue
 				}
 
+				if !strings.HasPrefix(res.Resource, "/") {
+					log.Warn().Msgf("Relative path found: %v", res)
+					continue
+				}
+
 				KubeArmorRelayLogsMutex.Lock()
 				KubeArmorRelayLogs = append(KubeArmorRelayLogs, res)
 				KubeArmorRelayLogsMutex.Unlock()
@@ -463,7 +468,7 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 					return
 				}
 
-				log := pb.Log{
+				kubearmorLog := pb.Log{
 					ClusterName:   res.ClusterName,
 					ContainerName: res.ContainerName,
 					HostName:      res.HostName,
@@ -477,23 +482,29 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 					Type:          res.Type,
 				}
 
-				if ignoreLogFromRelayWithNamespace(nsFilter, nsNotFilter, &log) {
+				if ignoreLogFromRelayWithNamespace(nsFilter, nsNotFilter, &kubearmorLog) {
 					continue
 				}
 
-				if ignoreLogFromRelayWithSource(fromSourceFilter, &log) {
+				if ignoreLogFromRelayWithSource(fromSourceFilter, &kubearmorLog) {
+					continue
+				}
+
+				if !strings.HasPrefix(res.Resource, "/") {
+					log.Warn().Msgf("Relative path found: %v", res)
 					continue
 				}
 
 				KubeArmorRelayLogsMutex.Lock()
-				KubeArmorRelayLogs = append(KubeArmorRelayLogs, &log)
+				KubeArmorRelayLogs = append(KubeArmorRelayLogs, &kubearmorLog)
 				KubeArmorRelayLogsMutex.Unlock()
 
 				if config.GetCfgObservabilityEnable() {
-					obs.ProcessKubearmorAlert(&log)
+					obs.ProcessKubearmorAlert(&kubearmorLog)
 				}
 
 				if config.CurrentCfg.ConfigNetPolicy.NetworkLogFrom == "kubearmor" {
+        
 					if log.Operation == "Network" {
 						KubeArmorNetworkLogs = append(KubeArmorNetworkLogs, &log)
 					}
