@@ -1761,6 +1761,54 @@ func mergeHttpRules(existRule types.L47Rule, newRule types.L47Rule) (bool, bool,
 	return false, false, nil
 }
 
+func popultaeIngressEgressPolicyFromKnoxNetLog(log *types.KnoxNetworkLog, pods []types.Pod) types.KnoxNetworkPolicy {
+	iePolicy := types.KnoxNetworkPolicy{}
+
+	if log.Direction == "EGRESS" {
+		iePolicy = buildNewKnoxEgressPolicy()
+		egress := types.Egress{}
+
+		iePolicy.Spec.Selector.MatchLabels = getEndpointMatchLabels(log.SrcPodName, pods)
+
+		var cidrs []string
+		cidrs = append(cidrs, "0.0.0.0/32")
+
+		egress.ToCIDRs = append(egress.ToCIDRs, types.SpecCIDR{
+			CIDRs: cidrs,
+		})
+
+		egress.ToPorts = append(egress.ToPorts, types.SpecPort{
+			Port:     strconv.Itoa(log.DstPort),
+			Protocol: libs.GetProtocol(log.Protocol),
+		})
+
+		iePolicy.Spec.Egress = append(iePolicy.Spec.Egress, egress)
+		iePolicy.Metadata["namespace"] = log.SrcNamespace
+	} else if log.Direction == "INGRESS" {
+		iePolicy = buildNewKnoxIngressPolicy()
+		ingress := types.Ingress{}
+
+		iePolicy.Spec.Selector.MatchLabels = getEndpointMatchLabels(log.SrcPodName, pods)
+
+		var cidrs []string
+		cidrs = append(cidrs, "0.0.0.0/32")
+
+		ingress.FromCIDRs = append(ingress.FromCIDRs, types.SpecCIDR{
+			CIDRs: cidrs,
+		})
+
+		ingress.ToPorts = append(ingress.ToPorts, types.SpecPort{
+			Port:     strconv.Itoa(log.DstPort),
+			Protocol: libs.GetProtocol(log.Protocol),
+		})
+
+		iePolicy.Spec.Ingress = append(iePolicy.Spec.Ingress, ingress)
+		iePolicy.Metadata["namespace"] = log.SrcNamespace
+	}
+
+	return iePolicy
+}
+
 func convertKnoxNetworkLogToKnoxNetworkPolicy(log *types.KnoxNetworkLog, pods []types.Pod) (_, _ *types.KnoxNetworkPolicy) {
 	var ingressPolicy, egressPolicy *types.KnoxNetworkPolicy = nil, nil
 
@@ -1893,49 +1941,13 @@ func convertKnoxNetworkLogToKnoxNetworkPolicy(log *types.KnoxNetworkLog, pods []
 			ePolicy.Metadata["namespace"] = log.SrcNamespace
 			egressPolicy = &ePolicy
 		}
-	} else if log.DstPodName == "" && len(log.DstReservedLabels) == 0 && log.Direction == "EGRESS" {
-		// Egress Policy
-		ePolicy := buildNewKnoxEgressPolicy()
-		egress := types.Egress{}
-
-		ePolicy.Spec.Selector.MatchLabels = getEndpointMatchLabels(log.SrcPodName, pods)
-
-		var cidrs []string
-		cidrs = append(cidrs, "0.0.0.0/32")
-
-		egress.ToCIDRs = append(egress.ToCIDRs, types.SpecCIDR{
-			CIDRs: cidrs,
-		})
-
-		egress.ToPorts = append(egress.ToPorts, types.SpecPort{
-			Port:     strconv.Itoa(log.DstPort),
-			Protocol: libs.GetProtocol(log.Protocol),
-		})
-
-		ePolicy.Spec.Egress = append(ePolicy.Spec.Egress, egress)
-		ePolicy.Metadata["namespace"] = log.SrcNamespace
-		egressPolicy = &ePolicy
-	} else if log.DstPodName == "" && len(log.DstReservedLabels) == 0 && log.Direction == "INGRESS" {
-		iPolicy := buildNewKnoxIngressPolicy()
-		ingress := types.Ingress{}
-
-		iPolicy.Spec.Selector.MatchLabels = getEndpointMatchLabels(log.SrcPodName, pods)
-
-		var cidrs []string
-		cidrs = append(cidrs, "0.0.0.0/32")
-
-		ingress.FromCIDRs = append(ingress.FromCIDRs, types.SpecCIDR{
-			CIDRs: cidrs,
-		})
-
-		ingress.ToPorts = append(ingress.ToPorts, types.SpecPort{
-			Port:     strconv.Itoa(log.DstPort),
-			Protocol: libs.GetProtocol(log.Protocol),
-		})
-
-		iPolicy.Spec.Ingress = append(iPolicy.Spec.Ingress, ingress)
-		iPolicy.Metadata["namespace"] = log.SrcNamespace
-		ingressPolicy = &iPolicy
+	} else if log.DstPodName == "" && len(log.DstReservedLabels) == 0 {
+		iePolicy := popultaeIngressEgressPolicyFromKnoxNetLog(log, pods)
+		if log.Direction == "EGRESS" {
+			egressPolicy = &iePolicy
+		} else if log.Direction == "INGRESS" {
+			ingressPolicy = &iePolicy
+		}
 	}
 
 	if !isValidPolicy(ingressPolicy) {
