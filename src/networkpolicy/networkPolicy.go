@@ -1554,6 +1554,38 @@ func mergeNetworkPolicies(existPolicy types.KnoxNetworkPolicy, policies []types.
 	return mergeEgressPolicies(existPolicy, policies)
 }
 
+func checkIfIngressEgressPortExist(polType string, newToPort types.SpecPort, mergedPolicy types.KnoxNetworkPolicy) bool {
+	isExist := false
+
+	if polType == "EGRESS" {
+		for _, existEgress := range mergedPolicy.Spec.Egress {
+			if len(existEgress.ToPorts) == 0 {
+				continue
+			}
+			existToPort := existEgress.ToPorts[0]
+
+			if existToPort == newToPort {
+				isExist = true
+				break
+			}
+		}
+	} else if polType == "INGRESS" {
+		for _, existIngress := range mergedPolicy.Spec.Ingress {
+			if len(existIngress.ToPorts) == 0 {
+				continue
+			}
+			existToPort := existIngress.ToPorts[0]
+
+			if existToPort == newToPort {
+				isExist = true
+				break
+			}
+		}
+	}
+
+	return isExist
+}
+
 func mergeIngressPolicies(existPolicy types.KnoxNetworkPolicy, policies []types.KnoxNetworkPolicy) (types.KnoxNetworkPolicy, bool) {
 	mergedPolicy := existPolicy
 	updated := false
@@ -1599,21 +1631,8 @@ func mergeIngressPolicies(existPolicy types.KnoxNetworkPolicy, policies []types.
 					}
 				}
 			} else if len(newIngress.FromCIDRs) > 0 && len(newIngress.ToPorts) > 0 {
-				newCIDR := newIngress.FromCIDRs[0].CIDRs[0]
 				newToPort := newIngress.ToPorts[0]
-
-				for _, existIngress := range mergedPolicy.Spec.Ingress {
-					if len(existIngress.FromCIDRs) == 0 || len(existIngress.ToPorts) == 0 {
-						continue
-					}
-					existCIDR := existIngress.FromCIDRs[0].CIDRs[0]
-					existToPort := existIngress.ToPorts[0]
-
-					if existCIDR == newCIDR && existToPort == newToPort {
-						ingressMatched = true
-						break
-					}
-				}
+				ingressMatched = checkIfIngressEgressPortExist("INGRESS", newToPort, mergedPolicy)
 			}
 
 			if !ingressMatched {
@@ -1687,21 +1706,8 @@ func mergeEgressPolicies(existPolicy types.KnoxNetworkPolicy, policies []types.K
 					}
 				}
 			} else if len(newEgress.ToCIDRs) > 0 && len(newEgress.ToPorts) > 0 {
-				newCIDR := newEgress.ToCIDRs[0].CIDRs[0]
 				newToPort := newEgress.ToPorts[0]
-
-				for _, existEgress := range mergedPolicy.Spec.Egress {
-					if len(existEgress.ToCIDRs) == 0 || len(existEgress.ToPorts) == 0 {
-						continue
-					}
-					existCIDR := existEgress.ToCIDRs[0].CIDRs[0]
-					existToPort := existEgress.ToPorts[0]
-
-					if existCIDR == newCIDR && existToPort == newToPort {
-						egressMatched = true
-						break
-					}
-				}
+				egressMatched = checkIfIngressEgressPortExist("EGRESS", newToPort, mergedPolicy)
 			}
 
 			if !egressMatched {
@@ -1761,50 +1767,41 @@ func mergeHttpRules(existRule types.L47Rule, newRule types.L47Rule) (bool, bool,
 	return false, false, nil
 }
 
-func popultaeIngressEgressPolicyFromKnoxNetLog(log *types.KnoxNetworkLog, pods []types.Pod) types.KnoxNetworkPolicy {
+func populateIngressEgressPolicyFromKnoxNetLog(log *types.KnoxNetworkLog, pods []types.Pod) types.KnoxNetworkPolicy {
 	iePolicy := types.KnoxNetworkPolicy{}
+	var cidrs []string
+	cidrs = append(cidrs, "0.0.0.0/32")
+
+	specVal := types.SpecCIDR{
+		CIDRs: cidrs,
+	}
+
+	portVal := types.SpecPort{
+		Port:     strconv.Itoa(log.DstPort),
+		Protocol: libs.GetProtocol(log.Protocol),
+	}
 
 	if log.Direction == "EGRESS" {
 		iePolicy = buildNewKnoxEgressPolicy()
 		egress := types.Egress{}
 
-		iePolicy.Spec.Selector.MatchLabels = getEndpointMatchLabels(log.SrcPodName, pods)
-
-		var cidrs []string
-		cidrs = append(cidrs, "0.0.0.0/32")
-
-		egress.ToCIDRs = append(egress.ToCIDRs, types.SpecCIDR{
-			CIDRs: cidrs,
-		})
-
-		egress.ToPorts = append(egress.ToPorts, types.SpecPort{
-			Port:     strconv.Itoa(log.DstPort),
-			Protocol: libs.GetProtocol(log.Protocol),
-		})
+		egress.ToPorts = append(egress.ToPorts, portVal)
+		egress.ToCIDRs = append(egress.ToCIDRs, specVal)
 
 		iePolicy.Spec.Egress = append(iePolicy.Spec.Egress, egress)
-		iePolicy.Metadata["namespace"] = log.SrcNamespace
+
 	} else if log.Direction == "INGRESS" {
 		iePolicy = buildNewKnoxIngressPolicy()
 		ingress := types.Ingress{}
 
-		iePolicy.Spec.Selector.MatchLabels = getEndpointMatchLabels(log.SrcPodName, pods)
-
-		var cidrs []string
-		cidrs = append(cidrs, "0.0.0.0/32")
-
-		ingress.FromCIDRs = append(ingress.FromCIDRs, types.SpecCIDR{
-			CIDRs: cidrs,
-		})
-
-		ingress.ToPorts = append(ingress.ToPorts, types.SpecPort{
-			Port:     strconv.Itoa(log.DstPort),
-			Protocol: libs.GetProtocol(log.Protocol),
-		})
+		ingress.ToPorts = append(ingress.ToPorts, portVal)
+		ingress.FromCIDRs = append(ingress.FromCIDRs, specVal)
 
 		iePolicy.Spec.Ingress = append(iePolicy.Spec.Ingress, ingress)
-		iePolicy.Metadata["namespace"] = log.SrcNamespace
 	}
+
+	iePolicy.Metadata["namespace"] = log.SrcNamespace
+	iePolicy.Spec.Selector.MatchLabels = getEndpointMatchLabels(log.SrcPodName, pods)
 
 	return iePolicy
 }
@@ -1942,7 +1939,7 @@ func convertKnoxNetworkLogToKnoxNetworkPolicy(log *types.KnoxNetworkLog, pods []
 			egressPolicy = &ePolicy
 		}
 	} else if log.DstPodName == "" && len(log.DstReservedLabels) == 0 {
-		iePolicy := popultaeIngressEgressPolicyFromKnoxNetLog(log, pods)
+		iePolicy := populateIngressEgressPolicyFromKnoxNetLog(log, pods)
 		if log.Direction == "EGRESS" {
 			egressPolicy = &iePolicy
 		} else if log.Direction == "INGRESS" {
