@@ -504,9 +504,9 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 				}
 
 				if config.CurrentCfg.ConfigNetPolicy.NetworkLogFrom == "kubearmor" {
-        
-					if log.Operation == "Network" {
-						KubeArmorNetworkLogs = append(KubeArmorNetworkLogs, &log)
+
+					if kubearmorLog.Operation == "Network" {
+						KubeArmorNetworkLogs = append(KubeArmorNetworkLogs, &kubearmorLog)
 					}
 				}
 			}

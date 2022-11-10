@@ -1800,7 +1800,6 @@ func populateIngressEgressPolicyFromKnoxNetLog(log *types.KnoxNetworkLog, pods [
 		iePolicy.Spec.Ingress = append(iePolicy.Spec.Ingress, ingress)
 	}
 
-	iePolicy.Metadata["namespace"] = log.SrcNamespace
 	iePolicy.Spec.Selector.MatchLabels = getEndpointMatchLabels(log.SrcPodName, pods)
 
 	return iePolicy
