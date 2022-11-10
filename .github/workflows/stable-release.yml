@@ -14,7 +14,7 @@ jobs:
     name: Create discovery engine stable release
     if: github.repository == 'kubearmor/discovery-engine'
     runs-on: ubuntu-20.04
-    timeout-minutes: 20
+    timeout-minutes: 60
     steps:
       - name: Checkout discovery engine code
         uses: actions/checkout@v2
