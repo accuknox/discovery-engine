@@ -5,7 +5,13 @@ cd $AUTOPOL_HOME
 AUTOPOL_SRC_HOME=$AUTOPOL_HOME/src
 
 [[ "$REPO" == "" ]] && REPO="accuknox/knoxautopolicy"
-[[ "$PLATFORMS" == "" ]] && PLATFORMS="linux/amd64,linux/arm64/v8"
+[[ "$PLATFORMS" == "" ]] && PLATFORMS="linux/amd64"
+
+[[ "$STABLE_VERSION" != "" ]] && STABEL_LABEL="--label stabel-version=$STABLE_VERSION"
+
+# set LABEL
+unset LABEL
+[[ "$GITHUB_SHA" != "" ]] && LABEL="--label github_sha=$GITHUB_SHA"
 
 # check version
 VERSION=`git rev-parse --abbrev-ref HEAD`
@@ -15,7 +21,7 @@ if [ ! -z $1 ]; then
 fi
 
 echo "[INFO] Pushing $REPO:$VERSION"
-docker buildx build --platform $PLATFORMS --push -t $REPO:$VERSION -f $AUTOPOL_SRC_HOME/build/Dockerfile.autopol .
+docker buildx build --platform $PLATFORMS --push -t $REPO:$VERSION -f $AUTOPOL_SRC_HOME/build/Dockerfile.autopol $STABLE_VERSION $LABEL .
 
 if [ $? != 0 ]; then
     echo "[FAILED] Failed to push $REPO:$VERSION"
