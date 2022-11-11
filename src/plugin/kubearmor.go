@@ -422,7 +422,7 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 					continue
 				}
 
-				if !strings.HasPrefix(res.Resource, "/") {
+				if res.Operation != "Network" && !strings.HasPrefix(res.Resource, "/") {
 					log.Warn().Msgf("Relative path found: %v", res)
 					continue
 				}
@@ -490,7 +490,7 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 					continue
 				}
 
-				if !strings.HasPrefix(res.Resource, "/") {
+				if res.Operation != "Network" && !strings.HasPrefix(res.Resource, "/") {
 					log.Warn().Msgf("Relative path found: %v", res)
 					continue
 				}
