@@ -422,7 +422,7 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 					continue
 				}
 
-				if !strings.HasPrefix(res.Resource, "/") {
+				if res.Operation != "Network" && !strings.HasPrefix(res.Resource, "/") {
 					log.Warn().Msgf("Relative path found: %v", res)
 					continue
 				}
@@ -436,7 +436,7 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 				}
 
 				if config.CurrentCfg.ConfigNetPolicy.NetworkLogFrom == "kubearmor" {
-					if res.Operation == "Network" && strings.Contains(res.Data, "tcp_") {
+					if res.Operation == "Network" {
 						KubeArmorNetworkLogs = append(KubeArmorNetworkLogs, res)
 					}
 				}
@@ -490,7 +490,7 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 					continue
 				}
 
-				if !strings.HasPrefix(res.Resource, "/") {
+				if res.Operation != "Network" && !strings.HasPrefix(res.Resource, "/") {
 					log.Warn().Msgf("Relative path found: %v", res)
 					continue
 				}
@@ -504,8 +504,8 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 				}
 
 				if config.CurrentCfg.ConfigNetPolicy.NetworkLogFrom == "kubearmor" {
-					if kubearmorLog.Operation == "Network" && (strings.Contains(kubearmorLog.Data, "tcp_") ||
-						strings.Contains(kubearmorLog.Resource, "UDP")) {
+
+					if kubearmorLog.Operation == "Network" {
 						KubeArmorNetworkLogs = append(KubeArmorNetworkLogs, &kubearmorLog)
 					}
 				}
@@ -585,7 +585,7 @@ func ConvertKubeArmorNetLogToKnoxNetLog(kaNwLogs []*pb.Log) []types.KnoxNetworkL
 				}
 			}
 
-			if ip == "127.0.0.1" {
+			if net.ParseIP(ip).IsLoopback() {
 				// ignore adding policies with pod IP pointing to localhost
 				continue
 			}
@@ -600,8 +600,23 @@ func ConvertKubeArmorNetLogToKnoxNetLog(kaNwLogs []*pb.Log) []types.KnoxNetworkL
 			locKnoxLog.DstIP = ip
 			locKnoxLog.DstPort, _ = strconv.Atoi(port)
 			locKnoxLog.SynFlag = true
-		} else {
+		} else if strings.Contains(kalog.Data, "SYS_BIND") {
+			var port string
 			locKnoxLog.Protocol = libs.IPProtocolUDP
+
+			resSlice := strings.Split(kalog.Resource, " ")
+			for _, v := range resSlice {
+				if strings.Contains(v, "sin_port") {
+					port = strings.Split(v, "=")[1]
+				}
+			}
+			//locKnoxLog.DstIP = "0.0.0.0"
+			locKnoxLog.DstPort, _ = strconv.Atoi(port)
+			locKnoxLog.Direction = "INGRESS"
+		} else if strings.Contains(kalog.Data, "SYS_SOCKET") && strings.Contains(kalog.Resource, "SOCK_DGRAM") {
+			locKnoxLog.Protocol = libs.IPProtocolUDP
+			//locKnoxLog.DstIP = "0.0.0.0"
+			locKnoxLog.Direction = "EGRESS"
 		}
 
 		if kalog.Result != "Passed" {

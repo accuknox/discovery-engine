@@ -13,6 +13,7 @@ import (
 	"github.com/clarketm/json"
 
 	"github.com/accuknox/auto-policy-discovery/src/cluster"
+	"github.com/accuknox/auto-policy-discovery/src/config"
 	"github.com/accuknox/auto-policy-discovery/src/libs"
 	"github.com/accuknox/auto-policy-discovery/src/plugin"
 	wpb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/worker"
@@ -797,7 +798,8 @@ func GetNetPolicy(cluster, namespace, policyType string) *wpb.WorkerResponse {
 		}
 		response.K8SNetworkpolicy = nil
 	} else if strings.Contains(policyType, "generic") {
-		policies := plugin.ConvertKnoxNetPolicyToK8sNetworkPolicy(cluster, namespace)
+		knoxNetPolicies := libs.GetNetworkPolicies(config.CurrentCfg.ConfigDB, cluster, namespace, "latest", "", "")
+		policies := plugin.ConvertKnoxNetPolicyToK8sNetworkPolicy(cluster, namespace, knoxNetPolicies)
 
 		for i := range policies {
 			genericNetPol := wpb.Policy{}
