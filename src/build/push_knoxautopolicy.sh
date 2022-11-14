@@ -5,7 +5,8 @@ cd $AUTOPOL_HOME
 AUTOPOL_SRC_HOME=$AUTOPOL_HOME/src
 
 [[ "$REPO" == "" ]] && REPO="accuknox/knoxautopolicy"
-[[ "$PLATFORMS" == "" ]] && PLATFORMS="linux/amd64,linux/arm64/v8"
+[[ "$PLATFORMS" == "" ]] && PLATFORMS="linux/amd64"
+#[[ "$PLATFORMS" == "" ]] && PLATFORMS="linux/amd64,linux/arm64/v8"
 
 # check version
 VERSION=`git rev-parse --abbrev-ref HEAD`
