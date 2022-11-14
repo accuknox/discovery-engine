@@ -41,4 +41,5 @@ message SummaryResponse{
     string Action = 21;
     int32 Count = 22;
     int64 UpdatedTime = 23;
+    int32 WorkspaceId = 24;
 }
