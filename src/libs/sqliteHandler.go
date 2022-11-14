@@ -711,6 +711,7 @@ func CreateSystemSummaryTableSQLite(cfg types.ConfigDB) error {
 			"	`id` INTEGER AUTO_INCREMENT," +
 			"	`cluster_name` varchar(50) DEFAULT NULL," +
 			"	`cluster_id` int DEFAULT NULL," +
+			"	`workspace_id` int DEFAULT NULL," +
 			"	`namespace_name` varchar(50) DEFAULT NULL," +
 			"	`namespace_id` int DEFAULT NULL," +
 			"	`container_name` varchar(50) DEFAULT NULL," +

@@ -401,7 +401,7 @@ func UpsertSystemSummary(cfg types.ConfigDB, summaryMap map[types.SystemSummary]
 }
 
 func upsertSysSummarySQL(db *sql.DB, summary types.SystemSummary, timeCount types.SysSummaryTimeCount) error {
-	queryString := `cluster_name = ? and cluster_id = ? and namespace_name = ? and namespace_id = ? and container_name = ? and container_image = ? 
+	queryString := `cluster_name = ? and cluster_id = ? and workspace_id = ? and namespace_name = ? and namespace_id = ? and container_name = ? and container_image = ? 
 					and container_id = ? and podname = ? and operation = ? and labels = ? and deployment_name = ? and source = ? and destination = ? 
 					and destination_namespace = ? and destination_labels = ? and type = ? and ip = ? and port = ? and protocol = ? and action = ?`
 
@@ -418,6 +418,7 @@ func upsertSysSummarySQL(db *sql.DB, summary types.SystemSummary, timeCount type
 		timeCount.UpdatedTime,
 		summary.ClusterName,
 		summary.ClusterId,
+		summary.WorkspaceId,
 		summary.NamespaceName,
 		summary.NamespaceId,
 		summary.ContainerName,
@@ -446,8 +447,8 @@ func upsertSysSummarySQL(db *sql.DB, summary types.SystemSummary, timeCount type
 
 	if err == nil && rowsAffected == 0 {
 
-		insertQueryString := `(cluster_name,cluster_id,namespace_name,namespace_id,container_name,container_image,container_id,podname,operation,labels,deployment_name,
-				source,destination,destination_namespace,destination_labels,type,ip,port,protocol,action,count,updated_time) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+		insertQueryString := `(cluster_name,cluster_id,workspace_id,namespace_name,namespace_id,container_name,container_image,container_id,podname,operation,labels,deployment_name,
+				source,destination,destination_namespace,destination_labels,type,ip,port,protocol,action,count,updated_time) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
 
 		insertQuery := "INSERT INTO " + TableSystemSummarySQLite + insertQueryString
 
@@ -460,6 +461,7 @@ func upsertSysSummarySQL(db *sql.DB, summary types.SystemSummary, timeCount type
 		_, err = insertStmt.Exec(
 			summary.ClusterName,
 			summary.ClusterId,
+			summary.WorkspaceId,
 			summary.NamespaceName,
 			summary.NamespaceId,
 			summary.ContainerName,
