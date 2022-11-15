@@ -15,9 +15,9 @@ func extractNetworkInfoFromSystemLog(netLog pb.Log) (string, string, string, str
 	var ip, destNs, destLabel, port, protocol, nwrule string = "", "", "", "", "", ""
 	err := errors.New("not a valid incoming/outgoing connection")
 
-	if strings.Contains(netLog.Data, "tcp_connect") {
+	if strings.Contains(netLog.Data, "tcp_connect") || strings.Contains(netLog.Data, "SYS_CONNECT") {
 		nwrule = "egress"
-	} else if strings.Contains(netLog.Data, "tcp_connect") {
+	} else if strings.Contains(netLog.Data, "tcp_accept") {
 		nwrule = "ingress"
 	} else {
 		return ip, destNs, destLabel, port, protocol, nwrule, err
@@ -36,6 +36,21 @@ func extractNetworkInfoFromSystemLog(netLog pb.Log) (string, string, string, str
 				protocol = strings.Split(locres, "=")[1]
 			}
 		}
+	} else if strings.Contains(netLog.Resource, "AF_UNIX") {
+		var path string
+		resslice := strings.Split(netLog.Resource, " ")
+		for _, locres := range resslice {
+			if strings.Contains(locres, "sun_path") {
+				path = strings.Split(locres, "=")[1]
+				if path != "" {
+					ip = path
+					protocol = "UNIX"
+					break
+				}
+			}
+		}
+	} else {
+		return "", "", "", "", "", "", err
 	}
 
 	return ip, destNs, destLabel, port, protocol, nwrule, nil
