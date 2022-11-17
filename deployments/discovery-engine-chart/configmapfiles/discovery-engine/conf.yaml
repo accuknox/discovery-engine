@@ -34,7 +34,7 @@ observability:
   dbname: ./accuknox-obs.db
   system-observability: true
   network-observability: false
-  write-logs-to-db: false
+  write-logs-to-db: true
 
 publisher: 
   enable: true
