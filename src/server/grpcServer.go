@@ -115,8 +115,8 @@ func (s *workerServer) Convert(ctx context.Context, in *wpb.WorkerRequest) (*wpb
 	} else if in.GetPolicytype() == "system" {
 		log.Info().Msg("Convert system policy called")
 		system.InitSysPolicyDiscoveryConfiguration()
-		system.WriteSystemPoliciesToFile(in.GetNamespace(), in.GetClustername(), in.GetLabels(), in.GetFromsource())
-		return system.GetSysPolicy(in.Namespace, in.Clustername, in.Labels, in.Fromsource), nil
+		system.WriteSystemPoliciesToFile(in.GetNamespace(), in.GetClustername(), in.GetLabels(), in.GetFromsource(), in.GetIncludenetwork())
+		return system.GetSysPolicy(in.Namespace, in.Clustername, in.Labels, in.Fromsource, in.Includenetwork), nil
 	} else {
 		log.Info().Msg("Convert policy called, but no policy type")
 	}
