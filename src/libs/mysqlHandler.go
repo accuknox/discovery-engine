@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/accuknox/auto-policy-discovery/src/config"
 	"github.com/accuknox/auto-policy-discovery/src/types"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -1715,6 +1716,26 @@ func UpsertSystemSummaryMySQL(cfg types.ConfigDB, sysSummary map[types.SystemSum
 
 	return nil
 }
+
+
+// adding purge db
+func PurgeOldDBEntriesMySQL(cfg types.ConfigDB) error {
+	db := connectMySQL(cfg)
+	defer db.Close()
+
+	timeNow := (ConvertStrToUnixTime("now"))
+	purgeTime := (config.GetCfgPublisherCronJobTime()) //sec )
+	PurgeTimeValue, err := strconv.ParseInt(purgeTime, 10, 64)
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return err
+	}
+	ConvertedValue := timeNow - PurgeTimeValue
+	query := "DELETE FROM DB WHERE updated_time < ? " + strconv.Itoa(int(ConvertedValue))
+	if _, err := db.Query(query); err != nil {
+		return err
+	}
+	return nil
 
 func GetSystemSummaryMySQL(cfg types.ConfigDB, filterOptions types.SystemSummary) ([]types.SystemSummary, error) {
 	db := connectMySQL(cfg)
