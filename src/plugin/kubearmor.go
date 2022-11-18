@@ -422,6 +422,11 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 					continue
 				}
 
+				if res.Operation != "Network" && !strings.HasPrefix(res.Resource, "/") {
+					log.Warn().Msgf("Relative path found: %v", res)
+					continue
+				}
+
 				KubeArmorRelayLogsMutex.Lock()
 				KubeArmorRelayLogs = append(KubeArmorRelayLogs, res)
 				KubeArmorRelayLogsMutex.Unlock()
@@ -431,7 +436,7 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 				}
 
 				if config.CurrentCfg.ConfigNetPolicy.NetworkLogFrom == "kubearmor" {
-					if res.Operation == "Network" && strings.Contains(res.Data, "tcp_") {
+					if res.Operation == "Network" {
 						KubeArmorNetworkLogs = append(KubeArmorNetworkLogs, res)
 					}
 				}
@@ -463,7 +468,7 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 					return
 				}
 
-				log := pb.Log{
+				kubearmorLog := pb.Log{
 					ClusterName:   res.ClusterName,
 					ContainerName: res.ContainerName,
 					HostName:      res.HostName,
@@ -477,26 +482,31 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 					Type:          res.Type,
 				}
 
-				if ignoreLogFromRelayWithNamespace(nsFilter, nsNotFilter, &log) {
+				if ignoreLogFromRelayWithNamespace(nsFilter, nsNotFilter, &kubearmorLog) {
 					continue
 				}
 
-				if ignoreLogFromRelayWithSource(fromSourceFilter, &log) {
+				if ignoreLogFromRelayWithSource(fromSourceFilter, &kubearmorLog) {
+					continue
+				}
+
+				if res.Operation != "Network" && !strings.HasPrefix(res.Resource, "/") {
+					log.Warn().Msgf("Relative path found: %v", res)
 					continue
 				}
 
 				KubeArmorRelayLogsMutex.Lock()
-				KubeArmorRelayLogs = append(KubeArmorRelayLogs, &log)
+				KubeArmorRelayLogs = append(KubeArmorRelayLogs, &kubearmorLog)
 				KubeArmorRelayLogsMutex.Unlock()
 
 				if config.GetCfgObservabilityEnable() {
-					obs.ProcessKubearmorAlert(&log)
+					obs.ProcessKubearmorAlert(&kubearmorLog)
 				}
 
 				if config.CurrentCfg.ConfigNetPolicy.NetworkLogFrom == "kubearmor" {
-					if log.Operation == "Network" && (strings.Contains(log.Data, "tcp_") ||
-						strings.Contains(log.Resource, "UDP")) {
-						KubeArmorNetworkLogs = append(KubeArmorNetworkLogs, &log)
+
+					if kubearmorLog.Operation == "Network" {
+						KubeArmorNetworkLogs = append(KubeArmorNetworkLogs, &kubearmorLog)
 					}
 				}
 			}
@@ -575,7 +585,7 @@ func ConvertKubeArmorNetLogToKnoxNetLog(kaNwLogs []*pb.Log) []types.KnoxNetworkL
 				}
 			}
 
-			if ip == "127.0.0.1" {
+			if net.ParseIP(ip).IsLoopback() {
 				// ignore adding policies with pod IP pointing to localhost
 				continue
 			}
@@ -590,8 +600,23 @@ func ConvertKubeArmorNetLogToKnoxNetLog(kaNwLogs []*pb.Log) []types.KnoxNetworkL
 			locKnoxLog.DstIP = ip
 			locKnoxLog.DstPort, _ = strconv.Atoi(port)
 			locKnoxLog.SynFlag = true
-		} else {
+		} else if strings.Contains(kalog.Data, "SYS_BIND") {
+			var port string
 			locKnoxLog.Protocol = libs.IPProtocolUDP
+
+			resSlice := strings.Split(kalog.Resource, " ")
+			for _, v := range resSlice {
+				if strings.Contains(v, "sin_port") {
+					port = strings.Split(v, "=")[1]
+				}
+			}
+			//locKnoxLog.DstIP = "0.0.0.0"
+			locKnoxLog.DstPort, _ = strconv.Atoi(port)
+			locKnoxLog.Direction = "INGRESS"
+		} else if strings.Contains(kalog.Data, "SYS_SOCKET") && strings.Contains(kalog.Resource, "SOCK_DGRAM") {
+			locKnoxLog.Protocol = libs.IPProtocolUDP
+			//locKnoxLog.DstIP = "0.0.0.0"
+			locKnoxLog.Direction = "EGRESS"
 		}
 
 		if kalog.Result != "Passed" {

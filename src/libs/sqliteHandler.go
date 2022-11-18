@@ -711,6 +711,7 @@ func CreateSystemSummaryTableSQLite(cfg types.ConfigDB) error {
 			"	`id` INTEGER AUTO_INCREMENT," +
 			"	`cluster_name` varchar(50) DEFAULT NULL," +
 			"	`cluster_id` int DEFAULT NULL," +
+			"	`workspace_id` int DEFAULT NULL," +
 			"	`namespace_name` varchar(50) DEFAULT NULL," +
 			"	`namespace_id` int DEFAULT NULL," +
 			"	`container_name` varchar(50) DEFAULT NULL," +
@@ -1549,7 +1550,7 @@ func GetPodNamesSQLite(cfg types.ConfigDB, filter types.ObsPodDetail) ([]string,
 	var err error
 
 	// Get podnames from system table
-	query := "SELECT pod_name FROM " + TableSystemLogs_TableName + " "
+	query := "SELECT podname FROM " + TableSystemSummarySQLite + " "
 
 	var whereClause string
 	var sysargs []interface{}
@@ -1576,38 +1577,6 @@ func GetPodNamesSQLite(cfg types.ConfigDB, filter types.ObsPodDetail) ([]string,
 	}
 
 	results, err = db.Query(query+whereClause, sysargs...)
-	if err != nil {
-		log.Error().Msg(err.Error())
-		return nil, err
-	}
-	defer results.Close()
-
-	for results.Next() {
-		var locPodName string
-		if err := results.Scan(
-			&locPodName,
-		); err != nil {
-			return nil, err
-		}
-		resPodNames = append(resPodNames, locPodName)
-	}
-
-	// Get podnames from network table
-	query = "SELECT source_pod_name FROM " + TableNetworkLogs_TableName + " "
-
-	whereClause = ""
-	var nwargs []interface{}
-
-	if filter.Namespace != "" {
-		concatWhereClause(&whereClause, "source_namespace")
-		nwargs = append(nwargs, filter.Namespace)
-	}
-	if filter.Labels != "" {
-		concatWhereClause(&whereClause, "source_labels")
-		nwargs = append(nwargs, filter.Labels)
-	}
-
-	results, err = db.Query(query+whereClause, nwargs...)
 	if err != nil {
 		log.Error().Msg(err.Error())
 		return nil, err
@@ -1770,4 +1739,11 @@ func PurgeOldDBEntriesSQLite(cfg types.ConfigDB) error {
 	}
 	return nil
 
+func GetSystemSummarySQLite(cfg types.ConfigDB, filterOptions types.SystemSummary) ([]types.SystemSummary, error) {
+	db := connectSQLite(cfg, config.GetCfgObservabilityDBName())
+	defer db.Close()
+
+	res, err := getSysSummarySQL(db, TableSystemSummarySQLite, filterOptions)
+
+	return res, err
 }

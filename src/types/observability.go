@@ -1,6 +1,6 @@
 package types
 
-//KubeArmor - Structure for KubeArmor Logs Flow
+// KubeArmor - Structure for KubeArmor Logs Flow
 type KubeArmor struct {
 	ClusterName   string `json:"cluster_name,omitempty"`
 	HostName      string `json:"host_name,omitempty"`
@@ -20,7 +20,7 @@ type KubeArmor struct {
 	Total         int64  `json:"total,omitempty"`
 }
 
-//Cilium - Structure for Hubble Log Flow
+// Cilium - Structure for Hubble Log Flow
 type CiliumLog struct {
 	Verdict                     string `json:"verdict,omitempty"`
 	IpSource                    string `json:"ip_source,omitempty"`
@@ -98,6 +98,7 @@ type NetworkSummary struct {
 type SystemSummary struct {
 	ClusterName    string `json:"ClusterName,omitempty"`
 	ClusterId      string `json:"ClusterId,omitempty"`
+	WorkspaceId    int32  `json:"WorkspaceId,omitempty"`
 	NamespaceName  string `json:"Namespace,omitempty"`
 	NamespaceId    int32  `json:"NamespaceId,omitempty"`
 	ContainerName  string `json:"ContainerName,omitempty"`

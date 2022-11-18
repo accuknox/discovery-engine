@@ -107,18 +107,18 @@ func (s *workerServer) GetWorkerStatus(ctx context.Context, in *wpb.WorkerReques
 
 func (s *workerServer) Convert(ctx context.Context, in *wpb.WorkerRequest) (*wpb.WorkerResponse, error) {
 
-	if strings.Contains(in.GetPolicytype(), "network") {
+	if strings.Contains(in.GetPolicytype(), "CiliumNetworkPolicy") || strings.Contains(in.GetPolicytype(), "NetworkPolicy") {
 		log.Info().Msg("Convert network policy called")
 		network.InitNetPolicyDiscoveryConfiguration()
 		network.WriteNetworkPoliciesToFile(in.GetClustername(), in.GetNamespace())
 		return network.GetNetPolicy(in.Clustername, in.Namespace, in.GetPolicytype()), nil
-	} else if in.GetPolicytype() == "system" {
+	} else if in.GetPolicytype() == "KubearmorSecurityPolicy" {
 		log.Info().Msg("Convert system policy called")
 		system.InitSysPolicyDiscoveryConfiguration()
-		system.WriteSystemPoliciesToFile(in.GetNamespace(), in.GetClustername(), in.GetLabels(), in.GetFromsource())
-		return system.GetSysPolicy(in.Namespace, in.Clustername, in.Labels, in.Fromsource), nil
+		system.WriteSystemPoliciesToFile(in.GetNamespace(), in.GetClustername(), in.GetLabels(), in.GetFromsource(), in.GetIncludenetwork())
+		return system.GetSysPolicy(in.Namespace, in.Clustername, in.Labels, in.Fromsource, in.Includenetwork), nil
 	} else {
-		log.Info().Msg("Convert policy called, but no policy type")
+		log.Error().Msgf("unsupported policy type - %s", in.GetPolicytype())
 	}
 
 	return &wpb.WorkerResponse{Res: "ok"}, nil

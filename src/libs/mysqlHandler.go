@@ -1544,7 +1544,7 @@ func GetPodNamesMySQL(cfg types.ConfigDB, filter types.ObsPodDetail) ([]string, 
 	var err error
 
 	// Get podnames from system table
-	query := "SELECT pod_name FROM " + TableSystemLogs_TableName + " "
+	query := "SELECT podname FROM " + TableSystemSummarySQLite + " "
 
 	var whereClause string
 	var sysargs []interface{}
@@ -1571,38 +1571,6 @@ func GetPodNamesMySQL(cfg types.ConfigDB, filter types.ObsPodDetail) ([]string, 
 	}
 
 	results, err = db.Query(query+whereClause, sysargs...)
-	if err != nil {
-		log.Error().Msg(err.Error())
-		return nil, err
-	}
-	defer results.Close()
-
-	for results.Next() {
-		var locPodName string
-		if err := results.Scan(
-			&locPodName,
-		); err != nil {
-			return nil, err
-		}
-		resPodNames = append(resPodNames, locPodName)
-	}
-
-	// Get podnames from network table
-	query = "SELECT source_pod_name FROM " + TableNetworkLogs_TableName + " "
-
-	whereClause = ""
-	var nwargs []interface{}
-
-	if filter.Namespace != "" {
-		concatWhereClause(&whereClause, "source_namespace")
-		nwargs = append(nwargs, filter.Namespace)
-	}
-	if filter.Labels != "" {
-		concatWhereClause(&whereClause, "source_labels")
-		nwargs = append(nwargs, filter.Labels)
-	}
-
-	results, err = db.Query(query+whereClause, nwargs...)
 	if err != nil {
 		log.Error().Msg(err.Error())
 		return nil, err
@@ -1749,6 +1717,7 @@ func UpsertSystemSummaryMySQL(cfg types.ConfigDB, sysSummary map[types.SystemSum
 	return nil
 }
 
+
 // adding purge db
 func PurgeOldDBEntriesMySQL(cfg types.ConfigDB) error {
 	db := connectMySQL(cfg)
@@ -1768,4 +1737,11 @@ func PurgeOldDBEntriesMySQL(cfg types.ConfigDB) error {
 	}
 	return nil
 
+func GetSystemSummaryMySQL(cfg types.ConfigDB, filterOptions types.SystemSummary) ([]types.SystemSummary, error) {
+	db := connectMySQL(cfg)
+	defer db.Close()
+
+	res, err := getSysSummarySQL(db, TableSystemSummarySQLite, filterOptions)
+
+	return res, err
 }

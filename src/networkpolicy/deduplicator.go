@@ -974,13 +974,15 @@ func UpdateDuplicatedPolicy(existingPolicies []types.KnoxNetworkPolicy, discover
 
 	for _, policy := range existIngressPolicies {
 		if policy.Metadata["status"] == "updated" {
-			delete(policy.Metadata, "status")
+			policy.Metadata["status"] = "latest"
+			//delete(policy.Metadata, "status")
 			updatedPolicies = append(updatedPolicies, policy)
 		}
 	}
 	for _, policy := range existEgressPolicies {
 		if policy.Metadata["status"] == "updated" {
-			delete(policy.Metadata, "status")
+			policy.Metadata["status"] = "latest"
+			//delete(policy.Metadata, "status")
 			updatedPolicies = append(updatedPolicies, policy)
 		}
 	}

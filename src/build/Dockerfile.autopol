@@ -6,8 +6,7 @@ WORKDIR /usr/src/knox
 
 COPY . .
 
-RUN curl -O -L https://github.com/fullstorydev/grpcurl/releases/download/v1.8.5/grpcurl_1.8.5_linux_x86_64.tar.gz
-RUN tar xf grpcurl_1.8.5_linux_x86_64.tar.gz
+RUN GOBIN=/usr/src/knox/ go install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest
 
 RUN cd src && make
 

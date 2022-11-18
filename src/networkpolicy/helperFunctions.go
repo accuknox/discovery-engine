@@ -13,6 +13,7 @@ import (
 	"github.com/clarketm/json"
 
 	"github.com/accuknox/auto-policy-discovery/src/cluster"
+	"github.com/accuknox/auto-policy-discovery/src/config"
 	"github.com/accuknox/auto-policy-discovery/src/libs"
 	"github.com/accuknox/auto-policy-discovery/src/plugin"
 	wpb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/worker"
@@ -778,7 +779,7 @@ func GetNetPolicy(cluster, namespace, policyType string) *wpb.WorkerResponse {
 
 	var response wpb.WorkerResponse
 
-	if strings.Contains(policyType, "cilium") {
+	if strings.Contains(policyType, "CiliumNetworkPolicy") {
 		latestPolicies := libs.GetNetworkPolicies(CfgDB, cluster, namespace, "latest", "", "")
 		log.Info().Msgf("No. of latestPolicies - %d", len(latestPolicies))
 		ciliumPolicies := plugin.ConvertKnoxPoliciesToCiliumPolicies(latestPolicies)
@@ -796,8 +797,9 @@ func GetNetPolicy(cluster, namespace, policyType string) *wpb.WorkerResponse {
 			response.Ciliumpolicy = append(response.Ciliumpolicy, &ciliumpolicy)
 		}
 		response.K8SNetworkpolicy = nil
-	} else if strings.Contains(policyType, "generic") {
-		policies := plugin.ConvertKnoxNetPolicyToK8sNetworkPolicy(cluster, namespace)
+	} else if strings.Contains(policyType, "NetworkPolicy") {
+		knoxNetPolicies := libs.GetNetworkPolicies(config.CurrentCfg.ConfigDB, cluster, namespace, "latest", "", "")
+		policies := plugin.ConvertKnoxNetPolicyToK8sNetworkPolicy(cluster, namespace, knoxNetPolicies)
 
 		for i := range policies {
 			genericNetPol := wpb.Policy{}

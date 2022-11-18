@@ -405,7 +405,7 @@ func UpsertSystemSummary(cfg types.ConfigDB, summaryMap map[types.SystemSummary]
 }
 
 func upsertSysSummarySQL(db *sql.DB, summary types.SystemSummary, timeCount types.SysSummaryTimeCount) error {
-	queryString := `cluster_name = ? and cluster_id = ? and namespace_name = ? and namespace_id = ? and container_name = ? and container_image = ? 
+	queryString := `cluster_name = ? and cluster_id = ? and workspace_id = ? and namespace_name = ? and namespace_id = ? and container_name = ? and container_image = ? 
 					and container_id = ? and podname = ? and operation = ? and labels = ? and deployment_name = ? and source = ? and destination = ? 
 					and destination_namespace = ? and destination_labels = ? and type = ? and ip = ? and port = ? and protocol = ? and action = ?`
 
@@ -422,6 +422,7 @@ func upsertSysSummarySQL(db *sql.DB, summary types.SystemSummary, timeCount type
 		timeCount.UpdatedTime,
 		summary.ClusterName,
 		summary.ClusterId,
+		summary.WorkspaceId,
 		summary.NamespaceName,
 		summary.NamespaceId,
 		summary.ContainerName,
@@ -450,8 +451,8 @@ func upsertSysSummarySQL(db *sql.DB, summary types.SystemSummary, timeCount type
 
 	if err == nil && rowsAffected == 0 {
 
-		insertQueryString := `(cluster_name,cluster_id,namespace_name,namespace_id,container_name,container_image,container_id,podname,operation,labels,deployment_name,
-				source,destination,destination_namespace,destination_labels,type,ip,port,protocol,action,count,updated_time) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+		insertQueryString := `(cluster_name,cluster_id,workspace_id,namespace_name,namespace_id,container_name,container_image,container_id,podname,operation,labels,deployment_name,
+				source,destination,destination_namespace,destination_labels,type,ip,port,protocol,action,count,updated_time) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
 
 		insertQuery := "INSERT INTO " + TableSystemSummarySQLite + insertQueryString
 
@@ -464,6 +465,7 @@ func upsertSysSummarySQL(db *sql.DB, summary types.SystemSummary, timeCount type
 		_, err = insertStmt.Exec(
 			summary.ClusterName,
 			summary.ClusterId,
+			summary.WorkspaceId,
 			summary.NamespaceName,
 			summary.NamespaceId,
 			summary.ContainerName,
@@ -492,6 +494,7 @@ func upsertSysSummarySQL(db *sql.DB, summary types.SystemSummary, timeCount type
 
 	return nil
 }
+
 
 // ==================================== //
 // == Purge Old DB Entries Cron Job ==  //
@@ -536,4 +539,129 @@ func InitPurgeOldDBEntries() {
 		PurgeDBCronJob.Start()
 		log.Info().Msg("Purging Old DB Entries cron job started")
 	}
+
+func GetSystemSummary(cfg types.ConfigDB, filterOptions types.SystemSummary) ([]types.SystemSummary, error) {
+	var err = errors.New("unknown db driver")
+	res := []types.SystemSummary{}
+
+	if cfg.DBDriver == "mysql" {
+		res, err = GetSystemSummaryMySQL(cfg, filterOptions)
+	} else if cfg.DBDriver == "sqlite3" {
+		res, err = GetSystemSummarySQLite(cfg, filterOptions)
+	}
+
+	return res, err
+}
+
+func getSysSummarySQL(db *sql.DB, dbName string, filterOptions types.SystemSummary) ([]types.SystemSummary, error) {
+	var results *sql.Rows
+	var err error
+
+	resSummary := []types.SystemSummary{}
+
+	query := `SELECT cluster_name,cluster_id,workspace_id,namespace_name,namespace_id,container_name,
+	container_image,container_id,podname,operation,labels,deployment_name,source,destination,destination_namespace,
+	destination_labels,type,ip,port,protocol,action,count,updated_time FROM ` + dbName
+
+	var whereClause string
+	var args []interface{}
+
+	if filterOptions.ClusterName != "" {
+		concatWhereClause(&whereClause, "cluster_name")
+		args = append(args, filterOptions.ClusterName)
+	}
+	if filterOptions.ClusterId != "" {
+		concatWhereClause(&whereClause, "cluster_id")
+		args = append(args, filterOptions.ClusterId)
+	}
+	if filterOptions.WorkspaceId != 0 {
+		concatWhereClause(&whereClause, "workpsace_id")
+		args = append(args, filterOptions.WorkspaceId)
+	}
+	if filterOptions.NamespaceName != "" {
+		concatWhereClause(&whereClause, "namespace_name")
+		args = append(args, filterOptions.NamespaceName)
+	}
+	if filterOptions.NamespaceId != 0 {
+		concatWhereClause(&whereClause, "namespace_id")
+		args = append(args, filterOptions.NamespaceId)
+	}
+	if filterOptions.ContainerName != "" {
+		concatWhereClause(&whereClause, "container_name")
+		args = append(args, filterOptions.ContainerName)
+	}
+	if filterOptions.ContainerImage != "" {
+		concatWhereClause(&whereClause, "container_image")
+		args = append(args, filterOptions.ContainerImage)
+	}
+	if filterOptions.ContainerID != "" {
+		concatWhereClause(&whereClause, "container_id")
+		args = append(args, filterOptions.ContainerID)
+	}
+	if filterOptions.PodName != "" {
+		concatWhereClause(&whereClause, "podname")
+		args = append(args, filterOptions.PodName)
+	}
+	if filterOptions.Operation != "" {
+		concatWhereClause(&whereClause, "operation")
+		args = append(args, filterOptions.Operation)
+	}
+	if filterOptions.Labels != "" {
+		concatWhereClause(&whereClause, "labels")
+		args = append(args, filterOptions.Labels)
+	}
+	if filterOptions.Deployment != "" {
+		concatWhereClause(&whereClause, "deployment_name")
+		args = append(args, filterOptions.Deployment)
+	}
+	if filterOptions.Source != "" {
+		concatWhereClause(&whereClause, "source")
+		args = append(args, filterOptions.Source)
+	}
+	if filterOptions.Destination != "" {
+		concatWhereClause(&whereClause, "destination")
+		args = append(args, filterOptions.Destination)
+	}
+
+	results, err = db.Query(query+whereClause, args...)
+
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return nil, err
+	}
+	defer results.Close()
+
+	for results.Next() {
+		localSum := types.SystemSummary{}
+		if err := results.Scan(
+			&localSum.ClusterName,
+			&localSum.ClusterId,
+			&localSum.WorkspaceId,
+			&localSum.NamespaceName,
+			&localSum.NamespaceId,
+			&localSum.ContainerName,
+			&localSum.ContainerImage,
+			&localSum.ContainerID,
+			&localSum.PodName,
+			&localSum.Operation,
+			&localSum.Labels,
+			&localSum.Deployment,
+			&localSum.Source,
+			&localSum.Destination,
+			&localSum.DestNamespace,
+			&localSum.DestLabels,
+			&localSum.NwType,
+			&localSum.IP,
+			&localSum.Port,
+			&localSum.Protocol,
+			&localSum.Action,
+			&localSum.Count,
+			&localSum.UpdatedTime,
+		); err != nil {
+			return nil, err
+		}
+		resSummary = append(resSummary, localSum)
+	}
+
+	return resSummary, err
 }
