@@ -64,7 +64,7 @@ jobs:
 
       - name: Push discovery engine images to Docker
         run: |
-            ./src/build/push_knoxautopolicy.sh ${{ steps.vars.outputs.tag }}
+            GITHUB_SHA=$GITHUB_SHA ./src/build/push_knoxautopolicy.sh ${{ steps.vars.outputs.tag }}
 
   push-stable-version:
     name: Create discovery engine Release - 20.04
@@ -99,5 +99,5 @@ jobs:
 
       - name: Push discovery engine images to Docker
         if: steps.match.outputs.tag == 'true'
-        run:  ./src/build/push_knoxautopolicy.sh stable
+        run:  GITHUB_SHA=$GITHUB_SHA STABLE_VERSION=$(cat STABLE-RELEASE) ./src/build/push_knoxautopolicy.sh stable
 
