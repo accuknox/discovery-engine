@@ -3,8 +3,12 @@ package libs
 import (
 	"database/sql"
 	"errors"
+	"sync"
 
+	cfg "github.com/accuknox/auto-policy-discovery/src/config"
+	logger "github.com/accuknox/auto-policy-discovery/src/logging"
 	"github.com/accuknox/auto-policy-discovery/src/types"
+	"github.com/robfig/cron"
 )
 
 // ================= //
@@ -615,4 +619,50 @@ func getSysSummarySQL(db *sql.DB, dbName string, filterOptions types.SystemSumma
 	}
 
 	return resSummary, err
+}
+
+// ==================================== //
+// == Purge Old DB Entries Cron Job ==  //
+// ==================================== //
+var (
+	CfgDB                                      types.ConfigDB
+	SystemLogsMutex, NetworkLogsMutex, DBMutex *sync.Mutex
+	PurgeDBCronJob                             *cron.Cron
+	PurgeDBMap                                 types.ConfigPurgeOldDBEntries
+)
+
+func initMutex() {
+	DBMutex = &sync.Mutex{}
+	if cfg.GetCfgPurgeOldDBEntriesEnable() {
+		SystemLogsMutex = &sync.Mutex{}
+	}
+	if cfg.GetCfgPurgeOldDBEntriesEnable() {
+		NetworkLogsMutex = &sync.Mutex{}
+	}
+}
+
+func InitPurgeOldDBEntries() {
+	log = logger.GetInstance()
+	CfgDB = cfg.GetCfgDB()
+
+	if cfg.GetCfgPurgeOldDBEntriesEnable() {
+		// Init mutex
+		initMutex()
+
+		PurgeDBCronJob = cron.New()
+		err := PurgeDBCronJob.AddFunc(cfg.GetCfgPurgeOldDBEntriesCronJobTime(), PurgeOldDBEntriesCronJob) // time interval
+		if err != nil {
+			log.Error().Msg(err.Error())
+			return
+		}
+		PurgeDBCronJob.Start()
+		log.Info().Msg("Purging Old DB Entries cron job started")
+	}
+}
+
+func PurgeOldDBEntriesCronJob() {
+	if cfg.GetCfgPurgeOldDBEntriesEnable() {
+		go PurgeOldDBEntriesMySQL(types.ConfigDB{})
+		go PurgeOldDBEntriesSQLite(types.ConfigDB{})
+	}
 }

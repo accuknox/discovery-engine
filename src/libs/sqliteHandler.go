@@ -1728,3 +1728,25 @@ func GetSystemSummarySQLite(cfg types.ConfigDB, filterOptions types.SystemSummar
 
 	return res, err
 }
+
+// ========================== //
+// == Purge Old DB Entries == //
+// ========================== //
+func PurgeOldDBEntriesSQLite(cfg types.ConfigDB) error {
+	db := connectSQLite(cfg, cfg.SQLiteDBPath)
+	defer db.Close()
+
+	timeNow := (ConvertStrToUnixTime("now"))
+	purgeTime := (config.GetCfgPublisherCronJobTime()) //sec
+	PurgeTimeValue, err := strconv.ParseInt(purgeTime, 10, 64)
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return err
+	}
+	ConvertedValue := timeNow - PurgeTimeValue
+	query := "DELETE FROM system_summary WHERE updated_time < " + strconv.Itoa(int(ConvertedValue))
+	if _, err := db.Query(query); err != nil {
+		return err
+	}
+	return nil
+}
