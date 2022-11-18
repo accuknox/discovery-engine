@@ -27,7 +27,6 @@ func ConvertKnoxNetPolicyToK8sNetworkPolicy(clustername, namespace string, knoxN
 		k8NetPol.Kind = types.K8sNwPolicyKind
 		k8NetPol.Name = knp.Metadata["name"]
 		k8NetPol.Namespace = knp.Metadata["namespace"]
-		k8NetPol.ClusterName = knp.Metadata["cluster_name"]
 		k8NetPol.Labels = knp.Spec.Selector.MatchLabels
 
 		if len(knp.Spec.Egress) > 0 {
