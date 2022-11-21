@@ -122,6 +122,7 @@ func LoadConfigFromFile() {
 	// Load cluster related config
 	CurrentCfg.ClusterName = os.Getenv("cluster_name")
 	CurrentCfg.WorkspaceID = os.Getenv("workspace_id")
+	CurrentCfg.ClusterID = os.Getenv("cluster_id")
 
 	// load network policy discovery
 	CurrentCfg.ConfigNetPolicy = types.ConfigNetworkPolicy{
@@ -235,6 +236,10 @@ func GetCfgClusterName() string {
 
 func GetCfgWorkspaceId() string {
 	return CurrentCfg.WorkspaceID
+}
+
+func GetCfgClusterId() string {
+	return CurrentCfg.ClusterID
 }
 
 // ============================= //

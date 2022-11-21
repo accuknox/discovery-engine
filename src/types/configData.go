@@ -116,6 +116,7 @@ type Configuration struct {
 
 	ClusterName string `json:"cluster_name,omitempty" bson:"cluster_name,omitempty"`
 	WorkspaceID string `json:"workspace_id,omitempty" bson:"workspace_id,omitempty"`
+	ClusterID   string `json:"cluster_id,omitempty" bson:"cluster_id,omitempty"`
 
 	ConfigDB             ConfigDB             `json:"config_db,omitempty" bson:"config_db,omitempty"`
 	ConfigCiliumHubble   ConfigCiliumHubble   `json:"config_cilium_hubble,omitempty" bson:"config_cilium_hubble,omitempty"`

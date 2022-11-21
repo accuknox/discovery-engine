@@ -92,8 +92,10 @@ func convertSysLogToSysSummaryMap(syslogs []*pb.Log) {
 		}
 
 		workspaceId, _ := strconv.ParseInt(config.GetCfgWorkspaceId(), 0, 32)
+		clusterId, _ := strconv.ParseInt(config.GetCfgClusterId(), 0, 32)
 
 		sysSummary.WorkspaceId = int32(workspaceId)
+		sysSummary.ClusterId = int32(clusterId)
 		sysSummary.NamespaceName = syslog.NamespaceName
 		sysSummary.ContainerName = syslog.ContainerName
 		sysSummary.ContainerImage = syslog.ContainerImage
