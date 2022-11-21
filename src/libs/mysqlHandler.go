@@ -1730,7 +1730,7 @@ func GetSystemSummaryMySQL(cfg types.ConfigDB, filterOptions types.SystemSummary
 // == Purge Old DB Entries == //
 // ========================== //
 
-func PurgeOldDBEntriesMySQL(cfg types.ConfigDB) error {
+func PurgeOldDBEntriesMySQL(cfg types.ConfigDB) {
 	db := connectMySQL(cfg)
 	defer db.Close()
 
@@ -1739,12 +1739,10 @@ func PurgeOldDBEntriesMySQL(cfg types.ConfigDB) error {
 	PurgeTimeValue, err := strconv.ParseInt(purgeTime, 10, 64)
 	if err != nil {
 		log.Error().Msg(err.Error())
-		return err
 	}
 	ConvertedValue := timeNow - PurgeTimeValue
 	query := "DELETE FROM system_summary WHERE updated_time < " + strconv.Itoa(int(ConvertedValue))
 	if _, err := db.Query(query); err != nil {
-		return err
+		log.Error().Msg(err.Error())
 	}
-	return nil
 }

@@ -3,7 +3,6 @@ package libs
 import (
 	"database/sql"
 	"errors"
-	"sync"
 
 	cfg "github.com/accuknox/auto-policy-discovery/src/config"
 	logger "github.com/accuknox/auto-policy-discovery/src/logging"
@@ -625,29 +624,16 @@ func getSysSummarySQL(db *sql.DB, dbName string, filterOptions types.SystemSumma
 // == Purge Old DB Entries Cron Job ==  //
 // ==================================== //
 var (
-	CfgDB                                      types.ConfigDB
-	SystemLogsMutex, NetworkLogsMutex, DBMutex *sync.Mutex
-	PurgeDBCronJob                             *cron.Cron
-	PurgeDBMap                                 types.ConfigPurgeOldDBEntries
+	CfgDB          types.ConfigDB
+	PurgeDBCronJob *cron.Cron
+	PurgeDBMap     types.ConfigPurgeOldDBEntries
 )
-
-func initMutex() {
-	DBMutex = &sync.Mutex{}
-	if cfg.GetCfgPurgeOldDBEntriesEnable() {
-		SystemLogsMutex = &sync.Mutex{}
-	}
-	if cfg.GetCfgPurgeOldDBEntriesEnable() {
-		NetworkLogsMutex = &sync.Mutex{}
-	}
-}
 
 func InitPurgeOldDBEntries() {
 	log = logger.GetInstance()
 	CfgDB = cfg.GetCfgDB()
 
 	if cfg.GetCfgPurgeOldDBEntriesEnable() {
-		// Init mutex
-		initMutex()
 
 		PurgeDBCronJob = cron.New()
 		err := PurgeDBCronJob.AddFunc(cfg.GetCfgPurgeOldDBEntriesCronJobTime(), PurgeOldDBEntriesCronJob) // time interval
@@ -662,7 +648,7 @@ func InitPurgeOldDBEntries() {
 
 func PurgeOldDBEntriesCronJob() {
 	if cfg.GetCfgPurgeOldDBEntriesEnable() {
-		go PurgeOldDBEntriesMySQL(types.ConfigDB{})
-		go PurgeOldDBEntriesSQLite(types.ConfigDB{})
+		PurgeOldDBEntriesMySQL(types.ConfigDB{})
+		PurgeOldDBEntriesSQLite(types.ConfigDB{})
 	}
 }
