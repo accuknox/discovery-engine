@@ -97,7 +97,7 @@ type NetworkSummary struct {
 
 type SystemSummary struct {
 	ClusterName    string `json:"ClusterName,omitempty"`
-	ClusterId      string `json:"ClusterId,omitempty"`
+	ClusterId      int32  `json:"ClusterId,omitempty"`
 	WorkspaceId    int32  `json:"WorkspaceId,omitempty"`
 	NamespaceName  string `json:"Namespace,omitempty"`
 	NamespaceId    int32  `json:"NamespaceId,omitempty"`
