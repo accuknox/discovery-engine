@@ -110,6 +110,12 @@ type ConfigPublisher struct {
 	CronJobTimeInterval string `json:"cronjob_time_interval,omitempty" bson:"cronjob_time_interval,omitempty"`
 }
 
+type ConfigPurgeOldDBEntries struct {
+	Enable              bool     `json:"enable,omitempty" bson:"enable,omiempty"`
+	CronJobTimeInterval string   `json:"cronjob_time_interval,omitempty" bson:"cronjob_time_interval,omitempty"`
+	DBName              []string `json:"db_name,omitempty" bson:"db_name,omitempty"`
+}
+
 type Configuration struct {
 	ConfigName string `json:"config_name,omitempty" bson:"config_name,omitempty"`
 	Status     int    `json:"status,omitempty" bson:"status,omitempty"`
@@ -122,9 +128,10 @@ type Configuration struct {
 	ConfigCiliumHubble   ConfigCiliumHubble   `json:"config_cilium_hubble,omitempty" bson:"config_cilium_hubble,omitempty"`
 	ConfigKubeArmorRelay ConfigKubeArmorRelay `json:"config_kubearmor_relay,omitempty" bson:"config_kubearmor_relay,omitempty"`
 
-	ConfigNetPolicy     ConfigNetworkPolicy `json:"config_network_policy,omitempty" bson:"config_network_policy,omitempty"`
-	ConfigSysPolicy     ConfigSystemPolicy  `json:"config_system_policy,omitempty" bson:"config_system_policy,omitempty"`
-	ConfigClusterMgmt   ConfigClusterMgmt   `json:"config_cluster_mgmt,omitempty" bson:"config_cluster_mgmt,omitempty"`
-	ConfigObservability ConfigObservability `json:"config_observability,omitempty" bson:"config_observability,omitempty"`
-	ConfigPublisher     ConfigPublisher     `json:"config_summarizer,omitempty" bson:"config_summarizer,omitempty"`
+	ConfigNetPolicy         ConfigNetworkPolicy     `json:"config_network_policy,omitempty" bson:"config_network_policy,omitempty"`
+	ConfigSysPolicy         ConfigSystemPolicy      `json:"config_system_policy,omitempty" bson:"config_system_policy,omitempty"`
+	ConfigClusterMgmt       ConfigClusterMgmt       `json:"config_cluster_mgmt,omitempty" bson:"config_cluster_mgmt,omitempty"`
+	ConfigObservability     ConfigObservability     `json:"config_observability,omitempty" bson:"config_observability,omitempty"`
+	ConfigPublisher         ConfigPublisher         `json:"config_summarizer,omitempty" bson:"config_summarizer,omitempty"`
+	ConfigPurgeOldDBEntries ConfigPurgeOldDBEntries `json:"config_purge_old_db_entries,omitempty" bson:"config_purge_old_db_entries,omitempty"`
 }
