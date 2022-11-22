@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"strconv"
 
 	types "github.com/accuknox/auto-policy-discovery/src/types"
 	"github.com/spf13/viper"
@@ -120,8 +121,12 @@ func LoadConfigFromFile() {
 	CurrentCfg.Status = 1 // 1: active 0: inactive
 
 	// Load cluster related config
+	workspaceId, _ := strconv.ParseInt(os.Getenv("workspace_id"), 0, 32)
+	clusterId, _ := strconv.ParseInt(os.Getenv("cluster_id"), 0, 32)
+
 	CurrentCfg.ClusterName = os.Getenv("cluster_name")
-	CurrentCfg.WorkspaceID = os.Getenv("workspace_id")
+	CurrentCfg.WorkspaceID = int32(workspaceId)
+	CurrentCfg.ClusterID = int32(clusterId)
 
 	// load network policy discovery
 	CurrentCfg.ConfigNetPolicy = types.ConfigNetworkPolicy{
@@ -240,8 +245,12 @@ func GetCfgClusterName() string {
 	return CurrentCfg.ClusterName
 }
 
-func GetCfgWorkspaceId() string {
+func GetCfgWorkspaceId() int32 {
 	return CurrentCfg.WorkspaceID
+}
+
+func GetCfgClusterId() int32 {
+	return CurrentCfg.ClusterID
 }
 
 // ============================= //

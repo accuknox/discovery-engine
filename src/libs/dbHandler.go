@@ -524,7 +524,7 @@ func getSysSummarySQL(db *sql.DB, dbName string, filterOptions types.SystemSumma
 		concatWhereClause(&whereClause, "cluster_name")
 		args = append(args, filterOptions.ClusterName)
 	}
-	if filterOptions.ClusterId != "" {
+	if filterOptions.ClusterId != 0 {
 		concatWhereClause(&whereClause, "cluster_id")
 		args = append(args, filterOptions.ClusterId)
 	}
