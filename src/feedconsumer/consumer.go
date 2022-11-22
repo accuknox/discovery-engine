@@ -202,7 +202,7 @@ func (cfc *KnoxFeedConsumer) HandlePollEvent(ev interface{}) bool {
 func (cfc *KnoxFeedConsumer) getSubscriptionTopics() []string {
 	subTopics := []string{}
 
-	if cfg.GetCfgNetworkLogFrom() == "feed-consumer" {
+	if strings.Contains(cfg.GetCfgNetworkLogFrom(), "feed-consumer") {
 		subTopics = append(subTopics, cfc.ciliumTopic)
 	}
 

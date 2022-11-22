@@ -1,6 +1,7 @@
 package networkpolicy
 
 import (
+	"errors"
 	"io/ioutil"
 	"math/bits"
 	"net"
@@ -213,8 +214,9 @@ func FilterNetworkLogsByNamespace(targetNamespace string, logs []types.KnoxNetwo
 
 func getNetworkLogs() []types.KnoxNetworkLog {
 	networkLogs := []types.KnoxNetworkLog{}
+	var err error = errors.New("not a valid log source : " + NetworkLogFrom)
 
-	if NetworkLogFrom == "hubble" {
+	if strings.Contains(NetworkLogFrom, "hubble") {
 		// ========================== //
 		// == Cilium Hubble Relay  == //
 		// ========================== //
@@ -222,9 +224,6 @@ func getNetworkLogs() []types.KnoxNetworkLog {
 
 		// get flows from hubble relay
 		flows := plugin.GetCiliumFlowsFromHubble(OperationTrigger)
-		if len(flows) == 0 || len(flows) < OperationTrigger {
-			return nil
-		}
 
 		// convert hubble flows -> network logs (but, in this case, no flow id)
 		for _, flow := range flows {
@@ -232,7 +231,11 @@ func getNetworkLogs() []types.KnoxNetworkLog {
 				networkLogs = append(networkLogs, log)
 			}
 		}
-	} else if NetworkLogFrom == "feed-consumer" {
+
+		// reset err
+		err = nil
+	}
+	if NetworkLogFrom == "feed-consumer" {
 		// ==================== //
 		// == kafka / Pulsar == //
 		// ==================== //
@@ -240,15 +243,16 @@ func getNetworkLogs() []types.KnoxNetworkLog {
 
 		// get flows from kafka/pulsar consumer
 		flows := plugin.GetCiliumFlowsFromFeedConsumer(OperationTrigger)
-		if len(flows) == 0 || len(flows) < OperationTrigger {
-			return nil
-		}
 
 		// convert hubble flows -> network logs (but, in this case, no flow id)
 		for _, flow := range flows {
 			networkLogs = append(networkLogs, *flow)
 		}
-	} else if NetworkLogFrom == "file" {
+
+		// reset err
+		err = nil
+	}
+	if NetworkLogFrom == "file" {
 		// =============================== //
 		// == File (.json) for testing  == //
 		// =============================== //
@@ -289,7 +293,11 @@ func getNetworkLogs() []types.KnoxNetworkLog {
 		if err := logFile.Close(); err != nil {
 			log.Error().Msg(err.Error())
 		}
-	} else if NetworkLogFrom == "kubearmor" {
+
+		// reset err
+		err = nil
+	}
+	if NetworkLogFrom == "kubearmor" {
 		// =============== //
 		// == Kubearmor == //
 		// =============== //
@@ -299,8 +307,17 @@ func getNetworkLogs() []types.KnoxNetworkLog {
 
 		// convert kubearmor log/alert to KnoxNetworkLog
 		networkLogs = plugin.ConvertKubeArmorNetLogToKnoxNetLog(kaNwLogs)
-	} else {
-		log.Error().Msgf("Network log source not correct: %s", NetworkLogFrom)
+
+		// reset err
+		err = nil
+	}
+
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return nil
+	}
+
+	if len(networkLogs) == 0 || len(networkLogs) < OperationTrigger {
 		return nil
 	}
 
@@ -778,8 +795,22 @@ func WriteNetworkPoliciesToFile(cluster, namespace string) {
 func GetNetPolicy(cluster, namespace, policyType string) *wpb.WorkerResponse {
 
 	var response wpb.WorkerResponse
+	var pType string = ""
 
-	if strings.Contains(policyType, "CiliumNetworkPolicy") {
+	// Setting all policy data to nil
+	response.K8SNetworkpolicy = nil
+	response.Ciliumpolicy = nil
+	response.Kubearmorpolicy = nil
+
+	for _, v := range strings.Split(policyType, ",") {
+		if v == "CiliumNetworkPolicy" {
+			pType += "cilium"
+		} else if v == "NetworkPolicy" {
+			pType += "generic"
+		}
+	}
+
+	if strings.Contains(pType, "cilium") {
 		latestPolicies := libs.GetNetworkPolicies(CfgDB, cluster, namespace, "latest", "", "")
 		log.Info().Msgf("No. of latestPolicies - %d", len(latestPolicies))
 		ciliumPolicies := plugin.ConvertKnoxPoliciesToCiliumPolicies(latestPolicies)
@@ -796,8 +827,9 @@ func GetNetPolicy(cluster, namespace, policyType string) *wpb.WorkerResponse {
 
 			response.Ciliumpolicy = append(response.Ciliumpolicy, &ciliumpolicy)
 		}
-		response.K8SNetworkpolicy = nil
-	} else if strings.Contains(policyType, "NetworkPolicy") {
+
+	}
+	if strings.Contains(pType, "generic") {
 		knoxNetPolicies := libs.GetNetworkPolicies(config.CurrentCfg.ConfigDB, cluster, namespace, "latest", "", "")
 		policies := plugin.ConvertKnoxNetPolicyToK8sNetworkPolicy(cluster, namespace, knoxNetPolicies)
 
@@ -813,10 +845,8 @@ func GetNetPolicy(cluster, namespace, policyType string) *wpb.WorkerResponse {
 
 			response.K8SNetworkpolicy = append(response.K8SNetworkpolicy, &genericNetPol)
 		}
-		response.Ciliumpolicy = nil
 	}
 	response.Res = "OK"
-	response.Kubearmorpolicy = nil
 
 	return &response
 }

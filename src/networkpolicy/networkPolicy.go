@@ -2226,7 +2226,7 @@ func writeNetworkPoliciesYamlToDB(policies []types.KnoxNetworkPolicy) {
 		clusters = append(clusters, pol.Metadata["cluster_name"])
 	}
 
-	if cfg.CurrentCfg.ConfigNetPolicy.NetworkLogFrom == "kubearmor" {
+	if strings.Contains(cfg.CurrentCfg.ConfigNetPolicy.NetworkLogFrom, "kubearmor") {
 		k8sNetPolicies := plugin.ConvertKnoxNetPolicyToK8sNetworkPolicy("", "", policies)
 
 		for i, np := range k8sNetPolicies {
@@ -2256,7 +2256,8 @@ func writeNetworkPoliciesYamlToDB(policies []types.KnoxNetworkPolicy) {
 			PolicyStore.Publish(&policyYaml)
 		}
 
-	} else {
+	}
+	if strings.Contains(cfg.CurrentCfg.ConfigNetPolicy.NetworkLogFrom, "hubble") {
 
 		// convert knoxPolicy to CiliumPolicy
 		ciliumPolicies := plugin.ConvertKnoxPoliciesToCiliumPolicies(policies)
@@ -2330,9 +2331,10 @@ func DiscoverNetworkPolicyMain() {
 
 func StartNetworkLogRcvr() {
 	for {
-		if cfg.GetCfgNetworkLogFrom() == "hubble" {
+		if strings.Contains(cfg.GetCfgNetworkLogFrom(), "hubble") {
 			plugin.StartHubbleRelay(NetworkStopChan /* &NetworkWaitG, */, cfg.GetCfgCiliumHubble())
-		} else if cfg.GetCfgNetworkLogFrom() == "feed-consumer" {
+		}
+		if strings.Contains(cfg.GetCfgNetworkLogFrom(), "feed-consumer") {
 			fc.ConsumerMutex.Lock()
 			fc.StartConsumer()
 			fc.ConsumerMutex.Unlock()
