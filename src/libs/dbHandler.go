@@ -636,7 +636,7 @@ func InitPurgeOldDBEntries() {
 	if cfg.GetCfgPurgeOldDBEntriesEnable() {
 
 		PurgeDBCronJob = cron.New()
-		err := PurgeDBCronJob.AddFunc(cfg.GetCfgPurgeOldDBEntriesCronJobTime(), PurgeOldDBEntriesCronJob) // time interval
+		err := PurgeDBCronJob.AddFunc(cfg.GetCfgPurgeOldDBEntriesCronJobTime(), PurgeOldDBEntries) // time interval
 		if err != nil {
 			log.Error().Msg(err.Error())
 			return
@@ -646,9 +646,18 @@ func InitPurgeOldDBEntries() {
 	}
 }
 
-func PurgeOldDBEntriesCronJob() {
-	if cfg.GetCfgPurgeOldDBEntriesEnable() {
+// Checking which type of Database
+func PurgeOldDBEntriesCronJob(cfg types.ConfigDB) {
+	if cfg.DBDriver == "mysql" {
 		PurgeOldDBEntriesMySQL(types.ConfigDB{})
+	} else if cfg.DBDriver == "sqlite3" {
 		PurgeOldDBEntriesSQLite(types.ConfigDB{})
+	}
+}
+
+// Executing the PurgeOldDBEntriesCronJob
+func PurgeOldDBEntries() {
+	if cfg.GetCfgPurgeOldDBEntriesEnable() {
+		PurgeOldDBEntriesCronJob(types.ConfigDB{})
 	}
 }
