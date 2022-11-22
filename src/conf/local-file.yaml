@@ -2,7 +2,7 @@ application:
   name: knoxautopolicy
   network:
     operation-mode: 1                             # 1: cronjob | 2: one-time-job
-    operation-trigger: 100
+    operation-trigger: 5
     cron-job-time-interval: "0h0m10s"             # format: XhYmZs 
     network-log-limit: 10000
     network-log-from: "hubble,kubearmor"          # db|hubble|feed-consumer|kubearmor

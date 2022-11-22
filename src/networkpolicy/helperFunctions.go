@@ -235,7 +235,7 @@ func getNetworkLogs() []types.KnoxNetworkLog {
 		// reset err
 		err = nil
 	}
-	if NetworkLogFrom == "feed-consumer" {
+	if strings.Contains(NetworkLogFrom, "feed-consumer") {
 		// ==================== //
 		// == kafka / Pulsar == //
 		// ==================== //
@@ -252,7 +252,7 @@ func getNetworkLogs() []types.KnoxNetworkLog {
 		// reset err
 		err = nil
 	}
-	if NetworkLogFrom == "file" {
+	if strings.Contains(NetworkLogFrom, "file") {
 		// =============================== //
 		// == File (.json) for testing  == //
 		// =============================== //
@@ -297,7 +297,7 @@ func getNetworkLogs() []types.KnoxNetworkLog {
 		// reset err
 		err = nil
 	}
-	if NetworkLogFrom == "kubearmor" {
+	if strings.Contains(NetworkLogFrom, "kubearmor") {
 		// =============== //
 		// == Kubearmor == //
 		// =============== //
