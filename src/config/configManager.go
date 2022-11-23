@@ -200,6 +200,13 @@ func LoadConfigFromFile() {
 		CronJobTimeInterval: "@every " + viper.GetString("publisher.cron-job-time-interval"),
 	}
 
+	// for purge old entries from db
+	CurrentCfg.ConfigPurgeOldDBEntries = types.ConfigPurgeOldDBEntries{
+		Enable:              viper.GetBool("purge-old-db-entries.enable"),
+		CronJobTimeInterval: "@every " + viper.GetString("purge-old-db-entries.cron-job-time-interval"),
+		DBName:              viper.GetStringSlice("purge-old-db-entries.dbname"),
+	}
+
 	// load database
 	CurrentCfg.ConfigDB = LoadConfigDB()
 
@@ -465,4 +472,20 @@ func GetCfgPublisherEnable() bool {
 
 func GetCfgPublisherCronJobTime() string {
 	return CurrentCfg.ConfigPublisher.CronJobTimeInterval
+}
+
+// ========================== //
+// == Purge Old DB Entries == //
+// ========================== //
+
+func GetCfgPurgeOldDBEntriesEnable() bool {
+	return CurrentCfg.ConfigPurgeOldDBEntries.Enable
+}
+
+func GetCfgPurgeOldDBEntriesCronJobTime() string {
+	return CurrentCfg.ConfigPurgeOldDBEntries.CronJobTimeInterval
+}
+
+func GetCfgPurgeOldDBEntriesDBName() []string {
+	return CurrentCfg.ConfigPurgeOldDBEntries.DBName
 }
