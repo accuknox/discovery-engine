@@ -27,15 +27,15 @@ message Response{
     string ContainerName = 5;
     repeated SysProcFileSummaryData ProcessData = 6;
     repeated SysProcFileSummaryData FileData = 7;
-    repeated SysNwSummaryData InNwData = 8;
-    repeated SysNwSummaryData OutNwData = 9;
+    repeated SysNwSummaryData IngressConnection = 8;
+    repeated SysNwSummaryData EgressConnection = 9;
     repeated CiliumSummData IngressData = 10;
     repeated CiliumSummData EgressData = 11;
 }
 
 message SysProcFileSummaryData {
-    string ProcName = 1;
-    string ParentProcName = 2;
+    string Source = 1;
+    string Destination = 2;
     string Count = 3;
     string UpdatedTime = 4;
     string Status = 5;

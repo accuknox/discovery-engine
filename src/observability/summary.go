@@ -34,11 +34,11 @@ func GetSummaryData(request *opb.Request) (*opb.Response, error) {
 		if len(proc) > 0 && strings.Contains(request.Type, "process") {
 			for _, loc_proc := range proc {
 				procResp = append(procResp, &opb.SysProcFileSummaryData{
-					ParentProcName: loc_proc.Source,
-					ProcName:       loc_proc.Destination,
-					Count:          strconv.Itoa(int(loc_proc.Count)),
-					Status:         loc_proc.Status,
-					UpdatedTime:    loc_proc.UpdatedTime,
+					Source:      loc_proc.Source,
+					Destination: loc_proc.Destination,
+					Count:       strconv.Itoa(int(loc_proc.Count)),
+					Status:      loc_proc.Status,
+					UpdatedTime: loc_proc.UpdatedTime,
 				})
 			}
 		}
@@ -46,11 +46,11 @@ func GetSummaryData(request *opb.Request) (*opb.Response, error) {
 		if len(file) > 0 && strings.Contains(request.Type, "file") {
 			for _, loc_file := range file {
 				fileResp = append(fileResp, &opb.SysProcFileSummaryData{
-					ParentProcName: loc_file.Source,
-					ProcName:       loc_file.Destination,
-					Count:          strconv.Itoa(int(loc_file.Count)),
-					Status:         loc_file.Status,
-					UpdatedTime:    loc_file.UpdatedTime,
+					Source:      loc_file.Source,
+					Destination: loc_file.Destination,
+					Count:       strconv.Itoa(int(loc_file.Count)),
+					Status:      loc_file.Status,
+					UpdatedTime: loc_file.UpdatedTime,
 				})
 			}
 		}
@@ -84,8 +84,8 @@ func GetSummaryData(request *opb.Request) (*opb.Response, error) {
 		}
 		resp.ProcessData = procResp
 		resp.FileData = fileResp
-		resp.InNwData = inNwResp
-		resp.OutNwData = outNwResp
+		resp.IngressConnection = inNwResp
+		resp.EgressConnection = outNwResp
 	}
 
 	if strings.Contains(request.Type, "ingress") || strings.Contains(request.Type, "egress") {
