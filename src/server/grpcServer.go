@@ -107,7 +107,7 @@ func (s *workerServer) GetWorkerStatus(ctx context.Context, in *wpb.WorkerReques
 
 func (s *workerServer) Convert(ctx context.Context, in *wpb.WorkerRequest) (*wpb.WorkerResponse, error) {
 
-	if strings.Contains(in.GetPolicytype(), "CiliumNetworkPolicy") || strings.Contains(in.GetPolicytype(), "NetworkPolicy") {
+	if strings.Contains(in.GetPolicytype(), "NetworkPolicy") {
 		log.Info().Msg("Convert network policy called")
 		network.InitNetPolicyDiscoveryConfiguration()
 		network.WriteNetworkPoliciesToFile(in.GetClustername(), in.GetNamespace())

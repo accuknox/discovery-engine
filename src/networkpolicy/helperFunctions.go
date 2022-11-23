@@ -778,8 +778,22 @@ func WriteNetworkPoliciesToFile(cluster, namespace string) {
 func GetNetPolicy(cluster, namespace, policyType string) *wpb.WorkerResponse {
 
 	var response wpb.WorkerResponse
+	var pType string = ""
 
-	if strings.Contains(policyType, "CiliumNetworkPolicy") {
+	// Setting all policy data to nil
+	response.K8SNetworkpolicy = nil
+	response.Ciliumpolicy = nil
+	response.Kubearmorpolicy = nil
+
+	for _, v := range strings.Split(policyType, ",") {
+		if v == "CiliumNetworkPolicy" {
+			pType += "cilium"
+		} else if v == "NetworkPolicy" {
+			pType += "generic"
+		}
+	}
+
+	if strings.Contains(pType, "cilium") {
 		latestPolicies := libs.GetNetworkPolicies(CfgDB, cluster, namespace, "latest", "", "")
 		log.Info().Msgf("No. of latestPolicies - %d", len(latestPolicies))
 		ciliumPolicies := plugin.ConvertKnoxPoliciesToCiliumPolicies(latestPolicies)
@@ -796,8 +810,9 @@ func GetNetPolicy(cluster, namespace, policyType string) *wpb.WorkerResponse {
 
 			response.Ciliumpolicy = append(response.Ciliumpolicy, &ciliumpolicy)
 		}
-		response.K8SNetworkpolicy = nil
-	} else if strings.Contains(policyType, "NetworkPolicy") {
+
+	}
+	if strings.Contains(pType, "generic") {
 		knoxNetPolicies := libs.GetNetworkPolicies(config.CurrentCfg.ConfigDB, cluster, namespace, "latest", "", "")
 		policies := plugin.ConvertKnoxNetPolicyToK8sNetworkPolicy(cluster, namespace, knoxNetPolicies)
 
@@ -813,10 +828,8 @@ func GetNetPolicy(cluster, namespace, policyType string) *wpb.WorkerResponse {
 
 			response.K8SNetworkpolicy = append(response.K8SNetworkpolicy, &genericNetPol)
 		}
-		response.Ciliumpolicy = nil
 	}
 	response.Res = "OK"
-	response.Kubearmorpolicy = nil
 
 	return &response
 }
