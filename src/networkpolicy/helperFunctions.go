@@ -306,7 +306,8 @@ func getNetworkLogs() []types.KnoxNetworkLog {
 		kaNwLogs := plugin.GetNetworkLogsFromKubeArmor()
 
 		// convert kubearmor log/alert to KnoxNetworkLog
-		networkLogs = plugin.ConvertKubeArmorNetLogToKnoxNetLog(kaNwLogs)
+		kaNetworkLogs := plugin.ConvertKubeArmorNetLogToKnoxNetLog(kaNwLogs)
+		networkLogs = append(networkLogs, kaNetworkLogs...)
 
 		// reset err
 		err = nil
@@ -318,6 +319,7 @@ func getNetworkLogs() []types.KnoxNetworkLog {
 	}
 
 	if len(networkLogs) == 0 || len(networkLogs) < OperationTrigger {
+		log.Info().Msgf("Network logs [%d] less than OperationTrigger [%d]", len(networkLogs), OperationTrigger)
 		return nil
 	}
 
