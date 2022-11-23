@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/clarketm/json"
-	//	"golang.org/x/exp/slices"
+	"golang.org/x/exp/slices"
 
 	"github.com/accuknox/auto-policy-discovery/src/cluster"
 	"github.com/accuknox/auto-policy-discovery/src/config"
@@ -785,44 +785,44 @@ func GetNetPolicy(cluster, namespace, policyType string) *wpb.WorkerResponse {
 	response.Ciliumpolicy = nil
 	response.Kubearmorpolicy = nil
 
-	//pt := strings.Split(policyType, ",")
+	pt := strings.Split(policyType, ",")
 
-	//	if slices.IndexFunc(pt, func(c string) bool { return c == "CiliumNetworkPolicy" }) > -1 {
-	latestPolicies := libs.GetNetworkPolicies(CfgDB, cluster, namespace, "latest", "", "")
-	log.Info().Msgf("No. of latestPolicies - %d", len(latestPolicies))
-	ciliumPolicies := plugin.ConvertKnoxPoliciesToCiliumPolicies(latestPolicies)
+	if slices.IndexFunc(pt, func(c string) bool { return c == "CiliumNetworkPolicy" }) > -1 {
+		latestPolicies := libs.GetNetworkPolicies(CfgDB, cluster, namespace, "latest", "", "")
+		log.Info().Msgf("No. of latestPolicies - %d", len(latestPolicies))
+		ciliumPolicies := plugin.ConvertKnoxPoliciesToCiliumPolicies(latestPolicies)
 
-	for i := range ciliumPolicies {
-		ciliumpolicy := wpb.Policy{}
+		for i := range ciliumPolicies {
+			ciliumpolicy := wpb.Policy{}
 
-		val, err := json.Marshal(&ciliumPolicies[i])
-		if err != nil {
-			log.Error().Msg(err.Error())
-			continue
+			val, err := json.Marshal(&ciliumPolicies[i])
+			if err != nil {
+				log.Error().Msg(err.Error())
+				continue
+			}
+			ciliumpolicy.Data = val
+
+			response.Ciliumpolicy = append(response.Ciliumpolicy, &ciliumpolicy)
 		}
-		ciliumpolicy.Data = val
 
-		response.Ciliumpolicy = append(response.Ciliumpolicy, &ciliumpolicy)
 	}
+	if slices.IndexFunc(pt, func(c string) bool { return c == "NetworkPolicy" }) > -1 {
+		knoxNetPolicies := libs.GetNetworkPolicies(config.CurrentCfg.ConfigDB, cluster, namespace, "latest", "", "")
+		policies := plugin.ConvertKnoxNetPolicyToK8sNetworkPolicy(cluster, namespace, knoxNetPolicies)
 
-	//	}
-	//	if slices.IndexFunc(pt, func(c string) bool { return c == "NetworkPolicy" }) > -1 {
-	knoxNetPolicies := libs.GetNetworkPolicies(config.CurrentCfg.ConfigDB, cluster, namespace, "latest", "", "")
-	policies := plugin.ConvertKnoxNetPolicyToK8sNetworkPolicy(cluster, namespace, knoxNetPolicies)
+		for i := range policies {
+			genericNetPol := wpb.Policy{}
 
-	for i := range policies {
-		genericNetPol := wpb.Policy{}
+			val, err := json.Marshal(&policies[i])
+			if err != nil {
+				log.Error().Msg(err.Error())
+				continue
+			}
+			genericNetPol.Data = val
 
-		val, err := json.Marshal(&policies[i])
-		if err != nil {
-			log.Error().Msg(err.Error())
-			continue
+			response.K8SNetworkpolicy = append(response.K8SNetworkpolicy, &genericNetPol)
 		}
-		genericNetPol.Data = val
-
-		response.K8SNetworkpolicy = append(response.K8SNetworkpolicy, &genericNetPol)
 	}
-	//	}
 	response.Res = "OK"
 
 	return &response
