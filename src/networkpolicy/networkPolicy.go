@@ -1944,6 +1944,10 @@ func convertKnoxNetworkLogToKnoxNetworkPolicy(log *types.KnoxNetworkLog, pods []
 		} else if log.Direction == "INGRESS" {
 			ingressPolicy = &iePolicy
 		}
+		// Update namespace
+		if iePolicy.Metadata["status"] == "latest" {
+			iePolicy.Metadata["namespace"] = log.SrcNamespace
+		}
 	}
 
 	if !isValidPolicy(ingressPolicy) {
