@@ -1291,6 +1291,27 @@ func GenFileSetForAllPodsInCluster(clusterName string, pods []types.Pod, settype
 			mergedfs = common.AggregatePathsExt(mergedfs) // merge and sort the filesets
 		}
 
+		sort.SliceStable(mergedfs, func(i, j int) bool {
+			return (len(mergedfs[i]) < len(mergedfs[j]))
+		})
+
+		i := 0
+		lenMergedFs := len(mergedfs)
+		for i < lenMergedFs {
+			j := i + 1
+			lenMergedFs = len(mergedfs)
+			if strings.HasSuffix(mergedfs[i], "/") {
+				for j < lenMergedFs {
+					if (len(mergedfs[i]) < len(mergedfs[j])) && strings.HasPrefix(mergedfs[j], mergedfs[i]) {
+						lenMergedFs--
+						mergedfs = append(mergedfs[:j], mergedfs[j+1:]...)
+						continue
+					}
+					j++
+				}
+			}
+			i++
+		}
 		// Add/Update DB Entry
 		if !dbEntry {
 			log.Info().Msgf("adding wpfs db entry for wpfs=%+v", wpfs)

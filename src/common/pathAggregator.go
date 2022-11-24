@@ -167,12 +167,17 @@ func buildPathTree(treeMap map[string]*Node, paths []string) {
 
 		rootPath := tokenizedPaths[0]
 
+		if rootPath == "/tmp" {
+			tokenizedPaths = pattern.FindAllString("/tmp/", -1)
+		}
+
 		if rootNode, ok := treeMap[rootPath]; !ok {
 			newRoot := &Node{
 				depth:      0,
 				path:       rootPath,
 				touchCount: 1,
 				childNodes: []*Node{},
+				isDir:      rootPath == "/tmp",
 			}
 
 			newRoot.insert(tokenizedPaths[1:])
