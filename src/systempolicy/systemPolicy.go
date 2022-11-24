@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/clarketm/json"
+	"k8s.io/utils/strings/slices"
 	"sigs.k8s.io/yaml"
 
 	"github.com/accuknox/auto-policy-discovery/src/cluster"
@@ -340,6 +341,33 @@ func extractK8SSystemPolicies(namespace, clustername, labels, fromsource string,
 			if !includeNetwork {
 				pol.Spec.Network = types.NetworkRule{}
 			}
+			// if a binary is a global binary, convert file access to global
+
+			globalbinaries := []string{}
+			for _, binary := range pol.Spec.Process.MatchPaths {
+				if len(binary.FromSource) == 0 && !slices.Contains(globalbinaries, binary.Path) {
+					globalbinaries = append(globalbinaries, binary.Path)
+				}
+			}
+
+			for i, matchpath := range pol.Spec.File.MatchPaths {
+				for _, binary := range matchpath.FromSource {
+					if slices.Contains(globalbinaries, binary.Path) {
+						pol.Spec.File.MatchPaths[i].FromSource = []types.KnoxFromSource{}
+						break
+					}
+				}
+			}
+
+			for i, matchDir := range pol.Spec.File.MatchDirectories {
+				for _, binary := range matchDir.FromSource {
+					if slices.Contains(globalbinaries, binary.Path) {
+						pol.Spec.File.MatchDirectories[i].FromSource = []types.KnoxFromSource{}
+						break
+					}
+				}
+			}
+
 			result = append(result, pol)
 		}
 	}
