@@ -22,7 +22,7 @@ if [ ! -z $1 ]; then
 fi
 
 echo "[INFO] Pushing $REPO:$VERSION"
-docker buildx build --platform $PLATFORMS --push -t $REPO:$VERSION -f $AUTOPOL_SRC_HOME/build/Dockerfile.autopol $STABLE_VERSION $LABEL .
+docker buildx build --platform $PLATFORMS --push -t $REPO:$VERSION -f $AUTOPOL_SRC_HOME/build/Dockerfile.autopol $STABLE_LABEL $LABEL .
 
 if [ $? != 0 ]; then
     echo "[FAILED] Failed to push $REPO:$VERSION"
