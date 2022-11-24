@@ -33,7 +33,7 @@ clusterRole:
   name: discovery-engine-role
   rules:
   - apiGroups: [""]
-    resources: ["pods", "svc", "deployments"]
+    resources: ["pods", "services", "deployments", "endpoints", "namespaces"]
     verbs: ["get", "list", "watch"]
   
 #clusterroleBinding
@@ -72,11 +72,11 @@ volumeMountsDiscoveryEngine:
 #resource DiscoveryEngine
 resourcesDiscoveryEngine:
   requests:
-    cpu: 800m
-    memory: 2Gi
+    cpu: 50m
+    memory: 20Mi
   limits:
-    cpu: 800m
-    memory: 2Gi
+    cpu: 500m
+    memory: 200Mi
 
 nodeSelector: {}
 
