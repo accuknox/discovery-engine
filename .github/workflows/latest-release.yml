@@ -84,7 +84,7 @@ jobs:
             value=`cat STABLE-RELEASE`
             if [ ${{ github.ref }} == refs/heads/$value ]; then
               docker pull docker.io/accuknox/knoxautopolicy:$value
-              docker image accuknox/knoxautopolicy:$value accuknox/knoxautopolicy:stable
+              docker image tag accuknox/knoxautopolicy:$value accuknox/knoxautopolicy:stable
               echo ::set-output name=tag::true
             else
               echo ::set-output name=tag::false
