@@ -117,6 +117,8 @@ type SystemSummary struct {
 	IP             string `json:"IP,omitempty"`
 	Port           int32  `json:"Port,omitempty"`
 	Protocol       string `json:"Protocol,omitempty"`
+	BindPort       string `json:"BindPort,omitempty"`
+	BindAddress    string `json:"BindAddress,omitempty"`
 	Action         string `json:"Action,omitempty"`
 	Count          int32  `json:"Count,omitempty"`
 	UpdatedTime    int64  `json:"UpdatedTime,omitempty"`
@@ -174,11 +176,13 @@ type SysObsProcFileData struct {
 }
 
 type SysObsNwData struct {
-	InOut       string
+	NetType     string
 	Protocol    string
 	Command     string
 	PodSvcIP    string
 	ServerPort  string
+	BindPort    string
+	BindAddress string
 	Namespace   string
 	Labels      string
 	Count       uint32
@@ -204,6 +208,19 @@ type SysObsProcFileMapKey struct {
 }
 
 type SysObsProcFileMapValue struct {
+	Count       uint32
+	UpdatedTime string
+}
+
+type BindPortConnectionData struct {
+	SysBind     string
+	Protocol    string
+	Command     string
+	PodSvcIP    string
+	BindPort    string
+	BindAddress string
+	Namespace   string
+	Labels      string
 	Count       uint32
 	UpdatedTime string
 }

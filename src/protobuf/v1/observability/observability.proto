@@ -29,8 +29,9 @@ message Response{
     repeated SysProcFileSummaryData FileData = 7;
     repeated SysNwSummaryData InNwData = 8;
     repeated SysNwSummaryData OutNwData = 9;
-    repeated CiliumSummData IngressData = 10;
-    repeated CiliumSummData EgressData = 11;
+    repeated SysNwSummaryData BindNwData = 10;
+    repeated CiliumSummData IngressData = 11;
+    repeated CiliumSummData EgressData = 12;
 }
 
 message SysProcFileSummaryData {
@@ -46,10 +47,12 @@ message SysNwSummaryData {
     string Command = 2;
     string IP = 3;
     string Port = 4;
-    string Labels = 5;
-    string Namespace = 6;
-    string Count = 7;
-    string UpdatedTime = 8;
+    string BindPort = 5;
+    string BindAddress = 6;
+    string Labels = 7;
+    string Namespace = 8;
+    string Count = 9;
+    string UpdatedTime = 10;
 }
 
 message CiliumSummData {
@@ -67,4 +70,3 @@ message CiliumSummData {
 message PodNameResponse {
     repeated string PodName = 1;
 }
-
