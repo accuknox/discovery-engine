@@ -1384,6 +1384,8 @@ func insertSysPoliciesYamlToDB(policies []types.KnoxSystemPolicy) {
 
 	res := []types.PolicyYaml{}
 	for i, kubearmorPolicy := range kubeArmorPolicies {
+		// dont save network policies to db
+		kubearmorPolicy.Spec.Network = types.NetworkRule{}
 		jsonBytes, err := json.Marshal(kubearmorPolicy)
 		if err != nil {
 			log.Error().Msg(err.Error())
