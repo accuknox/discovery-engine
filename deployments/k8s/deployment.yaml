@@ -1,23 +1,23 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: knoxautopolicy
+  name: discovery-engine
   labels:
-    deployment: knoxautopolicy
+    deployment: discovery-engine
 spec:
   selector:
     matchLabels:
-      container: knoxautopolicy
+      app: discovery-engine
   template:
     metadata:
       labels:
-        container: knoxautopolicy
+        app: discovery-engine
     spec:
-      serviceAccountName: knoxautopolicy
+      serviceAccountName: discovery-engine
       containers:
       - image: accuknox/knoxautopolicy:stable
         imagePullPolicy: Always
-        name: knoxautopolicy
+        name: discovery-engine
         ports:
         - containerPort: 9089
           protocol: TCP
@@ -28,16 +28,16 @@ spec:
       volumes:
         - name: config-volume
           configMap:
-            name: knoxautopolicy-config
+            name: discovery-engine-config
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: knoxautopolicy-config
+  name: discovery-engine-config
 data:
   conf.yaml: |-
     application:
-      name: knoxautopolicy
+      name: discovery-engine
       network:
         operation-mode: 1                         # 1: cronjob | 2: one-time-job
         cron-job-time-interval: "0h0m10s"         # format: XhYmZs
@@ -59,7 +59,7 @@ data:
         namespace-filter:
         - "!kube-system"
         fromsource-filter:
-        - "knoxAutoPolicy"
+        - "discovery-engine"
 
       cluster:
         cluster-info-from: "k8sclient"            # k8sclient|accuknox
@@ -82,7 +82,7 @@ data:
       port: 3306
       user: root
       password: password
-      dbname: knoxautopolicy
+      dbname: discovery-engine
       table-configuration: auto_policy_config
       table-network-log: network_log
       table-network-policy: network_policy
@@ -119,31 +119,31 @@ data:
 apiVersion: v1
 kind: Service
 metadata:
-  name: knoxautopolicy
+  name: discovery-engine
   labels:
-    service: knoxautopolicy
+    service: discovery-engine
 spec:
   ports:
   - port: 9089
     targetPort: 9089
     protocol: TCP
   selector:
-    container: knoxautopolicy
+    app: discovery-engine
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: knoxautopolicy
+  name: discovery-engine
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: knoxautopolicy
+  name: discovery-engine
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: cluster-admin
 subjects:
 - kind: ServiceAccount
-  name: knoxautopolicy
+  name: discovery-engine
   namespace: explorer
