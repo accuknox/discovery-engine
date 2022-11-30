@@ -368,6 +368,15 @@ func extractK8SSystemPolicies(namespace, clustername, labels, fromsource string,
 				}
 			}
 
+			for i, netRule := range pol.Spec.Network.MatchProtocols {
+				for _, binary := range netRule.FromSource {
+					if slices.Contains(globalbinaries, binary.Path) {
+						pol.Spec.Network.MatchProtocols[i].FromSource = []types.KnoxFromSource{}
+						break
+					}
+				}
+			}
+
 			result = append(result, pol)
 		}
 	}
