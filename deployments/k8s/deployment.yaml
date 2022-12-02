@@ -1,7 +1,13 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: accuknox-agents
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: discovery-engine
+  namespace: accuknox-agents
   labels:
     deployment: discovery-engine
 spec:
@@ -34,6 +40,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: discovery-engine-config
+  namespace: accuknox-agents
 data:
   conf.yaml: |-
     application:
@@ -41,8 +48,8 @@ data:
       network:
         operation-mode: 1                         # 1: cronjob | 2: one-time-job
         cron-job-time-interval: "0h0m10s"         # format: XhYmZs
-        operation-trigger: 1000
-        network-log-from: "hubble"                # db|hubble|feed-consumer
+        operation-trigger: 5
+        network-log-from: "kubearmor"             # db|hubble|feed-consumer
         network-log-file: "./flow.json"           # file path
         network-policy-to: "db"                   # db, file
         network-policy-dir: "./"
@@ -69,8 +76,8 @@ data:
       cron-job-time-interval: "0h0m10s"         # format: XhYmZs
       dbname: ./accuknox-obs.db
       system-observability: true
-      network-observability: true
-      write-logs-to-db: true
+      network-observability: false
+      write-logs-to-db: false
 
     publisher: 
       enable: true
@@ -120,6 +127,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: discovery-engine
+  namespace: accuknox-agents
   labels:
     service: discovery-engine
 spec:
@@ -134,6 +142,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: discovery-engine
+  namespace: accuknox-agents
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -146,4 +155,4 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: discovery-engine
-  namespace: explorer
+  namespace: accuknox-agents

@@ -368,6 +368,15 @@ func extractK8SSystemPolicies(namespace, clustername, labels, fromsource string,
 				}
 			}
 
+			for i, netRule := range pol.Spec.Network.MatchProtocols {
+				for _, binary := range netRule.FromSource {
+					if slices.Contains(globalbinaries, binary.Path) {
+						pol.Spec.Network.MatchProtocols[i].FromSource = []types.KnoxFromSource{}
+						break
+					}
+				}
+			}
+
 			result = append(result, pol)
 		}
 	}
@@ -1375,6 +1384,8 @@ func insertSysPoliciesYamlToDB(policies []types.KnoxSystemPolicy) {
 
 	res := []types.PolicyYaml{}
 	for i, kubearmorPolicy := range kubeArmorPolicies {
+		// dont save network policies to db
+		kubearmorPolicy.Spec.Network = types.NetworkRule{}
 		jsonBytes, err := json.Marshal(kubearmorPolicy)
 		if err != nil {
 			log.Error().Msg(err.Error())
