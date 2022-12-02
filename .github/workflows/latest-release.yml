@@ -40,7 +40,7 @@ jobs:
 
       - name: Run discovery engine
         run: |
-            kubectl apply -f deployments/k8s/ && kubectl wait --for=condition=ready --timeout=5m -n default pod -l container=knoxautopolicy
+            kubectl apply -f deployments/k8s/ && kubectl wait --for=condition=ready --timeout=5m -n accuknox-agents pod -l app=discovery-engine            
             kubectl get pods -A
 
 #TODO: add the following tests after they are fixed
