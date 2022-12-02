@@ -131,6 +131,7 @@ func convertSystemSummaryToGrpcResponse(summary *types.SystemSummary) *ppb.Summa
 		Action:         summary.Action,
 		Count:          summary.Count,
 		UpdatedTime:    summary.UpdatedTime,
+		WorkspaceId:    summary.WorkspaceId,
 	}
 }
 

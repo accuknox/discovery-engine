@@ -98,7 +98,6 @@ type NetworkSummary struct {
 type SystemSummary struct {
 	ClusterName    string `json:"ClusterName,omitempty"`
 	ClusterId      int32  `json:"ClusterId,omitempty"`
-	WorkspaceId    int32  `json:"WorkspaceId,omitempty"`
 	NamespaceName  string `json:"Namespace,omitempty"`
 	NamespaceId    int32  `json:"NamespaceId,omitempty"`
 	ContainerName  string `json:"ContainerName,omitempty"`
@@ -120,6 +119,7 @@ type SystemSummary struct {
 	Action         string `json:"Action,omitempty"`
 	Count          int32  `json:"Count,omitempty"`
 	UpdatedTime    int64  `json:"UpdatedTime,omitempty"`
+	WorkspaceId    int32  `json:"WorkspaceId,omitempty"`
 }
 
 type SysSummaryTimeCount struct {
