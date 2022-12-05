@@ -24,6 +24,7 @@ func GetSummaryData(request *opb.Request) (*opb.Response, error) {
 		fileResp := []*opb.SysProcFileSummaryData{}
 		inNwResp := []*opb.SysNwSummaryData{}
 		outNwResp := []*opb.SysNwSummaryData{}
+		bindNwResp := []*opb.SysNwSummaryData{}
 
 		resp.PodName = podInfo.PodName
 		resp.ClusterName = podInfo.ClusterName
@@ -57,7 +58,7 @@ func GetSummaryData(request *opb.Request) (*opb.Response, error) {
 
 		if len(nw) > 0 && strings.Contains(request.Type, "network") {
 			for _, loc_nw := range nw {
-				if loc_nw.InOut == "ingress" {
+				if loc_nw.NetType == "ingress" {
 					inNwResp = append(inNwResp, &opb.SysNwSummaryData{
 						Protocol:    loc_nw.Protocol,
 						Command:     loc_nw.Command,
@@ -68,12 +69,24 @@ func GetSummaryData(request *opb.Request) (*opb.Response, error) {
 						Count:       strconv.Itoa(int(loc_nw.Count)),
 						UpdatedTime: loc_nw.UpdatedTime,
 					})
-				} else if loc_nw.InOut == "egress" {
+				} else if loc_nw.NetType == "egress" {
 					outNwResp = append(outNwResp, &opb.SysNwSummaryData{
 						Protocol:    loc_nw.Protocol,
 						Command:     loc_nw.Command,
 						IP:          loc_nw.PodSvcIP,
 						Port:        loc_nw.ServerPort,
+						Labels:      loc_nw.Labels,
+						Namespace:   loc_nw.Namespace,
+						Count:       strconv.Itoa(int(loc_nw.Count)),
+						UpdatedTime: loc_nw.UpdatedTime,
+					})
+				} else if loc_nw.NetType == "bind" {
+					bindNwResp = append(bindNwResp, &opb.SysNwSummaryData{
+						Protocol:    loc_nw.Protocol,
+						Command:     loc_nw.Command,
+						IP:          loc_nw.PodSvcIP,
+						BindPort:    loc_nw.BindPort,
+						BindAddress: loc_nw.BindAddress,
 						Labels:      loc_nw.Labels,
 						Namespace:   loc_nw.Namespace,
 						Count:       strconv.Itoa(int(loc_nw.Count)),
@@ -86,6 +99,7 @@ func GetSummaryData(request *opb.Request) (*opb.Response, error) {
 		resp.FileData = fileResp
 		resp.IngressConnection = inNwResp
 		resp.EgressConnection = outNwResp
+		resp.BindConnection = bindNwResp
 	}
 
 	if strings.Contains(request.Type, "ingress") || strings.Contains(request.Type, "egress") {
