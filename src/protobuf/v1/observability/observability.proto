@@ -31,6 +31,7 @@ message Response{
     repeated SysNwSummaryData EgressConnection = 9;
     repeated CiliumSummData IngressData = 10;
     repeated CiliumSummData EgressData = 11;
+    repeated SysNwSummaryData BindConnection = 12;
 }
 
 message SysProcFileSummaryData {
@@ -50,6 +51,9 @@ message SysNwSummaryData {
     string Namespace = 6;
     string Count = 7;
     string UpdatedTime = 8;
+    string BindPort = 9;
+    string BindAddress = 10;
+
 }
 
 message CiliumSummData {

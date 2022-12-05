@@ -11,16 +11,18 @@ import (
 	pb "github.com/kubearmor/KubeArmor/protobuf"
 )
 
-func extractNetworkInfoFromSystemLog(netLog pb.Log) (string, string, string, string, string, string, error) {
-	var ip, destNs, destLabel, port, protocol, nwrule string = "", "", "", "", "", ""
+func extractNetworkInfoFromSystemLog(netLog pb.Log) (string, string, string, string, string, string, string, string, error) {
+	var ip, destNs, destLabel, port, bindPort, bindAddress, protocol, nwrule string = "", "", "", "", "", "", "", ""
 	err := errors.New("not a valid incoming/outgoing connection")
 
 	if strings.Contains(netLog.Data, "tcp_connect") || strings.Contains(netLog.Data, "SYS_CONNECT") {
 		nwrule = "egress"
 	} else if strings.Contains(netLog.Data, "tcp_accept") {
 		nwrule = "ingress"
+	} else if strings.Contains(netLog.Data, "SYS_BIND") {
+		nwrule = "bind"
 	} else {
-		return ip, destNs, destLabel, port, protocol, nwrule, err
+		return ip, destNs, destLabel, port, bindPort, bindAddress, protocol, nwrule, err
 	}
 
 	if strings.Contains(netLog.Data, "tcp_") {
@@ -49,11 +51,22 @@ func extractNetworkInfoFromSystemLog(netLog pb.Log) (string, string, string, str
 				}
 			}
 		}
+	} else if strings.Contains(netLog.Data, "SYS_BIND") {
+		resslice := strings.Split(netLog.Resource, " ")
+		for _, locres := range resslice {
+			if strings.Contains(locres, "sin_port") {
+				bindPort = strings.Split(locres, "=")[1]
+			}
+			if strings.Contains(locres, "sin_addr") {
+				bindAddress = strings.Split(locres, "=")[1]
+			}
+		}
+
 	} else {
-		return "", "", "", "", "", "", err
+		return "", "", "", "", "", "", "", "", err
 	}
 
-	return ip, destNs, destLabel, port, protocol, nwrule, nil
+	return ip, destNs, destLabel, port, bindPort, bindAddress, protocol, nwrule, nil
 }
 
 func convertSysLogToSysSummaryMap(syslogs []*pb.Log) {
@@ -111,7 +124,7 @@ func convertSysLogToSysSummaryMap(syslogs []*pb.Log) {
 		}
 
 		if syslog.Operation == "Network" {
-			ip, destNs, destLabel, portStr, protocol, nwrule, err := extractNetworkInfoFromSystemLog(*syslog)
+			ip, destNs, destLabel, portStr, bindPort, bindAddress, protocol, nwrule, err := extractNetworkInfoFromSystemLog(*syslog)
 			if err != nil {
 				continue
 			}
@@ -119,6 +132,8 @@ func convertSysLogToSysSummaryMap(syslogs []*pb.Log) {
 			sysSummary.NwType = nwrule
 			sysSummary.IP = ip
 			sysSummary.Port = int32(port)
+			sysSummary.BindPort = bindPort
+			sysSummary.BindAddress = bindAddress
 			sysSummary.Protocol = protocol
 			sysSummary.DestNamespace = destNs
 			sysSummary.DestLabels = destLabel
