@@ -124,7 +124,7 @@ func UpdateProcessOperation(newPolicy types.KnoxSystemPolicy, existingPolicies [
 
 			if src != "" {
 				matchDirs.FromSource = []types.KnoxFromSource{
-					types.KnoxFromSource{
+					{
 						Path: src,
 					},
 				}
@@ -143,7 +143,7 @@ func UpdateProcessOperation(newPolicy types.KnoxSystemPolicy, existingPolicies [
 
 			if src != "" {
 				matchPaths.FromSource = []types.KnoxFromSource{
-					types.KnoxFromSource{
+					{
 						Path: src,
 					},
 				}
@@ -264,7 +264,7 @@ func UpdateFileOperation(newPolicy types.KnoxSystemPolicy, existingPolicies []ty
 
 			if src != "" {
 				matchDirs.FromSource = []types.KnoxFromSource{
-					types.KnoxFromSource{
+					{
 						Path: src,
 					},
 				}
@@ -282,7 +282,7 @@ func UpdateFileOperation(newPolicy types.KnoxSystemPolicy, existingPolicies []ty
 
 			if src != "" {
 				matchPaths.FromSource = []types.KnoxFromSource{
-					types.KnoxFromSource{
+					{
 						Path: src,
 					},
 				}

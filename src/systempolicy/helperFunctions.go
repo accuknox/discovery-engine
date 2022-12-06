@@ -166,7 +166,7 @@ func GetWPFSSources() []string {
 
 	var fromSource []string
 
-	for wpfs, _ := range res {
+	for wpfs := range res {
 		if wpfs.FromSource != "" && wpfs.Namespace == types.PolicyDiscoveryVMNamespace {
 			fromSource = append(fromSource, wpfs.FromSource)
 		}

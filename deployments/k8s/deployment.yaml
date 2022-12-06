@@ -66,7 +66,7 @@ data:
         namespace-filter:
         - "!kube-system"
         fromsource-filter:
-        - "discovery-engine"
+        - "knoxAutoPolicy"
 
       cluster:
         cluster-info-from: "k8sclient"            # k8sclient|accuknox

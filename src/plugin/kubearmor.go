@@ -556,6 +556,11 @@ func ConvertKubeArmorNetLogToKnoxNetLog(kaNwLogs []*pb.Log) []types.KnoxNetworkL
 
 	results := []types.KnoxNetworkLog{}
 
+	var services []types.Service
+	var pods []types.Pod
+	var err error
+	existingClustername := ""
+
 	for _, kalog := range kaNwLogs {
 		var ip, port string
 		locKnoxLog := types.KnoxNetworkLog{
@@ -590,7 +595,13 @@ func ConvertKubeArmorNetLogToKnoxNetLog(kaNwLogs []*pb.Log) []types.KnoxNetworkL
 				continue
 			}
 
-			destPod, destLabels, destNs := cluster.ExtractPodSvcInfoFromIP(ip, kalog.ClusterName)
+			if existingClustername != kalog.ClusterName {
+				_, services, _, pods, err = cluster.GetAllClusterResources(kalog.ClusterName)
+				if err == nil {
+					existingClustername = kalog.ClusterName
+				}
+			}
+			destPod, destLabels, destNs := cluster.ExtractPodSvcInfoFromIP(ip, kalog.ClusterName, pods, services)
 
 			if ip != destPod && strings.Contains(destPod, "pod") {
 				locKnoxLog.DstPodName = strings.Split(destPod, "/")[1]

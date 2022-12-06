@@ -88,7 +88,7 @@ func TestInsertNetworkPolicies(t *testing.T) {
 		).WillReturnResult(sqlmock.NewResult(0, 1))
 
 	nfe := []types.KnoxNetworkPolicy{
-		types.KnoxNetworkPolicy{
+		{
 			Kind: "kind",
 		},
 	}
@@ -132,7 +132,7 @@ func TestInsertNetworkPoliciesSQLite(t *testing.T) {
 		).WillReturnResult(sqlmock.NewResult(0, 1))
 
 	nfe := []types.KnoxNetworkPolicy{
-		types.KnoxNetworkPolicy{
+		{
 			Kind: "kind",
 		},
 	}

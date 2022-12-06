@@ -11,7 +11,7 @@ import (
 	pb "github.com/kubearmor/KubeArmor/protobuf"
 )
 
-func extractNetworkInfoFromSystemLog(netLog pb.Log) (string, string, string, string, string, string, string, string, error) {
+func extractNetworkInfoFromSystemLog(netLog pb.Log, pods []types.Pod, services []types.Service) (string, string, string, string, string, string, string, string, error) {
 	var ip, destNs, destLabel, port, bindPort, bindAddress, protocol, nwrule string = "", "", "", "", "", "", "", ""
 	err := errors.New("not a valid incoming/outgoing connection")
 
@@ -29,7 +29,7 @@ func extractNetworkInfoFromSystemLog(netLog pb.Log) (string, string, string, str
 		resslice := strings.Split(netLog.Resource, " ")
 		for _, locres := range resslice {
 			if strings.Contains(locres, "remoteip") {
-				ip, destLabel, destNs = cluster.ExtractPodSvcInfoFromIP(strings.Split(locres, "=")[1], netLog.ClusterName)
+				ip, destLabel, destNs = cluster.ExtractPodSvcInfoFromIP(strings.Split(locres, "=")[1], netLog.ClusterName, pods, services)
 			}
 			if strings.Contains(locres, "port") {
 				port = strings.Split(locres, "=")[1]
@@ -72,6 +72,11 @@ func extractNetworkInfoFromSystemLog(netLog pb.Log) (string, string, string, str
 func convertSysLogToSysSummaryMap(syslogs []*pb.Log) {
 
 	deployments := cluster.GetDeploymentsFromK8sClient()
+
+	var services []types.Service
+	var pods []types.Pod
+	var err error
+	existingClustername := ""
 
 	for _, syslog := range syslogs {
 		sysSummary := types.SystemSummary{}
@@ -124,7 +129,15 @@ func convertSysLogToSysSummaryMap(syslogs []*pb.Log) {
 		}
 
 		if syslog.Operation == "Network" {
-			ip, destNs, destLabel, portStr, bindPort, bindAddress, protocol, nwrule, err := extractNetworkInfoFromSystemLog(*syslog)
+			if existingClustername != syslog.ClusterName {
+				_, services, _, pods, err = cluster.GetAllClusterResources(syslog.ClusterName)
+				if err == nil {
+					existingClustername = syslog.ClusterName
+				}
+			}
+
+			ip, destNs, destLabel, portStr, bindPort, bindAddress, protocol, nwrule, err := extractNetworkInfoFromSystemLog(*syslog, pods, services)
+
 			if err != nil {
 				continue
 			}
