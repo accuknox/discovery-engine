@@ -268,11 +268,13 @@ func GetKubearmorSummaryData(req *opb.Request) ([]types.SysObsProcFileData, []ty
 		} else if ss.Operation == "Network" {
 			//ExtractNwData
 			nwData = append(nwData, types.SysObsNwData{
-				InOut:       ss.NwType,
+				NetType:     ss.NwType,
 				Protocol:    ss.Protocol,
 				Command:     ss.Source,
 				PodSvcIP:    ss.IP,
 				ServerPort:  strconv.Itoa(int(ss.Port)),
+				BindPort:    ss.BindPort,
+				BindAddress: ss.BindAddress,
 				Namespace:   ss.DestNamespace,
 				Labels:      ss.DestLabels,
 				Count:       uint32(ss.Count),
