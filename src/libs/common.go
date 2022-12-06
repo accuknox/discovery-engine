@@ -18,6 +18,9 @@ import (
 
 	"github.com/clarketm/json"
 
+	"net/http"
+	"net/http/pprof"
+
 	cfg "github.com/accuknox/auto-policy-discovery/src/config"
 	logger "github.com/accuknox/auto-policy-discovery/src/logging"
 	"github.com/accuknox/auto-policy-discovery/src/types"
@@ -159,16 +162,54 @@ func (i *cfgArray) Set(str string) error {
 	return nil
 }
 
+// Manually recreate routes for profiling
+func pprofInit() {
+	pprofServeMux := http.NewServeMux()
+	pprofServeMux.Handle("/debug/pprof", http.HandlerFunc(pprof.Index))
+	pprofServeMux.Handle("/debug/pprof/cmdline", http.HandlerFunc(pprof.Cmdline))
+	pprofServeMux.Handle("/debug/pprof/profile", http.HandlerFunc(pprof.Profile))
+	pprofServeMux.Handle("/debug/pprof/symbol", http.HandlerFunc(pprof.Symbol))
+	pprofServeMux.Handle("/debug/pprof/heap", pprof.Handler("heap"))
+	pprofServeMux.Handle("/debug/pprof/block", pprof.Handler("block"))
+	pprofServeMux.Handle("/debug/pprof/goroutine", pprof.Handler("goroutine"))
+	pprofServeMux.Handle("/debug/pprof/threadcreate", pprof.Handler("threadcreate"))
+
+	server := &http.Server{
+		Addr:              "localhost:6060",
+		ReadHeaderTimeout: 90 * time.Second,
+		ReadTimeout:       90 * time.Second,
+		WriteTimeout:      90 * time.Second,
+		Handler:           pprofServeMux,
+	}
+
+	go func() {
+		log.Info().Msgf("Starting pprof... (on port 6060) \n")
+		err := server.ListenAndServe()
+		if err != nil {
+			log.Error().Msg("ListenAndServe: " + err.Error())
+		}
+	}()
+}
+
 /* configuration file values are final values */
 func CheckCommandLineConfig() {
 	var cmdlineCfg cfgArray
 
+	pprofFlag := flag.Bool("pprof", false, "enable pprof")
 	version1 := flag.Bool("v", false, "print version and exit")
 	version2 := flag.Bool("version", false, "print version and exit")
 	flag.Var(&cmdlineCfg, "cfg", "Configuration key=val")
 
 	configFilePath := flag.String("config-path", "conf/", "conf/")
 	flag.Parse()
+
+	// Reset default routes (removing access to profiling)
+	http.DefaultServeMux = http.NewServeMux()
+
+	// enable pprof profiling if enabled
+	if *pprofFlag {
+		pprofInit()
+	}
 
 	if *version1 || *version2 {
 		os.Exit(0)

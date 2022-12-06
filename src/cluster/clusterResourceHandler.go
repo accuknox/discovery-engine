@@ -66,13 +66,8 @@ func GetAllClusterResources(cluster string) ([]string, []types.Service, []types.
 }
 
 // ExtractPodSvcInfoFromIP -- Extract respective podname/ns/labels from pod/svc ip
-func ExtractPodSvcInfoFromIP(ip, clustername string) (string, string, string) {
+func ExtractPodSvcInfoFromIP(ip, clustername string, pods []types.Pod, services []types.Service) (string, string, string) {
 	podSvcName := ip
-
-	_, services, _, pods, err := GetAllClusterResources(clustername)
-	if err != nil {
-		return podSvcName, "", ""
-	}
 
 	for _, pod := range pods {
 		if pod.PodIP == ip {
