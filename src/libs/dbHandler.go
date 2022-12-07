@@ -406,7 +406,7 @@ func UpsertSystemSummary(cfg types.ConfigDB, summaryMap map[types.SystemSummary]
 func upsertSysSummarySQL(db *sql.DB, summary types.SystemSummary, timeCount types.SysSummaryTimeCount) error {
 	queryString := `cluster_name = ? and cluster_id = ? and workspace_id = ? and namespace_name = ? and namespace_id = ? and container_name = ? and container_image = ? 
 					and container_id = ? and podname = ? and operation = ? and labels = ? and deployment_name = ? and source = ? and destination = ? 
-					and destination_namespace = ? and destination_labels = ? and type = ? and ip = ? and port = ? and protocol = ? and action = ?`
+					and destination_namespace = ? and destination_labels = ? and type = ? and ip = ? and port = ? and protocol = ? and action = ? and bind_port = ? and bind_address = ?`
 
 	query := "UPDATE " + TableSystemSummarySQLite + " SET count=count+?, updated_time=? WHERE " + queryString + " "
 
@@ -440,6 +440,8 @@ func upsertSysSummarySQL(db *sql.DB, summary types.SystemSummary, timeCount type
 		summary.Port,
 		summary.Protocol,
 		summary.Action,
+		summary.BindPort,
+		summary.BindAddress,
 	)
 	if err != nil {
 		log.Error().Msg(err.Error())
@@ -611,6 +613,8 @@ func getSysSummarySQL(db *sql.DB, dbName string, filterOptions types.SystemSumma
 			&localSum.Action,
 			&localSum.Count,
 			&localSum.UpdatedTime,
+			&localSum.BindPort,
+			&localSum.BindAddress,
 		); err != nil {
 			return nil, err
 		}
