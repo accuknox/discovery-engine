@@ -732,6 +732,8 @@ func CreateSystemSummaryTableSQLite(cfg types.ConfigDB) error {
 			"	`action` varchar(10) DEFAULT NULL," +
 			"	`count` int NOT NULL," +
 			"	`updated_time` bigint NOT NULL," +
+			"   `bind_port` varchar(10) DEFAULT NULL," +
+			"   `bind_address` varchar(10) DEFAULT NULL," +
 			"	PRIMARY KEY (`id`)" +
 			"  );"
 
