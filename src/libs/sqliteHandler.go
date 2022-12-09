@@ -731,11 +731,11 @@ func CreateSystemSummaryTableSQLite(cfg types.ConfigDB) error {
 			"	`ip` int DEFAULT NULL," +
 			"	`port` varchar(10) DEFAULT NULL," +
 			"	`protocol` varchar(10) DEFAULT NULL," +
+			"	`bindport` varchar(10) DEFAULT NULL," +
+			"	`bindaddr` varchar(10) DEFAULT NULL," +
 			"	`action` varchar(10) DEFAULT NULL," +
 			"	`count` int NOT NULL," +
 			"	`updated_time` bigint NOT NULL," +
-			"   `bind_port` varchar(10) DEFAULT NULL," +
-			"   `bind_address` varchar(10) DEFAULT NULL," +
 			"	PRIMARY KEY (`id`)" +
 			"  );"
 

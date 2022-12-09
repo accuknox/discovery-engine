@@ -51,7 +51,10 @@ func extractNetworkInfoFromSystemLog(netLog pb.Log) (string, string, string, str
 				}
 			}
 		}
-	} else if strings.Contains(netLog.Data, "SYS_BIND") {
+	}
+
+	if strings.Contains(netLog.Data, "SYS_BIND") {
+		bindAddress = ip
 		resslice := strings.Split(netLog.Resource, " ")
 		for _, locres := range resslice {
 			if strings.Contains(locres, "sin_port") {
@@ -59,6 +62,9 @@ func extractNetworkInfoFromSystemLog(netLog pb.Log) (string, string, string, str
 			}
 			if strings.Contains(locres, "sin_addr") {
 				bindAddress = strings.Split(locres, "=")[1]
+			}
+			if strings.Contains(locres, "sa_family") {
+				protocol = strings.Split(locres, "=")[1]
 			}
 		}
 
