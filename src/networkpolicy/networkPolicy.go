@@ -2247,13 +2247,14 @@ func writeNetworkPoliciesYamlToDB(policies []types.KnoxNetworkPolicy) {
 			}
 
 			policyYaml := types.PolicyYaml{
-				Type:      types.PolicyTypeNetwork,
-				Kind:      np.Kind,
-				Name:      np.Name,
-				Namespace: np.Namespace,
-				Cluster:   clusters[i],
-				Labels:    np.Labels,
-				Yaml:      yamlBytes,
+				Type:        types.PolicyTypeNetwork,
+				Kind:        np.Kind,
+				Name:        np.Name,
+				Namespace:   np.Namespace,
+				WorkspaceId: cfg.GetCfgWorkspaceId(),
+				Cluster:     clusters[i],
+				Labels:      np.Labels,
+				Yaml:        yamlBytes,
 			}
 			res = append(res, policyYaml)
 
@@ -2285,13 +2286,14 @@ func writeNetworkPoliciesYamlToDB(policies []types.KnoxNetworkPolicy) {
 			}
 
 			policyYaml := types.PolicyYaml{
-				Type:      types.PolicyTypeNetwork,
-				Kind:      ciliumPolicy.Kind,
-				Name:      ciliumPolicy.Metadata["name"],
-				Namespace: ciliumPolicy.Metadata["namespace"],
-				Cluster:   clusters[i],
-				Labels:    labels,
-				Yaml:      yamlBytes,
+				Type:        types.PolicyTypeNetwork,
+				Kind:        ciliumPolicy.Kind,
+				Name:        ciliumPolicy.Metadata["name"],
+				Namespace:   ciliumPolicy.Metadata["namespace"],
+				Cluster:     clusters[i],
+				WorkspaceId: cfg.GetCfgWorkspaceId(),
+				Labels:      labels,
+				Yaml:        yamlBytes,
 			}
 			res = append(res, policyYaml)
 
