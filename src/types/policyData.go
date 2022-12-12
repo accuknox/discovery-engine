@@ -322,11 +322,12 @@ type PolicyFilter struct {
 
 // PolicyYaml stores a policy in YAML format along with its metadata
 type PolicyYaml struct {
-	Type      string   `json:"type,omitempty"`
-	Kind      string   `json:"kind,omitempty"`
-	Name      string   `json:"name,omitempty"`
-	Namespace string   `json:"namespace,omitempty"`
-	Cluster   string   `json:"cluster,omitempty"`
-	Labels    LabelMap `json:"labels,omitempty"`
-	Yaml      []byte   `json:"yaml,omitempty"`
+	Type        string   `json:"type,omitempty"`
+	Kind        string   `json:"kind,omitempty"`
+	Name        string   `json:"name,omitempty"`
+	Namespace   string   `json:"namespace,omitempty"`
+	Cluster     string   `json:"cluster,omitempty"`
+	WorkspaceId int32    `json:"workspace_id,omitempty"`
+	Labels      LabelMap `json:"labels,omitempty"`
+	Yaml        []byte   `json:"yaml,omitempty"`
 }
