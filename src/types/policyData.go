@@ -328,6 +328,7 @@ type PolicyYaml struct {
 	Namespace   string   `json:"namespace,omitempty"`
 	Cluster     string   `json:"cluster,omitempty"`
 	WorkspaceId int32    `json:"workspace_id,omitempty"`
+	ClusterId   int32    `json:"cluster_id,omitempty"`
 	Labels      LabelMap `json:"labels,omitempty"`
 	Yaml        []byte   `json:"yaml,omitempty"`
 }
