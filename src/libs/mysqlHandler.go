@@ -708,6 +708,7 @@ func CreateTableNetworkLogsMySQL(cfg types.ConfigDB) error {
 	return err
 }
 
+// Need to add workspace_id here
 func CreatePolicyTableMySQL(cfg types.ConfigDB) error {
 	db := connectMySQL(cfg)
 	defer db.Close()
@@ -725,6 +726,8 @@ func CreatePolicyTableMySQL(cfg types.ConfigDB) error {
 			"	`policy_name` varchar(150) DEFAULT NULL," +
 			"	`policy_yaml` text DEFAULT NULL," +
 			"	`updated_time` bigint NOT NULL," +
+			"	`workspace_id` INTEGER NOT NULL," +
+			"	`cluster_id` INTEGER NOT NULL," +
 			"	PRIMARY KEY (`id`)" +
 			"  );"
 
@@ -1603,7 +1606,7 @@ func GetPolicyYamlsMySQL(cfg types.ConfigDB, policyType string) ([]types.PolicyY
 	var results *sql.Rows
 	var err error
 
-	query := "SELECT type,kind,cluster_name,namespace,labels,policy_name,policy_yaml FROM " + PolicyYaml_TableName
+	query := "SELECT type,kind,cluster_name,namespace,labels,policy_name,policy_yaml,workspace_id,cluster_id FROM " + PolicyYaml_TableName
 	query = query + "WHERE type = ?"
 
 	results, err = db.Query(query, policyType)
@@ -1625,6 +1628,8 @@ func GetPolicyYamlsMySQL(cfg types.ConfigDB, policyType string) ([]types.PolicyY
 			&labels,
 			&policy.Name,
 			&policy.Yaml,
+			&policy.WorkspaceId,
+			&policy.ClusterId,
 		); err != nil {
 			return nil, err
 		}
@@ -1676,7 +1681,7 @@ func updateOrInsertPolicyYamlMySQL(policy types.PolicyYaml, db *sql.DB) error {
 	if err == nil && rowsAffected == 0 {
 
 		insertStmt, err := db.Prepare("INSERT INTO " + PolicyYaml_TableName +
-			"(type,kind,cluster_name,namespace,labels,policy_name,policy_yaml,updated_time) values(?,?,?,?,?,?,?,?)")
+			"(type,kind,cluster_name,namespace,labels,policy_name,policy_yaml,updated_time,workspace_id,cluster_id) values(?,?,?,?,?,?,?,?,?,?)")
 		if err != nil {
 			return err
 		}
@@ -1685,12 +1690,14 @@ func updateOrInsertPolicyYamlMySQL(policy types.PolicyYaml, db *sql.DB) error {
 		_, err = insertStmt.Exec(
 			policy.Type,
 			policy.Kind,
-			policy.Cluster,
+			config.GetCfgClusterName(),
 			policy.Namespace,
 			LabelMapToString(policy.Labels),
 			policy.Name,
 			policy.Yaml,
 			ConvertStrToUnixTime("now"),
+			policy.WorkspaceId,
+			policy.ClusterId,
 		)
 		if err != nil {
 			log.Error().Msg(err.Error())

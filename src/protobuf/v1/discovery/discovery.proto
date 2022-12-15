@@ -23,4 +23,6 @@ message GetPolicyResponse {
   repeated string label = 4;
   string name = 5;
   bytes yaml = 6;
+  int32 workspace_id = 7;
+  int32 cluster_id = 8;
 }
