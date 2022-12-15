@@ -1404,6 +1404,7 @@ func insertSysPoliciesYamlToDB(policies []types.KnoxSystemPolicy) {
 			Namespace:   kubearmorPolicy.Metadata["namespace"],
 			Cluster:     clusters[i],
 			WorkspaceId: cfg.GetCfgWorkspaceId(),
+			ClusterId:   cfg.GetCfgClusterId(),
 			Labels:      kubearmorPolicy.Spec.Selector.MatchLabels,
 			Yaml:        yamlBytes,
 		}

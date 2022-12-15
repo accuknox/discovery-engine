@@ -141,12 +141,14 @@ func convertGrpcRequestToPolicyFilter(req *dpb.GetPolicyRequest) types.PolicyFil
 
 func convertPolicyYamlToGrpcResponse(p *types.PolicyYaml) *dpb.GetPolicyResponse {
 	return &dpb.GetPolicyResponse{
-		Kind:      p.Kind,
-		Name:      p.Name,
-		Cluster:   p.Cluster,
-		Namespace: p.Namespace,
-		Label:     LabelMapToLabelArray(p.Labels),
-		Yaml:      p.Yaml,
+		Kind:        p.Kind,
+		Name:        p.Name,
+		Cluster:     p.Cluster,
+		Namespace:   p.Namespace,
+		Label:       LabelMapToLabelArray(p.Labels),
+		Yaml:        p.Yaml,
+		WorkspaceId: p.WorkspaceId,
+		ClusterId:   p.ClusterId,
 	}
 }
 

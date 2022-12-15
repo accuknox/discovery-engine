@@ -2252,6 +2252,7 @@ func writeNetworkPoliciesYamlToDB(policies []types.KnoxNetworkPolicy) {
 				Name:        np.Name,
 				Namespace:   np.Namespace,
 				WorkspaceId: cfg.GetCfgWorkspaceId(),
+				ClusterId:   cfg.GetCfgClusterId(),
 				Cluster:     clusters[i],
 				Labels:      np.Labels,
 				Yaml:        yamlBytes,
@@ -2292,6 +2293,7 @@ func writeNetworkPoliciesYamlToDB(policies []types.KnoxNetworkPolicy) {
 				Namespace:   ciliumPolicy.Metadata["namespace"],
 				Cluster:     clusters[i],
 				WorkspaceId: cfg.GetCfgWorkspaceId(),
+				ClusterId:   cfg.GetCfgClusterId(),
 				Labels:      labels,
 				Yaml:        yamlBytes,
 			}
