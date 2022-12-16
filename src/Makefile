@@ -11,7 +11,7 @@ GIT_INFO := $(shell govvv -flags -pkg $(PKG))
 .PHONY: build
 build:
 	@# for build_image -> CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -ldflags '-s -w' -o knoxAutoPolicy main.go
-	@# for delve -> cd $(CURDIR); go mod tidy; go build -tags debugger -gcflags="all=-N -l" -o knoxAutoPolicy main.go
+	@# for delve -> cd $(CURDIR); go mod tidy; go build -O -tags debugger -gcflags="all=-N -l -m" -o knoxAutoPolicy main.go
 	go mod tidy
 	go build -ldflags "$(GIT_INFO)" -o knoxAutoPolicy main.go
 
