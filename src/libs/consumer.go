@@ -116,7 +116,7 @@ func matchPolicyYaml(p *types.PolicyYaml, c *PolicyConsumer) bool {
 		return false
 	}
 
-	if filter.Namespace != "" && filter.Cluster != p.Namespace {
+	if filter.Namespace != "" && filter.Namespace != p.Namespace {
 		return false
 	}
 
