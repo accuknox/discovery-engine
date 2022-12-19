@@ -2223,17 +2223,12 @@ func PopulateNetworkPoliciesFromNetworkLogs(networkLogs []types.KnoxNetworkLog) 
 }
 
 func writeNetworkPoliciesYamlToDB(policies []types.KnoxNetworkPolicy) {
-	clusters := []string{}
 	res := []types.PolicyYaml{}
-
-	for _, pol := range policies {
-		clusters = append(clusters, pol.Metadata["cluster_name"])
-	}
 
 	if cfg.CurrentCfg.ConfigNetPolicy.NetworkLogFrom == "kubearmor" {
 		k8sNetPolicies := plugin.ConvertKnoxNetPolicyToK8sNetworkPolicy("", "", policies)
 
-		for i, np := range k8sNetPolicies {
+		for _, np := range k8sNetPolicies {
 			np.ClusterName = ""
 			jsonBytes, err := json.Marshal(np)
 			if err != nil {
@@ -2253,7 +2248,7 @@ func writeNetworkPoliciesYamlToDB(policies []types.KnoxNetworkPolicy) {
 				Namespace:   np.Namespace,
 				WorkspaceId: cfg.GetCfgWorkspaceId(),
 				ClusterId:   cfg.GetCfgClusterId(),
-				Cluster:     clusters[i],
+				Cluster:     cfg.GetCfgClusterName(),
 				Labels:      np.Labels,
 				Yaml:        yamlBytes,
 			}
@@ -2267,7 +2262,7 @@ func writeNetworkPoliciesYamlToDB(policies []types.KnoxNetworkPolicy) {
 		// convert knoxPolicy to CiliumPolicy
 		ciliumPolicies := plugin.ConvertKnoxPoliciesToCiliumPolicies(policies)
 
-		for i, ciliumPolicy := range ciliumPolicies {
+		for _, ciliumPolicy := range ciliumPolicies {
 			jsonBytes, err := json.Marshal(ciliumPolicy)
 			if err != nil {
 				log.Error().Msg(err.Error())
@@ -2291,7 +2286,7 @@ func writeNetworkPoliciesYamlToDB(policies []types.KnoxNetworkPolicy) {
 				Kind:        ciliumPolicy.Kind,
 				Name:        ciliumPolicy.Metadata["name"],
 				Namespace:   ciliumPolicy.Metadata["namespace"],
-				Cluster:     clusters[i],
+				Cluster:     cfg.GetCfgClusterName(),
 				WorkspaceId: cfg.GetCfgWorkspaceId(),
 				ClusterId:   cfg.GetCfgClusterId(),
 				Labels:      labels,
