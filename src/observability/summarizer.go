@@ -46,15 +46,13 @@ func extractNetworkInfoFromSystemLog(netLog pb.Log, pods []types.Pod, services [
 				path = strings.Split(locres, "=")[1]
 				if path != "" {
 					ip = path
-					protocol = "UNIX"
+					bindAddress = path
+					protocol = "AF_UNIX"
 					break
 				}
 			}
 		}
-	}
-
-	if strings.Contains(netLog.Data, "SYS_BIND") {
-		bindAddress = ip
+	} else if strings.Contains(netLog.Data, "SYS_BIND") {
 		resslice := strings.Split(netLog.Resource, " ")
 		for _, locres := range resslice {
 			if strings.Contains(locres, "sin_port") {
