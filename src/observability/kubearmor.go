@@ -217,11 +217,12 @@ func aggregateProcFileData(data []types.SysObsProcFileData) []types.SysObsProcFi
 	return res
 }
 
-func GetKubearmorSummaryData(req *opb.Request) ([]types.SysObsProcFileData, []types.SysObsProcFileData, []types.SysObsNwData, types.ObsPodDetail) {
+func GetKubearmorSummaryData(req *opb.Request) ([]types.SysObsProcFileData, []types.SysObsProcFileData, []types.SysObsNwData, []types.SysObsSycallData, types.ObsPodDetail) {
 	var err error
 	var processData, fileData []types.SysObsProcFileData
 	var nwData []types.SysObsNwData
 	var podInfo types.ObsPodDetail
+	var sysCallData []types.SysObsSycallData
 
 	sysSummary, err := libs.GetSystemSummary(CfgDB, types.SystemSummary{
 		PodName:       req.PodName,
@@ -232,7 +233,7 @@ func GetKubearmorSummaryData(req *opb.Request) ([]types.SysObsProcFileData, []ty
 		Deployment:    req.DeployName,
 	})
 	if err != nil {
-		return nil, nil, nil, types.ObsPodDetail{}
+		return nil, nil, nil, nil, types.ObsPodDetail{}
 	}
 
 	for i, ss := range sysSummary {
@@ -280,6 +281,17 @@ func GetKubearmorSummaryData(req *opb.Request) ([]types.SysObsProcFileData, []ty
 				Count:       uint32(ss.Count),
 				UpdatedTime: t.Format(time.UnixDate),
 			})
+		} else if ss.Operation == types.OperationTypeSyscall {
+			//ExtractsyscallData
+			sysCallData = append(sysCallData, types.SysObsSycallData{
+				ParentProcess: ss.Source,
+				ChildProcess:  ss.Destination,
+				Syscall:       ss.Syscall,
+				Parameters:    ss.Parameters,
+				Count:         uint32(ss.Count),
+				UpdatedTime:   t.Format(time.UnixDate),
+				Result:        ss.Action,
+			})
 		}
 	}
 
@@ -287,5 +299,5 @@ func GetKubearmorSummaryData(req *opb.Request) ([]types.SysObsProcFileData, []ty
 		fileData = aggregateProcFileData(fileData)
 	}
 
-	return processData, fileData, nwData, podInfo
+	return processData, fileData, nwData, sysCallData, podInfo
 }

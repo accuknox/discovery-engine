@@ -127,6 +127,8 @@ type SystemSummary struct {
 	Message        string `json:"Message,omitempty"`
 	Enforcer       string `json:"Enforcer,omitempty"`
 	PolicyName     string `json:"PolicyName,omitempty"`
+	Syscall        string `json:"Syscall,omitempty"`
+	Parameters     string `json:"Parameters,omitempty"`
 }
 
 type SysSummaryTimeCount struct {
@@ -229,4 +231,14 @@ type BindPortConnectionData struct {
 	Labels      string
 	Count       uint32
 	UpdatedTime string
+}
+
+type SysObsSycallData struct {
+	ParentProcess string
+	ChildProcess  string
+	Syscall       string
+	Parameters    string
+	Count         uint32
+	UpdatedTime   string
+	Result        string
 }

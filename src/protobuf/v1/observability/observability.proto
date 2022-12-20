@@ -36,6 +36,7 @@ message Response{
     repeated CiliumSummData IngressData = 11;
     repeated CiliumSummData EgressData = 12;
     repeated SysNwSummaryData BindConnection = 13;
+    repeated SysSyscallSummaryData SyscallData = 14;
 }
 
 message SysProcFileSummaryData {
@@ -58,6 +59,16 @@ message SysNwSummaryData {
     string BindPort = 9;
     string BindAddress = 10;
 
+}
+
+message SysSyscallSummaryData {
+    string ParentProcess = 1;
+	string ChildProcess  = 2;
+	string Syscall = 3;       
+	string Parameters = 4;  
+	string Count = 5;         
+	string UpdatedTime = 6; 
+	string Result = 7;      
 }
 
 message CiliumSummData {

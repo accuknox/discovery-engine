@@ -733,6 +733,8 @@ func CreateSystemSummaryTableSQLite(cfg types.ConfigDB) error {
 			"	`protocol` varchar(10) DEFAULT NULL," +
 			"	`bindport` varchar(10) DEFAULT NULL," +
 			"	`bindaddr` varchar(10) DEFAULT NULL," +
+			"   `syscall` varchar(10) DEFAULT NULL," +
+			"   `parameters` varchar(10) DEFAULT NULL," +
 			"	`action` varchar(10) DEFAULT NULL," +
 			"	`count` int NOT NULL," +
 			"	`updated_time` bigint NOT NULL," +

@@ -73,6 +73,27 @@ func extractNetworkInfoFromSystemLog(netLog pb.Alert, pods []types.Pod, services
 	return ip, destNs, destLabel, port, bindPort, bindAddress, protocol, nwrule, nil
 }
 
+func extractSyscallInfoFromSystemLog(sysCallLog pb.Alert, pods []types.Pod, services []types.Service) (string, string, string, string, error) {
+	var ParentProcess, ChildProcess, Syscall, Parameters string = "", "", "", ""
+	err := errors.New("not a valid Syscall")
+
+	if sysCallLog.Operation == types.OperationTypeSyscall {
+		ParentProcess = sysCallLog.ParentProcessName
+		ChildProcess = sysCallLog.ProcessName
+
+		resslice := strings.SplitN(sysCallLog.Data, " ", 2)
+		if strings.Contains(resslice[0], "syscall") {
+			Syscall = strings.Split(resslice[0], "=")[1]
+		}
+		Parameters = resslice[1]
+
+	} else {
+		return "", "", "", "", err
+	}
+
+	return ParentProcess, ChildProcess, Syscall, Parameters, nil
+}
+
 func convertSysLogToSysSummaryMap(syslogs []*pb.Alert) {
 
 	deployments := cluster.GetDeploymentsFromK8sClient()
@@ -93,7 +114,7 @@ func convertSysLogToSysSummaryMap(syslogs []*pb.Alert) {
 			continue
 		}
 
-		if syslog.Operation != "File" && syslog.Operation != "Process" && syslog.Operation != "Network" {
+		if syslog.Operation != types.OperationTypeFile && syslog.Operation != types.OperationTypeProcess && syslog.Operation != types.OperationTypeNetwork && syslog.Operation != types.OperationTypeSyscall {
 			continue
 		}
 
@@ -163,6 +184,28 @@ func convertSysLogToSysSummaryMap(syslogs []*pb.Alert) {
 			sysSummary.DestNamespace = ""
 			sysSummary.DestLabels = ""
 			sysSummary.Destination = strings.Split(syslog.Resource, " ")[0]
+		}
+
+		if syslog.Operation == types.OperationTypeSyscall {
+			if existingClustername != syslog.ClusterName {
+				_, services, _, pods, err = cluster.GetAllClusterResources(syslog.ClusterName)
+				if err == nil {
+					existingClustername = syslog.ClusterName
+				}
+			}
+
+			ParentProcess, ChildProcess, Syscall, Parameters, err := extractSyscallInfoFromSystemLog(*syslog, pods, services)
+
+			if err != nil {
+				continue
+			}
+			sysSummary.Source = ParentProcess
+			sysSummary.Destination = ChildProcess
+			sysSummary.Syscall = Syscall
+			sysSummary.Parameters = Parameters
+		} else if syslog.Operation == types.OperationTypeFile || syslog.Operation == types.OperationTypeProcess || syslog.Operation == types.OperationTypeNetwork {
+			sysSummary.Syscall = ""
+			sysSummary.Parameters = ""
 		}
 
 		if syslog.Type == "ContainerLog" && syslog.NamespaceName == types.PolicyDiscoveryContainerNamespace {

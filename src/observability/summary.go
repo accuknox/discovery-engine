@@ -12,11 +12,11 @@ func GetSummaryData(request *opb.Request) (*opb.Response, error) {
 	resp := opb.Response{}
 	var err error = nil
 
-	if strings.Contains(request.Type, "process") || strings.Contains(request.Type, "file") || strings.Contains(request.Type, "network") {
+	if strings.Contains(request.Type, "process") || strings.Contains(request.Type, "file") || strings.Contains(request.Type, "network") || strings.Contains(request.Type, "syscall") {
 
-		proc, file, nw, podInfo := GetKubearmorSummaryData(request)
+		proc, file, nw, syscall, podInfo := GetKubearmorSummaryData(request)
 
-		if len(proc) <= 0 && len(file) <= 0 && len(nw) <= 0 {
+		if len(proc) <= 0 && len(file) <= 0 && len(nw) <= 0 && len(syscall) <= 0 {
 			return nil, errors.New("no system summary info present for the requested pod name")
 		}
 
@@ -25,6 +25,7 @@ func GetSummaryData(request *opb.Request) (*opb.Response, error) {
 		inNwResp := []*opb.SysNwSummaryData{}
 		outNwResp := []*opb.SysNwSummaryData{}
 		bindNwResp := []*opb.SysNwSummaryData{}
+		syscallResp := []*opb.SysSyscallSummaryData{}
 
 		resp.DeploymentName = podInfo.DeployName
 		resp.PodName = podInfo.PodName
@@ -96,11 +97,27 @@ func GetSummaryData(request *opb.Request) (*opb.Response, error) {
 				}
 			}
 		}
+
+		if len(syscall) > 0 && strings.Contains(request.Type, "syscall") {
+			for _, loc_syscall := range syscall {
+				syscallResp = append(syscallResp, &opb.SysSyscallSummaryData{
+					ParentProcess: loc_syscall.ParentProcess,
+					ChildProcess:  loc_syscall.ChildProcess,
+					Syscall:       loc_syscall.Syscall,
+					Parameters:    loc_syscall.Parameters,
+					Count:         strconv.Itoa(int(loc_syscall.Count)),
+					UpdatedTime:   loc_syscall.UpdatedTime,
+					Result:        loc_syscall.Result,
+				})
+			}
+		}
+
 		resp.ProcessData = procResp
 		resp.FileData = fileResp
 		resp.IngressConnection = inNwResp
 		resp.EgressConnection = outNwResp
 		resp.BindConnection = bindNwResp
+		resp.SyscallData = syscallResp
 	}
 
 	if strings.Contains(request.Type, "ingress") || strings.Contains(request.Type, "egress") {
