@@ -50,10 +50,6 @@ const (
 )
 
 const (
-	SYS_OP_PROCESS = "Process"
-	SYS_OP_FILE    = "File"
-	SYS_OP_NETWORK = "Network"
-
 	SYS_OP_PROCESS_INT = 1
 	SYS_OP_FILE_INT    = 2
 	SYS_OP_NETWORK_INT = 4
@@ -519,7 +515,7 @@ func discoverFileOperationPolicy(results []types.KnoxSystemPolicy, pod types.Pod
 
 	// step 2: build file operation
 	policy := buildSystemPolicy()
-	policy.Metadata["type"] = SYS_OP_FILE
+	policy.Metadata["type"] = types.OpTypeFile
 	policy.Spec.File = types.KnoxSys{}
 
 	// step 3: aggregate file paths
@@ -529,7 +525,7 @@ func discoverFileOperationPolicy(results []types.KnoxSystemPolicy, pod types.Pod
 		// step 4: append spec to the policy
 		for _, filePath := range aggregatedFilePaths {
 			appended = true
-			policy = updateSysPolicySpec(SYS_OP_FILE, policy, src, filePath)
+			policy = updateSysPolicySpec(types.OpTypeFile, policy, src, filePath)
 		}
 	}
 
@@ -563,7 +559,7 @@ func discoverProcessOperationPolicy(results []types.KnoxSystemPolicy, pod types.
 
 	// step 2: build process operation
 	policy := buildSystemPolicy()
-	policy.Metadata["type"] = SYS_OP_PROCESS
+	policy.Metadata["type"] = types.OpTypeProcess
 	policy.Spec.Process = types.KnoxSys{}
 
 	// step 3: aggregate process paths
@@ -573,7 +569,7 @@ func discoverProcessOperationPolicy(results []types.KnoxSystemPolicy, pod types.
 		// step 4: append spec to the policy
 		for _, processPath := range aggregatedProcessPaths {
 			appended = true
-			policy = updateSysPolicySpec(SYS_OP_PROCESS, policy, src, processPath)
+			policy = updateSysPolicySpec(types.OpTypeProcess, policy, src, processPath)
 		}
 	}
 
@@ -857,7 +853,7 @@ func ConvertWPFSToKnoxSysPolicy(wpfsSet types.ResourceSetMap, pnMap types.Policy
 				IsDir: strings.HasSuffix(fpath, "/"),
 			}
 			src := ""
-			if wpfs.SetType == SYS_OP_NETWORK || strings.HasPrefix(wpfs.FromSource, "/") {
+			if wpfs.SetType == types.OpTypeNetwork || strings.HasPrefix(wpfs.FromSource, "/") {
 				src = wpfs.FromSource
 			}
 			policy = updateSysPolicySpec(wpfs.SetType, policy, src, path)
@@ -915,7 +911,7 @@ func buildSystemPolicy() types.KnoxSystemPolicy {
 }
 
 func updateSysPolicySpec(opType string, policy types.KnoxSystemPolicy, src string, pathSpec common.SysPath) types.KnoxSystemPolicy {
-	if opType == SYS_OP_NETWORK {
+	if opType == types.OpTypeNetwork {
 		matchProtocols := types.KnoxMatchProtocols{
 			Protocol: pathSpec.Path,
 		}
@@ -939,7 +935,7 @@ func updateSysPolicySpec(opType string, policy types.KnoxSystemPolicy, src strin
 			Recursive: true,
 		}
 
-		if opType == SYS_OP_FILE {
+		if opType == types.OpTypeFile {
 			if FileFromSource {
 				if src != "" {
 					matchDirs.FromSource = []types.KnoxFromSource{
@@ -952,7 +948,7 @@ func updateSysPolicySpec(opType string, policy types.KnoxSystemPolicy, src strin
 			}
 
 			policy.Spec.File.MatchDirectories = append(policy.Spec.File.MatchDirectories, matchDirs)
-		} else if opType == SYS_OP_PROCESS {
+		} else if opType == types.OpTypeProcess {
 			if ProcessFromSource {
 				if src != "" {
 					matchDirs.FromSource = []types.KnoxFromSource{
@@ -972,7 +968,7 @@ func updateSysPolicySpec(opType string, policy types.KnoxSystemPolicy, src strin
 			Path: pathSpec.Path,
 		}
 
-		if opType == SYS_OP_FILE {
+		if opType == types.OpTypeFile {
 			if FileFromSource {
 				if src != "" {
 					matchPaths.FromSource = []types.KnoxFromSource{
@@ -985,7 +981,7 @@ func updateSysPolicySpec(opType string, policy types.KnoxSystemPolicy, src strin
 			}
 
 			policy.Spec.File.MatchPaths = append(policy.Spec.File.MatchPaths, matchPaths)
-		} else if opType == SYS_OP_PROCESS {
+		} else if opType == types.OpTypeProcess {
 			if ProcessFromSource {
 				if src != "" {
 					matchPaths.FromSource = []types.KnoxFromSource{
@@ -1115,8 +1111,8 @@ func PopulateSystemPoliciesFromSystemLogs(sysLogs []types.KnoxSystemLog) []types
 			isWpfsDbUpdated := false
 			// 1. discover file operation system policy
 			if SystemPolicyTypes&SYS_OP_FILE_INT > 0 {
-				fileOpLogs := getOperationLogs(SYS_OP_FILE, perPodlogs)
-				isWpfsDbUpdated = GenFileSetForAllPodsInCluster(clusterName, pods, SYS_OP_FILE, fileOpLogs) || isWpfsDbUpdated
+				fileOpLogs := getOperationLogs(types.OpTypeFile, perPodlogs)
+				isWpfsDbUpdated = GenFileSetForAllPodsInCluster(clusterName, pods, types.OpTypeFile, fileOpLogs) || isWpfsDbUpdated
 				if !cfg.CurrentCfg.ConfigSysPolicy.DeprecateOldMode {
 					discoveredSysPolicies = discoverFileOperationPolicy(discoveredSysPolicies, pod, fileOpLogs)
 					log.Info().Msgf("discovered %d file policies from %d file logs",
@@ -1126,8 +1122,8 @@ func PopulateSystemPoliciesFromSystemLogs(sysLogs []types.KnoxSystemLog) []types
 
 			// 2. discover process operation system policy
 			if SystemPolicyTypes&SYS_OP_PROCESS_INT > 0 {
-				procOpLogs := getOperationLogs(SYS_OP_PROCESS, perPodlogs)
-				isWpfsDbUpdated = GenFileSetForAllPodsInCluster(clusterName, pods, SYS_OP_PROCESS, procOpLogs) || isWpfsDbUpdated
+				procOpLogs := getOperationLogs(types.OpTypeProcess, perPodlogs)
+				isWpfsDbUpdated = GenFileSetForAllPodsInCluster(clusterName, pods, types.OpTypeProcess, procOpLogs) || isWpfsDbUpdated
 				if !cfg.CurrentCfg.ConfigSysPolicy.DeprecateOldMode {
 					discoveredSysPolicies = discoverProcessOperationPolicy(discoveredSysPolicies, pod, procOpLogs)
 					polCnt = len(discoveredSysPolicies)
@@ -1138,8 +1134,8 @@ func PopulateSystemPoliciesFromSystemLogs(sysLogs []types.KnoxSystemLog) []types
 
 			// 3. discover network operation system policy
 			if SystemPolicyTypes&SYS_OP_NETWORK_INT > 0 {
-				netOpLogs := getOperationLogs(SYS_OP_NETWORK, perPodlogs)
-				isWpfsDbUpdated = GenFileSetForAllPodsInCluster(clusterName, pods, SYS_OP_NETWORK, netOpLogs) || isWpfsDbUpdated
+				netOpLogs := getOperationLogs(types.OpTypeNetwork, perPodlogs)
+				isWpfsDbUpdated = GenFileSetForAllPodsInCluster(clusterName, pods, types.OpTypeNetwork, netOpLogs) || isWpfsDbUpdated
 
 			}
 
@@ -1259,7 +1255,7 @@ func getProtocolType(str string) string {
 // just once. Examples are /proc, /sys.
 func cleanResource(op string, str string) []string {
 	var arr []string
-	if op == SYS_OP_NETWORK {
+	if op == types.OpTypeNetwork {
 		prot := getProtocolType(str)
 		if prot != "" {
 			arr = strings.Split(prot, ",")
@@ -1297,7 +1293,7 @@ func GenFileSetForAllPodsInCluster(clusterName string, pods []types.Pod, settype
 	wpfs := types.WorkloadProcessFileSet{}
 	isNetworkOp := false
 	status := false
-	if settype == SYS_OP_NETWORK {
+	if settype == types.OpTypeNetwork {
 		isNetworkOp = true // for network logs, need full ResourceOrigin to do regexp matching in getProtocolType()
 	}
 	var resource []string

@@ -326,14 +326,14 @@ func UpdateDuplicatedPolicy(existingPolicies []types.KnoxSystemPolicy, discovere
 		namedPolicy := GeneratePolicyName(policyNamesMap, policy, clusterName)
 
 		// step 3: update fild operation system policy
-		if policy.Metadata["type"] == SYS_OP_FILE {
+		if policy.Metadata["type"] == types.OpTypeFile {
 			if updatedPolicy, updated := UpdateFileOperation(namedPolicy, existingPolicies); updated {
 				namedPolicy = updatedPolicy
 			}
 		}
 
 		// step 4: update process operation system policy
-		if policy.Metadata["type"] == SYS_OP_PROCESS {
+		if policy.Metadata["type"] == types.OpTypeProcess {
 			if updatedPolicy, updated := UpdateProcessOperation(namedPolicy, existingPolicies); updated {
 				namedPolicy = updatedPolicy
 			}

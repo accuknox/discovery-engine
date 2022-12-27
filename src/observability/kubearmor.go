@@ -119,7 +119,7 @@ func ProcessSystemLogs() {
 				locLog.PodName = types.PolicyDiscoveryVMPodName
 			}
 
-			if locLog.Operation != "Network" {
+			if locLog.Operation != types.OpTypeNetwork {
 				locLog.Source = strings.Split(locLog.Source, " ")[0]
 				locLog.Resource = strings.Split(locLog.Resource, " ")[0]
 				locLog.Data = ""
@@ -233,6 +233,7 @@ func GetKubearmorSummaryData(req *opb.Request) ([]types.SysObsProcFileData, []ty
 		Deployment:    req.DeployName,
 	})
 	if err != nil {
+		log.Error().Msgf("failed to get system summary, error: %v", err)
 		return nil, nil, nil, nil, types.ObsPodDetail{}
 	}
 
@@ -248,7 +249,7 @@ func GetKubearmorSummaryData(req *opb.Request) ([]types.SysObsProcFileData, []ty
 
 		t := time.Unix(ss.UpdatedTime, 0)
 
-		if ss.Operation == "Process" {
+		if ss.Operation == types.OpTypeProcess {
 			//ExtractProcessData
 			processData = append(processData, types.SysObsProcFileData{
 				Source:      ss.Source,
@@ -257,7 +258,7 @@ func GetKubearmorSummaryData(req *opb.Request) ([]types.SysObsProcFileData, []ty
 				Count:       uint32(ss.Count),
 				UpdatedTime: t.Format(time.UnixDate),
 			})
-		} else if ss.Operation == "File" {
+		} else if ss.Operation == types.OpTypeFile {
 			//ExtractFileData
 			fileData = append(fileData, types.SysObsProcFileData{
 				Source:      ss.Source,
@@ -266,7 +267,7 @@ func GetKubearmorSummaryData(req *opb.Request) ([]types.SysObsProcFileData, []ty
 				Count:       uint32(ss.Count),
 				UpdatedTime: t.Format(time.UnixDate),
 			})
-		} else if ss.Operation == "Network" {
+		} else if ss.Operation == types.OpTypeNetwork {
 			//ExtractNwData
 			nwData = append(nwData, types.SysObsNwData{
 				NetType:     ss.NwType,
@@ -281,7 +282,7 @@ func GetKubearmorSummaryData(req *opb.Request) ([]types.SysObsProcFileData, []ty
 				Count:       uint32(ss.Count),
 				UpdatedTime: t.Format(time.UnixDate),
 			})
-		} else if ss.Operation == types.OperationTypeSyscall {
+		} else if ss.Operation == types.OpTypeSyscall {
 			//ExtractsyscallData
 			sysCallData = append(sysCallData, types.SysObsSycallData{
 				ParentProcess: ss.Source,
@@ -292,6 +293,8 @@ func GetKubearmorSummaryData(req *opb.Request) ([]types.SysObsProcFileData, []ty
 				UpdatedTime:   t.Format(time.UnixDate),
 				Result:        ss.Action,
 			})
+		} else {
+			log.Debug().Msgf("Invalid Operation %s received", ss.Operation)
 		}
 	}
 

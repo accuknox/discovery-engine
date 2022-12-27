@@ -49,8 +49,8 @@ const (
 	// max no. of tries to connect to kubearmor-relay
 	Maxtries = 6
 	// Operation Types
-	OperationTypeFile    = "File"
-	OperationTypeProcess = "Process"
-	OperationTypeNetwork = "Network"
-	OperationTypeSyscall = "Syscall"
+	OpTypeFile    = "File"
+	OpTypeProcess = "Process"
+	OpTypeNetwork = "Network"
+	OpTypeSyscall = "Syscall"
 )

@@ -96,7 +96,7 @@ func FilterSystemLogsByConfig(logs []types.KnoxSystemLog, pods []types.Pod) []ty
 		}
 
 		// basic check 3: if the source is not the absolute path, skip it
-		if log.Operation != SYS_OP_NETWORK && !strings.HasPrefix(log.Resource, "/") {
+		if log.Operation != types.OpTypeNetwork && !strings.HasPrefix(log.Resource, "/") {
 			continue
 		}
 
@@ -120,22 +120,22 @@ func FilterSystemLogsByConfig(logs []types.KnoxSystemLog, pods []types.Pod) []ty
 			}
 
 			// 3. check file formats
-			if log.Operation == SYS_OP_FILE && (checkItems&4 > 0) && containsFormat(filter.FileFormats, log.Resource) {
+			if log.Operation == types.OpTypeFile && (checkItems&4 > 0) && containsFormat(filter.FileFormats, log.Resource) {
 				checkedItems = checkedItems | 1<<2
 			}
 
 			// 4. check process formats
-			if log.Operation == SYS_OP_PROCESS && (checkItems&8 > 0) && containsFormat(filter.ProcessFormats, log.Resource) {
+			if log.Operation == types.OpTypeProcess && (checkItems&8 > 0) && containsFormat(filter.ProcessFormats, log.Resource) {
 				checkedItems = checkedItems | 1<<3
 			}
 
 			// 5. check file dirs
-			if log.Operation == SYS_OP_FILE && (checkItems&16 > 0) && containsDirectory(filter.FileDirs, log.Resource) {
+			if log.Operation == types.OpTypeFile && (checkItems&16 > 0) && containsDirectory(filter.FileDirs, log.Resource) {
 				checkedItems = checkedItems | 1<<4
 			}
 
 			// 6. check process dirs
-			if log.Operation == SYS_OP_PROCESS && (checkItems&32 > 0) && containsFormat(filter.ProcessDirs, log.Resource) {
+			if log.Operation == types.OpTypeProcess && (checkItems&32 > 0) && containsFormat(filter.ProcessDirs, log.Resource) {
 				checkedItems = checkedItems | 1<<5
 			}
 

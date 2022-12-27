@@ -73,25 +73,26 @@ func extractNetworkInfoFromSystemLog(netLog pb.Alert, pods []types.Pod, services
 	return ip, destNs, destLabel, port, bindPort, bindAddress, protocol, nwrule, nil
 }
 
-func extractSyscallInfoFromSystemLog(sysCallLog pb.Alert, pods []types.Pod, services []types.Service) (string, string, string, string, error) {
-	var ParentProcess, ChildProcess, Syscall, Parameters string = "", "", "", ""
-	err := errors.New("not a valid Syscall")
+func extractSyscallInfoFromSystemLog(syscallLog pb.Alert, pods []types.Pod, services []types.Service) (string, string, string, string, error) {
+	var parentProcess, childProcess, syscall, parameters string = "", "", "", ""
 
-	if sysCallLog.Operation == types.OperationTypeSyscall {
-		ParentProcess = sysCallLog.ParentProcessName
-		ChildProcess = sysCallLog.ProcessName
+	if syscallLog.Operation == types.OpTypeSyscall {
+		parentProcess = syscallLog.ParentProcessName
+		childProcess = syscallLog.ProcessName
 
-		resslice := strings.SplitN(sysCallLog.Data, " ", 2)
+		resslice := strings.SplitN(syscallLog.Data, " ", 2)
 		if strings.Contains(resslice[0], "syscall") {
-			Syscall = strings.Split(resslice[0], "=")[1]
+			syscall = strings.Split(resslice[0], "=")[1]
 		}
-		Parameters = resslice[1]
+		if len(resslice) == 2 {
+			parameters = resslice[1]
+		}
 
 	} else {
-		return "", "", "", "", err
+		return "", "", "", "", errors.New("not a valid syscall")
 	}
 
-	return ParentProcess, ChildProcess, Syscall, Parameters, nil
+	return parentProcess, childProcess, syscall, parameters, nil
 }
 
 func convertSysLogToSysSummaryMap(syslogs []*pb.Alert) {
@@ -114,7 +115,7 @@ func convertSysLogToSysSummaryMap(syslogs []*pb.Alert) {
 			continue
 		}
 
-		if syslog.Operation != types.OperationTypeFile && syslog.Operation != types.OperationTypeProcess && syslog.Operation != types.OperationTypeNetwork && syslog.Operation != types.OperationTypeSyscall {
+		if syslog.Operation != types.OpTypeFile && syslog.Operation != types.OpTypeProcess && syslog.Operation != types.OpTypeNetwork && syslog.Operation != types.OpTypeSyscall {
 			continue
 		}
 
@@ -154,7 +155,7 @@ func convertSysLogToSysSummaryMap(syslogs []*pb.Alert) {
 			}
 		}
 
-		if syslog.Operation == "Network" {
+		if syslog.Operation == types.OpTypeNetwork {
 			if existingClustername != syslog.ClusterName {
 				_, services, _, pods, err = cluster.GetAllClusterResources(syslog.ClusterName)
 				if err == nil {
@@ -176,7 +177,7 @@ func convertSysLogToSysSummaryMap(syslogs []*pb.Alert) {
 			sysSummary.Protocol = protocol
 			sysSummary.DestNamespace = destNs
 			sysSummary.DestLabels = destLabel
-		} else if syslog.Operation == "File" || syslog.Operation == "Process" {
+		} else if syslog.Operation == types.OpTypeFile || syslog.Operation == types.OpTypeProcess {
 			sysSummary.NwType = ""
 			sysSummary.IP = ""
 			sysSummary.Port = 0
@@ -186,7 +187,7 @@ func convertSysLogToSysSummaryMap(syslogs []*pb.Alert) {
 			sysSummary.Destination = strings.Split(syslog.Resource, " ")[0]
 		}
 
-		if syslog.Operation == types.OperationTypeSyscall {
+		if syslog.Operation == types.OpTypeSyscall {
 			if existingClustername != syslog.ClusterName {
 				_, services, _, pods, err = cluster.GetAllClusterResources(syslog.ClusterName)
 				if err == nil {
@@ -194,16 +195,16 @@ func convertSysLogToSysSummaryMap(syslogs []*pb.Alert) {
 				}
 			}
 
-			ParentProcess, ChildProcess, Syscall, Parameters, err := extractSyscallInfoFromSystemLog(*syslog, pods, services)
+			parentProcess, childProcess, syscall, parameters, err := extractSyscallInfoFromSystemLog(*syslog, pods, services)
 
 			if err != nil {
 				continue
 			}
-			sysSummary.Source = ParentProcess
-			sysSummary.Destination = ChildProcess
-			sysSummary.Syscall = Syscall
-			sysSummary.Parameters = Parameters
-		} else if syslog.Operation == types.OperationTypeFile || syslog.Operation == types.OperationTypeProcess || syslog.Operation == types.OperationTypeNetwork {
+			sysSummary.Source = parentProcess
+			sysSummary.Destination = childProcess
+			sysSummary.Syscall = syscall
+			sysSummary.Parameters = parameters
+		} else {
 			sysSummary.Syscall = ""
 			sysSummary.Parameters = ""
 		}

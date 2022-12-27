@@ -39,13 +39,13 @@ func convertWPFSToInsightData(wpfsSet types.ResourceSetMap) types.SysInsightResp
 
 		// Populate Fileset data(fromsource, process paths and file paths)
 		locFsData.FromSource = wpfs.FromSource
-		if wpfs.SetType == sys.SYS_OP_FILE {
+		if wpfs.SetType == types.OpTypeFile {
 			locFsData.FilePaths = append(locFsData.FilePaths, fsset...)
 		}
-		if wpfs.SetType == sys.SYS_OP_PROCESS {
+		if wpfs.SetType == types.OpTypeProcess {
 			locFsData.ProcessPaths = append(locFsData.ProcessPaths, fsset...)
 		}
-		if wpfs.SetType == sys.SYS_OP_NETWORK {
+		if wpfs.SetType == types.OpTypeNetwork {
 			locFsData.NetworkPaths = append(locFsData.NetworkPaths, fsset...)
 		}
 
