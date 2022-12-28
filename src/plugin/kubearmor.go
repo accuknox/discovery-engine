@@ -603,7 +603,7 @@ func ConvertKubeArmorNetLogToKnoxNetLog(kaNwLogs []*pb.Log) []types.KnoxNetworkL
 			}
 			destPod, destLabels, destNs := cluster.ExtractPodSvcInfoFromIP(ip, kalog.ClusterName, pods, services)
 
-			if ip != destPod && strings.Contains(destPod, "pod") {
+			if ip != destPod && (strings.Contains(destPod, "pod") || strings.Contains(destPod, "svc")) {
 				locKnoxLog.DstPodName = strings.Split(destPod, "/")[1]
 				locKnoxLog.DstReservedLabels = strings.Split(destLabels, ",")
 				locKnoxLog.DstNamespace = destNs

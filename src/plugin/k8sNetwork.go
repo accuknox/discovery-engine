@@ -27,7 +27,9 @@ func ConvertKnoxNetPolicyToK8sNetworkPolicy(clustername, namespace string, knoxN
 		k8NetPol.Kind = types.K8sNwPolicyKind
 		k8NetPol.Name = knp.Metadata["name"]
 		k8NetPol.Namespace = knp.Metadata["namespace"]
-		k8NetPol.Labels = knp.Spec.Selector.MatchLabels
+		k8NetPol.Spec.PodSelector = metav1.LabelSelector{
+			MatchLabels: knp.Spec.Selector.MatchLabels,
+		}
 
 		if len(knp.Spec.Egress) > 0 {
 			for _, eg := range knp.Spec.Egress {
@@ -73,7 +75,6 @@ func ConvertKnoxNetPolicyToK8sNetworkPolicy(clustername, namespace string, knoxN
 
 				k8NetPol.Spec.Egress = append(k8NetPol.Spec.Egress, egressRule)
 			}
-
 			k8NetPol.Spec.PolicyTypes = append(k8NetPol.Spec.PolicyTypes, nv1.PolicyType(nv1.PolicyTypeEgress))
 		}
 
@@ -124,7 +125,6 @@ func ConvertKnoxNetPolicyToK8sNetworkPolicy(clustername, namespace string, knoxN
 			k8NetPol.Spec.PolicyTypes = append(k8NetPol.Spec.PolicyTypes, nv1.PolicyType(nv1.PolicyTypeIngress))
 		}
 
-		k8NetPol.Spec.PodSelector.MatchLabels = k8NetPol.Labels
 		res = append(res, k8NetPol)
 	}
 
