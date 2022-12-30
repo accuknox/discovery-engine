@@ -52,12 +52,11 @@ func ConvertKnoxNetPolicyToK8sNetworkPolicy(clustername, namespace string, knoxN
 							Type:   intstr.Int,
 							IntVal: int32(portVal),
 						},
-						Protocol: &protocol,
 					}
-				} else {
-					port = nv1.NetworkPolicyPort{
-						Protocol: &protocol,
-					}
+				}
+
+				if protocol != "" {
+					port.Protocol = &protocol
 				}
 
 				if len(eg.MatchLabels) > 0 {
@@ -71,8 +70,11 @@ func ConvertKnoxNetPolicyToK8sNetworkPolicy(clustername, namespace string, knoxN
 					egressRule.To = nil
 				}
 
-				egressRule.Ports = append(egressRule.Ports, port)
+				if portVal == 0 && protocol == "" {
+					continue
+				}
 
+				egressRule.Ports = append(egressRule.Ports, port)
 				k8NetPol.Spec.Egress = append(k8NetPol.Spec.Egress, egressRule)
 			}
 			k8NetPol.Spec.PolicyTypes = append(k8NetPol.Spec.PolicyTypes, nv1.PolicyType(nv1.PolicyTypeEgress))
@@ -99,12 +101,11 @@ func ConvertKnoxNetPolicyToK8sNetworkPolicy(clustername, namespace string, knoxN
 							Type:   intstr.Int,
 							IntVal: int32(portVal),
 						},
-						Protocol: &protocol,
 					}
-				} else {
-					port = nv1.NetworkPolicyPort{
-						Protocol: &protocol,
-					}
+				}
+
+				if protocol != "" {
+					port.Protocol = &protocol
 				}
 
 				if len(ing.MatchLabels) > 0 {
@@ -118,8 +119,11 @@ func ConvertKnoxNetPolicyToK8sNetworkPolicy(clustername, namespace string, knoxN
 					ingressRule.From = nil
 				}
 
-				ingressRule.Ports = append(ingressRule.Ports, port)
+				if portVal == 0 && protocol == "" {
+					continue
+				}
 
+				ingressRule.Ports = append(ingressRule.Ports, port)
 				k8NetPol.Spec.Ingress = append(k8NetPol.Spec.Ingress, ingressRule)
 			}
 			k8NetPol.Spec.PolicyTypes = append(k8NetPol.Spec.PolicyTypes, nv1.PolicyType(nv1.PolicyTypeIngress))

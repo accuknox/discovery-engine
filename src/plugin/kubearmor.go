@@ -613,7 +613,8 @@ func ConvertKubeArmorNetLogToKnoxNetLog(kaNwLogs []*pb.Log) []types.KnoxNetworkL
 			locKnoxLog.SynFlag = true
 		} else if strings.Contains(kalog.Data, "SYS_BIND") {
 			var port string
-			locKnoxLog.Protocol = libs.IPProtocolUDP
+			// TODO : Identify a way to get protocol from kubearmor
+			// locKnoxLog.Protocol = libs.IPProtocolUDP
 
 			resSlice := strings.Split(kalog.Resource, " ")
 			for _, v := range resSlice {
