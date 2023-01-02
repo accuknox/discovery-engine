@@ -637,6 +637,10 @@ func ConvertKubeArmorNetLogToKnoxNetLog(kaNwLogs []*pb.Log) []types.KnoxNetworkL
 			locKnoxLog.Action = "Allow"
 		}
 
+		if locKnoxLog.Protocol == 0 && locKnoxLog.DstPort == 0 && len(locKnoxLog.DstReservedLabels) == 0 {
+			continue
+		}
+
 		results = append(results, locKnoxLog)
 	}
 
