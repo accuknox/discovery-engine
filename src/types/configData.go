@@ -111,9 +111,15 @@ type ConfigPublisher struct {
 }
 
 type ConfigPurgeOldDBEntries struct {
-	Enable              bool     `json:"enable,omitempty" bson:"enable,omiempty"`
+	Enable              bool     `json:"enable,omitempty" bson:"enable,omitempty"`
 	CronJobTimeInterval string   `json:"cronjob_time_interval,omitempty" bson:"cronjob_time_interval,omitempty"`
 	DBName              []string `json:"db_name,omitempty" bson:"db_name,omitempty"`
+}
+
+type ConfigRecommendPolicy struct {
+	OperationMode           int    `json:"operation_mode,omitempty" bson:"operation_mode,omitempty"`
+	CronJobTimeInterval     string `json:"cronjob_time_interval,omitempty" bson:"cronjob_time_interval,omitempty"`
+	OneTimeJobTimeSelection string `json:"one_time_job_time_selection,omitempty" bson:"one_time_job_time_selection,omitempty"`
 }
 
 type Configuration struct {
@@ -134,4 +140,5 @@ type Configuration struct {
 	ConfigObservability     ConfigObservability     `json:"config_observability,omitempty" bson:"config_observability,omitempty"`
 	ConfigPublisher         ConfigPublisher         `json:"config_summarizer,omitempty" bson:"config_summarizer,omitempty"`
 	ConfigPurgeOldDBEntries ConfigPurgeOldDBEntries `json:"config_purge_old_db_entries,omitempty" bson:"config_purge_old_db_entries,omitempty"`
+	ConfigRecommendPolicy   ConfigRecommendPolicy   `json:"config_recommend_policy,omitempty" bson:"config_recommend_policy,omitempty"`
 }

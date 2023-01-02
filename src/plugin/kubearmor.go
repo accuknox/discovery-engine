@@ -60,7 +60,7 @@ func ConvertKnoxSystemPolicyToKubeArmorPolicy(knoxPolicies []types.KnoxSystemPol
 
 		kubePolicy.Spec = policy.Spec
 
-		if kubePolicy.Kind == "KubeArmorPolicy" {
+		if kubePolicy.Kind == "KubeArmorPolicy" && policy.Spec.Action == "Allow" {
 			dirRule := types.KnoxMatchDirectories{
 				Dir:       types.PreConfiguredKubearmorRule,
 				Recursive: true,
