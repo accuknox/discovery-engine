@@ -603,7 +603,7 @@ func ConvertKubeArmorNetLogToKnoxNetLog(kaNwLogs []*pb.Log) []types.KnoxNetworkL
 			}
 			destPod, destLabels, destNs := cluster.ExtractPodSvcInfoFromIP(ip, kalog.ClusterName, pods, services)
 
-			if ip != destPod && strings.Contains(destPod, "pod") {
+			if ip != destPod && (strings.Contains(destPod, "pod") || strings.Contains(destPod, "svc")) {
 				locKnoxLog.DstPodName = strings.Split(destPod, "/")[1]
 				locKnoxLog.DstReservedLabels = strings.Split(destLabels, ",")
 				locKnoxLog.DstNamespace = destNs
@@ -613,7 +613,8 @@ func ConvertKubeArmorNetLogToKnoxNetLog(kaNwLogs []*pb.Log) []types.KnoxNetworkL
 			locKnoxLog.SynFlag = true
 		} else if strings.Contains(kalog.Data, "SYS_BIND") {
 			var port string
-			locKnoxLog.Protocol = libs.IPProtocolUDP
+			// TODO : Identify a way to get protocol from kubearmor
+			// locKnoxLog.Protocol = libs.IPProtocolUDP
 
 			resSlice := strings.Split(kalog.Resource, " ")
 			for _, v := range resSlice {
@@ -634,6 +635,10 @@ func ConvertKubeArmorNetLogToKnoxNetLog(kaNwLogs []*pb.Log) []types.KnoxNetworkL
 			locKnoxLog.Action = "Deny"
 		} else {
 			locKnoxLog.Action = "Allow"
+		}
+
+		if locKnoxLog.Protocol == 0 && locKnoxLog.DstPort == 0 && len(locKnoxLog.DstReservedLabels) == 0 {
+			continue
 		}
 
 		results = append(results, locKnoxLog)
