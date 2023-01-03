@@ -1816,19 +1816,19 @@ func convertKnoxNetworkLogToKnoxNetworkPolicy(log *types.KnoxNetworkLog, pods []
 		ePolicy, iPolicy := buildNewKnoxEgressPolicy(), buildNewKnoxIngressPolicy()
 
 		// 1.1 Set the endpoint selector
-		ePolicy.Spec.Selector.MatchLabels = getEndpointMatchLabels(log.SrcPodName, pods)
-		iPolicy.Spec.Selector.MatchLabels = getEndpointMatchLabels(log.DstPodName, pods)
+		ePolicy.Spec.Selector.MatchLabels = getEndpointMatchLabels(log.DstPodName, pods)
+		iPolicy.Spec.Selector.MatchLabels = getEndpointMatchLabels(log.SrcPodName, pods)
 
 		// 1.2 Set the to/from Endpoint selector
 		egress := types.Egress{}
 		ingress := types.Ingress{}
-		egress.MatchLabels = getEndpointMatchLabels(log.DstPodName, pods)
-		ingress.MatchLabels = getEndpointMatchLabels(log.SrcPodName, pods)
+		egress.MatchLabels = getEndpointMatchLabels(log.SrcPodName, pods)
+		ingress.MatchLabels = getEndpointMatchLabels(log.DstPodName, pods)
 
 		if log.SrcNamespace != log.DstNamespace {
 			// cross namespace policy
-			egress.MatchLabels["io.kubernetes.pod.namespace"] = log.DstNamespace
-			ingress.MatchLabels["io.kubernetes.pod.namespace"] = log.SrcNamespace
+			egress.MatchLabels["io.kubernetes.pod.namespace"] = log.SrcNamespace
+			ingress.MatchLabels["io.kubernetes.pod.namespace"] = log.DstNamespace
 		}
 
 		// 1.3 Set the dst port/protocol
@@ -1854,8 +1854,8 @@ func convertKnoxNetworkLogToKnoxNetworkPolicy(log *types.KnoxNetworkLog, pods []
 		ePolicy.Spec.Egress = append(ePolicy.Spec.Egress, egress)
 		iPolicy.Spec.Ingress = append(iPolicy.Spec.Ingress, ingress)
 
-		ePolicy.Metadata["namespace"] = log.SrcNamespace
-		iPolicy.Metadata["namespace"] = log.DstNamespace
+		ePolicy.Metadata["namespace"] = log.DstNamespace
+		iPolicy.Metadata["namespace"] = log.SrcNamespace
 
 		egressPolicy = &ePolicy
 		ingressPolicy = &iPolicy
