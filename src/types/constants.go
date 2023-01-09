@@ -35,6 +35,9 @@ const (
 	PolicyTypeSystem  = "system"
 	PolicyTypeNetwork = "network"
 
+	// Hardening policy
+	HardeningPolicy = "harden"
+
 	// Binary Name Filters
 	FilterBinaryKnoxAutoPolicy = "knoxAutoPolicy"
 

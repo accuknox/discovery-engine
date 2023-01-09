@@ -13,6 +13,7 @@ import (
 	logger "github.com/accuknox/auto-policy-discovery/src/logging"
 	network "github.com/accuknox/auto-policy-discovery/src/networkpolicy"
 	obs "github.com/accuknox/auto-policy-discovery/src/observability"
+	recommend "github.com/accuknox/auto-policy-discovery/src/recommendpolicy"
 	system "github.com/accuknox/auto-policy-discovery/src/systempolicy"
 
 	"github.com/accuknox/auto-policy-discovery/src/insight"
@@ -323,6 +324,9 @@ func GetNewServer() *grpc.Server {
 
 	// start observability
 	obs.InitObservability()
+
+	//start recommendation
+	recommend.StartRecommendWorker()
 
 	return s
 }

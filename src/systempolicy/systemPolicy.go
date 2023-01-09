@@ -1007,14 +1007,17 @@ func updateSysPolicySelector(clusterName string, pod types.Pod, policies []types
 	return results
 }
 
-func updateSysPolicies() {
+// UpdateSysPolicies updates system policy
+func UpdateSysPolicies(wpfsPolicies []types.KnoxSystemPolicy) {
 
 	var locSysPolicies []types.KnoxSystemPolicy
 	var isPolicyExist bool
 
-	wpfsPolicies := populateKnoxSysPolicyFromWPFSDb("", "", "", "")
+	if len(wpfsPolicies) < 1 {
+		wpfsPolicies = populateKnoxSysPolicyFromWPFSDb("", "", "", "")
+	}
 
-	insertSysPoliciesYamlToDB(wpfsPolicies)
+	InsertSysPoliciesYamlToDB(wpfsPolicies)
 
 	for _, wpfsPolicy := range wpfsPolicies {
 		isPolicyExist = false
@@ -1127,7 +1130,7 @@ func PopulateSystemPoliciesFromSystemLogs(sysLogs []types.KnoxSystemLog) []types
 			if cfg.CurrentCfg.ConfigSysPolicy.DeprecateOldMode {
 				// New mode of system policy generation using WPFS table
 				if isWpfsDbUpdated {
-					updateSysPolicies()
+					UpdateSysPolicies([]types.KnoxSystemPolicy{})
 				}
 			}
 
@@ -1374,7 +1377,8 @@ func GenFileSetForAllPodsInCluster(clusterName string, pods []types.Pod, settype
 	return status
 }
 
-func insertSysPoliciesYamlToDB(policies []types.KnoxSystemPolicy) {
+// InsertSysPoliciesYamlToDB inserts systempolicy to DB
+func InsertSysPoliciesYamlToDB(policies []types.KnoxSystemPolicy) {
 
 	kubeArmorPolicies := plugin.ConvertKnoxSystemPolicyToKubeArmorPolicy(policies)
 
