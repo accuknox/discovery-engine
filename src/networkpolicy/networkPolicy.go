@@ -2249,7 +2249,7 @@ func writeNetworkPoliciesYamlToDB(policies []types.KnoxNetworkPolicy) {
 				WorkspaceId: cfg.GetCfgWorkspaceId(),
 				ClusterId:   cfg.GetCfgClusterId(),
 				Cluster:     cfg.GetCfgClusterName(),
-				Labels:      np.Labels,
+				Labels:      np.Spec.PodSelector.MatchLabels,
 				Yaml:        yamlBytes,
 			}
 			res = append(res, policyYaml)
