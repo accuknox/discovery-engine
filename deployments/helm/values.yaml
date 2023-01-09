@@ -32,7 +32,7 @@ clusterRole:
   create: true
   name: discovery-engine-role
   rules:
-  - apiGroups: [""]
+  - apiGroups: ["*"]
     resources: ["pods", "services", "deployments", "endpoints", "namespaces"]
     verbs: ["get", "list", "watch"]
   

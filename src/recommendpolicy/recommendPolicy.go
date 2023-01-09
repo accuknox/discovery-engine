@@ -45,6 +45,9 @@ var CurrentVersion string
 // LatestVersion stores the latest version of policy-template
 var LatestVersion string
 
+// LabelMap is an alias for map[string]string
+type LabelMap = map[string]string
+
 // init Function
 func init() {
 	log = logger.GetInstance()
@@ -62,6 +65,7 @@ func StartRecommendWorker() {
 	if cfg.GetCfgRecOperationMode() == OP_MODE_NOOP { // Do not run the operation
 		log.Info().Msg("Recommendation operation mode is NOOP ... NO RECOMMENDED POLICY")
 	} else if cfg.GetCfgRecOperationMode() == OP_MODE_CRONJOB { // every time intervals
+		log.Info().Msg("Recommended policy cron job started")
 		RecommendPolicyMain()
 		StartRecommendCronJob()
 	} else { // one-time generation
@@ -94,8 +98,6 @@ func StartRecommendCronJob() {
 	}
 	RecommendCronJob.Start()
 
-	log.Info().Msg("Recommended policy cron job started")
-
 }
 
 // StopRecommendCronJob stops the recommendation cronjob
@@ -114,6 +116,8 @@ func StopRecommendCronJob() {
 // RecommendPolicyMain generates recommended policies from policy-template GH
 func RecommendPolicyMain() {
 
+	nsNotFilter := cfg.CurrentCfg.ConfigSysPolicy.NsNotFilter
+
 	if !isLatest() {
 		if _, err := DownloadAndUnzipRelease(); err != nil {
 			log.Error().Msgf("Unable to download %v", err.Error())
@@ -123,17 +127,20 @@ func RecommendPolicyMain() {
 	deployments, err := client.AppsV1().Deployments("").List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		log.Error().Msg(err.Error())
+		return
 	}
 	systempolicy.InitSysPolicyDiscoveryConfiguration()
 	for _, d := range deployments.Items {
-		if d.Namespace == "kube-system" {
-			continue
+		for _, ns := range nsNotFilter {
+			if d.Namespace != ns {
+				log.Info().Msgf("Generating hardening policy for deployment: %v in namespace: %v", d.Name, d.Namespace)
+				policies, err := generatePolicy(d.Name, d.Namespace, d.Spec.Template.Labels)
+				if err != nil {
+					log.Error().Msg(err.Error())
+				}
+				systempolicy.UpdateSysPolicies(policies)
+			}
 		}
-		policies, err := generatePolicy(d)
-		if err != nil {
-			log.Error().Msg(err.Error())
-		}
-
-		systempolicy.UpdateSysPolicies(policies)
 	}
+
 }
