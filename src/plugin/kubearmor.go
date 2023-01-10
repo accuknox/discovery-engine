@@ -60,7 +60,7 @@ func ConvertKnoxSystemPolicyToKubeArmorPolicy(knoxPolicies []types.KnoxSystemPol
 
 		kubePolicy.Spec = policy.Spec
 
-		if kubePolicy.Kind == "KubeArmorPolicy" {
+		if kubePolicy.Kind == "KubeArmorPolicy" && policy.Spec.Action == "Allow" {
 			dirRule := types.KnoxMatchDirectories{
 				Dir:       types.PreConfiguredKubearmorRule,
 				Recursive: true,
@@ -469,17 +469,21 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 				}
 
 				kubearmorLog := pb.Log{
-					ClusterName:   res.ClusterName,
-					ContainerName: res.ContainerName,
-					HostName:      res.HostName,
-					NamespaceName: res.NamespaceName,
-					PodName:       res.PodName,
-					Source:        res.Source,
-					Operation:     res.Operation,
-					Resource:      res.Resource,
-					Data:          res.Data,
-					Result:        res.Result,
-					Type:          res.Type,
+					ClusterName:       res.ClusterName,
+					ContainerName:     res.ContainerName,
+					ContainerID:       res.ContainerID,
+					HostName:          res.HostName,
+					NamespaceName:     res.NamespaceName,
+					PodName:           res.PodName,
+					Source:            res.Source,
+					Operation:         res.Operation,
+					Resource:          res.Resource,
+					Data:              res.Data,
+					Result:            res.Result,
+					Type:              res.Type,
+					ProcessName:       res.ProcessName,
+					ParentProcessName: res.ParentProcessName,
+					Timestamp:         res.Timestamp,
 				}
 
 				if ignoreLogFromRelayWithNamespace(nsFilter, nsNotFilter, &kubearmorLog) {

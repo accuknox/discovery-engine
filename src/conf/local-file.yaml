@@ -113,3 +113,8 @@ feed-consumer:
   #   connection-timeout: 10 # in second
   #   operation-timeout: 30 # in second
   # -----------------------------------------------
+
+# Recommended policies configuration
+recommend:
+  operation-mode: 1                       # 1: cronjob | 2: one-time-job
+  cron-job-time-interval: "1h0m00s"       # format: XhYmZs

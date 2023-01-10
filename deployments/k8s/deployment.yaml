@@ -122,6 +122,11 @@ data:
     kubearmor:
       url: kubearmor.kube-system.svc.cluster.local
       port: 32767
+
+    # Recommended policies configuration
+    recommend:
+      operation-mode: 1                       # 1: cronjob | 2: one-time-job
+      cron-job-time-interval: "1h0m00s"       # format: XhYmZs
 ---
 apiVersion: v1
 kind: Service

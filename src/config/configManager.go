@@ -207,6 +207,13 @@ func LoadConfigFromFile() {
 		DBName:              viper.GetStringSlice("purge-old-db-entries.dbname"),
 	}
 
+	// recommend policy configurations
+	CurrentCfg.ConfigRecommendPolicy = types.ConfigRecommendPolicy{
+		CronJobTimeInterval:     "@every " + viper.GetString("recommend.cron-job-time-interval"),
+		OneTimeJobTimeSelection: "", // e.g., 2021-01-20 07:00:23|2021-01-20 07:00:25
+		OperationMode:           viper.GetInt("recommend.operation-mode"),
+	}
+
 	// load database
 	CurrentCfg.ConfigDB = LoadConfigDB()
 
@@ -488,4 +495,20 @@ func GetCfgPurgeOldDBEntriesCronJobTime() string {
 
 func GetCfgPurgeOldDBEntriesDBName() []string {
 	return CurrentCfg.ConfigPurgeOldDBEntries.DBName
+}
+
+// ============================ //
+// == Get Recommend Config Info == //
+// ============================ //
+
+func GetCfgRecOperationMode() int {
+	return CurrentCfg.ConfigRecommendPolicy.OperationMode
+}
+
+func GetCfgRecCronJobTime() string {
+	return CurrentCfg.ConfigRecommendPolicy.CronJobTimeInterval
+}
+
+func GetCfgRecOneTime() string {
+	return CurrentCfg.ConfigRecommendPolicy.OneTimeJobTimeSelection
 }

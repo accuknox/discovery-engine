@@ -10,11 +10,13 @@ replace (
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.0
 	github.com/apache/pulsar-client-go v0.8.1
+	github.com/cavaliergopher/grab/v3 v3.0.1
 	github.com/cilium/cilium v1.10.14
 	github.com/clarketm/json v1.17.1
 	github.com/confluentinc/confluent-kafka-go v1.6.1
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/google/go-cmp v0.5.8
+	github.com/google/go-github v17.0.0+incompatible
 	github.com/kubearmor/KVMService/src/types v0.0.0-20220714130113-b0eba8c9ff34
 	github.com/kubearmor/KubeArmor/protobuf v0.0.0-20220504043216-6451e04be58b
 	github.com/mattn/go-sqlite3 v1.14.12
@@ -70,6 +72,7 @@ require (
 	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/golang/snappy v0.0.3 // indirect
+	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/googleapis/gnostic v0.5.5 // indirect
 	github.com/gsterjov/go-libsecret v0.0.0-20161001094733-a6f4afe4910c // indirect

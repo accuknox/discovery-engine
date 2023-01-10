@@ -145,6 +145,11 @@ func SetDefaultConfig() {
 	viper.SetDefault("feed-consumer.pulsar.connection-timeout", "10")
 	viper.SetDefault("feed-consumer.pulsar.operation-timeout", "30")
 
+	// recommend config
+
+	viper.SetDefault("recommend.cron-job-time-interval", "1h0m00s")
+	viper.SetDefault("recommend.operation-mode", 1)
+
 }
 
 type cfgArray []string
@@ -311,10 +316,8 @@ func IsICMP(protocol int) bool {
 }
 
 func IsReplyICMP(icmpType int) bool {
-	if ContainsElement(ICMPReplyType, icmpType) {
-		return true
-	}
-	return false
+	return ContainsElement(ICMPReplyType, icmpType)
+
 }
 
 // ============ //
