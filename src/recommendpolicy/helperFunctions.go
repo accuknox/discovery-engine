@@ -8,7 +8,6 @@ import (
 	"github.com/clarketm/json"
 
 	"github.com/accuknox/auto-policy-discovery/src/types"
-	v1 "k8s.io/api/apps/v1"
 	"sigs.k8s.io/yaml"
 )
 
@@ -54,7 +53,7 @@ func genericPolicy(precondition []string) bool {
 	return false
 }
 
-func generatePolicy(dp v1.Deployment) ([]types.KnoxSystemPolicy, error) {
+func generatePolicy(name, namespace string, labels LabelMap) ([]types.KnoxSystemPolicy, error) {
 
 	var ms types.MatchSpec
 	var err error
@@ -63,7 +62,7 @@ func generatePolicy(dp v1.Deployment) ([]types.KnoxSystemPolicy, error) {
 	ms, err = getNextRule(&idx)
 	for ; err == nil; ms, err = getNextRule(&idx) {
 		if genericPolicy(ms.Precondition) {
-			policy, err := createPolicy(ms, dp)
+			policy, err := createPolicy(ms, name, namespace, labels)
 			if err != nil {
 				log.Error().Msg(err.Error())
 			}
@@ -75,7 +74,7 @@ func generatePolicy(dp v1.Deployment) ([]types.KnoxSystemPolicy, error) {
 
 }
 
-func createPolicy(ms types.MatchSpec, dp v1.Deployment) (types.KnoxSystemPolicy, error) {
+func createPolicy(ms types.MatchSpec, name, namespace string, labels LabelMap) (types.KnoxSystemPolicy, error) {
 	policy := types.KnoxSystemPolicy{
 		Spec: types.KnoxSystemSpec{
 			Severity: 1, // by default
@@ -87,8 +86,8 @@ func createPolicy(ms types.MatchSpec, dp v1.Deployment) (types.KnoxSystemPolicy,
 	policy.Kind = "KubeArmorPolicy"
 
 	policy.Metadata = map[string]string{
-		"name":      fmt.Sprintf("%v-%v-%v", types.HardeningPolicy, dp.Name, ms.Name),
-		"namespace": dp.Namespace,
+		"name":      fmt.Sprintf("%v-%v-%v", types.HardeningPolicy, name, ms.Name),
+		"namespace": namespace,
 	}
 
 	policy.Spec.Action = ms.Spec.Action
@@ -100,7 +99,7 @@ func createPolicy(ms types.MatchSpec, dp v1.Deployment) (types.KnoxSystemPolicy,
 		policy.Spec.Tags = ms.Spec.Tags
 	}
 
-	policy.Spec.Selector.MatchLabels = dp.Spec.Template.Labels
+	policy.Spec.Selector.MatchLabels = labels
 
 	addPolicyRule(&policy, &ms.Spec)
 	return policy, nil

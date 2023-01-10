@@ -113,6 +113,7 @@ func DownloadAndUnzipRelease() (string, error) {
 	}
 	_ = updatePolicyRules(strings.TrimSuffix(resp.Filename, ".zip"))
 	CurrentVersion = CurrentRelease()
+	log.Info().Msgf("Latest recommendation downloaded and updated")
 	return LatestVersion, nil
 }
 
