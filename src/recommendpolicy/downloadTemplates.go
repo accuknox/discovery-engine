@@ -14,7 +14,7 @@ import (
 	"github.com/accuknox/auto-policy-discovery/src/types"
 	"github.com/cavaliergopher/grab/v3"
 	"github.com/google/go-github/github"
-	"gopkg.in/yaml.v2"
+	"sigs.k8s.io/yaml"
 )
 
 const (
