@@ -247,7 +247,7 @@ type KnoxMatchPaths struct {
 // KnoxMatchDirectories Structure
 type KnoxMatchDirectories struct {
 	Dir        string           `json:"dir,omitempty" yaml:"dir,omitempty"`
-	Recursive  bool             `json:"recursive,omitempty" yaml:"resursive,omitempty"`
+	Recursive  bool             `json:"recursive,omitempty" yaml:"recursive,omitempty"`
 	ReadOnly   bool             `json:"readOnly,omitempty" yaml:"readOnly,omitempty"`
 	OwnerOnly  bool             `json:"ownerOnly,omitempty" yaml:"ownerOnly,omitempty"`
 	FromSource []KnoxFromSource `json:"fromSource,omitempty" yaml:"fromSource,omitempty"`
@@ -339,10 +339,10 @@ type PolicyYaml struct {
 
 // MatchSpec spec to match for defining policy
 type MatchSpec struct {
-	Name         string            `json:"name" yaml:"name"`
-	Precondition []string          `json:"precondition" yaml:"precondition"`
-	Description  Description       `json:"description" yaml:"description"`
-	Yaml         string            `json:"yaml" yaml:"yaml"`
+	Name         string         `json:"name" yaml:"name"`
+	Precondition []string       `json:"precondition" yaml:"precondition"`
+	Description  Description    `json:"description" yaml:"description"`
+	Yaml         string         `json:"yaml" yaml:"yaml"`
 	Spec         KnoxSystemSpec `json:"spec,omitempty" yaml:"spec,omitempty"`
 }
 

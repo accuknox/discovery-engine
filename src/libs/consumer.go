@@ -92,6 +92,7 @@ func (pc *PolicyStore) Publish(policy *types.PolicyYaml) {
 
 	for consumer := range pc.Consumers {
 		if matchPolicyYaml(policy, consumer) {
+			log.Info().Msgf("Publishing policy %v", policy.Name)
 			consumer.Events <- policy
 		}
 	}
