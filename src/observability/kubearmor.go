@@ -74,7 +74,7 @@ func ProcessSystemLogs() {
 
 	SystemLogsMutex.Lock()
 	locSysLogs := SystemLogs
-	SystemLogs = []*pb.Log{} //reset
+	SystemLogs = []*pb.Alert{} //reset
 	SystemLogsMutex.Unlock()
 
 	ObsMutex.Lock()
@@ -153,13 +153,13 @@ func ProcessSystemLogs() {
 	ObsMutex.Unlock()
 }
 
-func ProcessKubearmorLog(kubearmorLog *pb.Log) {
+func ProcessKubearmorLog(kubearmorLog *pb.Alert) {
 	SystemLogsMutex.Lock()
 	SystemLogs = append(SystemLogs, kubearmorLog)
 	SystemLogsMutex.Unlock()
 }
 
-func ProcessKubearmorAlert(kubearmorAlert *pb.Log) {
+func ProcessKubearmorAlert(kubearmorAlert *pb.Alert) {
 	SystemLogsMutex.Lock()
 	SystemLogs = append(SystemLogs, kubearmorAlert)
 	SystemLogsMutex.Unlock()
