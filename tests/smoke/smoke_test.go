@@ -1,13 +1,134 @@
 package smoke_test
 
 import (
+	"encoding/json"
+	"fmt"
+	"os/exec"
+	"time"
+
+	"github.com/accuknox/auto-policy-discovery/src/types"
+	"github.com/kubearmor/KubeArmor/tests/util"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/rs/zerolog/log"
 )
 
+func getMatchDir(policy types.KubeArmorPolicy, sys string, str string) string {
+	if sys == "file" {
+		for i := range policy.Spec.File.MatchDirectories {
+			if policy.Spec.File.MatchDirectories[i].Dir == str {
+				value := str
+				return value
+			}
+		}
+	} else {
+		for i := range policy.Spec.Process.MatchDirectories {
+			if policy.Spec.Process.MatchDirectories[i].Dir == str {
+				value := str
+				return value
+			}
+		}
+	}
+	return ""
+}
+
+func getMatchPath(policy types.KubeArmorPolicy, sys string, str string) string {
+	if sys == "file" {
+		for i := range policy.Spec.File.MatchPaths {
+			if policy.Spec.File.MatchPaths[i].Path == str {
+				value := str
+				return value
+			}
+		}
+	} else {
+		for i := range policy.Spec.Process.MatchPaths {
+			if policy.Spec.Process.MatchPaths[i].Path == str {
+				value := str
+				return value
+			}
+		}
+	}
+	return ""
+}
+
+func checkPod(name string, ant string, ns string) {
+	pods, err := util.K8sGetPods(name, ns, []string{ant}, 60)
+	Expect(err).To(BeNil())
+	Expect(len(pods)).To(Equal(1))
+}
+
+var _ = BeforeSuite(func() {
+	// install discovery-engine
+	_, err := util.Kubectl(fmt.Sprintf("apply -f https://raw.githubusercontent.com/kubearmor/discovery-engine/dev/deployments/k8s/deployment.yaml"))
+	Expect(err).To(BeNil())
+	time.Sleep(20 * time.Second)
+
+	//install wordpress-mysql app
+	err = util.K8sApply([]string{"res/wordpress-mysql-deployment.yaml"})
+	Expect(err).To(BeNil())
+	time.Sleep(25 * time.Second)
+
+	// delete all KSPs
+	err = util.DeleteAllKsp()
+	Expect(err).To(BeNil())
+
+	// enable kubearmor port forwarding
+	err = util.KubearmorPortForward()
+	Expect(err).To(BeNil())
+})
+
+var _ = AfterSuite(func() {
+	util.KubearmorPortForwardStop()
+})
+
+func discover(ns string, l string) (types.KubeArmorPolicy, error) {
+	policy := types.KubeArmorPolicy{}
+	cmd, err := exec.Command("karmor", "discover", "-n", ns, "-l", l, "-f", "json").Output()
+	if err != nil {
+		log.Error().Msgf("Failed to apply the `karmor discover` command : %v", err)
+	}
+	err = json.Unmarshal(cmd, &policy)
+	if err != nil {
+		log.Error().Msgf("Failed to unmarshal the policy : %v", err)
+	}
+	return policy, err
+}
+
 var _ = Describe("Smoke", func() {
-	It("adds two numbers", func() {
-		sum := 2 + 3
-		Expect(sum).To(Equal(5))
+
+	BeforeEach(func() {
+		checkPod("wordpress-",
+			"container.apparmor.security.beta.kubernetes.io/wordpress: localhost/kubearmor-wordpress-mysql-wordpress-wordpress", "wordpress-mysql")
+		checkPod("mysql-",
+			"container.apparmor.security.beta.kubernetes.io/mysql: localhost/kubearmor-wordpress-mysql-mysql-mysql", "wordpress-mysql")
+		checkPod("discovery-engine-",
+			"container.apparmor.security.beta.kubernetes.io/discovery-engine: localhost/kubearmor-accuknox-agents-discovery-engine-discovery-engine", "accuknox-agents")
+	})
+
+	AfterEach(func() {
+		util.KarmorLogStop()
+	})
+
+	Describe("Auto Policy Discovery", func() {
+		It("test", func() {
+			policy, err := discover("wordpress-mysql", "app=wordpress")
+			Expect(err).To(BeNil())
+			Expect(policy.APIVersion).To(Equal("security.kubearmor.com/v1"))
+			Expect(policy.Kind).To(Equal("KubeArmorPolicy"))
+			Expect(policy.Metadata["namespace"]).To(Equal("wordpress-mysql"))
+			Expect(policy.Spec.Action).To(Equal("Allow"))
+			Expect(policy.Spec.Selector.MatchLabels["app"]).To(Equal("wordpress"))
+
+			value := getMatchDir(policy, "file", "/tmp/")
+			Expect(value).To(Equal("/tmp/"))
+
+			value = getMatchPath(policy, "file", "/dev/urandom")
+			Expect(value).To(Equal("/dev/urandom"))
+
+			value = getMatchPath(policy, "process", "/usr/local/bin/php")
+			Expect(value).To(Equal("/usr/local/bin/php"))
+
+			Expect(policy.Spec.Severity).To(Equal(1))
+		})
 	})
 })
