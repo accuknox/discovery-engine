@@ -27,6 +27,11 @@ spec:
       - name: {{ .Values.labels.app }}
         image: "{{ .Values.discoveryEngineImage.repository }}"
         imagePullPolicy: {{ .Values.discoveryEngineImage.pullPolicy }}
+        env:
+        {{- range $key, $value  := .Values.env }}
+        - name: {{ $key }}
+          value: "{{ required (printf "value for %s is missing" $key) $value }}"
+        {{- end }}
         resources:
           {{- toYaml .Values.resourcesDiscoveryEngine | nindent 12 }}
         volumeMounts:

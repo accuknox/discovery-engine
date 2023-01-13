@@ -13,6 +13,13 @@ imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
+#Environment variables
+env:
+  tenant_id: "0"
+  cluster_id: "0"
+  cluster_name: "default"
+  workspace_id: "0"
+
 #ServiceAccount
 serviceAccount: 
   create: true
