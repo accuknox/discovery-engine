@@ -55,12 +55,12 @@ var _ = BeforeSuite(func() {
 	// install discovery-engine
 	_, err := util.Kubectl(fmt.Sprintf("apply -f https://raw.githubusercontent.com/kubearmor/discovery-engine/dev/deployments/k8s/deployment.yaml"))
 	Expect(err).To(BeNil())
-	time.Sleep(10 * time.Second)
+	time.Sleep(20 * time.Second)
 
 	//install wordpress-mysql app
 	err = util.K8sApply([]string{"res/wordpress-mysql-deployment.yaml"})
 	Expect(err).To(BeNil())
-	time.Sleep(10 * time.Second)
+	time.Sleep(25 * time.Second)
 
 	// delete all KSPs
 	err = util.DeleteAllKsp()
