@@ -13,20 +13,26 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+func checkDir(mp []types.KnoxMatchDirectories, str string) string {
+	for i := range mp {
+		if mp[i].Dir == str {
+			return str
+		}
+	}
+	return ""
+}
+
 func getMatchDir(policy types.KubeArmorPolicy, sys string, str string) string {
 	if sys == "file" {
-		for i := range policy.Spec.File.MatchDirectories {
-			if policy.Spec.File.MatchDirectories[i].Dir == str {
-				value := str
-				return value
-			}
-		}
-	} else {
-		for i := range policy.Spec.Process.MatchDirectories {
-			if policy.Spec.Process.MatchDirectories[i].Dir == str {
-				value := str
-				return value
-			}
+		return checkDir(policy.Spec.File.MatchDirectories, str)
+	}
+	return checkDir(policy.Spec.Process.MatchDirectories, str)
+}
+
+func checkPath(mp []types.KnoxMatchPaths, str string) string {
+	for i := range mp {
+		if mp[i].Path == str {
+			return str
 		}
 	}
 	return ""
@@ -34,21 +40,9 @@ func getMatchDir(policy types.KubeArmorPolicy, sys string, str string) string {
 
 func getMatchPath(policy types.KubeArmorPolicy, sys string, str string) string {
 	if sys == "file" {
-		for i := range policy.Spec.File.MatchPaths {
-			if policy.Spec.File.MatchPaths[i].Path == str {
-				value := str
-				return value
-			}
-		}
-	} else {
-		for i := range policy.Spec.Process.MatchPaths {
-			if policy.Spec.Process.MatchPaths[i].Path == str {
-				value := str
-				return value
-			}
-		}
+		return checkPath(policy.Spec.File.MatchPaths, str)
 	}
-	return ""
+	return checkPath(policy.Spec.Process.MatchPaths, str)
 }
 
 func checkPod(name string, ant string, ns string) {
