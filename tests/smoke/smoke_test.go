@@ -90,7 +90,7 @@ func discoversyspolicy(ns string, l string) (types.KubeArmorPolicy, error) {
 	return policy, err
 }
 
-func discovernetworkpolicy(ns string, l string) ([]nv1.NetworkPolicy, error) {
+func discovernetworkpolicy(ns string) ([]nv1.NetworkPolicy, error) {
 	policies := []nv1.NetworkPolicy{}
 	cmd, err := exec.Command("karmor", "discover", "-n", ns, "--policy", "NetworkPolicy", "-f", "json").Output()
 	if err != nil {
@@ -151,7 +151,7 @@ var _ = Describe("Smoke", func() {
 			Expect(policy.Spec.Severity).To(Equal(1))
 		})
 		It("testing for network policy", func() {
-			policy, err := discovernetworkpolicy("wordpress-mysql", "app=wordpress")
+			policy, err := discovernetworkpolicy("wordpress-mysql")
 			test, _ := json.Marshal(policy)
 			fmt.Println("=========>value", string(test))
 			Expect(err).To(BeNil())
@@ -161,27 +161,41 @@ var _ = Describe("Smoke", func() {
 				Expect(policy[i].ObjectMeta.Namespace).To(Equal("wordpress-mysql"))
 
 				if policy[i].Spec.PodSelector.MatchLabels["app"] == "wordpress" {
-					pt := string(policy[i].Spec.PolicyTypes[0])
-					Expect(pt).To(Equal("Egress"))
-				} else if policy[i].Spec.Egress == nil {
+					if policy[i].Spec.Ingress != nil {
+						pt := string(policy[i].Spec.PolicyTypes[0])
+						Expect(pt).To(Equal("Ingress"))
+						p := string(*policy[i].Spec.Ingress[0].Ports[0].Protocol)
+						Expect(p).To(Equal("TCP"))
+						port := int(policy[i].Spec.Ingress[0].Ports[0].Port.IntVal)
+						Expect(port).To(Equal(3306))
+						from := policy[i].Spec.Ingress[0].From[0].PodSelector.MatchLabels["app"]
+						Expect(from).To(Equal("mysql"))
+					} else {
+						pt := string(policy[i].Spec.PolicyTypes[0])
+						Expect(pt).To(Equal("Egress"))
+						p := string(*policy[i].Spec.Egress[0].Ports[0].Protocol)
+						Expect(p).To(Equal("UDP"))
+						p = string(*policy[i].Spec.Egress[1].Ports[0].Protocol)
+						Expect(p).To(Equal("TCP"))
+						port := int(policy[i].Spec.Egress[1].Ports[0].Port.IntVal)
+						Expect(port).To(Equal(3306))
+					}
+				} else if policy[i].Spec.Ingress != nil {
 					pt := string(policy[i].Spec.PolicyTypes[0])
 					Expect(pt).To(Equal("Ingress"))
-				} else {
-					pt := string(policy[i].Spec.PolicyTypes[0])
-					Expect(pt).To(Equal("Egress"))
-				}
-
-				if policy[i].Spec.PodSelector.MatchLabels["app"] == "wordpress" {
-					p := string(*policy[i].Spec.Egress[1].Ports[0].Protocol)
-					Expect(p).To(Equal("TCP"))
-					port := int(policy[i].Spec.Egress[1].Ports[0].Port.IntVal)
-					Expect(port).To(Equal(3306))
-				} else if policy[i].Spec.Ingress != nil {
 					p := string(*policy[i].Spec.Ingress[0].Ports[0].Protocol)
 					Expect(p).To(Equal("UDP"))
 				} else {
+					pt := string(policy[i].Spec.PolicyTypes[0])
+					Expect(pt).To(Equal("Egress"))
 					p := string(*policy[i].Spec.Egress[0].Ports[0].Protocol)
 					Expect(p).To(Equal("UDP"))
+					p = string(*policy[i].Spec.Egress[1].Ports[0].Protocol)
+					Expect(p).To(Equal("TCP"))
+					port := int(policy[i].Spec.Egress[1].Ports[0].Port.IntVal)
+					Expect(port).To(Equal(3306))
+					to := policy[i].Spec.Egress[1].To[0].PodSelector.MatchLabels["app"]
+					Expect(to).To(Equal("wordpress"))
 				}
 			}
 		})
