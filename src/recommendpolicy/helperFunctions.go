@@ -1,12 +1,17 @@
 package recommendpolicy
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/clarketm/json"
+	v1 "k8s.io/api/apps/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/watch"
 
+	"github.com/accuknox/auto-policy-discovery/src/cluster"
 	"github.com/accuknox/auto-policy-discovery/src/types"
 	"sigs.k8s.io/yaml"
 )
@@ -65,6 +70,7 @@ func generatePolicy(name, namespace string, labels LabelMap) ([]types.KnoxSystem
 			policy, err := createPolicy(ms, name, namespace, labels)
 			if err != nil {
 				log.Error().Msg(err.Error())
+				return []types.KnoxSystemPolicy{}, err
 			}
 			policies = append(policies, policy)
 		}
@@ -117,4 +123,47 @@ func addPolicyRule(policy *types.KnoxSystemPolicy, r *types.KnoxSystemSpec) {
 		policy.Spec.Network = r.Network
 	}
 
+}
+
+func initDeploymentWatcher() {
+	clientset := cluster.ConnectK8sClient()
+	watcher, err := clientset.AppsV1().Deployments("").Watch(context.TODO(), metav1.ListOptions{})
+
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return
+	}
+	defer watcher.Stop()
+
+	for event := range watcher.ResultChan() {
+		found := false
+		var index int
+		switch event.Type {
+		case watch.Added:
+			for _, data := range DeployNsName {
+				if data.Name == event.Object.(*v1.Deployment).Name && data.Namespace == event.Object.(*v1.Deployment).Namespace {
+					found = true
+					break
+				}
+			}
+			if !found {
+				log.Info().Msgf("Found Deployment %v in %v namespace", event.Object.(*v1.Deployment).Name, event.Object.(*v1.Deployment).Namespace)
+				generateHardenPolicy(event.Object.(*v1.Deployment).Name, event.Object.(*v1.Deployment).Namespace, event.Object.(*v1.Deployment).Spec.Template.Labels)
+			}
+		case watch.Deleted:
+			for i, data := range DeployNsName {
+				if data.Name == event.Object.(*v1.Deployment).Name && data.Namespace == event.Object.(*v1.Deployment).Namespace {
+					found = true
+					index = i
+					break
+				}
+			}
+			if found {
+				log.Info().Msgf("Deployment: %v deleted from namespace: %v", event.Object.(*v1.Deployment).Name, event.Object.(*v1.Deployment).Namespace)
+				DeployNsName = append(DeployNsName[:index], DeployNsName[index+1:]...)
+				log.Info().Msgf("Deployments in watchlist : %v ", DeployNsName)
+			}
+
+		}
+	}
 }

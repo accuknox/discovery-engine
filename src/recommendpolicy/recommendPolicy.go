@@ -7,6 +7,7 @@ import (
 	cfg "github.com/accuknox/auto-policy-discovery/src/config"
 	logger "github.com/accuknox/auto-policy-discovery/src/logging"
 	"github.com/accuknox/auto-policy-discovery/src/systempolicy"
+	"github.com/accuknox/auto-policy-discovery/src/types"
 	"github.com/robfig/cron"
 	"github.com/rs/zerolog"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -48,6 +49,9 @@ var LatestVersion string
 // LabelMap is an alias for map[string]string
 type LabelMap = map[string]string
 
+// DeployNsName stores the identified deployments in a namespace
+var DeployNsName []types.Deployment
+
 // init Function
 func init() {
 	log = logger.GetInstance()
@@ -65,6 +69,7 @@ func StartRecommendWorker() {
 	if cfg.GetCfgRecOperationMode() == OP_MODE_NOOP { // Do not run the operation
 		log.Info().Msg("Recommendation operation mode is NOOP ... NO RECOMMENDED POLICY")
 	} else if cfg.GetCfgRecOperationMode() == OP_MODE_CRONJOB { // every time intervals
+		DeployNsName = []types.Deployment{}
 		log.Info().Msg("Recommended policy cron job started")
 		RecommendPolicyMain()
 		StartRecommendCronJob()
@@ -88,7 +93,6 @@ func StopRecommendWorker() {
 
 // StartRecommendCronJob starts the recommendation cronjob
 func StartRecommendCronJob() {
-
 	// init cron job
 	RecommendCronJob = cron.New()
 	err := RecommendCronJob.AddFunc(cfg.GetCfgRecCronJobTime(), RecommendPolicyMain) // time interval
@@ -97,6 +101,8 @@ func StartRecommendCronJob() {
 		return
 	}
 	RecommendCronJob.Start()
+
+	go initDeploymentWatcher()
 
 }
 
@@ -131,16 +137,46 @@ func RecommendPolicyMain() {
 	}
 	systempolicy.InitSysPolicyDiscoveryConfiguration()
 	for _, d := range deployments.Items {
+		deploy := uniqueNsDeploy(d.Name, d.Namespace)
+
+		if deploy != nil {
+			DeployNsName = append(DeployNsName, *deploy)
+		}
+
 		for _, ns := range nsNotFilter {
 			if d.Namespace != ns {
-				log.Info().Msgf("Generating hardening policy for deployment: %v in namespace: %v", d.Name, d.Namespace)
-				policies, err := generatePolicy(d.Name, d.Namespace, d.Spec.Template.Labels)
-				if err != nil {
-					log.Error().Msg(err.Error())
-				}
-				systempolicy.UpdateSysPolicies(policies)
+				generateHardenPolicy(d.Name, d.Namespace, d.Spec.Template.Labels)
 			}
 		}
 	}
+}
 
+func generateHardenPolicy(name, namespace string, labels LabelMap) {
+	log.Info().Msgf("Generating hardening policy for deployment: %v in namespace: %v", name, namespace)
+	policies, err := generatePolicy(name, namespace, labels)
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return
+	}
+	systempolicy.UpdateSysPolicies(policies)
+}
+
+func uniqueNsDeploy(deployName, deployNamespace string) *types.Deployment {
+
+	deploy := types.Deployment{}
+	found := false
+	for _, data := range DeployNsName {
+		if data.Name == deployName && data.Namespace == deployNamespace {
+			found = true
+			break
+		}
+	}
+	if !found {
+		deploy = types.Deployment{
+			Name:      deployName,
+			Namespace: deployNamespace,
+		}
+	}
+
+	return &deploy
 }
