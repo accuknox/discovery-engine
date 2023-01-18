@@ -57,14 +57,14 @@ var _ = BeforeSuite(func() {
 	// install discovery-engine
 	_, err := util.Kubectl(fmt.Sprintf("apply -f https://raw.githubusercontent.com/kubearmor/discovery-engine/dev/deployments/k8s/deployment.yaml"))
 	Expect(err).To(BeNil())
-	time.Sleep(10 * time.Second)
+	time.Sleep(20 * time.Second)
 	checkPod("discovery-engine-",
 		"container.apparmor.security.beta.kubernetes.io/discovery-engine: localhost/kubearmor-accuknox-agents-discovery-engine-discovery-engine", "accuknox-agents")
 
 	//install wordpress-mysql app
 	err = util.K8sApply([]string{"res/wordpress-mysql-deployment.yaml"})
 	Expect(err).To(BeNil())
-	time.Sleep(10 * time.Second)
+	time.Sleep(25 * time.Second)
 	checkPod("wordpress-",
 		"container.apparmor.security.beta.kubernetes.io/wordpress: localhost/kubearmor-wordpress-mysql-wordpress-wordpress", "wordpress-mysql")
 	checkPod("mysql-",
