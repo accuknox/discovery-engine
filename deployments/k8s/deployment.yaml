@@ -24,6 +24,13 @@ spec:
       - image: accuknox/knoxautopolicy:stable
         imagePullPolicy: Always
         name: discovery-engine
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100Mi
+          limits:
+            cpu: 500m
+            memory: 1Gi
         ports:
         - containerPort: 9089
           protocol: TCP

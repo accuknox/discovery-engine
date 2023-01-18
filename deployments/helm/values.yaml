@@ -79,11 +79,11 @@ volumeMountsDiscoveryEngine:
 #resource DiscoveryEngine
 resourcesDiscoveryEngine:
   requests:
-    cpu: 50m
-    memory: 20Mi
+    cpu: 100m
+    memory: 100Mi
   limits:
     cpu: 500m
-    memory: 200Mi
+    memory: 1Gi
 
 nodeSelector: {}
 
