@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/accuknox/auto-policy-discovery/src/types"
@@ -11,6 +12,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rs/zerolog/log"
+	nv1 "k8s.io/api/networking/v1"
 )
 
 func checkDir(mp []types.KnoxMatchDirectories, str string) string {
@@ -22,13 +24,6 @@ func checkDir(mp []types.KnoxMatchDirectories, str string) string {
 	return ""
 }
 
-func getMatchDir(policy types.KubeArmorPolicy, sys string, str string) string {
-	if sys == "file" {
-		return checkDir(policy.Spec.File.MatchDirectories, str)
-	}
-	return checkDir(policy.Spec.Process.MatchDirectories, str)
-}
-
 func checkPath(mp []types.KnoxMatchPaths, str string) string {
 	for i := range mp {
 		if mp[i].Path == str {
@@ -36,6 +31,13 @@ func checkPath(mp []types.KnoxMatchPaths, str string) string {
 		}
 	}
 	return ""
+}
+
+func getMatchDir(policy types.KubeArmorPolicy, sys string, str string) string {
+	if sys == "file" {
+		return checkDir(policy.Spec.File.MatchDirectories, str)
+	}
+	return checkDir(policy.Spec.Process.MatchDirectories, str)
 }
 
 func getMatchPath(policy types.KubeArmorPolicy, sys string, str string) string {
@@ -75,7 +77,7 @@ var _ = AfterSuite(func() {
 	util.KubearmorPortForwardStop()
 })
 
-func discover(ns string, l string) (types.KubeArmorPolicy, error) {
+func discoversyspolicy(ns string, l string) (types.KubeArmorPolicy, error) {
 	policy := types.KubeArmorPolicy{}
 	cmd, err := exec.Command("karmor", "discover", "-n", ns, "-l", l, "-f", "json").Output()
 	if err != nil {
@@ -86,6 +88,30 @@ func discover(ns string, l string) (types.KubeArmorPolicy, error) {
 		log.Error().Msgf("Failed to unmarshal the policy : %v", err)
 	}
 	return policy, err
+}
+
+func discovernetworkpolicy(ns string, l string) ([]nv1.NetworkPolicy, error) {
+	policies := []nv1.NetworkPolicy{}
+	cmd, err := exec.Command("karmor", "discover", "-n", ns, "--policy", "NetworkPolicy", "-f", "json").Output()
+	if err != nil {
+		log.Error().Msgf("Failed to apply the `karmor discover` command : %v", err)
+	}
+	jsonObjects := strings.Split(string(cmd), "}\n{")
+	for i, jsonObject := range jsonObjects {
+		policy := &nv1.NetworkPolicy{}
+		if i > 0 {
+			jsonObject = "{" + jsonObject
+		}
+		if i < len(jsonObjects)-1 {
+			jsonObject = jsonObject + "}"
+		}
+		err = json.Unmarshal([]byte(jsonObject), policy)
+		if err != nil {
+			log.Error().Msgf("Failed to unmarshal the policy : %v", err)
+		}
+		policies = append(policies, *policy)
+	}
+	return policies, err
 }
 
 var _ = Describe("Smoke", func() {
@@ -104,8 +130,8 @@ var _ = Describe("Smoke", func() {
 	})
 
 	Describe("Auto Policy Discovery", func() {
-		It("test", func() {
-			policy, err := discover("wordpress-mysql", "app=wordpress")
+		It("testing for system policy", func() {
+			policy, err := discoversyspolicy("wordpress-mysql", "app=wordpress")
 			Expect(err).To(BeNil())
 			Expect(policy.APIVersion).To(Equal("security.kubearmor.com/v1"))
 			Expect(policy.Kind).To(Equal("KubeArmorPolicy"))
@@ -123,6 +149,39 @@ var _ = Describe("Smoke", func() {
 			Expect(value).To(Equal("/usr/local/bin/php"))
 
 			Expect(policy.Spec.Severity).To(Equal(1))
+		})
+		It("testing for network policy", func() {
+			policy, err := discovernetworkpolicy("wordpress-mysql", "app=wordpress")
+			Expect(err).To(BeNil())
+			for i := range policy {
+				Expect(policy[i].TypeMeta.Kind).To(Equal("NetworkPolicy"))
+				Expect(policy[i].TypeMeta.APIVersion).To(Equal("networking.k8s.io/v1"))
+				Expect(policy[i].ObjectMeta.Namespace).To(Equal("wordpress-mysql"))
+
+				if policy[i].Spec.PodSelector.MatchLabels["app"] == "wordpress" {
+					pt := string(policy[i].Spec.PolicyTypes[0])
+					Expect(pt).To(Equal("Egress"))
+				} else if policy[i].Spec.Egress == nil {
+					pt := string(policy[i].Spec.PolicyTypes[0])
+					Expect(pt).To(Equal("Ingress"))
+				} else {
+					pt := string(policy[i].Spec.PolicyTypes[0])
+					Expect(pt).To(Equal("Egress"))
+				}
+
+				if policy[i].Spec.PodSelector.MatchLabels["app"] == "wordpress" {
+					p := string(*policy[i].Spec.Egress[1].Ports[0].Protocol)
+					Expect(p).To(Equal("TCP"))
+					port := int(policy[i].Spec.Egress[1].Ports[0].Port.IntVal)
+					Expect(port).To(Equal(3306))
+				} else if policy[i].Spec.Ingress != nil {
+					p := string(*policy[i].Spec.Ingress[0].Ports[0].Protocol)
+					Expect(p).To(Equal("UDP"))
+				} else {
+					p := string(*policy[i].Spec.Egress[0].Ports[0].Protocol)
+					Expect(p).To(Equal("UDP"))
+				}
+			}
 		})
 	})
 })
