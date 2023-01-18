@@ -458,7 +458,7 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 				KubeArmorRelayLogsMutex.Unlock()
 
 				if config.GetCfgObservabilityEnable() {
-					obs.ProcessKubearmorLog(&kubearmorLog)
+					obs.ProcessKubearmorLogs(&kubearmorLog)
 				}
 
 				if config.CurrentCfg.ConfigNetPolicy.NetworkLogFrom == "kubearmor" {
@@ -512,7 +512,7 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 				KubeArmorRelayLogsMutex.Unlock()
 
 				if config.GetCfgObservabilityEnable() {
-					obs.ProcessKubearmorAlert(res)
+					obs.ProcessKubearmorLogs(res)
 				}
 
 				if config.CurrentCfg.ConfigNetPolicy.NetworkLogFrom == "kubearmor" {
