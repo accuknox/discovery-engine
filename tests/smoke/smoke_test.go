@@ -152,6 +152,8 @@ var _ = Describe("Smoke", func() {
 		})
 		It("testing for network policy", func() {
 			policy, err := discovernetworkpolicy("wordpress-mysql", "app=wordpress")
+			test, _ := json.Marshal(policy)
+			fmt.Println("=========>value", string(test))
 			Expect(err).To(BeNil())
 			for i := range policy {
 				Expect(policy[i].TypeMeta.Kind).To(Equal("NetworkPolicy"))
