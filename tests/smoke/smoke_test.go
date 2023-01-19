@@ -86,6 +86,8 @@ var _ = AfterSuite(func() {
 func discoversyspolicy(ns string, l string) (types.KubeArmorPolicy, error) {
 	policy := types.KubeArmorPolicy{}
 	cmd, err := exec.Command("karmor", "discover", "-n", ns, "-l", l, "-f", "json").Output()
+	test, _ := json.Marshal(cmd)
+	fmt.Println("=========>value", string(test))
 	if err != nil {
 		log.Error().Msgf("Failed to apply the `karmor discover` command : %v", err)
 	}
@@ -103,6 +105,7 @@ func discovernetworkpolicy(ns string) ([]nv1.NetworkPolicy, error) {
 		log.Error().Msgf("Failed to apply the `karmor discover` command : %v", err)
 	}
 	jsonObjects := strings.Split(string(cmd), "}\n{")
+	fmt.Println("=========>value", jsonObjects)
 	for i, jsonObject := range jsonObjects {
 		policy := &nv1.NetworkPolicy{}
 		if i > 0 {
