@@ -86,8 +86,6 @@ func discoversyspolicy(ns string, l string, maxcnt int) (types.KubeArmorPolicy, 
 	var err error
 	for cnt := 0; cnt < maxcnt; cnt++ {
 		cmd, err := exec.Command("karmor", "discover", "-n", ns, "-l", l, "-f", "json").Output()
-		test, _ := json.Marshal(cmd)
-		fmt.Println("=========>value", string(test))
 		if err != nil {
 			log.Error().Msgf("Failed to apply the `karmor discover` command : %v", err)
 		}
@@ -95,6 +93,8 @@ func discoversyspolicy(ns string, l string, maxcnt int) (types.KubeArmorPolicy, 
 		if err != nil {
 			log.Error().Msgf("Failed to unmarshal the policy : %v", err)
 		}
+		test, _ := json.Marshal(policy)
+		fmt.Println("=========>value", string(test))
 		value := getMatchPath(policy, "process", "/usr/local/bin/php")
 		if value == "/usr/local/bin/php" {
 			return policy, err
