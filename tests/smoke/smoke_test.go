@@ -15,15 +15,6 @@ import (
 	nv1 "k8s.io/api/networking/v1"
 )
 
-func checkDir(mp []types.KnoxMatchDirectories, str string) string {
-	for i := range mp {
-		if mp[i].Dir == str {
-			return str
-		}
-	}
-	return ""
-}
-
 func checkPath(mp []types.KnoxMatchPaths, str string) string {
 	for i := range mp {
 		if mp[i].Path == str {
@@ -31,13 +22,6 @@ func checkPath(mp []types.KnoxMatchPaths, str string) string {
 		}
 	}
 	return ""
-}
-
-func getMatchDir(policy types.KubeArmorPolicy, sys string, str string) string {
-	if sys == "file" {
-		return checkDir(policy.Spec.File.MatchDirectories, str)
-	}
-	return checkDir(policy.Spec.Process.MatchDirectories, str)
 }
 
 func getMatchPath(policy types.KubeArmorPolicy, sys string, str string) string {
@@ -190,12 +174,6 @@ var _ = Describe("Smoke", func() {
 			Expect(policy.Metadata["namespace"]).To(Equal("wordpress-mysql"))
 			Expect(policy.Spec.Action).To(Equal("Allow"))
 			Expect(policy.Spec.Selector.MatchLabels["app"]).To(Equal("wordpress"))
-
-			// value := getMatchDir(policy, "file", "/tmp/")
-			// Expect(value).To(Equal("/tmp/"))
-
-			// value = getMatchPath(policy, "file", "/dev/urandom")
-			// Expect(value).To(Equal("/dev/urandom"))
 
 			value := getMatchPath(policy, "process", "/usr/local/bin/php")
 			Expect(value).To(Equal("/usr/local/bin/php"))
