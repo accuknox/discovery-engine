@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/accuknox/auto-policy-discovery/src/types"
 	"github.com/kubearmor/KubeArmor/tests/util"
@@ -98,6 +99,7 @@ func discoversyspolicy(ns string, l string, maxcnt int) (types.KubeArmorPolicy, 
 		if value == "/usr/local/bin/php" {
 			return policy, err
 		} else {
+			time.Sleep(10 * time.Second)
 			continue
 		}
 	}
