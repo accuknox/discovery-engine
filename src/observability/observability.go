@@ -24,7 +24,7 @@ var (
 	CfgDB types.ConfigDB
 	log   *zerolog.Logger
 	// Kubearmor relay logs
-	SystemLogs []*pb.Log
+	SystemLogs []*pb.Alert
 	// Hubble relay logs
 	NetworkLogs []*flow.Flow
 	// Mutex
