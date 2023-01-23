@@ -122,30 +122,31 @@ func discovernetworkpolicy(ns string, maxcnt int) ([]nv1.NetworkPolicy, error) {
 				log.Error().Msgf("Failed to unmarshal the policy : %v", err)
 			}
 			policies = append(policies, *policy)
-			for i := range policies {
-				if policies[i].Spec.PodSelector.MatchLabels["app"] == "wordpress" {
-					if policies[i].Spec.Egress != nil {
-						var p string
-						if policies[i].Spec.Egress[0].Ports[0].Port != nil {
-							p = (string(*policies[i].Spec.Egress[0].Ports[0].Protocol))
-							if p == "TCP" {
-								flag = 1
-								return policies, err
-							}
-						} else {
-							p = (string(*policies[i].Spec.Egress[0].Ports[0].Protocol))
-							if p == "UDP" {
-								flag = 1
-								return policies, err
-							}
+		}
+		for i := range policies {
+			if policies[i].Spec.PodSelector.MatchLabels["app"] == "wordpress" {
+				if policies[i].Spec.Egress != nil {
+					var p string
+					if policies[i].Spec.Egress[0].Ports[0].Port != nil {
+						p = (string(*policies[i].Spec.Egress[0].Ports[0].Protocol))
+						if p == "TCP" {
+							flag = 1
 						}
+					} else {
+						p = (string(*policies[i].Spec.Egress[0].Ports[0].Protocol))
+						if p == "UDP" {
+							flag = 1
+						}
+					}
+					if flag == 0 {
+						time.Sleep(10 * time.Second)
+						break
 					}
 				}
 			}
-			if flag == 0 {
-				time.Sleep(10 * time.Second)
-				break
-			}
+		}
+		if flag == 1 {
+			return policies, err
 		}
 	}
 	return policies, err
