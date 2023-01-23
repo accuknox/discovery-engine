@@ -1,0 +1,91 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  labels:
+    app: wordpress
+  name: autopol-egress-cggferrubiqofvf
+  namespace: wordpress-mysql
+spec:
+  egress:
+  - ports:
+    - port: 3306
+      protocol: TCP
+  - ports:
+    - protocol: UDP
+  podSelector:
+    matchLabels:
+      app: wordpress
+  policyTypes:
+  - Egress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  labels:
+    app: mysql
+  name: autopol-ingress-enrosjtdkdvsskz
+  namespace: wordpress-mysql
+spec:
+  ingress:
+  - ports:
+    - protocol: UDP
+  - ports:
+    - port: 3306
+      protocol: UDP
+  podSelector:
+    matchLabels:
+      app: mysql
+  policyTypes:
+  - Ingress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  labels:
+    app: mysql
+  name: autopol-egress-nusxtjvfqialjgx
+  namespace: wordpress-mysql
+spec:
+  egress:
+  - ports:
+    - protocol: UDP
+  - ports:
+    - port: 3306
+      protocol: TCP
+    to:
+    - podSelector:
+        matchLabels:
+          app: wordpress
+  podSelector:
+    matchLabels:
+      app: mysql
+  policyTypes:
+  - Egress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  labels:
+    app: wordpress
+  name: autopol-ingress-yehehmlgcjsjysw
+  namespace: wordpress-mysql
+spec:
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: mysql
+    ports:
+    - port: 3306
+      protocol: TCP
+  - ports:
+    - protocol: UDP
+  - ports:
+    - port: 80
+      protocol: UDP
+  podSelector:
+    matchLabels:
+      app: wordpress
+  policyTypes:
+  - Ingress
+---

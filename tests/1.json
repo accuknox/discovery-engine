@@ -1,0 +1,178 @@
+{
+    "kind": "NetworkPolicy",
+    "apiVersion": "networking.k8s.io/v1",
+    "metadata": {
+        "name": "autopol-egress-cggferrubiqofvf",
+        "namespace": "wordpress-mysql",
+        "labels": {
+            "app": "wordpress"
+        }
+    },
+    "spec": {
+        "podSelector": {
+            "matchLabels": {
+                "app": "wordpress"
+            }
+        },
+        "egress": [
+            {
+                "ports": [
+                    {
+                        "protocol": "TCP",
+                        "port": 3306
+                    }
+                ]
+            },
+            {
+                "ports": [
+                    {
+                        "protocol": "UDP"
+                    }
+                ]
+            }
+        ],
+        "policyTypes": [
+            "Egress"
+        ]
+    }
+}
+{
+    "kind": "NetworkPolicy",
+    "apiVersion": "networking.k8s.io/v1",
+    "metadata": {
+        "name": "autopol-ingress-enrosjtdkdvsskz",
+        "namespace": "wordpress-mysql",
+        "labels": {
+            "app": "mysql"
+        }
+    },
+    "spec": {
+        "podSelector": {
+            "matchLabels": {
+                "app": "mysql"
+            }
+        },
+        "ingress": [
+            {
+                "ports": [
+                    {
+                        "protocol": "UDP"
+                    }
+                ]
+            },
+            {
+                "ports": [
+                    {
+                        "protocol": "UDP",
+                        "port": 3306
+                    }
+                ]
+            }
+        ],
+        "policyTypes": [
+            "Ingress"
+        ]
+    }
+}
+{
+    "kind": "NetworkPolicy",
+    "apiVersion": "networking.k8s.io/v1",
+    "metadata": {
+        "name": "autopol-egress-nusxtjvfqialjgx",
+        "namespace": "wordpress-mysql",
+        "labels": {
+            "app": "mysql"
+        }
+    },
+    "spec": {
+        "podSelector": {
+            "matchLabels": {
+                "app": "mysql"
+            }
+        },
+        "egress": [
+            {
+                "ports": [
+                    {
+                        "protocol": "UDP"
+                    }
+                ]
+            },
+            {
+                "ports": [
+                    {
+                        "protocol": "TCP",
+                        "port": 3306
+                    }
+                ],
+                "to": [
+                    {
+                        "podSelector": {
+                            "matchLabels": {
+                                "app": "wordpress"
+                            }
+                        }
+                    }
+                ]
+            }
+        ],
+        "policyTypes": [
+            "Egress"
+        ]
+    }
+}
+{
+    "kind": "NetworkPolicy",
+    "apiVersion": "networking.k8s.io/v1",
+    "metadata": {
+        "name": "autopol-ingress-yehehmlgcjsjysw",
+        "namespace": "wordpress-mysql",
+        "labels": {
+            "app": "wordpress"
+        }
+    },
+    "spec": {
+        "podSelector": {
+            "matchLabels": {
+                "app": "wordpress"
+            }
+        },
+        "ingress": [
+            {
+                "ports": [
+                    {
+                        "protocol": "TCP",
+                        "port": 3306
+                    }
+                ],
+                "from": [
+                    {
+                        "podSelector": {
+                            "matchLabels": {
+                                "app": "mysql"
+                            }
+                        }
+                    }
+                ]
+            },
+            {
+                "ports": [
+                    {
+                        "protocol": "UDP"
+                    }
+                ]
+            },
+            {
+                "ports": [
+                    {
+                        "protocol": "UDP",
+                        "port": 80
+                    }
+                ]
+            }
+        ],
+        "policyTypes": [
+            "Ingress"
+        ]
+    }
+}

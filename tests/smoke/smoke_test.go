@@ -24,10 +24,10 @@ func checkPath(mp []types.KnoxMatchPaths, str string) string {
 	return ""
 }
 
-func getMatchPath(policy types.KubeArmorPolicy, sys string, str string) string {
-	if sys == "file" {
-		return checkPath(policy.Spec.File.MatchPaths, str)
-	}
+func getMatchPath(policy types.KubeArmorPolicy, str string) string {
+	// if sys == "file" {
+	// 	return checkPath(policy.Spec.File.MatchPaths, str)
+	// }
 	return checkPath(policy.Spec.Process.MatchPaths, str)
 }
 
@@ -65,7 +65,7 @@ var _ = AfterSuite(func() {
 	util.KubearmorPortForwardStop()
 })
 
-func discoversyspolicy(ns string, l string, maxcnt int) (types.KubeArmorPolicy, error) {
+func discoversyspolicy(ns string, l string, rules []string, maxcnt int) (types.KubeArmorPolicy, error) {
 	policy := types.KubeArmorPolicy{}
 	var err error
 	for cnt := 0; cnt < maxcnt; cnt++ {
@@ -79,13 +79,15 @@ func discoversyspolicy(ns string, l string, maxcnt int) (types.KubeArmorPolicy, 
 		}
 		test, _ := json.Marshal(policy)
 		fmt.Println("=========>value", string(test))
-		value := getMatchPath(policy, "process", "/usr/local/bin/php")
-		if value == "/usr/local/bin/php" {
-			return policy, err
-		} else {
-			time.Sleep(10 * time.Second)
-			continue
+		for _, rule := range rules {
+			value := getMatchPath(policy, rule)
+			if value == rule {
+				return policy, err
+			} else {
+				break
+			}
 		}
+		time.Sleep(10 * time.Second)
 	}
 	return policy, err
 }
@@ -116,17 +118,6 @@ func discovernetworkpolicy(ns string, maxcnt int) ([]nv1.NetworkPolicy, error) {
 			}
 			policies = append(policies, *policy)
 			for i := range policies {
-
-				if policies[i].TypeMeta.Kind == "NetworkPolicy" {
-					flag = 1
-				}
-				if policies[i].TypeMeta.APIVersion == "networking.k8s.io/v1" {
-					flag = 1
-				}
-				if policies[i].ObjectMeta.Namespace == "wordpress-mysql" {
-					flag = 1
-				}
-
 				if policies[i].Spec.PodSelector.MatchLabels["app"] == "wordpress" {
 					if policies[i].Spec.Egress != nil {
 						var p string
@@ -167,16 +158,22 @@ var _ = Describe("Smoke", func() {
 
 	Describe("Auto Policy Discovery", func() {
 		It("testing for system policy", func() {
-			policy, err := discoversyspolicy("wordpress-mysql", "app=wordpress", 10)
+			// policy specific rules
+			rules := []string{"/usr/local/bin/php", "/usr/local/bin/apache2-foreground"}
+			policy, err := discoversyspolicy("wordpress-mysql", "app=wordpress", rules, 10)
 			Expect(err).To(BeNil())
+
 			Expect(policy.APIVersion).To(Equal("security.kubearmor.com/v1"))
 			Expect(policy.Kind).To(Equal("KubeArmorPolicy"))
 			Expect(policy.Metadata["namespace"]).To(Equal("wordpress-mysql"))
 			Expect(policy.Spec.Action).To(Equal("Allow"))
 			Expect(policy.Spec.Selector.MatchLabels["app"]).To(Equal("wordpress"))
 
-			value := getMatchPath(policy, "process", "/usr/local/bin/php")
+			value := getMatchPath(policy, "/usr/local/bin/php")
 			Expect(value).To(Equal("/usr/local/bin/php"))
+
+			value = getMatchPath(policy, "/usr/local/bin/apache2-foreground")
+			Expect(value).To(Equal("/usr/local/bin/apache2-foreground"))
 
 			Expect(policy.Spec.Severity).To(Equal(1))
 		})
