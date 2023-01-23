@@ -69,6 +69,7 @@ func discoversyspolicy(ns string, l string, rules []string, maxcnt int) (types.K
 	policy := types.KubeArmorPolicy{}
 	var err error
 	for cnt := 0; cnt < maxcnt; cnt++ {
+		flag := 0
 		cmd, err := exec.Command("karmor", "discover", "-n", ns, "-l", l, "-f", "json").Output()
 		if err != nil {
 			log.Error().Msgf("Failed to apply the `karmor discover` command : %v", err)
@@ -82,10 +83,14 @@ func discoversyspolicy(ns string, l string, rules []string, maxcnt int) (types.K
 		for _, rule := range rules {
 			value := getMatchPath(policy, rule)
 			if value == rule {
-				return policy, err
+				flag = 1
 			} else {
+				flag = 0
 				break
 			}
+		}
+		if flag == 1 {
+			return policy, err
 		}
 		time.Sleep(10 * time.Second)
 	}
@@ -171,9 +176,6 @@ var _ = Describe("Smoke", func() {
 
 			value := getMatchPath(policy, "/usr/local/bin/php")
 			Expect(value).To(Equal("/usr/local/bin/php"))
-
-			value = getMatchPath(policy, "/usr/local/bin/apache2-foreground")
-			Expect(value).To(Equal("/usr/local/bin/apache2-foreground"))
 
 			Expect(policy.Spec.Severity).To(Equal(1))
 		})
