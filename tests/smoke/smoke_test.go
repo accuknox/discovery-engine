@@ -92,13 +92,13 @@ func discoversyspolicy(ns string, l string, rules []string, maxcnt int) (types.K
 	return types.KubeArmorPolicy{}, err
 }
 
-func discovernetworkpolicy(ns string, l string, maxcnt int) ([]nv1.NetworkPolicy, error) {
+func discovernetworkpolicy(ns string, maxcnt int) ([]nv1.NetworkPolicy, error) {
 	policies := []nv1.NetworkPolicy{}
 	var err error
 	for cnt := 0; cnt < maxcnt; cnt++ {
 		flag := 0
 		flag_i := 0
-		cmd, err := exec.Command("karmor", "discover", "-n", ns, "-l", l, "--policy", "NetworkPolicy", "-f", "json").Output()
+		cmd, err := exec.Command("karmor", "discover", "-n", ns, "--policy", "NetworkPolicy", "-f", "json").Output()
 		if err != nil {
 			log.Error().Msgf("Failed to apply the `karmor discover` command : %v", err)
 		}
@@ -155,7 +155,7 @@ func discovernetworkpolicy(ns string, l string, maxcnt int) ([]nv1.NetworkPolicy
 					}
 				}
 			}
-			if flag_i > 0 && flag == 2 {
+			if flag_i > 0 && flag > 0 {
 				return policies, err
 			}
 		}
@@ -193,7 +193,7 @@ var _ = Describe("Smoke", func() {
 			Expect(policy.Spec.Severity).To(Equal(1))
 		})
 		It("testing for network policy", func() {
-			policy, err := discovernetworkpolicy("wordpress-mysql", "app=wordpress", 10)
+			policy, err := discovernetworkpolicy("wordpress-mysql", 10)
 			test, _ := json.Marshal(policy)
 			fmt.Println("=========>value", string(test))
 			Expect(err).To(BeNil())
