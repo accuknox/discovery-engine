@@ -156,17 +156,13 @@ func discovernetworkpolicy(ns string, maxcnt int) ([]nv1.NetworkPolicy, error) {
 						}
 					}
 				}
-				if flag_i == 0 {
-					time.Sleep(10 * time.Second)
-					break
+				if flag_i > 0 && flag == 2 {
+					return policies, err
 				}
 			}
 		}
 		fmt.Printf("flag : %v", flag)
 		fmt.Printf("flag_i : %v", flag_i)
-		if flag == 2 && flag_i > 0 {
-			return policies, err
-		}
 	}
 	return []nv1.NetworkPolicy{}, err
 }
