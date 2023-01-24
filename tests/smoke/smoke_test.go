@@ -124,6 +124,7 @@ func discovernetworkpolicy(ns string, maxcnt int) ([]nv1.NetworkPolicy, error) {
 			var port int
 			if policies[i].Spec.PodSelector.MatchLabels["app"] == "wordpress" {
 				for _, e := range policies[i].Spec.Egress {
+					flag = 0
 					if e.Ports[0].Port != nil {
 						p = (string(*e.Ports[0].Protocol))
 						port = e.Ports[0].Port.IntValue()
@@ -137,12 +138,9 @@ func discovernetworkpolicy(ns string, maxcnt int) ([]nv1.NetworkPolicy, error) {
 						}
 					}
 				}
-				if flag == 0 || flag == 1 {
-					time.Sleep(10 * time.Second)
-					break
-				}
 			} else if policies[i].Spec.PodSelector.MatchLabels["app"] == "mysql" {
 				for _, i := range policies[i].Spec.Ingress {
+					flag_i = 0
 					if i.Ports[0].Port != nil {
 						p = (string(*i.Ports[0].Protocol))
 						port = i.Ports[0].Port.IntValue()
@@ -156,10 +154,13 @@ func discovernetworkpolicy(ns string, maxcnt int) ([]nv1.NetworkPolicy, error) {
 						}
 					}
 				}
-				if flag_i > 0 && flag == 2 {
-					return policies, err
-				}
 			}
+			if flag_i > 0 && flag == 2 {
+				return policies, err
+			}
+		}
+		if flag_i <= 0 && flag != 2 {
+			time.Sleep(10 * time.Second)
 		}
 		fmt.Printf("flag : %v", flag)
 		fmt.Printf("flag_i : %v", flag_i)
