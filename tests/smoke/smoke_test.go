@@ -103,6 +103,7 @@ func discovernetworkpolicy(ns string, maxcnt int) ([]nv1.NetworkPolicy, error) {
 			log.Error().Msgf("Failed to apply the `karmor discover` command : %v", err)
 		}
 		jsonObjects := strings.Split(string(cmd), "}\n{")
+		fmt.Println("=========>value", jsonObjects)
 		for i, jsonObject := range jsonObjects {
 			policy := &nv1.NetworkPolicy{}
 
@@ -194,6 +195,8 @@ var _ = Describe("Smoke", func() {
 		})
 		It("testing for network policy", func() {
 			policy, err := discovernetworkpolicy("wordpress-mysql", 10)
+			test, _ := json.Marshal(policy)
+			fmt.Println("=========>value", string(test))
 			Expect(err).To(BeNil())
 			Expect(len(policy)).NotTo(Equal(0))
 			for i := range policy {
