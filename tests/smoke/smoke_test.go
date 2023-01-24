@@ -151,7 +151,7 @@ func discovernetworkpolicy(ns string, maxcnt int) ([]nv1.NetworkPolicy, error) {
 						}
 					} else {
 						p = (string(*i.Ports[0].Protocol))
-						if p == "TCP" {
+						if p == "UDP" {
 							flag_i += 1
 						}
 					}
