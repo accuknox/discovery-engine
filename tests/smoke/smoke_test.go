@@ -162,7 +162,7 @@ func discovernetworkpolicy(ns string, maxcnt int) ([]nv1.NetworkPolicy, error) {
 				}
 			}
 		}
-		if flag == 2 && flag_i == 2 {
+		if flag == 2 && flag_i > 0 {
 			return policies, err
 		}
 	}
