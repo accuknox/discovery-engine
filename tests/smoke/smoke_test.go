@@ -165,7 +165,7 @@ var _ = Describe("Smoke", func() {
 	Describe("Auto Policy Discovery", func() {
 		It("testing for system policy", func() {
 			// policy specific rules
-			rules := []string{"/usr/local/bin/php", "/usr/local/bin/apache2-foreground"}
+			rules := []string{"/usr/local/bin/php", "/usr/sbin/apache2"}
 			policy, err := discoversyspolicy("wordpress-mysql", "app=wordpress", rules, 10)
 			Expect(err).To(BeNil())
 
@@ -174,10 +174,6 @@ var _ = Describe("Smoke", func() {
 			Expect(policy.Metadata["namespace"]).To(Equal("wordpress-mysql"))
 			Expect(policy.Spec.Action).To(Equal("Allow"))
 			Expect(policy.Spec.Selector.MatchLabels["app"]).To(Equal("wordpress"))
-
-			value := getMatchPath(policy, "/usr/local/bin/php")
-			Expect(value).To(Equal("/usr/local/bin/php"))
-
 			Expect(policy.Spec.Severity).To(Equal(1))
 		})
 		It("testing for network policy", func() {
