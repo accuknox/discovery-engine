@@ -156,7 +156,7 @@ func discovernetworkpolicy(ns string, maxcnt int) ([]nv1.NetworkPolicy, error) {
 						}
 					}
 				}
-				if flag_i == 0 || flag_i == 1 {
+				if flag_i == 0 {
 					time.Sleep(10 * time.Second)
 					break
 				}
