@@ -148,7 +148,7 @@ func discovernetworkpolicy(ns string, maxcnt int) ([]nv1.NetworkPolicy, error) {
 					if i.Ports[0].Port != nil {
 						p = (string(*i.Ports[0].Protocol))
 						port = i.Ports[0].Port.IntValue()
-						if p == "TCP" && port == 3306 {
+						if p == "UDP" && port == 3306 {
 							flag_i += 1
 						}
 					} else {
@@ -203,7 +203,6 @@ var _ = Describe("Smoke", func() {
 			Expect(len(policy)).NotTo(Equal(0))
 			for i := range policy {
 				Expect(policy[i].TypeMeta.Kind).To(Equal("NetworkPolicy"))
-				log.Printf("=========>value %v", policy[i].TypeMeta.Kind)
 				Expect(policy[i].TypeMeta.APIVersion).To(Equal("networking.k8s.io/v1"))
 				Expect(policy[i].ObjectMeta.Namespace).To(Equal("wordpress-mysql"))
 			}
