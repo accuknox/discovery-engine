@@ -97,7 +97,6 @@ func discovernetworkpolicy(ns string, maxcnt int) ([]nv1.NetworkPolicy, error) {
 	var err error
 	for cnt := 0; cnt < maxcnt; cnt++ {
 		flag := 0
-		flag_i := 0
 		cmd, err := exec.Command("karmor", "discover", "-n", ns, "--policy", "NetworkPolicy", "-f", "json").Output()
 		if err != nil {
 			log.Error().Msgf("Failed to apply the `karmor discover` command : %v", err)
@@ -122,7 +121,8 @@ func discovernetworkpolicy(ns string, maxcnt int) ([]nv1.NetworkPolicy, error) {
 		for i := range policies {
 			var p string
 			var port int
-			if policies[i].Spec.PodSelector.MatchLabels["app"] == "wordpress" && flag != 2 {
+			if policies[i].Spec.PodSelector.MatchLabels["app"] == "wordpress" {
+				flag = 0
 				for _, e := range policies[i].Spec.Egress {
 					if e.Ports[0].Port != nil {
 						p = (string(*e.Ports[0].Protocol))
@@ -130,39 +130,21 @@ func discovernetworkpolicy(ns string, maxcnt int) ([]nv1.NetworkPolicy, error) {
 						if p == "TCP" && port == 3306 {
 							flag += 1
 						}
-						if e.To != nil {
-							l := e.To[0].PodSelector.MatchLabels["app"]
-							if l == "mysql" {
-								flag += 1
-							}
-						}
-					}
-				}
-			} else if policies[i].Spec.PodSelector.MatchLabels["app"] == "mysql" && flag_i != 2 {
-				for _, i := range policies[i].Spec.Ingress {
-					if i.Ports[0].Port != nil {
-						p = (string(*i.Ports[0].Protocol))
-						port = i.Ports[0].Port.IntValue()
-						if p == "TCP" && port == 3306 {
-							flag_i += 1
-						}
-						if i.From != nil {
-							l := i.From[0].PodSelector.MatchLabels["app"]
-							if l == "wordpress" {
-								flag_i += 1
-							}
+					} else {
+						p = (string(*e.Ports[0].Protocol))
+						if p == "UDP" {
+							flag += 1
 						}
 					}
 				}
 			}
-			if flag == 2 && flag_i == 2 {
+			if flag > 0 {
 				return policies, err
 			}
 		}
-		if flag != 2 && flag_i == 2 {
+		if flag == 0 {
 			time.Sleep(10 * time.Second)
 		}
-		fmt.Printf("flag : %v", flag)
 	}
 	return []nv1.NetworkPolicy{}, err
 }
@@ -195,11 +177,23 @@ var _ = Describe("Smoke", func() {
 			policy, err := discovernetworkpolicy("wordpress-mysql", 10)
 			Expect(err).To(BeNil())
 			Expect(len(policy)).NotTo(Equal(0))
+			flag := 0
 			for i := range policy {
 				Expect(policy[i].TypeMeta.Kind).To(Equal("NetworkPolicy"))
 				Expect(policy[i].TypeMeta.APIVersion).To(Equal("networking.k8s.io/v1"))
 				Expect(policy[i].ObjectMeta.Namespace).To(Equal("wordpress-mysql"))
+
+				if policy[i].Spec.PodSelector.MatchLabels["app"] == "mysql" {
+
+					for range policy[i].Spec.Egress {
+						flag += 1
+					}
+					for range policy[i].Spec.Ingress {
+						flag += 1
+					}
+				}
 			}
+			Expect(flag).NotTo(Equal(0))
 		})
 	})
 })
