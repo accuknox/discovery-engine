@@ -176,8 +176,6 @@ var _ = Describe("Smoke", func() {
 		})
 		It("testing for network policy", func() {
 			policy, err := discovernetworkpolicy("wordpress-mysql", 10)
-			test, _ := json.Marshal(policy)
-			fmt.Println("=========>value", string(test))
 			Expect(err).To(BeNil())
 			Expect(len(policy)).NotTo(Equal(0))
 			flag := 0
