@@ -97,7 +97,6 @@ func discovernetworkpolicy(ns string, maxcnt int) ([]nv1.NetworkPolicy, error) {
 	var err error
 	for cnt := 0; cnt < maxcnt; cnt++ {
 		flag := 0
-		flag_i := 0
 		cmd, err := exec.Command("karmor", "discover", "-n", ns, "--policy", "NetworkPolicy", "-f", "json").Output()
 		if err != nil {
 			log.Error().Msgf("Failed to apply the `karmor discover` command : %v", err)
@@ -123,8 +122,8 @@ func discovernetworkpolicy(ns string, maxcnt int) ([]nv1.NetworkPolicy, error) {
 			var p string
 			var port int
 			if policies[i].Spec.PodSelector.MatchLabels["app"] == "wordpress" {
+				flag = 0
 				for _, e := range policies[i].Spec.Egress {
-					flag = 0
 					if e.Ports[0].Port != nil {
 						p = (string(*e.Ports[0].Protocol))
 						port = e.Ports[0].Port.IntValue()
@@ -138,32 +137,15 @@ func discovernetworkpolicy(ns string, maxcnt int) ([]nv1.NetworkPolicy, error) {
 						}
 					}
 				}
-			} else if policies[i].Spec.PodSelector.MatchLabels["app"] == "mysql" {
-				for _, i := range policies[i].Spec.Ingress {
-					flag_i = 0
-					if i.Ports[0].Port != nil {
-						p = (string(*i.Ports[0].Protocol))
-						port = i.Ports[0].Port.IntValue()
-						if p == "UDP" && port == 3306 {
-							flag_i += 1
-						}
-					} else {
-						p = (string(*i.Ports[0].Protocol))
-						if p == "UDP" {
-							flag_i += 1
-						}
-					}
-				}
 			}
-			if flag_i > 0 && flag > 0 {
+			if flag > 0 {
 				return policies, err
 			}
 		}
-		if flag_i <= 0 && flag != 2 {
+		if flag == 0 {
 			time.Sleep(10 * time.Second)
 		}
 		fmt.Printf("flag : %v", flag)
-		fmt.Printf("flag_i : %v", flag_i)
 	}
 	return []nv1.NetworkPolicy{}, err
 }
@@ -198,11 +180,23 @@ var _ = Describe("Smoke", func() {
 			fmt.Println("=========>value", string(test))
 			Expect(err).To(BeNil())
 			Expect(len(policy)).NotTo(Equal(0))
+			flag := 0
 			for i := range policy {
 				Expect(policy[i].TypeMeta.Kind).To(Equal("NetworkPolicy"))
 				Expect(policy[i].TypeMeta.APIVersion).To(Equal("networking.k8s.io/v1"))
 				Expect(policy[i].ObjectMeta.Namespace).To(Equal("wordpress-mysql"))
+
+				if policy[i].Spec.PodSelector.MatchLabels["app"] == "mysql" {
+
+					for range policy[i].Spec.Egress {
+						flag += 1
+					}
+					for range policy[i].Spec.Ingress {
+						flag += 1
+					}
+				}
 			}
+			Expect(flag).NotTo(Equal(0))
 		})
 	})
 })
