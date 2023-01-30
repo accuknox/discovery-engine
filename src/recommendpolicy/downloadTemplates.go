@@ -208,6 +208,7 @@ func updatePolicyRules(filePath string) error {
 				}
 				ms.Yaml = ""
 				ms.Spec = newPolicyFile.Spec
+				ms.Kind = newPolicyFile.Kind
 			}
 			completePolicy = append(completePolicy, ms)
 		}

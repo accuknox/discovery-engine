@@ -62,7 +62,7 @@ func init() {
 // StartRecommendWorker starts the recommended worker
 func StartRecommendWorker() {
 	if RecommendWorkerStatus != STATUS_IDLE {
-		log.Info().Msg("There is no idle system policy discovery worker")
+		log.Info().Msg("There is no idle recommend policy worker")
 
 		return
 	}

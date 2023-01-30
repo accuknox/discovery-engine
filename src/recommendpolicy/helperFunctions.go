@@ -73,6 +73,21 @@ func generatePolicy(name, namespace string, labels LabelMap) ([]types.KnoxSystem
 				return []types.KnoxSystemPolicy{}, err
 			}
 			policies = append(policies, policy)
+		} else if ms.Kind == types.KindKubeArmorHostPolicy {
+			client := cluster.ConnectK8sClient()
+			nodeList, err := client.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+			if err != nil {
+				log.Error().Msg(err.Error())
+				return []types.KnoxSystemPolicy{}, err
+			}
+			for _, node := range nodeList.Items {
+				policy, err := createPolicy(ms, node.Name, "", node.Labels)
+				if err != nil {
+					log.Error().Msg(err.Error())
+					return []types.KnoxSystemPolicy{}, err
+				}
+				policies = append(policies, policy)
+			}
 		}
 	}
 
@@ -89,11 +104,17 @@ func createPolicy(ms types.MatchSpec, name, namespace string, labels LabelMap) (
 		},
 	}
 	policy.APIVersion = "v1"
-	policy.Kind = "KubeArmorPolicy"
+	policy.Kind = ms.Kind
 
-	policy.Metadata = map[string]string{
-		"name":      fmt.Sprintf("%v-%v-%v", types.HardeningPolicy, name, ms.Name),
-		"namespace": namespace,
+	if policy.Kind != types.KindKubeArmorHostPolicy {
+		policy.Metadata = map[string]string{
+			"name":      fmt.Sprintf("%v-%v-%v", types.HardeningPolicy, name, ms.Name),
+			"namespace": namespace,
+		}
+	} else {
+		policy.Metadata = map[string]string{
+			"name": fmt.Sprintf("%v-host-%v-%v", types.HardeningPolicy, name, ms.Name),
+		}
 	}
 
 	policy.Spec.Action = ms.Spec.Action
