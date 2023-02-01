@@ -56,7 +56,7 @@ data:
         operation-mode: 1                         # 1: cronjob | 2: one-time-job
         cron-job-time-interval: "0h0m10s"         # format: XhYmZs
         operation-trigger: 5
-        network-log-from: "kubearmor"             # db|hubble|feed-consumer
+        network-log-from: "kubearmor"             # db|hubble|feed-consumer|kubearmor
         network-log-file: "./flow.json"           # file path
         network-policy-to: "db"                   # db, file
         network-policy-dir: "./"
@@ -65,6 +65,7 @@ data:
       system:
         operation-mode: 1                         # 1: cronjob | 2: one-time-job
         cron-job-time-interval: "0h0m10s"         # format: XhYmZs
+        operation-trigger: 5
         system-log-from: "kubearmor"              # db|kubearmor|feed-consumer
         system-log-file: "./log.json"             # file path
         system-policy-to: "db"                    # db, file
