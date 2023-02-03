@@ -158,13 +158,22 @@ metadata:
   namespace: accuknox-agents
 ---
 apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: discovery-engine-role
+rules:
+- apiGroups: ["*"]
+  resources: ["pods", "services", "deployments", "endpoints", "namespaces", "nodes"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: discovery-engine
+  name: discovery-engine-role-binding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: cluster-admin
+  name: discovery-engine-role
 subjects:
 - kind: ServiceAccount
   name: discovery-engine
