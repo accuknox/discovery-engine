@@ -93,7 +93,7 @@ func DownloadAndUnzipRelease() (string, error) {
 		LatestVersion = latestRelease()
 	}
 	_ = removeData(getCachePath())
-	err := os.MkdirAll(filepath.Dir(getCachePath()), 0750)
+	err := os.MkdirAll(filepath.Dir(getCachePath()), 0740)
 	if err != nil {
 		return "", err
 	}
@@ -145,7 +145,7 @@ func unZip(source, dest string) error {
 		if err != nil {
 			return err
 		}
-		_ = os.MkdirAll(path.Dir(name), 0750)
+		_ = os.MkdirAll(path.Dir(name), 0740)
 		create, err := os.Create(filepath.Clean(name))
 		if err != nil {
 			return err
@@ -212,6 +212,7 @@ func updatePolicyRules(filePath string) error {
 				}
 				ms.Yaml = ""
 				ms.Spec = newPolicyFile.Spec
+				ms.Kind = newPolicyFile.Kind
 			}
 			completePolicy = append(completePolicy, ms)
 		}

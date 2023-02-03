@@ -12,6 +12,7 @@ import (
 
 	"github.com/accuknox/auto-policy-discovery/src/libs"
 	"github.com/accuknox/auto-policy-discovery/src/types"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	rest "k8s.io/client-go/rest"
@@ -458,4 +459,19 @@ func GetDeploymentsFromK8sClient() []types.Deployment {
 		})
 	}
 	return results
+}
+
+// ================= //
+// == Nodes == //
+// ================= //
+
+func GetNodesFromK8sClient() (*v1.NodeList, error) {
+
+	client := ConnectK8sClient()
+	nodeList, err := client.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return &v1.NodeList{}, err
+	}
+	return nodeList, nil
 }

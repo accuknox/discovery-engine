@@ -62,7 +62,7 @@ func init() {
 // StartRecommendWorker starts the recommended worker
 func StartRecommendWorker() {
 	if RecommendWorkerStatus != STATUS_IDLE {
-		log.Info().Msg("There is no idle system policy discovery worker")
+		log.Info().Msg("There is no idle recommend policy worker")
 
 		return
 	}
@@ -81,7 +81,7 @@ func StartRecommendWorker() {
 
 // StopRecommendWorker stops the recommendation worker
 func StopRecommendWorker() {
-	if cfg.GetCfgSysOperationMode() == OP_MODE_CRONJOB { // every time intervals
+	if cfg.GetCfgRecOperationMode() == OP_MODE_CRONJOB { // every time intervals
 		StopRecommendCronJob()
 	} else {
 		if RecommendWorkerStatus != STATUS_RUNNING {

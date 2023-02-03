@@ -5,6 +5,7 @@ import (
 	"hash/fnv"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"sort"
@@ -180,7 +181,7 @@ func getSystemLogs() []types.KnoxSystemLog {
 		log.Info().Msg("Get system logs from the json file : " + SystemLogFile)
 
 		// Opens jsonFile
-		logFile, err := os.Open(SystemLogFile)
+		logFile, err := os.Open(filepath.Clean(SystemLogFile))
 		if err != nil {
 			log.Error().Msg(err.Error())
 			if err := logFile.Close(); err != nil {

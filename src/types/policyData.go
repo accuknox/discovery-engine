@@ -344,6 +344,7 @@ type MatchSpec struct {
 	Description  Description    `json:"description" yaml:"description"`
 	Yaml         string         `json:"yaml" yaml:"yaml"`
 	Spec         KnoxSystemSpec `json:"spec,omitempty" yaml:"spec,omitempty"`
+	Kind         string         `json:"kind,omitempty" yaml:"kind,omitempty" bson:"kind,omitempty"`
 }
 
 // Ref for the policy rules
