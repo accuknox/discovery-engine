@@ -8,6 +8,8 @@ require (
 	github.com/onsi/ginkgo/v2 v2.7.0
 	github.com/onsi/gomega v1.24.2
 	github.com/rs/zerolog v1.28.0
+	k8s.io/api v0.24.3
+	sigs.k8s.io/yaml v1.3.0
 )
 
 require (
@@ -118,7 +120,6 @@ require (
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/api v0.24.3 // indirect
 	k8s.io/apiextensions-apiserver v0.22.3 // indirect
 	k8s.io/apimachinery v0.24.3 // indirect
 	k8s.io/cli-runtime v0.24.3 // indirect
@@ -130,7 +131,6 @@ require (
 	sigs.k8s.io/kustomize/api v0.11.4 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.13.6 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect
-	sigs.k8s.io/yaml v1.3.0 // indirect
 )
 
 replace (

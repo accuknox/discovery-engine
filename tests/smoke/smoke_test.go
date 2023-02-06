@@ -2,6 +2,7 @@ package smoke_test
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -13,7 +14,10 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/rs/zerolog/log"
 	nv1 "k8s.io/api/networking/v1"
+	"sigs.k8s.io/yaml"
 )
+
+var stopChan chan struct{}
 
 func checkPath(mp []types.KnoxMatchPaths, str string) string {
 	for i := range mp {
@@ -34,18 +38,60 @@ func checkPod(name string, ant string, ns string) {
 	Expect(len(pods)).To(Equal(1))
 }
 
+// WordpressPortForward enable port forwarding for wordpress
+func WordpressPortForward() error {
+	if stopChan != nil {
+		log.Error().Msgf("wordpress port forward is already in progress")
+		return errors.New("wordpress port forward is already in progress")
+	}
+	ns := "wordpress-mysql"
+	pods, err := util.K8sGetPods("^wordpress-..........-.....$", ns, nil, 0)
+	if err != nil {
+		log.Printf("could not get wordpress pods assuming process mode")
+		return nil
+	}
+	if len(pods) != 1 {
+		log.Error().Msgf("len(pods)=%d", len(pods))
+		return errors.New("expecting one wordpress pod only")
+	}
+	log.Printf("found wordpress pod:[%s]", pods[0])
+	c, err := util.K8sPortForward(util.PortForwardOpt{
+		LocalPort:   8000,
+		RemotePort:  80,
+		ServiceName: pods[0],
+		Namespace:   ns})
+	if err != nil {
+		log.Error().Msgf("could not do wordpress portforward Error=%s", err.Error())
+		return err
+	}
+	stopChan = c
+	return nil
+}
+
+// WordpressPortForwardStop stop wordpress port forwarding
+func WordpressPortForwardStop() {
+	if stopChan == nil {
+		return
+	}
+	close(stopChan)
+	stopChan = nil
+}
+
 var _ = BeforeSuite(func() {
 	// install discovery-engine
 	_, err := util.Kubectl(fmt.Sprintf("apply -f https://raw.githubusercontent.com/kubearmor/discovery-engine/dev/deployments/k8s/deployment.yaml"))
 	Expect(err).To(BeNil())
+	// check discovery-engine pod status
 	checkPod("discovery-engine-",
 		"container.apparmor.security.beta.kubernetes.io/discovery-engine: localhost/kubearmor-accuknox-agents-discovery-engine-discovery-engine", "accuknox-agents")
 
 	//install wordpress-mysql app
 	err = util.K8sApply([]string{"res/wordpress-mysql-deployment.yaml"})
 	Expect(err).To(BeNil())
+	//check wordpress pod status
 	checkPod("wordpress-",
 		"container.apparmor.security.beta.kubernetes.io/wordpress: localhost/kubearmor-wordpress-mysql-wordpress-wordpress", "wordpress-mysql")
+	//check mysql pod status
 	checkPod("mysql-",
 		"container.apparmor.security.beta.kubernetes.io/mysql: localhost/kubearmor-wordpress-mysql-mysql-mysql", "wordpress-mysql")
 
@@ -56,10 +102,16 @@ var _ = BeforeSuite(func() {
 	// enable kubearmor port forwarding
 	err = util.KubearmorPortForward()
 	Expect(err).To(BeNil())
+
+	// enable wordpress port forwarding
+	err = WordpressPortForward()
+	Expect(err).To(BeNil())
+
 })
 
 var _ = AfterSuite(func() {
 	util.KubearmorPortForwardStop()
+	WordpressPortForwardStop()
 })
 
 func discoversyspolicy(ns string, l string, rules []string, maxcnt int) (types.KubeArmorPolicy, error) {
@@ -97,27 +149,28 @@ func discovernetworkpolicy(ns string, maxcnt int) ([]nv1.NetworkPolicy, error) {
 	var err error
 	for cnt := 0; cnt < maxcnt; cnt++ {
 		flag := 0
-		cmd, err := exec.Command("karmor", "discover", "-n", ns, "--policy", "NetworkPolicy", "-f", "json").Output()
+		cmd, err := exec.Command("karmor", "discover", "-n", ns, "--policy", "NetworkPolicy", "-f", "yaml").Output()
 		if err != nil {
 			log.Error().Msgf("Failed to apply the `karmor discover` command : %v", err)
 		}
-		jsonObjects := strings.Split(string(cmd), "}\n{")
-		fmt.Println("=========>value", jsonObjects)
-		for i, jsonObject := range jsonObjects {
-			policy := &nv1.NetworkPolicy{}
 
-			if i > 0 {
-				jsonObject = "{" + jsonObject
-			}
-			if i < len(jsonObjects)-1 {
-				jsonObject = jsonObject + "}"
-			}
-			err = json.Unmarshal([]byte(jsonObject), policy)
+		yamls := strings.Split(string(cmd), "---")
+		fmt.Println("=========>value", len(yamls))
+		fmt.Println("=========>value", yamls)
+		if len(yamls) > 0 {
+			yamls = yamls[:len(yamls)-1]
+		}
+
+		for _, yamlobject := range yamls {
+			policy := &nv1.NetworkPolicy{}
+			err = yaml.Unmarshal([]byte(yamlobject), policy)
 			if err != nil {
 				log.Error().Msgf("Failed to unmarshal the policy : %v", err)
 			}
 			policies = append(policies, *policy)
+			fmt.Println("=========>value", policy)
 		}
+
 		for i := range policies {
 			var p string
 			var port int
@@ -174,6 +227,16 @@ var _ = Describe("Smoke", func() {
 			Expect(policy.Spec.Severity).To(Equal(1))
 		})
 		It("testing for network policy", func() {
+			for i := 0; i <= 30; i++ {
+				cmd, err := exec.Command("curl", "-d", `WORDPRESS_DB_HOST="mysql"`, "-d", `WORDPRESS_DB_PASSWORD="root-password"`, "-d", `wp-submit="Log In"`, "-d", `redirect_to="http://localhost:8000/wp-admin/"`, "-d", "testcookie=1", "http://localhost:8000/wp-admin/install.php").Output()
+				if err != nil {
+					log.Error().Msgf("Failed to curl command : %v", err)
+				}
+				log.Printf("curl : %v", string(cmd))
+				if cmd != nil {
+					break
+				}
+			}
 			policy, err := discovernetworkpolicy("wordpress-mysql", 10)
 			Expect(err).To(BeNil())
 			Expect(len(policy)).NotTo(Equal(0))
