@@ -23,7 +23,11 @@ func GetResourcesFromKvmService() ([]string, []types.Pod) {
 		log.Error().Msgf("http response error: %s", err.Error())
 		return nil, nil
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Warn().Msgf("Error closing http stream %s\n", err)
+		}
+	}()
 
 	data, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
