@@ -67,12 +67,7 @@ func checkntwpolicyrules(policies []nv1.NetworkPolicy) (int, int) {
 					}
 					port = e.Ports[0].Port.IntValue()
 					if p == "TCP" && port == 3306 {
-						flag += 1
-					}
-				} else {
-					p = (string(*e.Ports[0].Protocol))
-					if p == "UDP" {
-						flag += 1
+						flag = 1
 					}
 				}
 			}
@@ -85,17 +80,12 @@ func checkntwpolicyrules(policies []nv1.NetworkPolicy) (int, int) {
 					}
 					port = i.Ports[0].Port.IntValue()
 					if p == "TCP" && port == 3306 {
-						flag_i += 1
-					}
-				} else {
-					p = (string(*i.Ports[0].Protocol))
-					if p == "UDP" {
-						flag_i += 1
+						flag_i = 1
 					}
 				}
 			}
 		}
-		if flag > 0 && flag_i > 0 {
+		if flag == 1 && flag_i == 1 {
 			return flag, flag_i
 		}
 	}
@@ -226,7 +216,7 @@ func discovernetworkpolicy(ns string, maxcnt int) ([]nv1.NetworkPolicy, error) {
 			policies = append(policies, *policy)
 		}
 		flag, flag_i = checkntwpolicyrules(policies)
-		if flag > 0 && flag_i > 0 {
+		if flag == 1 && flag_i == 1 {
 			return policies, err
 		}
 		if flag == 0 || flag_i == 0 {
@@ -267,7 +257,6 @@ var _ = Describe("Smoke", func() {
 				if err != nil {
 					log.Error().Msgf("Failed to apply curl command : %v", err)
 				}
-				log.Printf("curl : %v", string(curl))
 				if curl != nil {
 					break
 				}
