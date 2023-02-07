@@ -89,7 +89,11 @@ func getResponseBytes(method string, url string, data map[string]interface{}) []
 		return nil
 	}
 	dumpHttpClient(nil, resp)
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Warn().Msgf("Error closing http stream %s\n", err)
+		}
+	}()
 
 	// read response to []byte
 	resByte, err := ioutil.ReadAll(resp.Body)

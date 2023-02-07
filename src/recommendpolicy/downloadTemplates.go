@@ -157,7 +157,11 @@ func unZip(source, dest string) error {
 		if err = create.Close(); err != nil {
 			return err
 		}
-		defer open.Close()
+		defer func() {
+			if err := open.Close(); err != nil {
+				log.Warn().Msgf("Error closing file %s\n", err)
+			}
+		}()
 	}
 	return nil
 }
