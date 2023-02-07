@@ -84,6 +84,17 @@ func checkntwpolicyrules(policies []nv1.NetworkPolicy) (int, int) {
 					}
 				}
 			}
+			for _, i := range policies[i].Spec.Egress {
+				if i.Ports[0].Port != nil {
+					if i.Ports[0].Protocol != nil {
+						p = (string(*i.Ports[0].Protocol))
+					}
+					port = i.Ports[0].Port.IntValue()
+					if p == "TCP" && port == 3306 {
+						flag_i = 1
+					}
+				}
+			}
 		}
 		if flag == 1 && flag_i == 1 {
 			return flag, flag_i
