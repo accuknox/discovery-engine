@@ -273,10 +273,10 @@ var _ = Describe("Smoke", func() {
 				}
 				time.Sleep(10 * time.Second)
 			}
-			policy, err := discovernetworkpolicy("wordpress-mysql", 20)
+			policy, err := discovernetworkpolicy("wordpress-mysql", 1)
 			cmd, err := exec.Command("karmor", "summary", "-t", "network").Output()
-			test, _ := json.Marshal(cmd)
-			fmt.Println("=========>value", string(test))
+			//test, _ := json.Marshal(cmd)
+			fmt.Printf("%q", cmd)
 			Expect(err).To(BeNil())
 			Expect(len(policy)).NotTo(Equal(0))
 			for i := range policy {
