@@ -13,6 +13,13 @@ imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
+#Environment variables
+env:
+  tenant_id: "0"
+  cluster_id: "0"
+  cluster_name: "default"
+  workspace_id: "0"
+
 #ServiceAccount
 serviceAccount: 
   create: true
@@ -33,7 +40,7 @@ clusterRole:
   name: discovery-engine-role
   rules:
   - apiGroups: ["*"]
-    resources: ["pods", "services", "deployments", "endpoints", "namespaces"]
+    resources: ["pods", "services", "deployments", "endpoints", "namespaces", "nodes"]
     verbs: ["get", "list", "watch"]
   
 #clusterroleBinding
@@ -72,11 +79,11 @@ volumeMountsDiscoveryEngine:
 #resource DiscoveryEngine
 resourcesDiscoveryEngine:
   requests:
-    cpu: 50m
-    memory: 20Mi
+    cpu: 100m
+    memory: 100Mi
   limits:
     cpu: 500m
-    memory: 200Mi
+    memory: 1Gi
 
 nodeSelector: {}
 

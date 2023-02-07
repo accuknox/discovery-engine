@@ -42,4 +42,11 @@ message SummaryResponse{
     int32 Count = 22;
     int64 UpdatedTime = 23;
     int32 WorkspaceId = 24;
+    string BindPort = 25;
+    string BindAddress = 26;
+    string Severity = 27;
+    string Tags = 28;
+    string Message = 29;
+    string Enforcer = 30;
+    string PolicyName = 31;
 }

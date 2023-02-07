@@ -53,7 +53,7 @@ func configure(config Config) *zerolog.Logger {
 }
 
 func newRollingFile(config Config) io.Writer {
-	if err := os.MkdirAll(config.Directory, 0744); err != nil {
+	if err := os.MkdirAll(config.Directory, 0700); err != nil {
 		log.Error().Err(err).Str("path", config.Directory).Msg("can't create log directory")
 		return nil
 	}

@@ -22,8 +22,8 @@ import (
 )
 
 // Global Variable
-var KubeArmorRelayLogs []*pb.Log
-var KubeArmorNetworkLogs []*pb.Log
+var KubeArmorRelayLogs []*pb.Alert
+var KubeArmorNetworkLogs []*pb.Alert
 var KubeArmorRelayLogsMutex *sync.Mutex
 
 var KubeArmorFCLogs []*types.KnoxSystemLog
@@ -229,7 +229,7 @@ func ConvertKubeArmorSystemLogsToKnoxSystemLogs(dbDriver string, docs []map[stri
 	return []types.KnoxSystemLog{}
 }
 
-func ConvertKubeArmorLogToKnoxSystemLog(relayLog *pb.Log) (types.KnoxSystemLog, error) {
+func ConvertKubeArmorLogToKnoxSystemLog(relayLog *pb.Alert) (types.KnoxSystemLog, error) {
 
 	sources := strings.Split(relayLog.Source, " ")
 	source := ""
@@ -320,8 +320,8 @@ func ConnectKubeArmorRelay(cfg types.ConfigKubeArmorRelay) *grpc.ClientConn {
 	return conn
 }
 
-func GetSystemAlertsFromKubeArmorRelay(trigger int) []*pb.Log {
-	results := []*pb.Log{}
+func GetSystemAlertsFromKubeArmorRelay(trigger int) []*pb.Alert {
+	results := []*pb.Alert{}
 	KubeArmorRelayLogsMutex.Lock()
 	if len(KubeArmorRelayLogs) == 0 {
 		log.Info().Msgf("KubeArmor Relay traffic flow not exist")
@@ -335,8 +335,8 @@ func GetSystemAlertsFromKubeArmorRelay(trigger int) []*pb.Log {
 		return results
 	}
 
-	results = KubeArmorRelayLogs     // copy
-	KubeArmorRelayLogs = []*pb.Log{} // reset
+	results = KubeArmorRelayLogs       // copy
+	KubeArmorRelayLogs = []*pb.Alert{} // reset
 	KubeArmorRelayLogsMutex.Unlock()
 
 	log.Info().Msgf("The total number of KubeArmor relay traffic flow: [%d] from %s ~ to %s", len(results),
@@ -346,25 +346,25 @@ func GetSystemAlertsFromKubeArmorRelay(trigger int) []*pb.Log {
 	return results
 }
 
-func ignoreLogFromRelayWithSource(filter []string, log *pb.Log) bool {
+func ignoreLogFromRelayWithSource(filter []string, source string) bool {
 	for _, srcFilter := range filter {
-		if strings.Contains(log.Source, srcFilter) {
+		if strings.Contains(source, srcFilter) {
 			return true
 		}
 	}
 	return false
 }
 
-func ignoreLogFromRelayWithNamespace(nsFilter, nsNotFilter []string, log *pb.Log) bool {
+func ignoreLogFromRelayWithNamespace(nsFilter, nsNotFilter []string, namespace string) bool {
 	if len(nsFilter) > 0 {
 		for _, ns := range nsFilter {
-			if !strings.Contains(log.NamespaceName, ns) {
+			if !strings.Contains(namespace, ns) {
 				return true
 			}
 		}
 	} else if len(nsNotFilter) > 0 {
 		for _, notns := range nsNotFilter {
-			if strings.Contains(log.NamespaceName, notns) {
+			if strings.Contains(namespace, notns) {
 				return true
 			}
 		}
@@ -414,11 +414,11 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 					return
 				}
 
-				if ignoreLogFromRelayWithNamespace(nsFilter, nsNotFilter, res) {
+				if ignoreLogFromRelayWithNamespace(nsFilter, nsNotFilter, res.NamespaceName) {
 					continue
 				}
 
-				if ignoreLogFromRelayWithSource(fromSourceFilter, res) {
+				if ignoreLogFromRelayWithSource(fromSourceFilter, res.Source) {
 					continue
 				}
 
@@ -427,17 +427,43 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 					continue
 				}
 
+				kubearmorLog := pb.Alert{
+					Timestamp:         res.Timestamp,
+					UpdatedTime:       res.UpdatedTime,
+					ClusterName:       res.ClusterName,
+					HostName:          res.HostName,
+					NamespaceName:     res.NamespaceName,
+					PodName:           res.PodName,
+					Labels:            res.Labels,
+					ContainerID:       res.ContainerID,
+					ContainerName:     res.ContainerName,
+					ContainerImage:    res.ContainerImage,
+					ParentProcessName: res.ParentProcessName,
+					ProcessName:       res.ProcessName,
+					HostPPID:          res.HostPPID,
+					HostPID:           res.HostPID,
+					PPID:              res.PPID,
+					PID:               res.PID,
+					UID:               res.UID,
+					Type:              res.Type,
+					Source:            res.Source,
+					Operation:         res.Operation,
+					Resource:          res.Resource,
+					Data:              res.Data,
+					Result:            res.Result,
+				}
+
 				KubeArmorRelayLogsMutex.Lock()
-				KubeArmorRelayLogs = append(KubeArmorRelayLogs, res)
+				KubeArmorRelayLogs = append(KubeArmorRelayLogs, &kubearmorLog)
 				KubeArmorRelayLogsMutex.Unlock()
 
 				if config.GetCfgObservabilityEnable() {
-					obs.ProcessKubearmorLog(res)
+					obs.ProcessKubearmorLogs(&kubearmorLog)
 				}
 
 				if config.CurrentCfg.ConfigNetPolicy.NetworkLogFrom == "kubearmor" {
 					if res.Operation == "Network" {
-						KubeArmorNetworkLogs = append(KubeArmorNetworkLogs, res)
+						KubeArmorNetworkLogs = append(KubeArmorNetworkLogs, &kubearmorLog)
 					}
 				}
 			}
@@ -468,29 +494,11 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 					return
 				}
 
-				kubearmorLog := pb.Log{
-					ClusterName:       res.ClusterName,
-					ContainerName:     res.ContainerName,
-					ContainerID:       res.ContainerID,
-					HostName:          res.HostName,
-					NamespaceName:     res.NamespaceName,
-					PodName:           res.PodName,
-					Source:            res.Source,
-					Operation:         res.Operation,
-					Resource:          res.Resource,
-					Data:              res.Data,
-					Result:            res.Result,
-					Type:              res.Type,
-					ProcessName:       res.ProcessName,
-					ParentProcessName: res.ParentProcessName,
-					Timestamp:         res.Timestamp,
-				}
-
-				if ignoreLogFromRelayWithNamespace(nsFilter, nsNotFilter, &kubearmorLog) {
+				if ignoreLogFromRelayWithNamespace(nsFilter, nsNotFilter, res.NamespaceName) {
 					continue
 				}
 
-				if ignoreLogFromRelayWithSource(fromSourceFilter, &kubearmorLog) {
+				if ignoreLogFromRelayWithSource(fromSourceFilter, res.Source) {
 					continue
 				}
 
@@ -500,17 +508,17 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 				}
 
 				KubeArmorRelayLogsMutex.Lock()
-				KubeArmorRelayLogs = append(KubeArmorRelayLogs, &kubearmorLog)
+				KubeArmorRelayLogs = append(KubeArmorRelayLogs, res)
 				KubeArmorRelayLogsMutex.Unlock()
 
 				if config.GetCfgObservabilityEnable() {
-					obs.ProcessKubearmorAlert(&kubearmorLog)
+					obs.ProcessKubearmorLogs(res)
 				}
 
 				if config.CurrentCfg.ConfigNetPolicy.NetworkLogFrom == "kubearmor" {
 
-					if kubearmorLog.Operation == "Network" {
-						KubeArmorNetworkLogs = append(KubeArmorNetworkLogs, &kubearmorLog)
+					if res.Operation == "Network" {
+						KubeArmorNetworkLogs = append(KubeArmorNetworkLogs, res)
 					}
 				}
 			}
@@ -540,20 +548,20 @@ func GetSystemLogsFromFeedConsumer(trigger int) []*types.KnoxSystemLog {
 	return results
 }
 
-func GetNetworkLogsFromKubeArmor() []*pb.Log {
+func GetNetworkLogsFromKubeArmor() []*pb.Alert {
 	if len(KubeArmorNetworkLogs) <= 0 {
 		return nil
 	}
 
-	results := KubeArmorNetworkLogs    // copy
-	KubeArmorNetworkLogs = []*pb.Log{} // reset
+	results := KubeArmorNetworkLogs      // copy
+	KubeArmorNetworkLogs = []*pb.Alert{} // reset
 
 	log.Info().Msgf("The total number of KubeArmor network log : [%d]", len(results))
 
 	return results
 }
 
-func ConvertKubeArmorNetLogToKnoxNetLog(kaNwLogs []*pb.Log) []types.KnoxNetworkLog {
+func ConvertKubeArmorNetLogToKnoxNetLog(kaNwLogs []*pb.Alert) []types.KnoxNetworkLog {
 	if len(kaNwLogs) <= 0 {
 		return nil
 	}

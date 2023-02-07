@@ -409,7 +409,7 @@ func (cfc *KnoxFeedConsumer) processSystemLogMessage(message []byte) error {
 	if cfc.syslogEventsCount == cfc.eventsBuffer {
 		if len(cfc.syslogEvents) > 0 {
 			for _, syslog := range cfc.syslogEvents {
-				log := pb.Log{
+				log := pb.Alert{
 					ClusterName:   syslog.ClusterName,
 					HostName:      syslog.HostName,
 					NamespaceName: syslog.NamespaceName,

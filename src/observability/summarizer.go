@@ -11,7 +11,7 @@ import (
 	pb "github.com/kubearmor/KubeArmor/protobuf"
 )
 
-func extractNetworkInfoFromSystemLog(netLog pb.Log, pods []types.Pod, services []types.Service) (string, string, string, string, string, string, string, string, error) {
+func extractNetworkInfoFromSystemLog(netLog pb.Alert, pods []types.Pod, services []types.Service) (string, string, string, string, string, string, string, string, error) {
 	var ip, destNs, destLabel, port, bindPort, bindAddress, protocol, nwrule string = "", "", "", "", "", "", "", ""
 	err := errors.New("not a valid incoming/outgoing connection")
 
@@ -73,7 +73,7 @@ func extractNetworkInfoFromSystemLog(netLog pb.Log, pods []types.Pod, services [
 	return ip, destNs, destLabel, port, bindPort, bindAddress, protocol, nwrule, nil
 }
 
-func convertSysLogToSysSummaryMap(syslogs []*pb.Log) {
+func convertSysLogToSysSummaryMap(syslogs []*pb.Alert) {
 
 	deployments := cluster.GetDeploymentsFromK8sClient()
 
@@ -97,12 +97,8 @@ func convertSysLogToSysSummaryMap(syslogs []*pb.Log) {
 			continue
 		}
 
-		if syslog.Type == "MatchedPolicy" || syslog.Type == "MatchedHostPolicy" {
-			if syslog.Result == "Passed" {
-				sysSummary.Action = "Audit"
-			} else {
-				sysSummary.Action = "Deny"
-			}
+		if syslog.Action != "" {
+			sysSummary.Action = syslog.Action
 		} else {
 			sysSummary.Action = "Allow"
 		}
@@ -123,6 +119,11 @@ func convertSysLogToSysSummaryMap(syslogs []*pb.Log) {
 		sysSummary.Operation = syslog.Operation
 		sysSummary.Source = strings.Split(syslog.Source, " ")[0]
 		sysSummary.Labels = syslog.Labels
+		sysSummary.Enforcer = syslog.Enforcer
+		sysSummary.Tags = syslog.Tags
+		sysSummary.Message = syslog.Message
+		sysSummary.Severity = syslog.Severity
+		sysSummary.PolicyName = syslog.PolicyName
 		sysSummary.Deployment = ""
 
 		for _, d := range deployments {

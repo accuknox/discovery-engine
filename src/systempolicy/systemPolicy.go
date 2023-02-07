@@ -341,13 +341,33 @@ func extractK8SSystemPolicies(namespace, clustername, labels, fromsource string,
 			if !includeNetwork {
 				pol.Spec.Network = types.NetworkRule{}
 			}
-			// if a binary is a global binary, convert file access to global
 
+			for i := range pol.Spec.Process.MatchPaths {
+				if len(pol.Spec.Process.MatchPaths[i].FromSource) != 0 {
+					pol.Spec.Process.MatchPaths[i].FromSource = []types.KnoxFromSource{}
+				}
+			}
+
+			for i := range pol.Spec.Process.MatchDirectories {
+				if len(pol.Spec.Process.MatchDirectories[i].FromSource) != 0 {
+					pol.Spec.Process.MatchDirectories[i].FromSource = []types.KnoxFromSource{}
+				}
+			}
+
+			// if a binary is a global binary, convert file access to global
 			globalbinaries := []string{}
 			for _, binary := range pol.Spec.Process.MatchPaths {
 				if len(binary.FromSource) == 0 && !slices.Contains(globalbinaries, binary.Path) {
 					globalbinaries = append(globalbinaries, binary.Path)
 				}
+			}
+
+			// add global binaries to file access list
+			for _, binary := range globalbinaries {
+				pol.Spec.File.MatchPaths = append(pol.Spec.File.MatchPaths, types.KnoxMatchPaths{
+					Path:     binary,
+					ReadOnly: true,
+				})
 			}
 
 			for i, matchpath := range pol.Spec.File.MatchPaths {

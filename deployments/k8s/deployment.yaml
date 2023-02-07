@@ -24,6 +24,13 @@ spec:
       - image: accuknox/knoxautopolicy:stable
         imagePullPolicy: Always
         name: discovery-engine
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100Mi
+          limits:
+            cpu: 500m
+            memory: 1Gi
         ports:
         - containerPort: 9089
           protocol: TCP
@@ -49,7 +56,7 @@ data:
         operation-mode: 1                         # 1: cronjob | 2: one-time-job
         cron-job-time-interval: "0h0m10s"         # format: XhYmZs
         operation-trigger: 5
-        network-log-from: "kubearmor"             # db|hubble|feed-consumer
+        network-log-from: "kubearmor"             # db|hubble|feed-consumer|kubearmor
         network-log-file: "./flow.json"           # file path
         network-policy-to: "db"                   # db, file
         network-policy-dir: "./"
@@ -58,6 +65,7 @@ data:
       system:
         operation-mode: 1                         # 1: cronjob | 2: one-time-job
         cron-job-time-interval: "0h0m10s"         # format: XhYmZs
+        operation-trigger: 5
         system-log-from: "kubearmor"              # db|kubearmor|feed-consumer
         system-log-file: "./log.json"             # file path
         system-policy-to: "db"                    # db, file
@@ -150,13 +158,22 @@ metadata:
   namespace: accuknox-agents
 ---
 apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: discovery-engine-role
+rules:
+- apiGroups: ["*"]
+  resources: ["pods", "services", "deployments", "endpoints", "namespaces", "nodes"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: discovery-engine
+  name: discovery-engine-role-binding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: cluster-admin
+  name: discovery-engine-role
 subjects:
 - kind: ServiceAccount
   name: discovery-engine

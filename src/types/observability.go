@@ -122,6 +122,11 @@ type SystemSummary struct {
 	WorkspaceId    int32  `json:"WorkspaceId,omitempty"`
 	BindPort       string `json:"BindPort,omitempty"`
 	BindAddress    string `json:"BindAddress,omitempty"`
+	Severity       string `json:"Severity,omitempty"`
+	Tags           string `json:"Tags,omitempty"`
+	Message        string `json:"Message,omitempty"`
+	Enforcer       string `json:"Enforcer,omitempty"`
+	PolicyName     string `json:"PolicyName,omitempty"`
 }
 
 type SysSummaryTimeCount struct {

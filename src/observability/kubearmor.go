@@ -74,10 +74,12 @@ func ProcessSystemLogs() {
 
 	SystemLogsMutex.Lock()
 	locSysLogs := SystemLogs
-	SystemLogs = []*pb.Log{} //reset
+	SystemLogs = []*pb.Alert{} //reset
 	SystemLogsMutex.Unlock()
 
 	ObsMutex.Lock()
+	defer ObsMutex.Unlock()
+
 	res := []types.KubeArmorLog{}
 
 	if config.GetCfgObservabilityWriteLogsToDB() {
@@ -88,7 +90,6 @@ func ProcessSystemLogs() {
 			jsonLog, _ := json.Marshal(kubearmorLog)
 			if err := json.Unmarshal(jsonLog, &locPbLog); err != nil {
 				log.Error().Msg(err.Error())
-				ObsMutex.Unlock()
 				return
 			}
 
@@ -149,19 +150,11 @@ func ProcessSystemLogs() {
 	}
 
 	//clearSummarizerMap()
-
-	ObsMutex.Unlock()
 }
 
-func ProcessKubearmorLog(kubearmorLog *pb.Log) {
+func ProcessKubearmorLogs(kubearmorLog *pb.Alert) {
 	SystemLogsMutex.Lock()
 	SystemLogs = append(SystemLogs, kubearmorLog)
-	SystemLogsMutex.Unlock()
-}
-
-func ProcessKubearmorAlert(kubearmorAlert *pb.Log) {
-	SystemLogsMutex.Lock()
-	SystemLogs = append(SystemLogs, kubearmorAlert)
 	SystemLogsMutex.Unlock()
 }
 
