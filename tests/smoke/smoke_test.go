@@ -273,7 +273,7 @@ var _ = Describe("Smoke", func() {
 				}
 				time.Sleep(10 * time.Second)
 			}
-			policy, err := discovernetworkpolicy("wordpress-mysql", 10)
+			policy, err := discovernetworkpolicy("wordpress-mysql", 20)
 			Expect(err).To(BeNil())
 			Expect(len(policy)).NotTo(Equal(0))
 			for i := range policy {
