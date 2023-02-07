@@ -273,7 +273,7 @@ var _ = Describe("Smoke", func() {
 				}
 				time.Sleep(10 * time.Second)
 			}
-			policy, err := discovernetworkpolicy("wordpress-mysql", 1)
+			policy, err := discovernetworkpolicy("wordpress-mysql", 10)
 			cmd, err := exec.Command("karmor", "summary", "-t", "network").Output()
 			//test, _ := json.Marshal(cmd)
 			fmt.Printf("%q", cmd)
