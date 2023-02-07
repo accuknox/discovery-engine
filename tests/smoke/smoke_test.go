@@ -52,6 +52,56 @@ func checksyspolicyrules(rules []string, policy types.KubeArmorPolicy) int {
 	return flag
 }
 
+func checkntwpolicyrules(policies []nv1.NetworkPolicy) (int, int) {
+	flag := 0
+	flag_i := 0
+	for i := range policies {
+		var p string
+		var port int
+		if policies[i].Spec.PodSelector.MatchLabels["app"] == "wordpress" {
+			flag = 0
+			for _, e := range policies[i].Spec.Egress {
+				if e.Ports[0].Port != nil {
+					if e.Ports[0].Protocol != nil {
+						p = (string(*e.Ports[0].Protocol))
+					}
+					port = e.Ports[0].Port.IntValue()
+					if p == "TCP" && port == 3306 {
+						flag += 1
+					}
+				} else {
+					p = (string(*e.Ports[0].Protocol))
+					if p == "UDP" {
+						flag += 1
+					}
+				}
+			}
+		} else if policies[i].Spec.PodSelector.MatchLabels["app"] == "mysql" {
+			flag_i = 0
+			for _, i := range policies[i].Spec.Ingress {
+				if i.Ports[0].Port != nil {
+					if i.Ports[0].Protocol != nil {
+						p = (string(*i.Ports[0].Protocol))
+					}
+					port = i.Ports[0].Port.IntValue()
+					if p == "TCP" && port == 3306 {
+						flag_i += 1
+					}
+				} else {
+					p = (string(*i.Ports[0].Protocol))
+					if p == "UDP" {
+						flag_i += 1
+					}
+				}
+			}
+		}
+		if flag > 0 && flag_i > 0 {
+			return flag, flag_i
+		}
+	}
+	return flag, flag_i
+}
+
 // WordpressPortForward enable port forwarding for wordpress
 func WordpressPortForward() error {
 	if stopChan != nil {
@@ -138,7 +188,7 @@ func discoversyspolicy(ns string, l string, rules []string, maxcnt int) (types.K
 		}
 		err = json.Unmarshal(cmd, &policy)
 		if err != nil {
-			log.Error().Msgf("Failed to unmarshal the policy after %v iteration : %v", cnt, err)
+			log.Error().Msgf("Failed to unmarshal the system policy : %v", err)
 		}
 
 		flag := checksyspolicyrules(rules, policy)
@@ -162,7 +212,6 @@ func discovernetworkpolicy(ns string, maxcnt int) ([]nv1.NetworkPolicy, error) {
 		}
 
 		yamls := strings.Split(string(cmd), "---")
-		fmt.Println("=========>value", len(yamls))
 		fmt.Println("=========>value", yamls)
 		if len(yamls) > 0 {
 			yamls = yamls[:len(yamls)-1]
@@ -172,55 +221,13 @@ func discovernetworkpolicy(ns string, maxcnt int) ([]nv1.NetworkPolicy, error) {
 			policy := &nv1.NetworkPolicy{}
 			err = yaml.Unmarshal([]byte(yamlobject), policy)
 			if err != nil {
-				log.Error().Msgf("Failed to unmarshal the policy : %v", err)
+				log.Error().Msgf("Failed to unmarshal the network policy : %v", err)
 			}
 			policies = append(policies, *policy)
-			fmt.Println("=========>value", policy)
 		}
-
-		for i := range policies {
-			var p string
-			var port int
-			if policies[i].Spec.PodSelector.MatchLabels["app"] == "wordpress" {
-				flag = 0
-				for _, e := range policies[i].Spec.Egress {
-					if e.Ports[0].Port != nil {
-						if e.Ports[0].Protocol != nil {
-							p = (string(*e.Ports[0].Protocol))
-						}
-						port = e.Ports[0].Port.IntValue()
-						if p == "TCP" && port == 3306 {
-							flag += 1
-						}
-					} else {
-						p = (string(*e.Ports[0].Protocol))
-						if p == "UDP" {
-							flag += 1
-						}
-					}
-				}
-			} else if policies[i].Spec.PodSelector.MatchLabels["app"] == "mysql" {
-				flag_i = 0
-				for _, i := range policies[i].Spec.Ingress {
-					if i.Ports[0].Port != nil {
-						if i.Ports[0].Protocol != nil {
-							p = (string(*i.Ports[0].Protocol))
-						}
-						port = i.Ports[0].Port.IntValue()
-						if p == "TCP" && port == 3306 {
-							flag_i += 1
-						}
-					} else {
-						p = (string(*i.Ports[0].Protocol))
-						if p == "UDP" {
-							flag_i += 1
-						}
-					}
-				}
-			}
-			if flag > 0 && flag_i > 0 {
-				return policies, err
-			}
+		flag, flag_i = checkntwpolicyrules(policies)
+		if flag > 0 && flag_i > 0 {
+			return policies, err
 		}
 		if flag == 0 || flag_i == 0 {
 			time.Sleep(10 * time.Second)
