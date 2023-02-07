@@ -185,7 +185,9 @@ func discovernetworkpolicy(ns string, maxcnt int) ([]nv1.NetworkPolicy, error) {
 				flag = 0
 				for _, e := range policies[i].Spec.Egress {
 					if e.Ports[0].Port != nil {
-						p = (string(*e.Ports[0].Protocol))
+						if e.Ports[0].Protocol != nil {
+							p = (string(*e.Ports[0].Protocol))
+						}
 						port = e.Ports[0].Port.IntValue()
 						if p == "TCP" && port == 3306 {
 							flag += 1
@@ -201,10 +203,9 @@ func discovernetworkpolicy(ns string, maxcnt int) ([]nv1.NetworkPolicy, error) {
 				flag_i = 0
 				for _, i := range policies[i].Spec.Ingress {
 					if i.Ports[0].Port != nil {
-						if i.Ports[0].Protocol == nil {
-							break
+						if i.Ports[0].Protocol != nil {
+							p = (string(*i.Ports[0].Protocol))
 						}
-						p = (string(*i.Ports[0].Protocol))
 						port = i.Ports[0].Port.IntValue()
 						if p == "TCP" && port == 3306 {
 							flag_i += 1
@@ -255,12 +256,12 @@ var _ = Describe("Smoke", func() {
 		It("testing for network policy", func() {
 			// check whether wordpress service is running or not using curl command
 			for i := 0; i <= 30; i++ {
-				cmd, err := exec.Command("curl", "-d", `WORDPRESS_DB_HOST="mysql"`, "-d", `WORDPRESS_DB_PASSWORD="root-password"`, "-d", `wp-submit="Log In"`, "-d", `redirect_to="http://localhost:8000/wp-admin/"`, "-d", "testcookie=1", "http://localhost:8000/wp-admin/install.php").Output()
+				curl, err := exec.Command("curl", "-d", `WORDPRESS_DB_HOST="mysql"`, "-d", `WORDPRESS_DB_PASSWORD="root-password"`, "-d", `wp-submit="Log In"`, "-d", `redirect_to="http://localhost:8000/wp-admin/"`, "-d", "testcookie=1", "http://localhost:8000/wp-admin/install.php").Output()
 				if err != nil {
 					log.Error().Msgf("Failed to apply curl command : %v", err)
 				}
-				log.Printf("curl : %v", string(cmd))
-				if cmd != nil {
+				log.Printf("curl : %v", string(curl))
+				if curl != nil {
 					break
 				}
 				time.Sleep(10 * time.Second)
