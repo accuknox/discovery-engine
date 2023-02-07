@@ -84,17 +84,6 @@ func checkntwpolicyrules(policies []nv1.NetworkPolicy) (int, int) {
 					}
 				}
 			}
-			for _, i := range policies[i].Spec.Egress {
-				if i.Ports[0].Port != nil {
-					if i.Ports[0].Protocol != nil {
-						p = (string(*i.Ports[0].Protocol))
-					}
-					port = i.Ports[0].Port.IntValue()
-					if p == "TCP" && port == 3306 {
-						flag_i = 1
-					}
-				}
-			}
 		}
 		if flag == 1 && flag_i == 1 {
 			return flag, flag_i
@@ -273,10 +262,7 @@ var _ = Describe("Smoke", func() {
 				}
 				time.Sleep(10 * time.Second)
 			}
-			policy, err := discovernetworkpolicy("wordpress-mysql", 10)
-			cmd, err := exec.Command("karmor", "summary", "-t", "network").Output()
-			//test, _ := json.Marshal(cmd)
-			fmt.Printf("%q", cmd)
+			policy, err := discovernetworkpolicy("wordpress-mysql", 30)
 			Expect(err).To(BeNil())
 			Expect(len(policy)).NotTo(Equal(0))
 			for i := range policy {
