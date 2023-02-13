@@ -1,0 +1,47 @@
+on:
+  push:
+    branches:         
+    - 'development' 
+
+name: Build & Push Development Environment
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    
+    env:
+      AWS_REGION: us-east-2
+      REPO: 956994857092.dkr.ecr.us-east-2.amazonaws.com
+      BUILD: 1.0.${{ github.run_number }}
+      IMAGE_NAME: discovery-engine
+      CHART_NAME: discovery-engine-chart
+      CHART_PATH: deployments/helm
+    
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Set git ssh private key
+      run: echo "${{ secrets.GIT_KEY }}" > GIT-KEY
+
+    - name: AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-region: ${{ env.AWS_REGION }}
+        aws-access-key-id: ${{ secrets.AWS_DEV_ACCESS_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_DEV_SECRET_ID }}
+        
+    - name: Login to ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1    
+    
+    - name: Build image and push to ECR
+      run: | 
+        docker build -t ${{ env.REPO }}/${{ env.IMAGE_NAME }}:${{ env.BUILD }} .
+        docker push ${{ env.REPO }}/${{ env.IMAGE_NAME }}:${{ env.BUILD }}
+      
+    - name: Package and push helm chart to ECR
+      run: |
+        sed -i "s/^version:.*$/version: ${{ env.BUILD }}/" ${{ env.CHART_PATH }}/Chart.yaml
+        sed -i "s/^appVersion:.*$/appVersion: ${{ env.BUILD }}/" ${{ env.CHART_PATH }}/Chart.yaml
+        helm package ${{ env.CHART_PATH }}
+        helm push ${{ env.CHART_NAME }}-${{ env.BUILD }}.tgz oci://${{ env.REPO }}
