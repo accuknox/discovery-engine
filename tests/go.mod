@@ -3,7 +3,7 @@ module github.com/kubearmor/discovery-engine/tests
 go 1.19
 
 require (
-	github.com/accuknox/auto-policy-discovery/src v0.0.0-20230112120402-12a2395cb6fa
+	github.com/accuknox/auto-policy-discovery/src v0.0.0-20230207142942-3e2adb51594b
 	github.com/kubearmor/KubeArmor/tests v0.0.0-20230110035627-26adfb0a0f18
 	github.com/onsi/ginkgo/v2 v2.7.0
 	github.com/onsi/gomega v1.24.2

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	opb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/observability"
 	"github.com/accuknox/auto-policy-discovery/src/types"
 	"github.com/kubearmor/KubeArmor/tests/util"
 	. "github.com/onsi/ginkgo/v2"
@@ -30,12 +31,6 @@ func checkPath(mp []types.KnoxMatchPaths, str string) string {
 
 func getMatchPath(policy types.KubeArmorPolicy, str string) string {
 	return checkPath(policy.Spec.Process.MatchPaths, str)
-}
-
-func checkPod(name string, ant string, ns string) {
-	pods, err := util.K8sGetPods(name, ns, []string{ant}, 60)
-	Expect(err).To(BeNil())
-	Expect(len(pods)).To(Equal(1))
 }
 
 func checksyspolicyrules(rules []string, policy types.KubeArmorPolicy) int {
@@ -92,6 +87,44 @@ func checkntwpolicyrules(policies []nv1.NetworkPolicy) (int, int) {
 	return flag, flag_i
 }
 
+func findProcessORFileData(ProcFiledata []*opb.SysProcFileSummaryData, source, destination string, dataType string) bool {
+	if dataType == "Process" {
+		for _, p := range ProcFiledata {
+			if p.Source == source && p.Destination == destination && p.Status == "Allow" {
+				return true
+			}
+		}
+	}
+	if dataType == "File" {
+		for _, f := range ProcFiledata {
+			if f.Source == source && f.Destination == destination && f.Status == "Allow" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func verifyProcessORFileData(ProcFileData []*opb.SysProcFileSummaryData, data map[string]string, dataType string) error {
+	if dataType == "Process" {
+		for destination, source := range data {
+			flag := findProcessORFileData(ProcFileData, source, destination, dataType)
+			if !flag {
+				return fmt.Errorf("process data is not correct for source : %v, destination : %v", source, destination)
+			}
+		}
+	}
+	if dataType == "File" {
+		for destination, source := range data {
+			flag := findProcessORFileData(ProcFileData, source, destination, dataType)
+			if !flag {
+				return fmt.Errorf("file data is not correct for source : %v, destination : %v", source, destination)
+			}
+		}
+	}
+	return nil
+}
+
 // WordpressPortForward enable port forwarding for wordpress
 func WordpressPortForward() error {
 	if stopChan != nil {
@@ -129,6 +162,12 @@ func WordpressPortForwardStop() {
 	}
 	close(stopChan)
 	stopChan = nil
+}
+
+func checkPod(name string, ant string, ns string) {
+	pods, err := util.K8sGetPods(name, ns, []string{ant}, 60)
+	Expect(err).To(BeNil())
+	Expect(len(pods)).To(Equal(1))
 }
 
 var _ = BeforeSuite(func() {
@@ -226,6 +265,25 @@ func discovernetworkpolicy(ns string, maxcnt int) ([]nv1.NetworkPolicy, error) {
 	return []nv1.NetworkPolicy{}, err
 }
 
+func getsummary(podName string) *opb.Response {
+	res := []*opb.Response{}
+	summary, err := exec.Command("karmor", "summary", "-o", "json").Output()
+	if err != nil {
+		log.Error().Msgf("Failed to apply the `karmor summary` command : %v", err)
+	}
+	err = json.Unmarshal(summary, &res)
+	if err != nil {
+		log.Error().Msgf("Failed to unmarshal the command output : %v", err)
+	}
+	fmt.Println(res)
+	for _, summary := range res {
+		if strings.Contains(summary.PodName, podName) {
+			return summary
+		}
+	}
+	return nil
+}
+
 var _ = Describe("Smoke", func() {
 
 	BeforeEach(func() {
@@ -270,6 +328,88 @@ var _ = Describe("Smoke", func() {
 				Expect(policy[i].TypeMeta.APIVersion).To(Equal("networking.k8s.io/v1"))
 				Expect(policy[i].ObjectMeta.Namespace).To(Equal("wordpress-mysql"))
 			}
+		})
+		It("testing summary output for wordpress pod", func() {
+			summary := getsummary("wordpress")
+			Expect(summary).NotTo(BeNil())
+			Expect(summary.ClusterName).To(Equal("default"))
+			Expect(summary.Namespace).To(Equal("wordpress-mysql"))
+			Expect(summary.Label).To(Equal("app=wordpress"))
+			Expect(summary.ContainerName).To(Equal("wordpress"))
+
+			processData := map[string]string{
+				"/usr/local/bin/php": "/bin/bash",
+				"/usr/bin/head":      "/bin/bash",
+			}
+			err := verifyProcessORFileData(summary.ProcessData, processData, "Process")
+			Expect(err).To(BeNil())
+
+			fileData := map[string]string{
+				"/usr/lib/x86_64-linux-gnu/libp11-kit.so.0.0.0": "/usr/local/bin/php",
+				"/var/www/html/sedKYTnN1":                       "/bin/sed",
+				"/etc/ld.so.cache":                              "/usr/bin/sha1sum",
+			}
+			err = verifyProcessORFileData(summary.ProcessData, fileData, "File")
+			Expect(err).To(BeNil())
+
+			flag := 0
+			for _, e := range summary.EgressConnection {
+				if e.Protocol == "TCP" && e.Command == "/usr/local/bin/php" && e.IP == "svc/mysql" && e.Port == "3306" && e.Labels == "app=mysql" && e.Namespace == "wordpress-mysql" {
+					flag = 1
+					break
+				}
+			}
+			Expect(flag).NotTo(Equal(0))
+		})
+		It("testing summary output for mysql pod", func() {
+			summary := getsummary("mysql")
+			Expect(summary).NotTo(BeNil())
+			Expect(summary.ClusterName).To(Equal("default"))
+			Expect(summary.Namespace).To(Equal("wordpress-mysql"))
+			Expect(summary.Label).To(Equal("app=mysql"))
+			Expect(summary.ContainerName).To(Equal("mysql"))
+
+			processData := map[string]string{
+				"/usr/sbin/mysqld": "/bin/bash",
+				"/bin/date":        "/bin/bash",
+			}
+			err := verifyProcessORFileData(summary.ProcessData, processData, "Process")
+			Expect(err).To(BeNil())
+
+			fileData := map[string]string{
+				"/dev/null":        "/bin/bash",
+				"/etc/ld.so.cache": "/bin/cat",
+				"/dev/fd/63":       "/usr/bin/mysql",
+			}
+			err = verifyProcessORFileData(summary.ProcessData, fileData, "File")
+			Expect(err).To(BeNil())
+
+			flag := 0
+			for _, e := range summary.EgressConnection {
+				if e.Protocol == "AF_UNIX" && e.Command == "/usr/bin/mysqladmin" && e.IP == "/var/run/mysqld/mysqld.sock" && e.Port == "0" && e.Labels == "app=mysql" {
+					flag = 1
+					break
+				}
+			}
+			Expect(flag).To(Equal(1))
+			flag = 0
+
+			for _, i := range summary.IngressConnection {
+				if i.Protocol == "TCPv6" && i.Command == "/usr/sbin/mysqld" && strings.Contains(i.IP, "wordpress") && i.Port == "3306" && i.Labels == "app=wordpress" && i.Namespace == "wordpress-mysql" {
+					flag = 1
+					break
+				}
+			}
+			Expect(flag).To(Equal(1))
+			flag = 0
+
+			for _, b := range summary.BindConnection {
+				if b.Protocol == "AF_INET6" && b.Command == "/usr/sbin/mysqld" && b.BindPort == "3306" {
+					flag = 1
+					break
+				}
+			}
+			Expect(flag).To(Equal(1))
 		})
 	})
 })

@@ -97,6 +97,8 @@ github.com/StackExchange/wmi v1.2.1 h1:VIkavFPXSjcnS+O8yTq7NI32k0R5Aj+v39y29VYDO
 github.com/StackExchange/wmi v1.2.1/go.mod h1:rcmrprowKIVzvc+NUiLncP2uuArMWLCbu9SBzvHz7e8=
 github.com/accuknox/auto-policy-discovery/src v0.0.0-20230112120402-12a2395cb6fa h1:pnfsXlCwZbrLd6nOd/3UZHtIkFJ3RXzi2EpbI+QcY8I=
 github.com/accuknox/auto-policy-discovery/src v0.0.0-20230112120402-12a2395cb6fa/go.mod h1:PvmbhNMbOH27CbhOTbWy3Vd0Od8B65ixNLd9STvBlP0=
+github.com/accuknox/auto-policy-discovery/src v0.0.0-20230207142942-3e2adb51594b h1:XiqvaZu63u8edBgKIUD69IKwgzY9tPCwm8WmQLrT0W4=
+github.com/accuknox/auto-policy-discovery/src v0.0.0-20230207142942-3e2adb51594b/go.mod h1:PvmbhNMbOH27CbhOTbWy3Vd0Od8B65ixNLd9STvBlP0=
 github.com/agnivade/levenshtein v1.0.1/go.mod h1:CURSv5d9Uaml+FovSIICkLbAUZ9S4RqaHDIsdSBg7lM=
 github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc/go.mod h1:LOuyumcjzFXgccqObfd/Ljyb9UuFJ6TxHnclSeseNhc=
 github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751/go.mod h1:LOuyumcjzFXgccqObfd/Ljyb9UuFJ6TxHnclSeseNhc=
