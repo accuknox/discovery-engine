@@ -40,14 +40,13 @@ func extractNetworkInfoFromSystemLog(netLog pb.Alert, pods []types.Pod, services
 		}
 	} else if strings.Contains(netLog.Resource, "AF_UNIX") {
 		var path string
-		protocol = "AF_UNIX"
 		resslice := strings.Split(netLog.Resource, " ")
 		for _, locres := range resslice {
 			if strings.Contains(locres, "sun_path") {
 				path = strings.Split(locres, "=")[1]
 				if path != "" {
 					ip = path
-					bindAddress = path
+					protocol = "AF_UNIX"
 					break
 				}
 			}

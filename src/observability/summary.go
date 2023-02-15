@@ -81,17 +81,19 @@ func GetSummaryData(request *opb.Request) (*opb.Response, error) {
 						UpdatedTime: loc_nw.UpdatedTime,
 					})
 				} else if loc_nw.NetType == "bind" {
-					bindNwResp = append(bindNwResp, &opb.SysNwSummaryData{
-						Protocol:    loc_nw.Protocol,
-						Command:     loc_nw.Command,
-						IP:          loc_nw.PodSvcIP,
-						BindPort:    loc_nw.BindPort,
-						BindAddress: loc_nw.BindAddress,
-						Labels:      loc_nw.Labels,
-						Namespace:   loc_nw.Namespace,
-						Count:       strconv.Itoa(int(loc_nw.Count)),
-						UpdatedTime: loc_nw.UpdatedTime,
-					})
+					if strings.EqualFold(loc_nw.Protocol, "AF_INET6") || strings.EqualFold(loc_nw.Protocol, "AF_INET6") {
+						bindNwResp = append(bindNwResp, &opb.SysNwSummaryData{
+							Protocol:    loc_nw.Protocol,
+							Command:     loc_nw.Command,
+							IP:          loc_nw.PodSvcIP,
+							BindPort:    loc_nw.BindPort,
+							BindAddress: loc_nw.BindAddress,
+							Labels:      loc_nw.Labels,
+							Namespace:   loc_nw.Namespace,
+							Count:       strconv.Itoa(int(loc_nw.Count)),
+							UpdatedTime: loc_nw.UpdatedTime,
+						})
+					}
 				}
 			}
 		}
