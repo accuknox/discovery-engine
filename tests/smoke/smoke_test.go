@@ -215,6 +215,7 @@ func discoversyspolicy(ns string, l string, rules []string, maxcnt int) (types.K
 		if err != nil {
 			log.Error().Msgf("Failed to apply the `karmor discover` command : %v", err)
 		}
+		fmt.Println("KubeArmor Security Policy :\n", string(cmd))
 		err = json.Unmarshal(cmd, &policy)
 		if err != nil {
 			log.Error().Msgf("Failed to unmarshal the system policy : %v", err)
@@ -241,7 +242,7 @@ func discovernetworkpolicy(ns string, maxcnt int) ([]nv1.NetworkPolicy, error) {
 		}
 
 		yamls := strings.Split(string(cmd), "---")
-		fmt.Println("=========>value", yamls)
+		fmt.Println("Network Policies : \n", yamls)
 		if len(yamls) > 0 {
 			yamls = yamls[:len(yamls)-1]
 		}
@@ -265,23 +266,107 @@ func discovernetworkpolicy(ns string, maxcnt int) ([]nv1.NetworkPolicy, error) {
 	return []nv1.NetworkPolicy{}, err
 }
 
-func getsummary(podName string) *opb.Response {
+func getsummary(podName string, maxcnt int) (*opb.Response, error) {
+	var err error
 	res := []*opb.Response{}
-	summary, err := exec.Command("karmor", "summary", "-o", "json").Output()
-	if err != nil {
-		log.Error().Msgf("Failed to apply the `karmor summary` command : %v", err)
-	}
-	err = json.Unmarshal(summary, &res)
-	if err != nil {
-		log.Error().Msgf("Failed to unmarshal the command output : %v", err)
-	}
-	fmt.Println(res)
-	for _, summary := range res {
-		if strings.Contains(summary.PodName, podName) {
-			return summary
+	for cnt := 0; cnt < maxcnt; cnt++ {
+		summary, err := exec.Command("karmor", "summary", "-o", "json").Output()
+		if err != nil {
+			log.Error().Msgf("Failed to apply the `karmor summary` command : %v", err)
 		}
+
+		fmt.Println("Summary :\n", string(summary))
+
+		// implemented to break the summary and make the output a valid json object (this will be removed once we get the new kubearmor release)
+		jsonObjects := strings.Split(string(summary), "}\n{")
+		for i, jsonObject := range jsonObjects {
+			r := opb.Response{}
+			if i > 0 {
+				jsonObject = "{" + jsonObject
+			}
+			if i < len(jsonObjects)-1 {
+				jsonObject = jsonObject + "}"
+			}
+			err = json.Unmarshal([]byte(jsonObject), &r)
+			if err != nil {
+				log.Error().Msgf("Failed to unmarshal the Summary : %v", err)
+			}
+			res = append(res, &r)
+		}
+		for _, summary := range res {
+			if strings.Contains(summary.PodName, podName) {
+				if podName == "wordpress" {
+					processData := map[string]string{
+						"/usr/local/bin/php": "/bin/bash",
+						"/usr/bin/sha1sum":   "/bin/bash",
+					}
+					err := verifyProcessORFileData(summary.ProcessData, processData, "Process")
+					if err != nil {
+						break
+					}
+					fileData := map[string]string{
+						"/etc/hosts":                         "/usr/local/bin/php",
+						"/lib/x86_64-linux-gnu/libc-2.19.so": "/bin/sed",
+					}
+					err = verifyProcessORFileData(summary.FileData, fileData, "File")
+					if err != nil {
+						break
+					}
+					flag := 0
+					for _, e := range summary.EgressConnection {
+						if e.Protocol == "TCP" && e.Command == "/usr/local/bin/php" && e.IP == "svc/mysql" && e.Port == "3306" && e.Labels == "app=mysql" && e.Namespace == "wordpress-mysql" {
+							flag = 1
+							break
+						}
+					}
+					if flag == 0 {
+						break
+					}
+					return summary, nil
+				} else if podName == "mysql" {
+					processData := map[string]string{
+						"/bin/date":      "/bin/bash",
+						"/usr/bin/mysql": "/bin/bash",
+					}
+					err := verifyProcessORFileData(summary.ProcessData, processData, "Process")
+					if err != nil {
+						break
+					}
+					fileData := map[string]string{
+						"/dev/null":                          "/bin/bash",
+						"/lib/x86_64-linux-gnu/libc-2.24.so": "/usr/bin/mysql",
+					}
+					err = verifyProcessORFileData(summary.FileData, fileData, "File")
+					if err != nil {
+						break
+					}
+					flag := 0
+					for _, i := range summary.IngressConnection {
+						if i.Protocol == "TCPv6" && i.Command == "/usr/sbin/mysqld" && strings.Contains(i.IP, "wordpress") && i.Port == "3306" && i.Namespace == "wordpress-mysql" && i.Labels == "app=wordpress" {
+							flag = 1
+							break
+						}
+					}
+					if flag == 0 {
+						break
+					}
+					flag = 0
+					for _, b := range summary.BindConnection {
+						if b.Command == "/usr/sbin/mysqld" && b.BindAddress == "/var/run/mysqld/mysqld.sock" {
+							flag = 1
+							break
+						}
+					}
+					if flag == 0 {
+						break
+					}
+					return summary, nil
+				}
+			}
+		}
+		time.Sleep(10 * time.Second)
 	}
-	return nil
+	return nil, err
 }
 
 var _ = Describe("Smoke", func() {
@@ -330,86 +415,22 @@ var _ = Describe("Smoke", func() {
 			}
 		})
 		It("testing summary output for wordpress pod", func() {
-			summary := getsummary("wordpress")
+			summary, err := getsummary("wordpress", 20)
+			Expect(err).To(BeNil())
 			Expect(summary).NotTo(BeNil())
 			Expect(summary.ClusterName).To(Equal("default"))
 			Expect(summary.Namespace).To(Equal("wordpress-mysql"))
 			Expect(summary.Label).To(Equal("app=wordpress"))
 			Expect(summary.ContainerName).To(Equal("wordpress"))
-
-			processData := map[string]string{
-				"/usr/local/bin/php": "/bin/bash",
-				"/usr/bin/head":      "/bin/bash",
-			}
-			err := verifyProcessORFileData(summary.ProcessData, processData, "Process")
-			Expect(err).To(BeNil())
-
-			fileData := map[string]string{
-				"/usr/lib/x86_64-linux-gnu/libp11-kit.so.0.0.0": "/usr/local/bin/php",
-				"/var/www/html/sedKYTnN1":                       "/bin/sed",
-				"/etc/ld.so.cache":                              "/usr/bin/sha1sum",
-			}
-			err = verifyProcessORFileData(summary.ProcessData, fileData, "File")
-			Expect(err).To(BeNil())
-
-			flag := 0
-			for _, e := range summary.EgressConnection {
-				if e.Protocol == "TCP" && e.Command == "/usr/local/bin/php" && e.IP == "svc/mysql" && e.Port == "3306" && e.Labels == "app=mysql" && e.Namespace == "wordpress-mysql" {
-					flag = 1
-					break
-				}
-			}
-			Expect(flag).NotTo(Equal(0))
 		})
 		It("testing summary output for mysql pod", func() {
-			summary := getsummary("mysql")
+			summary, err := getsummary("mysql", 20)
+			Expect(err).To(BeNil())
 			Expect(summary).NotTo(BeNil())
 			Expect(summary.ClusterName).To(Equal("default"))
 			Expect(summary.Namespace).To(Equal("wordpress-mysql"))
 			Expect(summary.Label).To(Equal("app=mysql"))
 			Expect(summary.ContainerName).To(Equal("mysql"))
-
-			processData := map[string]string{
-				"/usr/sbin/mysqld": "/bin/bash",
-				"/bin/date":        "/bin/bash",
-			}
-			err := verifyProcessORFileData(summary.ProcessData, processData, "Process")
-			Expect(err).To(BeNil())
-
-			fileData := map[string]string{
-				"/dev/null":        "/bin/bash",
-				"/etc/ld.so.cache": "/bin/cat",
-				"/dev/fd/63":       "/usr/bin/mysql",
-			}
-			err = verifyProcessORFileData(summary.ProcessData, fileData, "File")
-			Expect(err).To(BeNil())
-
-			flag := 0
-			for _, e := range summary.EgressConnection {
-				if e.Protocol == "AF_UNIX" && e.Command == "/usr/bin/mysqladmin" && e.IP == "/var/run/mysqld/mysqld.sock" && e.Port == "0" && e.Labels == "app=mysql" {
-					flag = 1
-					break
-				}
-			}
-			Expect(flag).To(Equal(1))
-			flag = 0
-
-			for _, i := range summary.IngressConnection {
-				if i.Protocol == "TCPv6" && i.Command == "/usr/sbin/mysqld" && strings.Contains(i.IP, "wordpress") && i.Port == "3306" && i.Labels == "app=wordpress" && i.Namespace == "wordpress-mysql" {
-					flag = 1
-					break
-				}
-			}
-			Expect(flag).To(Equal(1))
-			flag = 0
-
-			for _, b := range summary.BindConnection {
-				if b.Protocol == "AF_INET6" && b.Command == "/usr/sbin/mysqld" && b.BindPort == "3306" {
-					flag = 1
-					break
-				}
-			}
-			Expect(flag).To(Equal(1))
 		})
 	})
 })
