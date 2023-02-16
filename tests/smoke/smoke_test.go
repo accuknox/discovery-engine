@@ -274,8 +274,7 @@ func getsummary(podName string, maxcnt int) (*opb.Response, error) {
 		if err != nil {
 			log.Error().Msgf("Failed to apply the `karmor summary` command : %v", err)
 		}
-
-		fmt.Println("Summary :\n", string(summary))
+		//fmt.Println("Summary :\n", string(summary))
 
 		// implemented to break the summary and make the output a valid json object (this will be removed once we get the new kubearmor release)
 		jsonObjects := strings.Split(string(summary), "}\n{")
