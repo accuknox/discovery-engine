@@ -274,7 +274,7 @@ func getsummary(podName string, maxcnt int) (*opb.Response, error) {
 		if err != nil {
 			log.Error().Msgf("Failed to apply the `karmor summary` command : %v", err)
 		}
-		if maxcnt == 20 {
+		if cnt == 20 {
 			fmt.Println("Summary :\n", string(summary))
 		}
 
