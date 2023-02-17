@@ -1,3 +1,4 @@
+// Package logging contains logging information
 package logging
 
 import (
@@ -53,7 +54,7 @@ func configure(config Config) *zerolog.Logger {
 }
 
 func newRollingFile(config Config) io.Writer {
-	if err := os.MkdirAll(config.Directory, 0700); err != nil {
+	if err := os.MkdirAll(config.Directory, 0740); err != nil {
 		log.Error().Err(err).Str("path", config.Directory).Msg("can't create log directory")
 		return nil
 	}
@@ -70,6 +71,7 @@ func newRollingFile(config Config) io.Writer {
 var customLogger *zerolog.Logger
 var once sync.Once
 
+// SetLogLevel sets the log level to {TRACE, DEBUG, INFO, ERROR, FATAL, PANIC, NO, DISABLED}
 func SetLogLevel(logLevel string) {
 	switch logLevel {
 	case "TRACE":
@@ -93,6 +95,7 @@ func SetLogLevel(logLevel string) {
 	}
 }
 
+// GetInstance returns a custom logger variable
 func GetInstance() *zerolog.Logger {
 	once.Do(func() {
 		config := Config{

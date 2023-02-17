@@ -50,8 +50,14 @@ func ConvertKnoxSystemPolicyToKubeArmorPolicy(knoxPolicies []types.KnoxSystemPol
 			Kind:       "KubeArmorPolicy",
 			Metadata:   map[string]string{},
 		}
+		if policy.Kind != "" {
+			kubePolicy.Kind = policy.Kind
+		}
 
-		kubePolicy.Metadata["namespace"] = policy.Metadata["namespace"]
+		if policy.Kind != types.KindKubeArmorHostPolicy {
+			kubePolicy.Metadata["namespace"] = policy.Metadata["namespace"]
+		}
+
 		kubePolicy.Metadata["name"] = policy.Metadata["name"]
 
 		if policy.Metadata["namespace"] == types.PolicyDiscoveryVMNamespace {
@@ -60,7 +66,7 @@ func ConvertKnoxSystemPolicyToKubeArmorPolicy(knoxPolicies []types.KnoxSystemPol
 
 		kubePolicy.Spec = policy.Spec
 
-		if kubePolicy.Kind == "KubeArmorPolicy" && policy.Spec.Action == "Allow" {
+		if kubePolicy.Kind == types.KindKubeArmorPolicy && policy.Spec.Action == "Allow" {
 			dirRule := types.KnoxMatchDirectories{
 				Dir:       types.PreConfiguredKubearmorRule,
 				Recursive: true,

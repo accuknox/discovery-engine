@@ -118,3 +118,4 @@ feed-consumer:
 recommend:
   operation-mode: 1                       # 1: cronjob | 2: one-time-job
   cron-job-time-interval: "1h0m00s"       # format: XhYmZs
+  recommend-host-policy: true
