@@ -1,11 +1,20 @@
 package config
 
 import (
+	"context"
+	"flag"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strconv"
 
 	types "github.com/accuknox/auto-policy-discovery/src/types"
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 // operation mode: 		 cronjob: 1
@@ -40,6 +49,132 @@ var CurrentCfg types.Configuration
 var NetworkPlugIn string
 var IgnoringNetworkNamespaces []string
 var HTTPUrlThreshold int
+var parsed bool = false
+var kubeconfig *string
+
+func isInCluster() bool {
+	if _, ok := os.LookupEnv("KUBERNETES_PORT"); ok {
+		return true
+	}
+
+	return false
+}
+
+func ConnectLocalAPIClient() *kubernetes.Clientset {
+	if !parsed {
+		homeDir := ""
+		if h := os.Getenv("HOME"); h != "" {
+			homeDir = h
+		} else {
+			homeDir = os.Getenv("USERPROFILE") // windows
+		}
+
+		envKubeConfig := os.Getenv("KUBECONFIG")
+		if envKubeConfig != "" {
+			kubeconfig = &envKubeConfig
+		} else {
+			if home := homeDir; home != "" {
+				kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
+			} else {
+				kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
+			}
+			flag.Parse()
+		}
+
+		parsed = true
+	}
+
+	// use the current context in kubeconfig
+	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return nil
+	}
+
+	// creates the clientset
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return nil
+	}
+
+	return clientset
+}
+
+func ConnectInClusterAPIClient() *kubernetes.Clientset {
+	host := ""
+	port := ""
+	token := ""
+
+	if val, ok := os.LookupEnv("KUBERNETES_SERVICE_HOST"); ok {
+		host = val
+	} else {
+		host = "127.0.0.1"
+	}
+
+	if val, ok := os.LookupEnv("KUBERNETES_PORT_443_TCP_PORT"); ok {
+		port = val
+	} else {
+		port = "6443"
+	}
+
+	read, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/token")
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return nil
+	}
+
+	token = string(read)
+
+	// create the configuration by token
+	kubeConfig := &rest.Config{
+		Host:        "https://" + host + ":" + port,
+		BearerToken: token,
+		TLSClientConfig: rest.TLSClientConfig{
+			Insecure: true,
+		},
+	}
+
+	if client, err := kubernetes.NewForConfig(kubeConfig); err != nil {
+		log.Error().Msg(err.Error())
+		return nil
+	} else {
+		return client
+	}
+}
+
+func ConnectK8sClient() *kubernetes.Clientset {
+	if isInCluster() {
+		return ConnectInClusterAPIClient()
+	}
+
+	return ConnectLocalAPIClient()
+}
+
+func GetKubearmorNamespace() string {
+	var namespace string
+	client := ConnectK8sClient()
+	if client == nil {
+		return ""
+	}
+
+	// get pods from k8s api client
+	pods, err := client.CoreV1().Pods("").List(context.Background(), metav1.ListOptions{
+		LabelSelector: "kubearmor-app",
+	})
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return ""
+	}
+	// for _, pod := range pods.Items {
+	// 	if pod.Labels["kubearmor-app"] == "kubearmor" {
+	// 		namespace = pod.Namespace
+	// 	}
+	// }
+	namespace = pods.Items[0].Namespace
+	url := "kubearmor." + namespace + ".svc.cluster.local"
+	return url
+}
 
 func init() {
 	IgnoringNetworkNamespaces = []string{"kube-system"}
@@ -96,8 +231,12 @@ func LoadConfigCiliumHubble() types.ConfigCiliumHubble {
 
 func LoadConfigKubeArmor() types.ConfigKubeArmorRelay {
 	cfgKubeArmor := types.ConfigKubeArmorRelay{}
-
 	cfgKubeArmor.KubeArmorRelayURL = viper.GetString("kubearmor.url")
+	if cfgKubeArmor.KubeArmorRelayURL == "" {
+		url := GetKubearmorNamespace()
+		cfgKubeArmor.KubeArmorRelayURL = url
+	}
+
 	/*
 		addr, err := net.LookupIP(cfgKubeArmor.KubeArmorRelayURL)
 		if err == nil {
