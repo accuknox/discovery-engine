@@ -29,6 +29,8 @@ var KubeArmorRelayLogsMutex *sync.Mutex
 var KubeArmorFCLogs []*types.KnoxSystemLog
 var KubeArmorFCLogsMutex *sync.Mutex
 
+var SystemStopChan chan struct{}
+
 func generateProcessPaths(fromSrc []types.KnoxFromSource) []string {
 	var processpaths []string
 	for _, locfrmsrc := range fromSrc {
@@ -400,6 +402,10 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 		stream, err := client.WatchLogs(context.Background(), &req)
 		if err != nil {
 			log.Error().Msg("unable to stream systems logs: " + err.Error())
+			log.Info().Msg("watch for kubearmor relay")
+			url := config.GetKubearmorRelayURL()
+			cfg.KubeArmorRelayURL = url
+			StartKubeArmorRelay(SystemStopChan, cfg)
 			return
 		}
 		for {

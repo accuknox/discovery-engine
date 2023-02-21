@@ -151,7 +151,7 @@ func ConnectK8sClient() *kubernetes.Clientset {
 	return ConnectLocalAPIClient()
 }
 
-func GetKubearmorNamespace() string {
+func GetKubearmorRelayURL() string {
 	var namespace string
 	client := ConnectK8sClient()
 	if client == nil {
@@ -232,10 +232,6 @@ func LoadConfigCiliumHubble() types.ConfigCiliumHubble {
 func LoadConfigKubeArmor() types.ConfigKubeArmorRelay {
 	cfgKubeArmor := types.ConfigKubeArmorRelay{}
 	cfgKubeArmor.KubeArmorRelayURL = viper.GetString("kubearmor.url")
-	if cfgKubeArmor.KubeArmorRelayURL == "" {
-		url := GetKubearmorNamespace()
-		cfgKubeArmor.KubeArmorRelayURL = url
-	}
 
 	/*
 		addr, err := net.LookupIP(cfgKubeArmor.KubeArmorRelayURL)
