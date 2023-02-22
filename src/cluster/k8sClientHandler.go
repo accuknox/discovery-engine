@@ -459,3 +459,28 @@ func GetDeploymentsFromK8sClient() []types.Deployment {
 	}
 	return results
 }
+
+func GetKubearmorRelayURL() string {
+	var namespace string
+	client := ConnectK8sClient()
+	if client == nil {
+		return ""
+	}
+
+	// get pods from k8s api client
+	pods, err := client.CoreV1().Pods("").List(context.Background(), metav1.ListOptions{
+		LabelSelector: "kubearmor-app",
+	})
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return ""
+	}
+	// for _, pod := range pods.Items {
+	// 	if pod.Labels["kubearmor-app"] == "kubearmor" {
+	// 		namespace = pod.Namespace
+	// 	}
+	// }
+	namespace = pods.Items[0].Namespace
+	url := "kubearmor." + namespace + ".svc.cluster.local"
+	return url
+}
