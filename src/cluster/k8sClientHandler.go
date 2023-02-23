@@ -467,19 +467,17 @@ func GetKubearmorRelayURL() string {
 		return ""
 	}
 
-	// get pods from k8s api client
+	// get kubearmor-relay pod from k8s api client
 	pods, err := client.CoreV1().Pods("").List(context.Background(), metav1.ListOptions{
-		LabelSelector: "kubearmor-app",
+		LabelSelector: "kubearmor-app=kubearmor-relay",
 	})
 	if err != nil {
 		log.Error().Msg(err.Error())
 		return ""
 	}
-	// for _, pod := range pods.Items {
-	// 	if pod.Labels["kubearmor-app"] == "kubearmor" {
-	// 		namespace = pod.Namespace
-	// 	}
-	// }
+	if pods == nil {
+		return ""
+	}
 	namespace = pods.Items[0].Namespace
 	url := "kubearmor." + namespace + ".svc.cluster.local"
 	return url
