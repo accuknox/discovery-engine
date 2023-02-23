@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"reflect"
 	"sort"
 	"strings"
@@ -149,6 +150,7 @@ func SetDefaultConfig() {
 
 	viper.SetDefault("recommend.cron-job-time-interval", "1h0m00s")
 	viper.SetDefault("recommend.operation-mode", 1)
+	viper.SetDefault("recommend.recommend-host-policy", true)
 
 }
 
@@ -480,7 +482,7 @@ func WriteKnoxNetPolicyToYamlFile(namespace string, policies []types.KnoxNetwork
 	}
 
 	// create policy file
-	f, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY, 0600)
+	f, err := os.OpenFile(filepath.Clean(fileName), os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		log.Error().Msg(err.Error())
 		return
@@ -516,7 +518,7 @@ func WriteCiliumPolicyToYamlFile(namespace string, policies []types.CiliumNetwor
 		}
 	}
 
-	f, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY, 0600)
+	f, err := os.OpenFile(filepath.Clean(fileName), os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		log.Error().Msg(err.Error())
 		return
@@ -551,7 +553,7 @@ func WriteKubeArmorPolicyToYamlFile(fname string, policies []types.KubeArmorPoli
 		}
 	}
 
-	f, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY, 0600)
+	f, err := os.OpenFile(filepath.Clean(fileName), os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		log.Error().Msg(err.Error())
 		return
@@ -586,7 +588,7 @@ func WriteSysObsDataToJsonFile(obsData types.SysInsightResponseData) {
 		}
 	}
 
-	f, err := os.OpenFile(fileName, os.O_CREATE|os.O_WRONLY, 0600)
+	f, err := os.OpenFile(filepath.Clean(fileName), os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		log.Error().Msg(err.Error())
 		return

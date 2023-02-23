@@ -120,6 +120,7 @@ type ConfigRecommendPolicy struct {
 	OperationMode           int    `json:"operation_mode,omitempty" bson:"operation_mode,omitempty"`
 	CronJobTimeInterval     string `json:"cronjob_time_interval,omitempty" bson:"cronjob_time_interval,omitempty"`
 	OneTimeJobTimeSelection string `json:"one_time_job_time_selection,omitempty" bson:"one_time_job_time_selection,omitempty"`
+	RecommendHostPolicy     bool   `json:"recommend_host_policy,omitempty" bson:"recommend_host_policy,omitempty"`
 }
 
 type Configuration struct {

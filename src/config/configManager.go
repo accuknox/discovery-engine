@@ -211,6 +211,7 @@ func LoadConfigFromFile() {
 		CronJobTimeInterval:     "@every " + viper.GetString("recommend.cron-job-time-interval"),
 		OneTimeJobTimeSelection: "", // e.g., 2021-01-20 07:00:23|2021-01-20 07:00:25
 		OperationMode:           viper.GetInt("recommend.operation-mode"),
+		RecommendHostPolicy:     viper.GetBool("recommend.recommend-host-policy"),
 	}
 
 	// load database
@@ -510,4 +511,8 @@ func GetCfgRecCronJobTime() string {
 
 func GetCfgRecOneTime() string {
 	return CurrentCfg.ConfigRecommendPolicy.OneTimeJobTimeSelection
+}
+
+func GetCfgRecommendHostPolicy() bool {
+	return CurrentCfg.ConfigRecommendPolicy.RecommendHostPolicy
 }

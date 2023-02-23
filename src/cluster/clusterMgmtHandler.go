@@ -91,7 +91,7 @@ func getResponseBytes(method string, url string, data map[string]interface{}) []
 	dumpHttpClient(nil, resp)
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			log.Warn().Msgf("Error closing http stream %s\n", err)
+			log.Error().Msgf("Error closing http response: %s", err)
 		}
 	}()
 
