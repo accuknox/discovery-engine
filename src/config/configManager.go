@@ -96,7 +96,6 @@ func LoadConfigCiliumHubble() types.ConfigCiliumHubble {
 
 func LoadConfigKubeArmor() types.ConfigKubeArmorRelay {
 	cfgKubeArmor := types.ConfigKubeArmorRelay{}
-
 	cfgKubeArmor.KubeArmorRelayURL = viper.GetString("kubearmor.url")
 	/*
 		addr, err := net.LookupIP(cfgKubeArmor.KubeArmorRelayURL)

@@ -475,3 +475,26 @@ func GetNodesFromK8sClient() (*v1.NodeList, error) {
 	}
 	return nodeList, nil
 }
+
+func GetKubearmorRelayURL() string {
+	var namespace string
+	client := ConnectK8sClient()
+	if client == nil {
+		return ""
+	}
+
+	// get kubearmor-relay pod from k8s api client
+	pods, err := client.CoreV1().Pods("").List(context.Background(), metav1.ListOptions{
+		LabelSelector: "kubearmor-app=kubearmor-relay",
+	})
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return ""
+	}
+	if pods == nil {
+		return ""
+	}
+	namespace = pods.Items[0].Namespace
+	url := "kubearmor." + namespace + ".svc.cluster.local"
+	return url
+}
