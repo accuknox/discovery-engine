@@ -283,6 +283,7 @@ type KnoxSystemSpec struct {
 	Network NetworkRule `json:"network,omitempty" yaml:"network,omitempty"`
 
 	Action string `json:"action,omitempty" yaml:"action,omitempty"`
+	Status string `json:"status,omitempty" yaml:"status,omitempty"`
 }
 
 // KnoxSystemPolicy Structure
