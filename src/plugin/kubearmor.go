@@ -51,9 +51,6 @@ func ConvertKnoxSystemPolicyToKubeArmorPolicy(knoxPolicies []types.KnoxSystemPol
 			Kind:       "KubeArmorPolicy",
 			Metadata:   map[string]string{},
 		}
-		if policy.Kind != "" {
-			kubePolicy.Kind = policy.Kind
-		}
 
 		if policy.Kind != types.KindKubeArmorHostPolicy {
 			kubePolicy.Metadata["namespace"] = policy.Metadata["namespace"]
