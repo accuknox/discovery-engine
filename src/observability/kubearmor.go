@@ -223,7 +223,11 @@ func GetKubearmorSummaryData(req *opb.Request) ([]types.SysObsProcFileData, []ty
 	var podInfo types.ObsPodDetail
 
 	sysSummary, err := libs.GetSystemSummary(CfgDB, types.SystemSummary{
-		PodName: req.PodName,
+		PodName:       req.PodName,
+		NamespaceName: req.NameSpace,
+		ContainerName: req.ContainerName,
+		ClusterName:   req.ClusterName,
+		Labels:        req.Label,
 	})
 	if err != nil {
 		return nil, nil, nil, types.ObsPodDetail{}
