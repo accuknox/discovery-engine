@@ -10,6 +10,7 @@ import (
 	"github.com/accuknox/auto-policy-discovery/src/types"
 	"github.com/robfig/cron"
 	"github.com/rs/zerolog"
+	v1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -123,42 +124,37 @@ func StopRecommendCronJob() {
 func RecommendPolicyMain() {
 
 	nsNotFilter := cfg.CurrentCfg.ConfigSysPolicy.NsNotFilter
-
-	if !isLatest() {
-		if _, err := DownloadAndUnzipRelease(); err != nil {
-			log.Error().Msgf("Unable to download %v", err.Error())
-		}
-	}
 	client := cluster.ConnectK8sClient()
 	deployments, err := client.AppsV1().Deployments("").List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		log.Error().Msg(err.Error())
 		return
 	}
-	systempolicy.InitSysPolicyDiscoveryConfiguration()
-	for _, d := range deployments.Items {
-		deploy := uniqueNsDeploy(d.Name, d.Namespace)
-
-		if deploy != nil {
-			DeployNsName = append(DeployNsName, *deploy)
-		}
-
-		for _, ns := range nsNotFilter {
-			if d.Namespace != ns {
-				generateHardenPolicy(d.Name, d.Namespace, d.Spec.Template.Labels)
-			}
-		}
+	replicaSets, err := client.AppsV1().ReplicaSets("").List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		log.Error().Msg("error getting replicasets err=" + err.Error())
+		return
 	}
+	statefulSets, err := client.AppsV1().StatefulSets("").List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		log.Error().Msg("error getting statefulsets err=" + err.Error())
+		return
+	}
+	systempolicy.InitSysPolicyDiscoveryConfiguration()
+
+	policies := GetHardenPolicy(deployments, replicaSets, statefulSets, nsNotFilter)
+
+	systempolicy.UpdateSysPolicies(policies)
 }
 
-func generateHardenPolicy(name, namespace string, labels LabelMap) {
-	log.Info().Msgf("Generating hardening policy for deployment: %v in namespace: %v", name, namespace)
+func generateHardenPolicy(name, namespace string, labels LabelMap) []types.KnoxSystemPolicy {
+	log.Info().Msgf("Generating hardening policy for: %v in namespace: %v", name, namespace)
 	policies, err := generatePolicy(name, namespace, labels)
 	if err != nil {
 		log.Error().Msg(err.Error())
-		return
+		return nil
 	}
-	systempolicy.UpdateSysPolicies(policies)
+	return policies
 }
 
 func uniqueNsDeploy(deployName, deployNamespace string) *types.Deployment {
@@ -179,4 +175,44 @@ func uniqueNsDeploy(deployName, deployNamespace string) *types.Deployment {
 	}
 
 	return &deploy
+}
+
+func GetHardenPolicy(deployments *v1.DeploymentList, replicaSets *v1.ReplicaSetList, statefulSets *v1.StatefulSetList, nsNotFilter []string) []types.KnoxSystemPolicy {
+
+	var policies []types.KnoxSystemPolicy
+	if !isLatest() {
+		if _, err := DownloadAndUnzipRelease(); err != nil {
+			log.Error().Msgf("Unable to download %v", err.Error())
+		}
+	}
+	for _, d := range deployments.Items {
+		deploy := uniqueNsDeploy(d.Name, d.Namespace)
+
+		if deploy != nil {
+			DeployNsName = append(DeployNsName, *deploy)
+		}
+
+		for _, ns := range nsNotFilter {
+			if d.Namespace != ns {
+				policies = append(policies, generateHardenPolicy(d.Name, d.Namespace, d.Spec.Template.Labels)...)
+			}
+		}
+	}
+
+	for _, r := range replicaSets.Items {
+		for _, ns := range nsNotFilter {
+			if r.Namespace != ns && len(r.ObjectMeta.OwnerReferences) == 0 {
+				policies = append(policies, generateHardenPolicy(r.Name, r.Namespace, r.Spec.Template.Labels)...)
+			}
+		}
+	}
+
+	for _, s := range statefulSets.Items {
+		for _, ns := range nsNotFilter {
+			if s.Namespace != ns {
+				policies = append(policies, generateHardenPolicy(s.Name, s.Namespace, s.Spec.Template.Labels)...)
+			}
+		}
+	}
+	return policies
 }

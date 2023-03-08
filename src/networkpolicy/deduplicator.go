@@ -1,8 +1,11 @@
 package networkpolicy
 
 import (
+	"sort"
+	"strconv"
 	"strings"
 
+	"github.com/accuknox/auto-policy-discovery/src/common"
 	"github.com/accuknox/auto-policy-discovery/src/libs"
 	types "github.com/accuknox/auto-policy-discovery/src/types"
 
@@ -761,19 +764,17 @@ func existPolicyName(policyNamesMap map[string]bool, name string) bool {
 }
 
 func GeneratePolicyName(policyNamesMap map[string]bool, policy types.KnoxNetworkPolicy, clusterName string) types.KnoxNetworkPolicy {
-	egressPrefix := "autopol-egress-"
-	ingressPrefix := "autopol-ingress-"
-
 	polType := policy.Metadata["type"]
-	name := "autopol-" + polType + "-" + libs.RandSeq(15)
+	labels := []string{}
 
-	for existPolicyName(policyNamesMap, name) {
-		if polType == "egress" {
-			name = egressPrefix + libs.RandSeq(15)
-		} else {
-			name = ingressPrefix + libs.RandSeq(15)
-		}
+	for k, v := range policy.Spec.Selector.MatchLabels {
+		labels = append(labels, k+"="+v)
 	}
+	sort.Strings(labels) // sort labels
+
+	hashInt := common.HashInt(polType + strings.Join(labels, ",") + policy.Metadata["namespace"] + clusterName)
+	hash := strconv.FormatUint(uint64(hashInt), 10)
+	name := "autopol-" + polType + "-" + hash
 
 	policyNamesMap[name] = true
 

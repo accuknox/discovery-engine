@@ -40,7 +40,7 @@ clusterRole:
   name: discovery-engine-role
   rules:
   - apiGroups: ["*"]
-    resources: ["pods", "services", "deployments", "endpoints", "namespaces", "nodes"]
+    resources: ["pods", "services", "deployments", "endpoints", "namespaces", "nodes", "replicasets", "statefulsets"]
     verbs: ["get", "list", "watch"]
   
 #clusterroleBinding

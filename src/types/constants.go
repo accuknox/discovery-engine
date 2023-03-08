@@ -32,8 +32,9 @@ const (
 	KindKubeArmorPolicy     = "KubeArmorPolicy"
 	KindKubeArmorHostPolicy = "KubeArmorHostPolicy"
 
-	PolicyTypeSystem  = "system"
-	PolicyTypeNetwork = "network"
+	PolicyTypeSystem              = "system"
+	PolicyTypeNetwork             = "network"
+	PolicyTypeAdmissionController = "admission-controller"
 
 	// Hardening policy
 	HardeningPolicy = "harden"
@@ -44,4 +45,7 @@ const (
 	// K8sNetworkPolicy
 	K8sNwPolicyAPIVersion = "networking.k8s.io/v1"
 	K8sNwPolicyKind       = "NetworkPolicy"
+
+	// max no. of tries to connect to kubearmor-relay
+	Maxtries = 6
 )
