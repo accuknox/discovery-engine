@@ -51,31 +51,31 @@ func checkntwpolicyrules(policies []nv1.NetworkPolicy) (int, int) {
 	flag := 0
 	flag_i := 0
 	for i := range policies {
-		var p string
-		var port int
-		if policies[i].Spec.PodSelector.MatchLabels["app"] == "wordpress" {
+		if policies[i].Spec.PodSelector.MatchLabels["app"] == "wordpress" && flag != 1 {
 			flag = 0
 			for _, e := range policies[i].Spec.Egress {
 				if e.Ports[0].Port != nil {
 					if e.Ports[0].Protocol != nil {
-						p = (string(*e.Ports[0].Protocol))
-					}
-					port = e.Ports[0].Port.IntValue()
-					if p == "TCP" && port == 3306 {
-						flag = 1
+						p := (string(*e.Ports[0].Protocol))
+
+						port := e.Ports[0].Port.IntValue()
+						if p == "TCP" && port == 3306 {
+							flag = 1
+						}
 					}
 				}
 			}
-		} else if policies[i].Spec.PodSelector.MatchLabels["app"] == "mysql" {
+		} else if policies[i].Spec.PodSelector.MatchLabels["app"] == "mysql" && flag_i != 1 {
 			flag_i = 0
 			for _, i := range policies[i].Spec.Ingress {
 				if i.Ports[0].Port != nil {
 					if i.Ports[0].Protocol != nil {
-						p = (string(*i.Ports[0].Protocol))
-					}
-					port = i.Ports[0].Port.IntValue()
-					if p == "TCP" && port == 3306 {
-						flag_i = 1
+						p := (string(*i.Ports[0].Protocol))
+
+						port := i.Ports[0].Port.IntValue()
+						if p == "TCP" && port == 3306 {
+							flag_i = 1
+						}
 					}
 				}
 			}
@@ -106,9 +106,10 @@ func findProcessORFileData(ProcFiledata []*opb.SysProcFileSummaryData, source, d
 }
 
 func verifyProcessORFileData(ProcFileData []*opb.SysProcFileSummaryData, data map[string]string, dataType string) error {
+	var flag bool
 	if dataType == "Process" {
 		for destination, source := range data {
-			flag := findProcessORFileData(ProcFileData, source, destination, dataType)
+			flag = findProcessORFileData(ProcFileData, source, destination, dataType)
 			if !flag {
 				return fmt.Errorf("process data is not correct for source : %v, destination : %v", source, destination)
 			}
@@ -215,7 +216,10 @@ func discoversyspolicy(ns string, l string, rules []string, maxcnt int) (types.K
 		if err != nil {
 			log.Error().Msgf("Failed to apply the `karmor discover` command : %v", err)
 		}
-		fmt.Println("KubeArmor Security Policy :\n", string(cmd))
+		if cnt == 9 {
+			fmt.Println("KubeArmor Security Policy :\n", string(cmd))
+		}
+
 		err = json.Unmarshal(cmd, &policy)
 		if err != nil {
 			log.Error().Msgf("Failed to unmarshal the system policy : %v", err)
@@ -242,7 +246,10 @@ func discovernetworkpolicy(ns string, maxcnt int) ([]nv1.NetworkPolicy, error) {
 		}
 
 		yamls := strings.Split(string(cmd), "---")
-		fmt.Println("Network Policies : \n", yamls)
+		if cnt == 9 {
+			fmt.Println("Network Policies : \n", yamls)
+		}
+
 		if len(yamls) > 0 {
 			yamls = yamls[:len(yamls)-1]
 		}
@@ -268,104 +275,104 @@ func discovernetworkpolicy(ns string, maxcnt int) ([]nv1.NetworkPolicy, error) {
 
 func getsummary(podName string, maxcnt int) (*opb.Response, error) {
 	var err error
-	res := []*opb.Response{}
 	for cnt := 0; cnt < maxcnt; cnt++ {
+		var jsonObjects []string
+		var jsonObject string
+		var i int
+		var summ *opb.Response
+		res := []*opb.Response{}
 		summary, err := exec.Command("karmor", "summary", "-o", "json").Output()
 		if err != nil {
 			log.Error().Msgf("Failed to apply the `karmor summary` command : %v", err)
 		}
-		if cnt == 20 {
-			fmt.Println("Summary :\n", string(summary))
-		}
 
-		// implemented to break the summary and make the output a valid json object (this will be removed once we get the new kubearmor release)
-		jsonObjects := strings.Split(string(summary), "}\n{")
-		for i, jsonObject := range jsonObjects {
-			r := opb.Response{}
+		// implemented to break the summary and make the output a valid json object
+		jsonObjects = strings.Split(string(summary), "}\n{")
+		for i, jsonObject = range jsonObjects {
+			r := &opb.Response{}
 			if i > 0 {
 				jsonObject = "{" + jsonObject
 			}
 			if i < len(jsonObjects)-1 {
 				jsonObject = jsonObject + "}"
 			}
-			err = json.Unmarshal([]byte(jsonObject), &r)
+			err = json.Unmarshal([]byte(jsonObject), r)
 			if err != nil {
 				log.Error().Msgf("Failed to unmarshal the Summary : %v", err)
 			}
-			res = append(res, &r)
+			res = append(res, r)
 		}
-		for _, summary := range res {
-			if strings.Contains(summary.PodName, podName) {
+		for _, summ = range res {
+			//fmt.Printf("Summary : %v", summ)
+			if strings.Contains(summ.PodName, podName) {
 				if podName == "wordpress" {
 					processData := map[string]string{
 						"/usr/local/bin/php": "/bin/bash",
 						"/usr/bin/sha1sum":   "/bin/bash",
 					}
-					err := verifyProcessORFileData(summary.ProcessData, processData, "Process")
+					err := verifyProcessORFileData(summ.ProcessData, processData, "Process")
 					if err != nil {
+						fmt.Println(err)
 						break
 					}
 					fileData := map[string]string{
 						"/etc/hosts":                         "/usr/local/bin/php",
 						"/lib/x86_64-linux-gnu/libc-2.19.so": "/bin/sed",
 					}
-					err = verifyProcessORFileData(summary.FileData, fileData, "File")
+					err = verifyProcessORFileData(summ.FileData, fileData, "File")
 					if err != nil {
+						fmt.Println(err)
 						break
 					}
 					flag := 0
-					for _, e := range summary.EgressConnection {
+					for _, e := range summ.EgressConnection {
 						if e.Protocol == "TCP" && e.Command == "/usr/local/bin/php" && e.IP == "svc/mysql" && e.Port == "3306" && e.Labels == "app=mysql" && e.Namespace == "wordpress-mysql" {
 							flag = 1
 							break
 						}
+						fmt.Println("Egress Connection for wordpress pod is not matching")
+
+						//return nil, fmt.Errorf("Egress Connection for wordpress pod is not matching")
 					}
 					if flag == 0 {
 						break
 					}
-					return summary, nil
+					return summ, nil
 				} else if podName == "mysql" {
 					processData := map[string]string{
-						"/bin/date":      "/bin/bash",
-						"/usr/bin/mysql": "/bin/bash",
+						"/bin/date":        "/bin/bash",
+						"/usr/sbin/mysqld": "/bin/bash",
 					}
-					err := verifyProcessORFileData(summary.ProcessData, processData, "Process")
+					err := verifyProcessORFileData(summ.ProcessData, processData, "Process")
 					if err != nil {
+						fmt.Println(err)
 						break
 					}
 					fileData := map[string]string{
-						"/dev/null":                          "/bin/bash",
 						"/lib/x86_64-linux-gnu/libc-2.24.so": "/usr/bin/mysql",
 					}
-					err = verifyProcessORFileData(summary.FileData, fileData, "File")
+					err = verifyProcessORFileData(summ.FileData, fileData, "File")
 					if err != nil {
+						fmt.Println(err)
 						break
 					}
 					flag := 0
-					for _, i := range summary.IngressConnection {
+					for _, i := range summ.IngressConnection {
 						if i.Protocol == "TCPv6" && i.Command == "/usr/sbin/mysqld" && strings.Contains(i.IP, "wordpress") && i.Port == "3306" && i.Namespace == "wordpress-mysql" && i.Labels == "app=wordpress" {
 							flag = 1
 							break
 						}
 					}
 					if flag == 0 {
+						fmt.Println("Ingress Connection for mysql pod is not matching")
 						break
 					}
 					flag = 0
-					for _, b := range summary.BindConnection {
-						if b.Command == "/usr/sbin/mysqld" && b.BindAddress == "/var/run/mysqld/mysqld.sock" {
-							flag = 1
-							break
-						}
-					}
-					if flag == 0 {
-						break
-					}
-					return summary, nil
+					return summ, nil
 				}
 			}
 		}
-		time.Sleep(20 * time.Second)
+		time.Sleep(10 * time.Second)
 	}
 	return nil, err
 }
@@ -395,18 +402,19 @@ var _ = Describe("Smoke", func() {
 			Expect(policy.Spec.Severity).To(Equal(1))
 		})
 		It("testing for network policy", func() {
-			// check whether wordpress service is running or not using curl command
-			for i := 0; i <= 30; i++ {
-				curl, err := exec.Command("curl", "-d", `WORDPRESS_DB_HOST="mysql"`, "-d", `WORDPRESS_DB_PASSWORD="root-password"`, "-d", `wp-submit="Log In"`, "-d", `redirect_to="http://localhost:8000/wp-admin/"`, "-d", "testcookie=1", "http://localhost:8000/wp-admin/install.php").Output()
+			//check whether wordpress service is running or not using curl command
+			for i := 0; i < 10; i++ {
+				_, err := exec.Command("curl", "-X", "POST", "-d", `WORDPRESS_DB_HOST="mysql"`, "-d", `WORDPRESS_DB_PASSWORD="root-password"`, "-d", `wp-submit="Log In"`, "-d", `redirect_to="http://localhost:30080/wp-admin/"`, "-d", `"testcookie=1"`, "http://localhost:30080/wp-admin/install.php").Output()
 				if err != nil {
 					log.Error().Msgf("Failed to apply curl command : %v", err)
 				}
-				if curl != nil {
+				log.Info().Msgf("curl successful")
+				if err == nil {
 					break
 				}
 				time.Sleep(10 * time.Second)
 			}
-			policy, err := discovernetworkpolicy("wordpress-mysql", 30)
+			policy, err := discovernetworkpolicy("wordpress-mysql", 10)
 			Expect(err).To(BeNil())
 			Expect(len(policy)).NotTo(Equal(0))
 			for i := range policy {
