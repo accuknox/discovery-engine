@@ -851,6 +851,11 @@ func mergeSysPolicies(pols []types.KnoxSystemPolicy) []types.KnoxSystemPolicy {
 	return results
 }
 
+// Wrapper function for mergeSysPolicies
+func MergeSysPolicies(pols []types.KnoxSystemPolicy) []types.KnoxSystemPolicy {
+	return mergeSysPolicies(pols)
+}
+
 func ConvertWPFSToKnoxSysPolicy(wpfsSet types.ResourceSetMap, pnMap types.PolicyNameMap) []types.KnoxSystemPolicy {
 	var results []types.KnoxSystemPolicy
 	for wpfs, fsset := range wpfsSet {

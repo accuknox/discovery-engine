@@ -36,7 +36,8 @@ const (
 	PolicyTypeNetwork = "network"
 
 	// Hardening policy
-	HardeningPolicy = "harden"
+	HardeningPolicy      = "harden"
+	HardeningMergePolicy = "harden-merge"
 
 	// Binary Name Filters
 	FilterBinaryKnoxAutoPolicy = "knoxAutoPolicy"

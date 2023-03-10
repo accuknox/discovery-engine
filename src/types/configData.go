@@ -121,6 +121,7 @@ type ConfigRecommendPolicy struct {
 	CronJobTimeInterval     string `json:"cronjob_time_interval,omitempty" bson:"cronjob_time_interval,omitempty"`
 	OneTimeJobTimeSelection string `json:"one_time_job_time_selection,omitempty" bson:"one_time_job_time_selection,omitempty"`
 	RecommendHostPolicy     bool   `json:"recommend_host_policy,omitempty" bson:"recommend_host_policy,omitempty"`
+	MergePolicy             bool   `json:"merge_policy,omitempty" bson:"merge_policy,omitempty"`
 }
 
 type Configuration struct {

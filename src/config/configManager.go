@@ -212,6 +212,7 @@ func LoadConfigFromFile() {
 		OneTimeJobTimeSelection: "", // e.g., 2021-01-20 07:00:23|2021-01-20 07:00:25
 		OperationMode:           viper.GetInt("recommend.operation-mode"),
 		RecommendHostPolicy:     viper.GetBool("recommend.recommend-host-policy"),
+		MergePolicy:             viper.GetBool("recommend.merge-policy"),
 	}
 
 	// load database
@@ -515,4 +516,8 @@ func GetCfgRecOneTime() string {
 
 func GetCfgRecommendHostPolicy() bool {
 	return CurrentCfg.ConfigRecommendPolicy.RecommendHostPolicy
+}
+
+func GetCfgMergePolicy() bool {
+	return CurrentCfg.ConfigRecommendPolicy.MergePolicy
 }

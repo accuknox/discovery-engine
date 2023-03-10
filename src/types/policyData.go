@@ -242,6 +242,11 @@ type KnoxMatchPaths struct {
 	ReadOnly   bool             `json:"readOnly,omitempty" yaml:"readOnly,omitempty"`
 	OwnerOnly  bool             `json:"ownerOnly,omitempty" yaml:"ownerOnly,omitempty"`
 	FromSource []KnoxFromSource `json:"fromSource,omitempty" yaml:"fromSource,omitempty"`
+
+	Action   string   `json:"action,omitempty" yaml:"action,omitempty"`
+	Severity int      `json:"severity,omitempty" yaml:"severity,omitempty"`
+	Message  string   `json:"message,omitempty" yaml:"message,omitempty"`
+	Tags     []string `json:"tags,omitempty" yaml:"tags,omitempty"`
 }
 
 // KnoxMatchDirectories Structure
@@ -251,6 +256,11 @@ type KnoxMatchDirectories struct {
 	ReadOnly   bool             `json:"readOnly,omitempty" yaml:"readOnly,omitempty"`
 	OwnerOnly  bool             `json:"ownerOnly,omitempty" yaml:"ownerOnly,omitempty"`
 	FromSource []KnoxFromSource `json:"fromSource,omitempty" yaml:"fromSource,omitempty"`
+
+	Action   string   `json:"action,omitempty" yaml:"action,omitempty"`
+	Severity int      `json:"severity,omitempty" yaml:"severity,omitempty"`
+	Message  string   `json:"message,omitempty" yaml:"message,omitempty"`
+	Tags     []string `json:"tags,omitempty" yaml:"tags,omitempty"`
 }
 
 // KnoxMatchProtocols Structure

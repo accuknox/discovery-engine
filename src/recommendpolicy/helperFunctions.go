@@ -60,12 +60,12 @@ func genericPolicy(precondition []string) bool {
 }
 
 func generatePolicy(name, namespace string, labels LabelMap) ([]types.KnoxSystemPolicy, error) {
-
 	var ms types.MatchSpec
 	var err error
 	var policies []types.KnoxSystemPolicy
 	idx := 0
 	ms, err = getNextRule(&idx)
+
 	for ; err == nil; ms, err = getNextRule(&idx) {
 		if genericPolicy(ms.Precondition) {
 			policy, err := createPolicy(ms, name, namespace, labels)
@@ -75,7 +75,6 @@ func generatePolicy(name, namespace string, labels LabelMap) ([]types.KnoxSystem
 			}
 			policies = append(policies, policy)
 		} else if ms.Kind == types.KindKubeArmorHostPolicy && cfg.GetCfgRecommendHostPolicy() {
-
 			nodeList, err := cluster.GetNodesFromK8sClient()
 			if err != nil {
 				log.Error().Msg(err.Error())
@@ -92,8 +91,13 @@ func generatePolicy(name, namespace string, labels LabelMap) ([]types.KnoxSystem
 		}
 	}
 
-	return policies, nil
+	if cfg.GetCfgMergePolicy() {
+		mergedPolicy := mergePolicies(policies, ms, name, namespace, labels)
+		log.Info().Msgf("Merged %v hardening policies for %v in namespace %v", len(policies), name, namespace)
+		return []types.KnoxSystemPolicy{mergedPolicy}, nil
+	}
 
+	return policies, nil
 }
 
 func createPolicy(ms types.MatchSpec, name, namespace string, labels LabelMap) (types.KnoxSystemPolicy, error) {
@@ -130,6 +134,7 @@ func createPolicy(ms types.MatchSpec, name, namespace string, labels LabelMap) (
 	policy.Spec.Selector.MatchLabels = labels
 
 	addPolicyRule(&policy, &ms.Spec)
+
 	return policy, nil
 }
 
@@ -188,4 +193,54 @@ func initDeploymentWatcher() {
 
 		}
 	}
+}
+
+func mergePolicies(policies []types.KnoxSystemPolicy, ms types.MatchSpec, name, namespace string, labels LabelMap) types.KnoxSystemPolicy {
+
+	var merged types.KnoxSystemPolicy
+
+	merged.APIVersion = "v1"
+	merged.Kind = "KubeArmorPolicy"
+	merged.Metadata = map[string]string{
+		"name":      fmt.Sprintf("%v-%v", types.HardeningMergePolicy, name),
+		"namespace": namespace,
+	}
+	merged.Spec.Selector.MatchLabels = labels
+
+	for _, policy := range policies {
+		for i := range policy.Spec.File.MatchDirectories {
+			dir := policy.Spec.File.MatchDirectories[i]
+			dir.Action = policy.Spec.Action
+			dir.Severity = policy.Spec.Severity
+			dir.Message = policy.Spec.Message
+			dir.Tags = policy.Spec.Tags
+			merged.Spec.File.MatchDirectories = append(merged.Spec.File.MatchDirectories, dir)
+		}
+		for i := range policy.Spec.File.MatchPaths {
+			path := policy.Spec.File.MatchPaths[i]
+			path.Action = policy.Spec.Action
+			path.Severity = policy.Spec.Severity
+			path.Message = policy.Spec.Message
+			path.Tags = policy.Spec.Tags
+			merged.Spec.File.MatchPaths = append(merged.Spec.File.MatchPaths, path)
+		}
+		for i := range policy.Spec.Process.MatchDirectories {
+			dir := policy.Spec.Process.MatchDirectories[i]
+			dir.Action = policy.Spec.Action
+			dir.Severity = policy.Spec.Severity
+			dir.Message = policy.Spec.Message
+			dir.Tags = policy.Spec.Tags
+			merged.Spec.Process.MatchDirectories = append(merged.Spec.Process.MatchDirectories, dir)
+		}
+		for i := range policy.Spec.Process.MatchPaths {
+			path := policy.Spec.Process.MatchPaths[i]
+			path.Action = policy.Spec.Action
+			path.Severity = policy.Spec.Severity
+			path.Message = policy.Spec.Message
+			path.Tags = policy.Spec.Tags
+			merged.Spec.Process.MatchPaths = append(merged.Spec.Process.MatchPaths, path)
+		}
+	}
+
+	return merged
 }
