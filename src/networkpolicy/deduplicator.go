@@ -765,10 +765,9 @@ func existPolicyName(policyNamesMap map[string]bool, name string) bool {
 func GeneratePolicyName(policyNamesMap map[string]bool, policy types.KnoxNetworkPolicy, clusterName string) types.KnoxNetworkPolicy {
 	polType := policy.Metadata["type"]
 
-	randomizer := strconv.FormatUint(uint64(common.HashInt(polType+policy.Metadata["labels"]+
-		policy.Metadata["namespace"]+policy.Metadata["clustername"]+policy.Metadata["containername"])), 10)
-
-	name := "autopol-" + polType + "-" + randomizer
+	hashInt := common.HashInt(polType+policy.Metadata["labels"]+policy.Metadata["namespace"]+policy.Metadata["clustername"]+policy.Metadata["containername"])
+	hash := strconv.FormatUint(uint64(hashInt), 10)
+	name := "autopol-" + polType + "-" + hash
 
 	policyNamesMap[name] = true
 
