@@ -5,6 +5,9 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/accuknox/go-spiffe/v2/spiffegrpc/grpccredentials"
+	"github.com/accuknox/go-spiffe/v2/spiffetls/tlsconfig"
+	"github.com/accuknox/go-spiffe/v2/workloadapi"
 	"github.com/rs/zerolog"
 
 	analyzer "github.com/accuknox/auto-policy-discovery/src/analyzer"
@@ -285,8 +288,10 @@ func (ps *publisherServer) GetSummary(req *ppb.SummaryRequest, srv ppb.Publisher
 // == gRPC server == //
 // ================= //
 
-func GetNewServer() *grpc.Server {
-	s := grpc.NewServer()
+func GetNewServer(source *workloadapi.X509Source) *grpc.Server {
+	s := grpc.NewServer(grpc.Creds(
+		grpccredentials.MTLSServerCredentials(source, source, tlsconfig.AuthorizeAny()),
+	))
 	grpc_health_v1.RegisterHealthServer(s, health.NewServer())
 
 	reflection.Register(s)

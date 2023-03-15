@@ -79,4 +79,9 @@ feed-consumer:
 recommend:
   operation-mode: 1                       # 1: cronjob | 2: one-time-job
   cron-job-time-interval: "1h0m00s"       # format: XhYmZs
-  
+
+# Spire Configurations  
+spire:
+  basePath: spire-agent.spire.svc.cluster.local
+  basePort: 9091
+  serviceaccount-token-path: /var/run/secrets/kubernetes.io/serviceaccount/token
