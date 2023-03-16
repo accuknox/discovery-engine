@@ -470,7 +470,9 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 
 				if config.CurrentCfg.ConfigNetPolicy.NetworkLogFrom == "kubearmor" {
 					if res.Operation == "Network" {
+						KubeArmorRelayLogsMutex.Lock()
 						KubeArmorNetworkLogs = append(KubeArmorNetworkLogs, &kubearmorLog)
+						KubeArmorRelayLogsMutex.Unlock()
 					}
 				}
 			}
@@ -558,13 +560,14 @@ func GetSystemLogsFromFeedConsumer(trigger int) []*types.KnoxSystemLog {
 }
 
 func GetNetworkLogsFromKubeArmor() []*pb.Alert {
-	if len(KubeArmorNetworkLogs) <= 0 {
-		return nil
-	}
-
+	KubeArmorRelayLogsMutex.Lock()
 	results := KubeArmorNetworkLogs      // copy
 	KubeArmorNetworkLogs = []*pb.Alert{} // reset
+	KubeArmorRelayLogsMutex.Unlock()
 
+	if len(results) <= 0 {
+		return nil
+	}
 	log.Info().Msgf("The total number of KubeArmor network log : [%d]", len(results))
 
 	return results

@@ -68,14 +68,15 @@ func clearKubeArmorLogMap() {
 }
 
 func ProcessSystemLogs() {
-	if len(SystemLogs) <= 0 {
-		return
-	}
 
 	SystemLogsMutex.Lock()
 	locSysLogs := SystemLogs
 	SystemLogs = []*pb.Alert{} //reset
 	SystemLogsMutex.Unlock()
+
+	if len(locSysLogs) <= 0 {
+		return
+	}
 
 	ObsMutex.Lock()
 	defer ObsMutex.Unlock()
