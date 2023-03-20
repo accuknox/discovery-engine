@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/accuknox/auto-policy-discovery/src/cluster"
 	"github.com/accuknox/auto-policy-discovery/src/config"
 	libs "github.com/accuknox/auto-policy-discovery/src/libs"
 	logger "github.com/accuknox/auto-policy-discovery/src/logging"
@@ -53,6 +54,10 @@ func main() {
 		log.Error().Msgf("gRPC server failed to listen: %v", err)
 		os.Exit(1)
 	}
+
+	// start watching discovered KSPs
+	cluster.WatchDiscoveredKsp()
+
 	server := grpcserver.GetNewServer()
 
 	// start autopolicy service

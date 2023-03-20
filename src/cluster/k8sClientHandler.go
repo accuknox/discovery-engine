@@ -4,18 +4,30 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"reflect"
+	"regexp"
 	"sort"
 	"strings"
 
 	"github.com/accuknox/auto-policy-discovery/src/libs"
 	"github.com/accuknox/auto-policy-discovery/src/types"
+	"github.com/clarketm/json"
+	kspAPI "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/api/security.kubearmor.com/v1"
+	ksp "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/client/clientset/versioned"
+	kspScheme "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/client/clientset/versioned/scheme"
+	kspInformer "github.com/kubearmor/KubeArmor/pkg/KubeArmorController/client/informers/externalversions"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	patchTypes "k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
 	rest "k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
@@ -23,6 +35,12 @@ import (
 
 var parsed bool = false
 var kubeconfig *string
+var Client *ClientSet
+
+type ClientSet struct {
+	K8sClient *kubernetes.Clientset
+	KSPClient *ksp.Clientset
+}
 
 func isInCluster() bool {
 	if _, ok := os.LookupEnv("KUBERNETES_PORT"); ok {
@@ -32,15 +50,20 @@ func isInCluster() bool {
 	return false
 }
 
-func ConnectK8sClient() *kubernetes.Clientset {
+func ConnectK8sClient() *ClientSet {
+	if Client != nil {
+		return Client
+	}
 	if isInCluster() {
-		return ConnectInClusterAPIClient()
+		Client = ConnectInClusterAPIClient()
 	}
 
-	return ConnectLocalAPIClient()
+	Client = ConnectLocalAPIClient()
+	return Client
 }
 
-func ConnectLocalAPIClient() *kubernetes.Clientset {
+func ConnectLocalAPIClient() *ClientSet {
+	cs := &ClientSet{}
 	if !parsed {
 		homeDir := ""
 		if h := os.Getenv("HOME"); h != "" {
@@ -72,16 +95,30 @@ func ConnectLocalAPIClient() *kubernetes.Clientset {
 	}
 
 	// creates the clientset
-	clientset, err := kubernetes.NewForConfig(config)
+	cs.K8sClient, err = kubernetes.NewForConfig(config)
 	if err != nil {
 		log.Error().Msg(err.Error())
 		return nil
 	}
 
-	return clientset
+	cs.KSPClient, err = ksp.NewForConfig(config)
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return nil
+	}
+
+	// register ksp scheme
+	err = kspScheme.AddToScheme(scheme.Scheme)
+	if err != nil {
+		log.Error().Msgf("unable to register ksp scheme error= %s", err)
+		return nil
+	}
+
+	return cs
 }
 
-func ConnectInClusterAPIClient() *kubernetes.Clientset {
+func ConnectInClusterAPIClient() *ClientSet {
+	cs := &ClientSet{}
 	host := ""
 	port := ""
 	token := ""
@@ -115,12 +152,26 @@ func ConnectInClusterAPIClient() *kubernetes.Clientset {
 		},
 	}
 
-	if client, err := kubernetes.NewForConfig(kubeConfig); err != nil {
+	cs.KSPClient, err = ksp.NewForConfig(kubeConfig)
+	if err != nil {
 		log.Error().Msg(err.Error())
 		return nil
-	} else {
-		return client
 	}
+
+	// register ksp scheme
+	err = kspScheme.AddToScheme(scheme.Scheme)
+	if err != nil {
+		log.Error().Msgf("unable to register ksp scheme error= %s", err)
+		return nil
+	}
+
+	cs.K8sClient, err = kubernetes.NewForConfig(kubeConfig)
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return nil
+	}
+
+	return cs
 }
 
 // =============== //
@@ -136,7 +187,7 @@ func GetNamespacesFromK8sClient() []string {
 	}
 
 	// get namespaces from k8s api client
-	namespaces, err := client.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{})
+	namespaces, err := client.K8sClient.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		log.Error().Msg(err.Error())
 		return results
@@ -171,7 +222,7 @@ func GetPodsFromK8sClient() []types.Pod {
 	}
 
 	// get pods from k8s api client
-	pods, err := client.CoreV1().Pods("").List(context.Background(), metav1.ListOptions{})
+	pods, err := client.K8sClient.CoreV1().Pods("").List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		log.Error().Msg(err.Error())
 		return results
@@ -208,7 +259,7 @@ func SetAnnotationsToPodsInNamespaceK8s(namespace string, annotation map[string]
 	}
 
 	// get pods from k8s api client
-	pods, err := client.CoreV1().Pods(namespace).List(context.Background(), metav1.ListOptions{})
+	pods, err := client.K8sClient.CoreV1().Pods(namespace).List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -223,7 +274,7 @@ func SetAnnotationsToPodsInNamespaceK8s(namespace string, annotation map[string]
 			ann[k] = v
 		}
 		copied.SetAnnotations(ann)
-		_, err := client.CoreV1().Pods(copied.ObjectMeta.Namespace).Update(context.Background(), copied, metav1.UpdateOptions{})
+		_, err := client.K8sClient.CoreV1().Pods(copied.ObjectMeta.Namespace).Update(context.Background(), copied, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
@@ -239,7 +290,7 @@ func SetAnnotationsToPodK8s(podName string, annotation map[string]string) error 
 	}
 
 	// get pods from k8s api client
-	pods, err := client.CoreV1().Pods("").List(context.Background(), metav1.ListOptions{})
+	pods, err := client.K8sClient.CoreV1().Pods("").List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -255,7 +306,7 @@ func SetAnnotationsToPodK8s(podName string, annotation map[string]string) error 
 				ann[k] = v
 			}
 			copied.SetAnnotations(ann)
-			_, err := client.CoreV1().Pods(copied.ObjectMeta.Namespace).Update(context.Background(), copied, metav1.UpdateOptions{})
+			_, err := client.K8sClient.CoreV1().Pods(copied.ObjectMeta.Namespace).Update(context.Background(), copied, metav1.UpdateOptions{})
 			if err != nil {
 				return err
 			}
@@ -278,7 +329,7 @@ func GetServicesFromK8sClient() []types.Service {
 	}
 
 	// get pods from k8s api client
-	svcs, err := client.CoreV1().Services("").List(context.Background(), metav1.ListOptions{})
+	svcs, err := client.K8sClient.CoreV1().Services("").List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		log.Error().Msg(err.Error())
 		return results
@@ -330,7 +381,7 @@ func GetEndpointsFromK8sClient() []types.Endpoint {
 	}
 
 	// get pods from k8s api client
-	endpoints, err := client.CoreV1().Endpoints("").List(context.Background(), metav1.ListOptions{})
+	endpoints, err := client.K8sClient.CoreV1().Endpoints("").List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		log.Error().Msg(err.Error())
 		return results
@@ -398,7 +449,7 @@ func GetClusterNameFromK8sClient() string {
 	}
 
 	// get pods from k8s api client
-	configMaps, err := client.CoreV1().ConfigMaps("kube-system").List(context.Background(), metav1.ListOptions{})
+	configMaps, err := client.K8sClient.CoreV1().ConfigMaps("kube-system").List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		log.Error().Msg(err.Error())
 		return "default"
@@ -435,7 +486,7 @@ func GetDeploymentsFromK8sClient() []types.Deployment {
 	}
 
 	// get namespaces from k8s api client
-	deployments, err := client.AppsV1().Deployments("").List(context.Background(), metav1.ListOptions{})
+	deployments, err := client.K8sClient.AppsV1().Deployments("").List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		log.Error().Msg(err.Error())
 		return results
@@ -468,7 +519,7 @@ func GetDeploymentsFromK8sClient() []types.Deployment {
 func GetNodesFromK8sClient() (*v1.NodeList, error) {
 
 	client := ConnectK8sClient()
-	nodeList, err := client.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+	nodeList, err := client.K8sClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		log.Error().Msg(err.Error())
 		return &v1.NodeList{}, err
@@ -484,7 +535,7 @@ func GetKubearmorRelayURL() string {
 	}
 
 	// get kubearmor-relay pod from k8s api client
-	pods, err := client.CoreV1().Pods("").List(context.Background(), metav1.ListOptions{
+	pods, err := client.K8sClient.CoreV1().Pods("").List(context.Background(), metav1.ListOptions{
 		LabelSelector: "kubearmor-app=kubearmor-relay",
 	})
 	if err != nil {
@@ -497,4 +548,186 @@ func GetKubearmorRelayURL() string {
 	namespace = pods.Items[0].Namespace
 	url := "kubearmor." + namespace + ".svc.cluster.local"
 	return url
+}
+
+// ================ //
+// == Deploy KSP == //
+// ================ //
+
+// DeployKSP func deploys discovered/hardening KSP
+func DeployKSP(pol *types.KubeArmorPolicy) error {
+	client := ConnectK8sClient()
+
+	arr, err := json.Marshal(pol)
+
+	if err != nil {
+		log.Error().Msgf("Error Parsing ksp: %s", err)
+	}
+
+	decode := scheme.Codecs.UniversalDeserializer().Decode
+	obj, _, err := decode(arr, nil, nil)
+	if err != nil {
+		log.Error().Msgf("unable to decode yaml error=%s", err)
+		return err
+	}
+
+	switch obj.(type) {
+	case *kspAPI.KubeArmorPolicy:
+		ksp := obj.(*kspAPI.KubeArmorPolicy)
+		// deploy as an inactive policy
+		ksp.Spec.Status = "Inactive"
+		ksp.Spec.Capabilities = kspAPI.CapabilitiesType{
+			MatchCapabilities: append([]kspAPI.MatchCapabilitiesType{}, ksp.Spec.Capabilities.MatchCapabilities...),
+		}
+		ksp.Spec.Network = kspAPI.NetworkType{
+			MatchProtocols: append([]kspAPI.MatchNetworkProtocolType{}, ksp.Spec.Network.MatchProtocols...),
+		}
+
+		result, err := client.KSPClient.SecurityV1().KubeArmorPolicies(ksp.Namespace).Create(context.TODO(), ksp, metav1.CreateOptions{})
+		if err != nil {
+			if strings.Contains(err.Error(), "already exists") {
+				// check if policy is active or not and handle it accordingly
+				if err := updateDiscoveredPolicy(ksp); err != nil {
+					log.Error().Msgf("Unable to update ksp %s", ksp.Name)
+					return err
+				}
+				return nil
+			}
+			log.Error().Msgf("Error deploying KSP: %s", err)
+			return err
+		}
+		log.Info().Msgf("Created policy %q", result.GetObjectMeta().GetName())
+	default:
+		log.Info().Msg("Skiping..., Not a KubeArmorSecurityPolicy")
+	}
+	return nil
+}
+
+func updateDiscoveredPolicy(ksp *kspAPI.KubeArmorPolicy) error {
+
+	client := ConnectK8sClient()
+
+	pol, err := client.KSPClient.SecurityV1().KubeArmorPolicies(ksp.Namespace).Get(context.TODO(), ksp.Name, metav1.GetOptions{})
+	if err != nil {
+		log.Error().Msgf("Unable to get policy %s", ksp.Name)
+		return err
+	}
+
+	// check if policy is already updated
+	if isPolicyRulesSame(pol, ksp) {
+		log.Info().Msgf("Policy %s is already up to date", pol.Name)
+		return nil
+	}
+
+	// check if policy is inactive
+	if pol.Spec.Status == "Inactive" {
+		// update the policy
+		js, _ := json.Marshal(ksp.Spec)
+		patchData := fmt.Sprintf(`{"spec":%s}`, js)
+		patchByte := []byte(patchData)
+
+		res, err := client.KSPClient.SecurityV1().KubeArmorPolicies(pol.Namespace).Patch(context.TODO(), pol.Name, patchTypes.MergePatchType, patchByte, metav1.PatchOptions{})
+		if err != nil {
+			log.Error().Msgf("Error patching the ksp: %s", pol.Name)
+			return err
+		}
+		log.Info().Msgf("Updated ksp %s ", res.Name)
+		return nil
+	}
+
+	// check if there's a autopol.*updated policy (it will be inactive always)
+	polName := ksp.Name + "-updated"
+	pol, err = client.KSPClient.SecurityV1().KubeArmorPolicies(ksp.Namespace).Get(context.TODO(), polName, metav1.GetOptions{})
+	if err != nil {
+		// create a policy with autopol.*updated name
+		policy := ksp
+		policy.Name = polName
+		res, err := client.KSPClient.SecurityV1().KubeArmorPolicies(ksp.Namespace).Create(context.TODO(), ksp, metav1.CreateOptions{})
+		if err != nil {
+			log.Error().Msgf("Error deploying KSP: %s", err)
+			return err
+		}
+		log.Info().Msgf("Created policy %q", res.GetObjectMeta().GetName())
+	}
+
+	// check if policy autopol.*updated is already updated
+	if isPolicyRulesSame(pol, ksp) {
+		log.Info().Msgf("Policy %s is already up to date", pol.Name)
+		return nil
+	}
+
+	// update autopol.*updated policy
+	js, _ := json.Marshal(ksp.Spec)
+	patchData := fmt.Sprintf(`{"spec":%s}`, js)
+	patchByte := []byte(patchData)
+
+	res, err := client.KSPClient.SecurityV1().KubeArmorPolicies(pol.Namespace).Patch(context.TODO(), polName, patchTypes.MergePatchType, patchByte, metav1.PatchOptions{})
+	if err != nil {
+		log.Error().Msgf("Error patching the ksp: %s", pol.Name)
+		return err
+	}
+	log.Info().Msgf("Updated ksp %s ", res.Name)
+
+	return nil
+}
+
+func isPolicyRulesSame(p1, p2 *kspAPI.KubeArmorPolicy) bool {
+	if !reflect.DeepEqual(p1.Spec.Process, p2.Spec.Process) {
+		return false
+	}
+	if !reflect.DeepEqual(p1.Spec.File, p2.Spec.File) {
+		return false
+	}
+	if !reflect.DeepEqual(p1.Spec.Network, p2.Spec.Network) {
+		return false
+	}
+	return true
+}
+
+func WatchDiscoveredKsp() {
+	_ = ConnectK8sClient()
+	factory := kspInformer.NewSharedInformerFactory(Client.KSPClient, 0)
+	informer := factory.Security().V1().KubeArmorPolicies().Informer()
+
+	if _, err := informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {},
+		UpdateFunc: func(oldObj, newObj interface{}) {
+			if ksp, ok := newObj.(*kspAPI.KubeArmorPolicy); ok {
+				if ksp.Spec.Status == "Active" {
+					// check if policy name matches autopol.*updated regexp
+					// if yes then update the autopol policy with this policy's spec
+					if matched, _ := regexp.MatchString("autopol.*updated", ksp.Name); matched {
+						polName := strings.TrimSuffix(ksp.Name, "-updated")
+						js, _ := json.Marshal(ksp.Spec)
+						patchData := fmt.Sprintf(`{"spec":%s}`, js)
+						patchByte := []byte(patchData)
+						res, err := Client.KSPClient.SecurityV1().KubeArmorPolicies(ksp.Namespace).Patch(context.TODO(), polName, patchTypes.MergePatchType, patchByte, metav1.PatchOptions{})
+						if err != nil {
+							log.Error().Msgf("Error patching the ksp: %s", polName)
+							return
+						}
+						log.Info().Msgf("Updated ksp %s ", res.Name)
+						// and delete the autopol.*updated policy
+						err = Client.KSPClient.SecurityV1().KubeArmorPolicies(ksp.Namespace).Delete(context.TODO(), ksp.Name, metav1.DeleteOptions{})
+						if err != nil {
+							log.Error().Msgf("Error deleting discovered policy %s", ksp.Name)
+						}
+						log.Info().Msgf("Deleted policy %s", ksp.Name)
+					}
+
+				}
+			}
+		},
+		DeleteFunc: func(obj interface{}) {},
+	}); err != nil {
+		log.Error().Msgf("Couldn't Start Watching Discovered KSP")
+		return
+	}
+	go factory.Start(wait.NeverStop)
+	factory.WaitForCacheSync(wait.NeverStop)
+	log.Info().Msg("Started Watching Discovered KSPs")
+}
+
+func init() {
+	Client = ConnectK8sClient()
 }

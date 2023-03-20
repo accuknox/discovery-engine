@@ -149,7 +149,7 @@ func addPolicyRule(policy *types.KnoxSystemPolicy, r *types.KnoxSystemSpec) {
 
 func initDeploymentWatcher() {
 	clientset := cluster.ConnectK8sClient()
-	watcher, err := clientset.AppsV1().Deployments("").Watch(context.TODO(), metav1.ListOptions{})
+	watcher, err := clientset.K8sClient.AppsV1().Deployments("").Watch(context.TODO(), metav1.ListOptions{})
 
 	if err != nil {
 		log.Error().Msg(err.Error())

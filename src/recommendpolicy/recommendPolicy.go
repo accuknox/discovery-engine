@@ -130,7 +130,7 @@ func RecommendPolicyMain() {
 		}
 	}
 	client := cluster.ConnectK8sClient()
-	deployments, err := client.AppsV1().Deployments("").List(context.Background(), metav1.ListOptions{})
+	deployments, err := client.K8sClient.AppsV1().Deployments("").List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		log.Error().Msg(err.Error())
 		return

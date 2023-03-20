@@ -1408,6 +1408,13 @@ func InsertSysPoliciesYamlToDB(policies []types.KnoxSystemPolicy) {
 	for _, kubearmorPolicy := range kubeArmorPolicies {
 		// dont save network policies to db
 		kubearmorPolicy.Spec.Network = types.NetworkRule{}
+
+		// deploy policy to k8s
+		log.Info().Msgf("Deploying Policy: %s", kubearmorPolicy.Metadata["name"])
+		if err := cluster.DeployKSP(&kubearmorPolicy); err != nil {
+			log.Error().Msgf("Error deploying ksp: %s\t%s", kubearmorPolicy.Metadata["name"], err)
+		}
+
 		jsonBytes, err := json.Marshal(kubearmorPolicy)
 		if err != nil {
 			log.Error().Msg(err.Error())
