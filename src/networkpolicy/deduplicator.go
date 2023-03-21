@@ -1,6 +1,7 @@
 package networkpolicy
 
 import (
+	"sort"
 	"strconv"
 	"strings"
 
@@ -764,8 +765,14 @@ func existPolicyName(policyNamesMap map[string]bool, name string) bool {
 
 func GeneratePolicyName(policyNamesMap map[string]bool, policy types.KnoxNetworkPolicy, clusterName string) types.KnoxNetworkPolicy {
 	polType := policy.Metadata["type"]
+	labels := []string{}
 
-	hashInt := common.HashInt(polType+policy.Metadata["labels"]+policy.Metadata["namespace"]+policy.Metadata["clustername"]+policy.Metadata["containername"])
+	for k, v := range policy.Spec.Selector.MatchLabels {
+		labels = append(labels, k+"="+v)
+	}
+	sort.Strings(labels) // sort labels
+
+	hashInt := common.HashInt(polType + strings.Join(labels, ",") + policy.Metadata["namespace"] + clusterName + policy.Metadata["container_name"])
 	hash := strconv.FormatUint(uint64(hashInt), 10)
 	name := "autopol-" + polType + "-" + hash
 
