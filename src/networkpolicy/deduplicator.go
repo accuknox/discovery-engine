@@ -772,7 +772,7 @@ func GeneratePolicyName(policyNamesMap map[string]bool, policy types.KnoxNetwork
 	}
 	sort.Strings(labels) // sort labels
 
-	hashInt := common.HashInt(polType + strings.Join(labels, ",") + policy.Metadata["namespace"] + clusterName + policy.Metadata["container_name"])
+	hashInt := common.HashInt(polType + strings.Join(labels, ",") + policy.Metadata["namespace"] + clusterName)
 	hash := strconv.FormatUint(uint64(hashInt), 10)
 	name := "autopol-" + polType + "-" + hash
 
