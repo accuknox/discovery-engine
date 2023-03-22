@@ -430,7 +430,6 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 				}
 
 				if len(res.Resource) != 0 && res.Operation != "Network" && !strings.HasPrefix(res.Resource, "/") {
-					log.Warn().Msgf("Relative path found: %v", res)
 					continue
 				}
 
@@ -513,7 +512,6 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 				}
 
 				if len(res.Resource) != 0 && res.Operation != "Network" && !strings.HasPrefix(res.Resource, "/") {
-					log.Warn().Msgf("Relative path found: %v", res)
 					continue
 				}
 
@@ -589,6 +587,7 @@ func ConvertKubeArmorNetLogToKnoxNetLog(kaNwLogs []*pb.Alert) []types.KnoxNetwor
 		var ip, port string
 		locKnoxLog := types.KnoxNetworkLog{
 			ClusterName:       kalog.ClusterName,
+			ContainerName:     kalog.ContainerName,
 			SrcNamespace:      kalog.NamespaceName,
 			SrcReservedLabels: strings.Split(kalog.Labels, ","),
 			SrcPodName:        kalog.PodName,
