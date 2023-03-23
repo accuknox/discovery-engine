@@ -19,8 +19,10 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	Observability_Summary_FullMethodName     = "/v1.observability.Observability/Summary"
-	Observability_GetPodNames_FullMethodName = "/v1.observability.Observability/GetPodNames"
+	Observability_Summary_FullMethodName          = "/v1.observability.Observability/Summary"
+	Observability_SummaryPerDeploy_FullMethodName = "/v1.observability.Observability/SummaryPerDeploy"
+	Observability_GetPodNames_FullMethodName      = "/v1.observability.Observability/GetPodNames"
+	Observability_GetDeployNames_FullMethodName   = "/v1.observability.Observability/GetDeployNames"
 )
 
 // ObservabilityClient is the client API for Observability service.
@@ -28,7 +30,9 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ObservabilityClient interface {
 	Summary(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
+	SummaryPerDeploy(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
 	GetPodNames(ctx context.Context, in *Request, opts ...grpc.CallOption) (*PodNameResponse, error)
+	GetDeployNames(ctx context.Context, in *Request, opts ...grpc.CallOption) (*DeployNameResponse, error)
 }
 
 type observabilityClient struct {
@@ -48,9 +52,27 @@ func (c *observabilityClient) Summary(ctx context.Context, in *Request, opts ...
 	return out, nil
 }
 
+func (c *observabilityClient) SummaryPerDeploy(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error) {
+	out := new(Response)
+	err := c.cc.Invoke(ctx, Observability_SummaryPerDeploy_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *observabilityClient) GetPodNames(ctx context.Context, in *Request, opts ...grpc.CallOption) (*PodNameResponse, error) {
 	out := new(PodNameResponse)
 	err := c.cc.Invoke(ctx, Observability_GetPodNames_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *observabilityClient) GetDeployNames(ctx context.Context, in *Request, opts ...grpc.CallOption) (*DeployNameResponse, error) {
+	out := new(DeployNameResponse)
+	err := c.cc.Invoke(ctx, Observability_GetDeployNames_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +84,9 @@ func (c *observabilityClient) GetPodNames(ctx context.Context, in *Request, opts
 // for forward compatibility
 type ObservabilityServer interface {
 	Summary(context.Context, *Request) (*Response, error)
+	SummaryPerDeploy(context.Context, *Request) (*Response, error)
 	GetPodNames(context.Context, *Request) (*PodNameResponse, error)
+	GetDeployNames(context.Context, *Request) (*DeployNameResponse, error)
 	mustEmbedUnimplementedObservabilityServer()
 }
 
@@ -73,8 +97,14 @@ type UnimplementedObservabilityServer struct {
 func (UnimplementedObservabilityServer) Summary(context.Context, *Request) (*Response, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Summary not implemented")
 }
+func (UnimplementedObservabilityServer) SummaryPerDeploy(context.Context, *Request) (*Response, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SummaryPerDeploy not implemented")
+}
 func (UnimplementedObservabilityServer) GetPodNames(context.Context, *Request) (*PodNameResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetPodNames not implemented")
+}
+func (UnimplementedObservabilityServer) GetDeployNames(context.Context, *Request) (*DeployNameResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetDeployNames not implemented")
 }
 func (UnimplementedObservabilityServer) mustEmbedUnimplementedObservabilityServer() {}
 
@@ -107,6 +137,24 @@ func _Observability_Summary_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Observability_SummaryPerDeploy_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Request)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ObservabilityServer).SummaryPerDeploy(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Observability_SummaryPerDeploy_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ObservabilityServer).SummaryPerDeploy(ctx, req.(*Request))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Observability_GetPodNames_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(Request)
 	if err := dec(in); err != nil {
@@ -125,6 +173,24 @@ func _Observability_GetPodNames_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Observability_GetDeployNames_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Request)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ObservabilityServer).GetDeployNames(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Observability_GetDeployNames_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ObservabilityServer).GetDeployNames(ctx, req.(*Request))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Observability_ServiceDesc is the grpc.ServiceDesc for Observability service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -137,8 +203,16 @@ var Observability_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Observability_Summary_Handler,
 		},
 		{
+			MethodName: "SummaryPerDeploy",
+			Handler:    _Observability_SummaryPerDeploy_Handler,
+		},
+		{
 			MethodName: "GetPodNames",
 			Handler:    _Observability_GetPodNames_Handler,
+		},
+		{
+			MethodName: "GetDeployNames",
+			Handler:    _Observability_GetDeployNames_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

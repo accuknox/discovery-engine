@@ -127,7 +127,7 @@ func convertSysLogToSysSummaryMap(syslogs []*pb.Alert) {
 		sysSummary.Deployment = ""
 
 		for _, d := range deployments {
-			if d.Labels == syslog.Labels && d.Namespace == syslog.NamespaceName {
+			if strings.Contains(syslog.Labels, d.Labels) && d.Namespace == syslog.NamespaceName {
 				sysSummary.Deployment = d.Name
 				break
 			}

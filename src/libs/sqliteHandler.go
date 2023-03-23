@@ -1579,6 +1579,10 @@ func GetPodNamesSQLite(cfg types.ConfigDB, filter types.ObsPodDetail) ([]string,
 		concatWhereClause(&whereClause, "container_name")
 		sysargs = append(sysargs, filter.ContainerName)
 	}
+	if filter.DeployName != "" {
+		concatWhereClause(&whereClause, "deployment_name")
+		sysargs = append(sysargs, filter.DeployName)
+	}
 
 	results, err = db.Query(query+whereClause, sysargs...)
 	if err != nil {
@@ -1598,6 +1602,58 @@ func GetPodNamesSQLite(cfg types.ConfigDB, filter types.ObsPodDetail) ([]string,
 	}
 
 	return resPodNames, err
+}
+
+func GetDeployNamesSQLite(cfg types.ConfigDB, filter types.ObsPodDetail) ([]string, error) {
+	db := connectSQLite(cfg, config.GetCfgObservabilityDBName())
+	defer db.Close()
+
+	resDeployNames := []string{}
+
+	var results *sql.Rows
+	var err error
+
+	// Get podnames from system table
+	query := "SELECT deployment_name FROM " + TableSystemSummarySQLite + " "
+
+	var whereClause string
+	var sysargs []interface{}
+
+	if filter.ClusterName != "" {
+		concatWhereClause(&whereClause, "cluster_name")
+		sysargs = append(sysargs, filter.ClusterName)
+	}
+	if filter.Namespace != "" {
+		concatWhereClause(&whereClause, "namespace_name")
+		sysargs = append(sysargs, filter.Namespace)
+	}
+	if filter.DeployName != "" {
+		concatWhereClause(&whereClause, "deployment_name")
+		sysargs = append(sysargs, filter.DeployName)
+	}
+	if filter.Labels != "" {
+		concatWhereClause(&whereClause, "labels")
+		sysargs = append(sysargs, filter.Labels)
+	}
+
+	results, err = db.Query(query+whereClause, sysargs...)
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return nil, err
+	}
+	defer results.Close()
+
+	for results.Next() {
+		var locDeployName string
+		if err := results.Scan(
+			&locDeployName,
+		); err != nil {
+			return nil, err
+		}
+		resDeployNames = append(resDeployNames, locDeployName)
+	}
+
+	return resDeployNames, err
 }
 
 // =============== //
