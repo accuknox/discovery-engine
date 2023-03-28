@@ -1466,7 +1466,7 @@ func StartSystemLogRcvr() {
 			url := cluster.GetKubearmorRelayURL()
 			plugin.StartKubeArmorRelay(SystemStopChan, types.ConfigKubeArmorRelay{
 				KubeArmorRelayURL:  url,
-				KubeArmorRelayPort: "32767",
+				KubeArmorRelayPort: cfg.CurrentCfg.ConfigKubeArmorRelay.KubeArmorRelayPort,
 			})
 		} else if cfg.GetCfgSystemLogFrom() == "feed-consumer" {
 			fc.ConsumerMutex.Lock()
