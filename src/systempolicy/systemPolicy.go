@@ -32,7 +32,6 @@ import (
 )
 
 var log *zerolog.Logger
-var kubearmorRelayURL types.ConfigKubeArmorRelay
 
 func init() {
 	log = logger.GetInstance()
@@ -1464,13 +1463,11 @@ func DiscoverSystemPolicyMain() {
 func StartSystemLogRcvr() {
 	for {
 		if cfg.GetCfgSystemLogFrom() == "kubearmor" {
-			err := plugin.StartKubeArmorRelay(SystemStopChan, cfg.GetCfgKubeArmor())
-			if val, ok := <-err; ok && val != nil {
-				url := cluster.GetKubearmorRelayURL()
-				kubearmorRelayURL.KubeArmorRelayURL = url
-				kubearmorRelayURL.KubeArmorRelayPort = "32767"
-				_ = plugin.StartKubeArmorRelay(SystemStopChan, kubearmorRelayURL)
-			}
+			url := cluster.GetKubearmorRelayURL()
+			plugin.StartKubeArmorRelay(SystemStopChan, types.ConfigKubeArmorRelay{
+				KubeArmorRelayURL:  url,
+				KubeArmorRelayPort: "32767",
+			})
 		} else if cfg.GetCfgSystemLogFrom() == "feed-consumer" {
 			fc.ConsumerMutex.Lock()
 			fc.StartConsumer()
