@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net"
 	"path/filepath"
 	"strconv"
@@ -378,12 +377,10 @@ func ignoreLogFromRelayWithNamespace(nsFilter, nsNotFilter []string, namespace s
 
 var KubeArmorRelayStarted = false
 
-func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay) chan error {
-	error := make(chan error)
-
+func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay) {
 	if KubeArmorRelayStarted {
 		// log.Info().Msg("kubearmor relay already started")
-		return nil
+		return
 	}
 	KubeArmorRelayStarted = true
 	conn := ConnectKubeArmorRelay(cfg)
@@ -406,7 +403,6 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 		stream, err := client.WatchLogs(context.Background(), &req)
 		if err != nil {
 			log.Error().Msg("unable to stream systems logs: " + err.Error())
-			error <- fmt.Errorf("unable to stream systems logs: " + err.Error())
 			return
 		}
 		for {
@@ -488,7 +484,6 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 		stream, err := client.WatchAlerts(context.Background(), &req)
 		if err != nil {
 			log.Error().Msg("unable to stream systems alerts: " + err.Error())
-			error <- fmt.Errorf("unable to stream systems alerts: " + err.Error())
 			return
 		}
 		for {
@@ -532,7 +527,6 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 			}
 		}
 	}()
-	return error
 }
 
 func GetSystemLogsFromFeedConsumer(trigger int) []*types.KnoxSystemLog {
