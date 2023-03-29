@@ -33,7 +33,6 @@ func GetData(namespace string, deploymentName string) ([]*Resp, error) {
 
 	PodList := Checkmount(pods)
 	// We get Pods along with all their volume mounts
-
 	for _, vol := range PodList {
 		podNameResp, err := GetPodNames(&opb.Request{
 			NameSpace: "default",
