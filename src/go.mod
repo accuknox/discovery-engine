@@ -1,4 +1,4 @@
-module github.com/PrimalPimmy/auto-policy-discovery/src
+module github.com/accuknox/auto-policy-discovery/src
 
 go 1.18
 
@@ -9,6 +9,7 @@ replace (
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.0
+	github.com/accuknox/auto-policy-discovery/src v0.0.0-20230329032423-ce809848f042
 	github.com/apache/pulsar-client-go v0.8.1
 	github.com/cavaliergopher/grab/v3 v3.0.1
 	github.com/cilium/cilium v1.10.14
