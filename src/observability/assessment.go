@@ -35,9 +35,8 @@ func GetData(namespace string, deploymentName string) ([]*Resp, error) {
 	// We get Pods along with all their volume mounts
 	for _, vol := range PodList {
 		podNameResp, err := GetPodNames(&opb.Request{
-			NameSpace: "default",
+			PodName: vol.Podname,
 		})
-		fmt.Print(podNameResp)
 		if err != nil {
 			fmt.Print(err)
 			return nil, err
