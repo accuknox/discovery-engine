@@ -5,57 +5,75 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/accuknox/auto-policy-discovery/src/cluster"
+	"github.com/accuknox/auto-policy-discovery/src/libs"
 	opb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/observability"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/strings/slices"
 	"reflect"
 )
 
 func GetData(namespace string, deploymentName string) ([]*Resp, error) {
 	var res []*Resp
-	deployments := cluster.ConnectK8sClient().AppsV1().Deployments(namespace)
+	client := cluster.ConnectK8sClient()
+	deployments := client.AppsV1().Deployments(namespace)
 	deployment, err := deployments.Get(context.TODO(), deploymentName, v1.GetOptions{})
-	//PodName := deployment.Spec.Template.Spec.Containers[0].Name
+	deploymentMatchLabels := deployment.Spec.Selector.MatchLabels
 
-	if err != nil {
-		return nil, err
-	}
-
-	podNameResp, err := GetPodNames(&opb.Request{
-		NameSpace: deployment.Namespace,
+	pods, err := client.CoreV1().Pods(namespace).List(context.TODO(), v1.ListOptions{
+		LabelSelector: libs.LabelMapToString(deploymentMatchLabels),
 	})
+
+	fmt.Printf("There are %d Pods in the mentioned deployment\n", len(pods.Items))
+
 	if err != nil {
 		return nil, err
 	}
-	//FileData := [][]string{}
-	for _, podname := range podNameResp.PodName {
-		if podname == "" {
-			continue
-		}
-		sumResp, _ := GetSummaryData(&opb.Request{
-			PodName:   podname,
-			Type:      DefaultReqType,
-			Aggregate: false,
+
+	PodList := Checkmount(pods)
+	// We get Pods along with all their volume mounts
+
+	for _, vol := range PodList {
+		podNameResp, err := GetPodNames(&opb.Request{
+			NameSpace: "default",
 		})
-
-		for _, f := range sumResp.FileData {
-			re := &Resp{
-				PodName:       sumResp.PodName,
-				ClusterName:   sumResp.ClusterName,
-				Namespace:     sumResp.Namespace,
-				Label:         sumResp.Label,
-				ContainerName: sumResp.ContainerName,
-				Source:        f.Source,
-				UpdatedTime:   f.UpdatedTime,
-				Status:        f.Status,
-			}
-			res = append(res, re)
+		fmt.Print(podNameResp)
+		if err != nil {
+			fmt.Print(err)
+			return nil, err
 		}
+		for _, podname := range podNameResp.PodName {
+			if podname == "" {
+				continue
+			}
+			fmt.Println(podname)
+			sumResp, _ := GetSummaryData(&opb.Request{
+				PodName:   podname,
+				Type:      DefaultReqType,
+				Aggregate: false,
+			})
 
+			for _, f := range sumResp.FileData {
+				if slices.Contains(vol.Mounts, f.Destination) {
+					re := &Resp{
+						PodName:       sumResp.PodName,
+						ClusterName:   sumResp.ClusterName,
+						Namespace:     sumResp.Namespace,
+						Label:         sumResp.Label,
+						ContainerName: sumResp.ContainerName,
+						Source:        f.Source,
+						UpdatedTime:   f.UpdatedTime,
+						Status:        f.Status,
+					}
+					res = append(res, re)
+				}
+			}
+
+		}
 	}
-	fmt.Println("test")
-	fmt.Println("\n", res)
+	fmt.Print("test")
+	fmt.Print("\n", res)
 	return res, nil
 
 }
@@ -76,7 +94,7 @@ func (vol *vol) addmount(item Volmount) []Volmount {
 	return vol.Total
 }
 
-func Checkmount(Pods *corev1.PodList) {
+func Checkmount(Pods *corev1.PodList) []Volmount {
 	var pod Volmount
 	for _, pods := range Pods.Items {
 		var mount []string
@@ -89,7 +107,7 @@ func Checkmount(Pods *corev1.PodList) {
 		}
 		po = append(po, pod)
 	}
-
+	return po
 }
 
 func Scan(o Options) error {
