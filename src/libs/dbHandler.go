@@ -142,11 +142,11 @@ var LastSysAlertID int64 = 0
 
 func UpdateOutdatedSystemPolicy(cfg types.ConfigDB, outdatedPolicy string, latestPolicy string) {
 	if cfg.DBDriver == "mysql" {
-		if err := UpdateOutdatedNetworkPolicyFromMySQL(cfg, outdatedPolicy, latestPolicy); err != nil {
+		if err := UpdateOutdatedSystemPolicyFromMySQL(cfg, outdatedPolicy, latestPolicy); err != nil {
 			log.Error().Msg(err.Error())
 		}
 	} else if cfg.DBDriver == "sqlite3" {
-		if err := UpdateOutdatedNetworkPolicyFromSQLite(cfg, outdatedPolicy, latestPolicy); err != nil {
+		if err := UpdateOutdatedSystemPolicyFromSQLite(cfg, outdatedPolicy, latestPolicy); err != nil {
 			log.Error().Msg(err.Error())
 		}
 	}
