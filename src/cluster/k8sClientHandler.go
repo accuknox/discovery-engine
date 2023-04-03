@@ -24,6 +24,10 @@ import (
 var parsed bool = false
 var kubeconfig *string
 
+type Config struct {
+	K8sClient *kubernetes.Clientset
+}
+
 func isInCluster() bool {
 	if _, ok := os.LookupEnv("KUBERNETES_PORT"); ok {
 		return true
@@ -498,4 +502,96 @@ func GetKubearmorRelayURL() string {
 	namespace = pods.Items[0].Namespace
 	url := "kubearmor." + namespace + ".svc.cluster.local"
 	return url
+}
+
+// GetSecrets to get secrets
+func GetSecrets(k8sClient *kubernetes.Clientset, label string, namespace string, name string) (*v1.Secret, error) {
+	if k8sClient == nil {
+		return nil, errors.New("k8s client not created")
+	}
+
+	secrets, err := k8sClient.CoreV1().Secrets(namespace).Get(context.Background(), name, metav1.GetOptions{})
+
+	if err != nil {
+		log.Error().Msgf("error while getting license secrets with name: %s from %s namespace, error: %s", name, namespace, err.Error())
+		return nil, err
+	}
+
+	return secrets, nil
+
+}
+
+// CreateLicenseSecret to create license secret
+func CreateLicenseSecret(k8sClient *kubernetes.Clientset, namespace string, key string, userId string, name string, label string) (*v1.Secret, error) {
+	if k8sClient == nil {
+		return nil, errors.New("k8s client not created")
+	}
+
+	secret, err := GetSecrets(k8sClient, label, namespace, name)
+
+	if err != nil {
+		log.Error().Msgf("error while fetching secrets, error: %s", err.Error())
+		return nil, err
+	}
+
+	if secret != nil {
+		log.Info().Msgf("secrets already exists for discovery-engine license for user-id: %s", userId)
+		return secret, nil
+	}
+	t := true
+
+	secretSpec := v1.Secret{
+
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+			Labels: map[string]string{
+				"app": "discovery-engine",
+			},
+		},
+		Immutable: &t,
+		Data:      nil,
+		StringData: map[string]string{
+			"key":     key,
+			"user-id": userId,
+		},
+		Type: v1.SecretTypeOpaque,
+	}
+
+	secret, err = k8sClient.CoreV1().Secrets(namespace).Create(context.Background(), &secretSpec, metav1.CreateOptions{})
+	if err != nil {
+		log.Error().Msgf("error while creating secret for license key, error: %s", err.Error())
+		return nil, err
+	}
+	log.Info().Msgf("secret created successfully for discovery-engine")
+	return secret, nil
+}
+
+// DeleteSecrets to delete secrets
+func DeleteSecrets(k8sClient *kubernetes.Clientset, name string, namespace string) error {
+	if k8sClient == nil {
+		return errors.New("k8s client not created")
+	}
+
+	err := k8sClient.CoreV1().Secrets(namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
+	if err != nil {
+		log.Error().Msgf("error while deleting secrets for discovery-engine, error: %s", err.Error())
+		return err
+	}
+
+	return nil
+}
+
+// GetKubeSystemUUID get kube-system namespace uuid
+func GetKubeSystemUUID(k8sClient *kubernetes.Clientset) (string, error) {
+	if k8sClient == nil {
+		return "", errors.New("k8s client not created")
+	}
+
+	kubeSystem, err := k8sClient.CoreV1().Namespaces().Get(context.Background(), "kube-system", metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+
+	return string(kubeSystem.GetUID()), nil
+
 }
