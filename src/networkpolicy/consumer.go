@@ -17,7 +17,8 @@ func init() {
 }
 
 func GetPolicyYamlFromDB(consumer *libs.PolicyConsumer) []types.PolicyYaml {
-	policyYamls, err := libs.GetPolicyYamls(CfgDB, types.PolicyTypeNetwork)
+	// TODO: Use policy filters for network policies
+	policyYamls, err := libs.GetPolicyYamls(CfgDB, types.PolicyTypeNetwork, types.PolicyFilter{})
 	if err != nil {
 		log.Error().Msgf("fetching policy yaml from DB failed err=%v", err.Error())
 		return nil

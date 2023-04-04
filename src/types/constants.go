@@ -32,8 +32,9 @@ const (
 	KindKubeArmorPolicy     = "KubeArmorPolicy"
 	KindKubeArmorHostPolicy = "KubeArmorHostPolicy"
 
-	PolicyTypeSystem  = "system"
-	PolicyTypeNetwork = "network"
+	PolicyTypeSystem              = "system"
+	PolicyTypeNetwork             = "network"
+	PolicyTypeAdmissionController = "admission-controller"
 
 	// Hardening policy
 	HardeningPolicy = "harden"

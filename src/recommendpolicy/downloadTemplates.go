@@ -5,6 +5,7 @@ import (
 	"archive/zip"
 	"context"
 	"fmt"
+	kyvernov1 "github.com/kyverno/kyverno/api/kyverno/v1"
 	"os"
 	"path"
 	"path/filepath"
@@ -201,18 +202,34 @@ func updatePolicyRules(filePath string) error {
 		ms, err := getNextRule(&idx)
 		for ; err == nil; ms, err = getNextRule(&idx) {
 			if ms.Yaml != "" {
-				newPolicyFile := types.KnoxSystemPolicy{}
+				var policy map[string]interface{}
 				newYaml, err := os.ReadFile(filepath.Clean(fmt.Sprintf("%s%s", strings.TrimSuffix(file, "metadata.yaml"), ms.Yaml)))
 				if err != nil {
 					newYaml, _ = os.ReadFile(filepath.Clean(fmt.Sprintf("%s/%s", filePath, ms.Yaml)))
 				}
-				err = yaml.Unmarshal(newYaml, &newPolicyFile)
+				err = yaml.Unmarshal(newYaml, &policy)
 				if err != nil {
 					return err
 				}
+				apiVersion := policy["apiVersion"].(string)
+				if strings.Contains(apiVersion, "kyverno") {
+					var kyvernoPolicy kyvernov1.Policy
+					err = yaml.Unmarshal(newYaml, &kyvernoPolicy)
+					if err != nil {
+						return err
+					}
+					ms.KyvernoPolicySpec = &kyvernoPolicy.Spec
+					ms.Kind = kyvernoPolicy.Kind
+				} else if strings.Contains(apiVersion, "kubearmor") {
+					var knoxSystemPolicy types.KnoxSystemPolicy
+					err = yaml.Unmarshal(newYaml, &knoxSystemPolicy)
+					if err != nil {
+						return err
+					}
+					ms.Kind = knoxSystemPolicy.Kind
+					ms.Spec = knoxSystemPolicy.Spec
+				}
 				ms.Yaml = ""
-				ms.Spec = newPolicyFile.Spec
-				ms.Kind = newPolicyFile.Kind
 			}
 			completePolicy = append(completePolicy, ms)
 		}
