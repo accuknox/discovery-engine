@@ -7,7 +7,25 @@ option go_package = "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/o
 service Observability {
     rpc Summary(Request) returns (Response);
     rpc GetPodNames (Request) returns (PodNameResponse);
+    rpc Scan(Request) returns (AssessmentResponse);
 }
+
+    message AssessmentResponse {
+    string PodName      = 1;
+    string ClusterName  = 2;
+    string Namespace    = 3;
+    string Label         = 4;
+    string ContainerName  = 5;
+    repeated FileAssessmentResp FileData =6;
+    }
+
+message FileAssessmentResp {
+    string Source = 1;
+    string MountPath = 2;
+    string UpdatedTime = 3;
+    string Status = 4;
+    string Severity = 5;
+    }
 
 message Request{
     string PodName = 1;

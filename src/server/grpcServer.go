@@ -265,6 +265,11 @@ func (s *observabilityServer) GetPodNames(ctx context.Context, in *opb.Request) 
 	return &resp, err
 }
 
+func (s *observabilityServer) Scan(ctx context.Context, in *opb.Request) (*opb.AssessmentResponse, error) {
+	resp, err := obs.Scan(in)
+	return resp, err
+}
+
 // =============== //
 // == Publisher == //
 // =============== //

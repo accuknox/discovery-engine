@@ -115,6 +115,26 @@ func (x *Request) GetAggregate() bool {
 	return false
 }
 
+type AssessmentResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+	PodName           string                    `protobuf:"bytes,1,opt,name=PodName,proto3" json:"PodName,omitempty"`
+	ClusterName       string                    `protobuf:"bytes,2,opt,name=ClusterName,proto3" json:"ClusterName,omitempty"`
+	Namespace         string                    `protobuf:"bytes,3,opt,name=Namespace,proto3" json:"Namespace,omitempty"`
+	Label             string                    `protobuf:"bytes,4,opt,name=Label,proto3" json:"Label,omitempty"`
+	ContainerName     string                    `protobuf:"bytes,5,opt,name=ContainerName,proto3" json:"ContainerName,omitempty"`
+	FileData []*FileAssessmentResp				`protobuf:"bytes,7,rep,name=FileData,proto3" json:"FileData,omitempty"`
+}
+
+type FileAssessmentResp struct {
+	Source      string `protobuf:"bytes,1,opt,name=Source,proto3" json:"Source,omitempty"`
+	MountPath 	string `protobuf:"bytes,2,opt,name=MountPath,proto3" json:"MountPath,omitempty"`
+	UpdatedTime string `protobuf:"bytes,3,opt,name=UpdatedTime,proto3" json:"UpdatedTime,omitempty"`
+	Status      string `protobuf:"bytes,4,opt,name=Status,proto3" json:"Status,omitempty"`
+	Severity    string `protobuf:"bytes,4,opt,name=Severity,proto3" json:"Severity,omitempty"`
+}
+
 type Response struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -747,6 +767,7 @@ func file_v1_observability_observability_proto_rawDescGZIP() []byte {
 
 var file_v1_observability_observability_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_v1_observability_observability_proto_goTypes = []interface{}{
+	(*AssessmentResponse)(nil),
 	(*Request)(nil),                // 0: v1.observability.Request
 	(*Response)(nil),               // 1: v1.observability.Response
 	(*SysProcFileSummaryData)(nil), // 2: v1.observability.SysProcFileSummaryData
@@ -851,6 +872,19 @@ func file_v1_observability_observability_proto_init() {
 				return nil
 			}
 		}
+		file_v1_observability_observability_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*AssessmentResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

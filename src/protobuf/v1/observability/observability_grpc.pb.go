@@ -24,6 +24,8 @@ const _ = grpc.SupportPackageIsVersion7
 type ObservabilityClient interface {
 	Summary(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
 	GetPodNames(ctx context.Context, in *Request, opts ...grpc.CallOption) (*PodNameResponse, error)
+	Scan(ctx context.Context, in *Request, opts ...grpc.CallOption) (*AssessmentResponse, error)
+
 }
 
 type observabilityClient struct {
@@ -32,6 +34,15 @@ type observabilityClient struct {
 
 func NewObservabilityClient(cc grpc.ClientConnInterface) ObservabilityClient {
 	return &observabilityClient{cc}
+}
+
+func (c *observabilityClient) Scan(ctx context.Context, in *Request, opts ...grpc.CallOption) (*AssessmentResponse, error) {
+	out := new(AssessmentResponse)
+	err := c.cc.Invoke(ctx, "/v1.observability.Observability/Scan", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *observabilityClient) Summary(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error) {
@@ -58,6 +69,7 @@ func (c *observabilityClient) GetPodNames(ctx context.Context, in *Request, opts
 type ObservabilityServer interface {
 	Summary(context.Context, *Request) (*Response, error)
 	GetPodNames(context.Context, *Request) (*PodNameResponse, error)
+	Scan(ctx context.Context, request *Request) (*AssessmentResponse, error)
 	mustEmbedUnimplementedObservabilityServer()
 }
 
@@ -82,6 +94,24 @@ type UnsafeObservabilityServer interface {
 
 func RegisterObservabilityServer(s grpc.ServiceRegistrar, srv ObservabilityServer) {
 	s.RegisterService(&Observability_ServiceDesc, srv)
+}
+
+func _Observability_Scan_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Request)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ObservabilityServer).Summary(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/v1.observability.Observability/Scan",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ObservabilityServer).Scan(ctx, req.(*Request))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _Observability_Summary_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -134,6 +164,10 @@ var Observability_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetPodNames",
 			Handler:    _Observability_GetPodNames_Handler,
+		},
+		{
+			MethodName: "Scan",
+			Handler: _Observability_Scan_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -1,98 +1,97 @@
+// Package scan to scan for risks
 package observability
 
 import (
 	"context"
-	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/accuknox/auto-policy-discovery/src/cluster"
-	"github.com/accuknox/auto-policy-discovery/src/libs"
 	opb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/observability"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	//"github.com/rs/zerolog/log"
+	"golang.org/x/exp/slices"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/strings/slices"
 	"reflect"
+	"regexp"
+	"strings"
 )
 
-func GetData(namespace string, deploymentName string) ([]*Resp, error) {
-	var res []*Resp
-	client := cluster.ConnectK8sClient()
-	deployments := client.AppsV1().Deployments(namespace)
-	deployment, err := deployments.Get(context.TODO(), deploymentName, v1.GetOptions{})
-	deploymentMatchLabels := deployment.Spec.Selector.MatchLabels
-
-	pods, err := client.CoreV1().Pods(namespace).List(context.TODO(), v1.ListOptions{
-		LabelSelector: libs.LabelMapToString(deploymentMatchLabels),
-	})
-
-	fmt.Printf("There are %d Pods in the mentioned deployment\n", len(pods.Items))
-
-	if err != nil {
-		return nil, err
-	}
-
-	PodList := Checkmount(pods)
-	// We get Pods along with all their volume mounts
-	for _, vol := range PodList {
-		podNameResp, err := GetPodNames(&opb.Request{
-			PodName: vol.Podname,
-		})
-		if err != nil {
-			fmt.Print(err)
-			return nil, err
-		}
-		for _, podname := range podNameResp.PodName {
-			if podname == "" {
-				continue
-			}
-			fmt.Println(podname)
-			sumResp, _ := GetSummaryData(&opb.Request{
-				PodName:   podname,
-				Type:      DefaultReqType,
-				Aggregate: false,
-			})
-
-			for _, f := range sumResp.FileData {
-				if slices.Contains(vol.Mounts, f.Destination) {
-					re := &Resp{
-						PodName:       sumResp.PodName,
-						ClusterName:   sumResp.ClusterName,
-						Namespace:     sumResp.Namespace,
-						Label:         sumResp.Label,
-						ContainerName: sumResp.ContainerName,
-						Source:        f.Source,
-						UpdatedTime:   f.UpdatedTime,
-						Status:        f.Status,
-					}
-					res = append(res, re)
-				}
-			}
-
-		}
-	}
-	fmt.Print("test")
-	fmt.Print("\n", res)
-	return res, nil
-
-}
-
 type Volmount struct {
-	Mounts  []string
-	Podname string
+	Mounts    []string
+	Podname   string
+	MountType string
 }
 
 var po []Volmount
 
-type vol struct {
-	Total []Volmount
-}
+func Scan(request *opb.Request) (*opb.AssessmentResponse, error) {
 
-func (vol *vol) addmount(item Volmount) []Volmount {
-	vol.Total = append(vol.Total, item)
-	return vol.Total
-}
+	client := cluster.ConnectK8sClient()
+	var v *opb.AssessmentResponse
+	podList, err := client.CoreV1().Pods("").List(context.TODO(), metav1.ListOptions{})
+	fmt.Printf("There are %d Pods in the cluster\n", len(podList.Items))
 
-func Checkmount(Pods *corev1.PodList) []Volmount {
+	//data := &opb.Request{
+	//	Label:         o.Labels,
+	//	NameSpace:     o.Namespace,
+	//	PodName:       o.PodName,
+	//	ClusterName:   o.ClusterName,
+	//	ContainerName: o.ContainerName,
+	//	Aggregate:     o.Aggregation,
+	//}
+	// create a client
+	var sumResponses []*opb.Response
+
+	if err != nil {
+		return nil, errors.New("could not connect to the server. Possible troubleshooting:\n- Check if discovery engine is running\n- kubectl get po -n accuknox-agents")
+	}
+
+	// create a client
+	//defer conn.Close()
+	//Sumclient := opb.NewObservabilityClient(conn)
+	//if err != nil {
+	//	fmt.Println(err)
+	//}
+	//podNameResp, err := GetPodNames(request)
+	//if err != nil {
+	//	fmt.Println(err)
+	//}
+	if len(podList.Items) > 0 {
+		//fmt.Println(pods.Name)
+		//containersSATokenMountPath, err := getSATokenMountPath(&pod)
+		if err != nil && strings.Contains(err.Error(), "service account token not mounted") {
+			log.Warn().Msg(err.Error())
+			return nil, err
+		}
+
+		//in := &opb.Request{
+		//	PodName:       pods.Name,
+		//	NameSpace:     pods.Namespace,
+		//	ContainerName: container.Name,
+		//	Type:          "process,file,network",
+		//}
+		sumResp, err := GetSummaryData(request)
+		if err != nil {
+			print("ERRRRRRRRRRRRRRRRRROR")
+			log.Warn().Msg(err.Error())
+			return nil, err
+		}
+		//log.Info().Msg(sumResp.String())
+		sumResponses = append(sumResponses, sumResp)
+
+		//fmt.Print(ShouldSATokenBeAutoMounted(), "\n\n\n")
+		v = VolumeUsed(sumResponses, podList)
+		//b, _ := json.MarshalIndent(test, "", "    ")
+		//fmt.Println(string(b))
+
+	} else {
+		log.Warn().Msg("No pods found for the given labels")
+	}
+
+	return v, err
+}
+func Checkmount(Pods *v1.PodList) []Volmount {
 	var pod Volmount
 	for _, pods := range Pods.Items {
 		var mount []string
@@ -108,28 +107,123 @@ func Checkmount(Pods *corev1.PodList) []Volmount {
 	return po
 }
 
-func Scan(o Options) error {
-	clientset := cluster.ConnectK8sClient()
-
-	pods, err := clientset.CoreV1().Pods("").List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return err
-	}
-
-	fmt.Printf("There are %d Pods in the cluster\n", len(pods.Items))
-
-	Checkmount(pods)
-	res, err := GetFileSummary(o)
-	b, err := json.MarshalIndent(res, "", "    ")
-	if err != nil {
-		fmt.Println(err)
-	}
-	fmt.Println(string(b))
-	return nil
-
+type containerMountPathServiceAccountToken struct {
+	podName          string
+	podNamespace     string
+	containerName    string
+	saTokenMountPath string
 }
 
-func MountType(volSource corev1.VolumeSource) (error, reflect.Type) {
+func removeMatchingElements(slice []string, pattern string) []string {
+	r := regexp.MustCompile(pattern)
+	result := make([]string, 0)
+
+	for _, s := range slice {
+		if !r.MatchString(s) {
+			result = append(result, s)
+		}
+	}
+
+	return result
+}
+
+func VolumeUsed(sumResp []*opb.Response, pod *v1.PodList) *opb.AssessmentResponse {
+	p := Checkmount(pod)
+	//var a []containerMountPathServiceAccountToken
+	//for _, pods := range pod.Items {
+	//	a, _ = getSATokenMountPath(pods)
+	//}
+	var resp *opb.AssessmentResponse
+	var fi []string
+	//FileData := [][]string{}
+	fileResp := []*opb.FileAssessmentResp{}
+	for _, mounts := range p {
+		for _, sum := range sumResp {
+			for _, fileData := range sum.FileData {
+				fi = append(fi, fileData.Destination)
+			}
+			for _, file := range sum.FileData {
+				r, _ := regexp.Compile("\\/run\\/secrets\\/kubernetes.io\\/serviceaccount\\/[^\\/]+\\/token")
+				//fmt.Println(matchesSATokenPath())
+				if slices.Contains(mounts.Mounts, file.Destination) && mounts.Podname == sum.PodName {
+					resp.PodName = sum.PodName
+					resp.Namespace = sum.Namespace
+					resp.Label = sum.Label
+					resp.ContainerName = sum.ContainerName
+					resp.ClusterName = sum.ClusterName
+
+					fileResp = append(fileResp, &opb.FileAssessmentResp{
+						Source:      file.Source,
+						MountPath:   file.Destination,
+						UpdatedTime: file.UpdatedTime,
+						Status:      file.Status,
+						Severity:    "HIGH",
+					})
+
+				} else if r.MatchString(file.Destination) {
+					resp.PodName = sum.PodName
+					resp.Namespace = sum.Namespace
+					resp.Label = sum.Label
+					resp.ContainerName = sum.ContainerName
+					resp.ClusterName = sum.ClusterName
+
+					fileResp = append(fileResp, &opb.FileAssessmentResp{
+						Source:      file.Source,
+						MountPath:   file.Destination,
+						UpdatedTime: file.UpdatedTime,
+						Status:      file.Status,
+						Severity:    "HIGH",
+					})
+				}
+			}
+			//for _, m := range mounts.Mounts {
+			//	if !slices.Contains(fi, m) && mounts.Podname == sum.PodName {
+			//		fmt.Println(m)
+			//		resp.PodName = sum.PodName
+			//		resp.Namespace = sum.Namespace
+			//		resp.Label = sum.Label
+			//		resp.ContainerName = sum.ContainerName
+			//		resp.ClusterName = sum.ClusterName
+			//
+			//		fileResp = append(fileResp, &opb.FileAssessmentResp{
+			//			Source:      file.Source,
+			//			MountPath:   file.Destination,
+			//			UpdatedTime: file.UpdatedTime,
+			//			Status:      file.Status,
+			//			Severity:    "HIGH",
+			//		})
+			//
+			//	}
+			//}
+		}
+	}
+
+	resp.FileData = fileResp
+
+	//for i := 0; i < len(result); i++ {
+	//	if (opb.AssessmentResponse{}) == result[i] {
+	//		result = append(result[:i], result[i+1:]...)
+	//		i--
+	//	}
+	//}
+	//result = removeDuplicates(result)
+	//fmt.Println(result)
+
+	//for _, r := range result {
+	//	fileStrSlice := []string{}
+	//	fileStrSlice = append(fileStrSlice, r.Source)
+	//	fileStrSlice = append(fileStrSlice, r.MountPath)
+	//	fileStrSlice = append(fileStrSlice, r.PodName)
+	//	fileStrSlice = append(fileStrSlice, r.UpdatedTime)
+	//	fileStrSlice = append(fileStrSlice, r.Status)
+	//	fileStrSlice = append(fileStrSlice, r.Severity)
+	//	FileData = append(FileData, fileStrSlice)
+	//}
+	//WriteTable(FileHeader, FileData)
+	return resp
+}
+
+func myFunc(volSource v1.VolumeSource) (error, reflect.Type) {
 	v := reflect.ValueOf(volSource)
 	var reqVolume reflect.Value
 	for i := 0; i < v.NumField(); i++ {
@@ -137,18 +231,21 @@ func MountType(volSource corev1.VolumeSource) (error, reflect.Type) {
 		if !field.IsNil() {
 			reqVolume = field
 			break
+			//		}
 		}
+		if reqVolume.CanConvert(reflect.TypeOf(&v1.ProjectedVolumeSource{})) {
+			fmt.Println("HER")
+			projectedVol := reqVolume.Interface().(*v1.ProjectedVolumeSource)
+			fmt.Println(projectedVol)
+		}
+		fmt.Println(reqVolume)
 	}
-	if reqVolume.CanConvert(reflect.TypeOf(&corev1.ProjectedVolumeSource{})) {
-		fmt.Println("HER")
-		projectedVol := reqVolume.Interface().(*corev1.ProjectedVolumeSource)
-		fmt.Println(projectedVol)
-	}
-	fmt.Println(reqVolume)
 	return nil, reqVolume.Type()
 }
 
-// TODO: Container metadata, volume type, VolumeSource, other table data
+//
+//// TODO: Container metadata, volume type, VolumeSource, other table data
+//
 
 type Options struct {
 	GRPC          string
@@ -163,72 +260,7 @@ type Options struct {
 	Aggregation   bool
 }
 
-var FileHeader = []string{"Accessed By", "Mount Path", "Pod Name", "Last Accessed", "Status"}
+var FileHeader = []string{"Accessed By", "Mount Path", "Pod Name", "Last Accessed", "Status", "Severity"}
 var port int64 = 9089
 var matchLabels = map[string]string{"app": "discovery-engine"}
 var DefaultReqType = "process,file,network"
-
-type Resp struct {
-	PodName       string
-	ClusterName   string
-	Namespace     string
-	Label         string
-	ContainerName string
-	Source        string
-	MountPath     string
-	UpdatedTime   string
-	Status        string
-}
-
-func GetFileSummary(o Options) ([]*Resp, error) {
-	// var flag
-	var res []*Resp
-	var s string
-
-	data := &opb.Request{
-		Label:         o.Labels,
-		NameSpace:     o.Namespace,
-		PodName:       o.PodName,
-		ClusterName:   o.ClusterName,
-		ContainerName: o.ContainerName,
-		Aggregate:     o.Aggregation,
-	}
-
-	// create a client
-
-	podNameResp, err := GetPodNames(data)
-	if err != nil {
-		return nil, err
-	}
-	//FileData := [][]string{}
-	for _, podname := range podNameResp.PodName {
-		if podname == "" {
-			continue
-		}
-		sumResp, _ := GetSummaryData(&opb.Request{
-			PodName:   podname,
-			Type:      DefaultReqType,
-			Aggregate: false,
-		})
-
-		for _, f := range sumResp.FileData {
-
-			re := &Resp{
-				PodName:       podname,
-				ClusterName:   sumResp.ClusterName,
-				Namespace:     sumResp.Namespace,
-				Label:         sumResp.Label,
-				ContainerName: sumResp.ContainerName,
-				Source:        f.Source,
-				MountPath:     s,
-				UpdatedTime:   f.UpdatedTime,
-				Status:        f.Status,
-			}
-
-			res = append(res, re)
-		}
-
-	}
-
-	return res, err
-}
