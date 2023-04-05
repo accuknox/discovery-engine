@@ -14,7 +14,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"reflect"
 	"regexp"
-	"strings"
 )
 
 type Volmount struct {
@@ -57,36 +56,29 @@ func Scan(request *opb.Request) (*opb.AssessmentResponse, error) {
 	//if err != nil {
 	//	fmt.Println(err)
 	//}
-	if len(podList.Items) > 0 {
-		//fmt.Println(pods.Name)
-		//containersSATokenMountPath, err := getSATokenMountPath(&pod)
-		if err != nil && strings.Contains(err.Error(), "service account token not mounted") {
-			log.Warn().Msg(err.Error())
-			return nil, err
+	podNameResp, err := GetPodNames(request)
+	for _, podname := range podNameResp.PodName {
+
+		if len(podList.Items) > 0 {
+			sumResp, err := GetSummaryData(&opb.Request{
+				PodName: podname,
+			})
+			if err != nil {
+				print("ERRRRRRRRRRRRRRRRRROR")
+				log.Warn().Msg(err.Error())
+				return nil, err
+			}
+			//log.Info().Msg(sumResp.String())
+			sumResponses = append(sumResponses, sumResp)
+
+			//fmt.Print(ShouldSATokenBeAutoMounted(), "\n\n\n")
+			v = VolumeUsed(sumResponses, podList)
+			//b, _ := json.MarshalIndent(test, "", "    ")
+			//fmt.Println(string(b))
+
+		} else {
+			log.Warn().Msg("No pods found for the given labels")
 		}
-
-		//in := &opb.Request{
-		//	PodName:       pods.Name,
-		//	NameSpace:     pods.Namespace,
-		//	ContainerName: container.Name,
-		//	Type:          "process,file,network",
-		//}
-		sumResp, err := GetSummaryData(request)
-		if err != nil {
-			print("ERRRRRRRRRRRRRRRRRROR")
-			log.Warn().Msg(err.Error())
-			return nil, err
-		}
-		//log.Info().Msg(sumResp.String())
-		sumResponses = append(sumResponses, sumResp)
-
-		//fmt.Print(ShouldSATokenBeAutoMounted(), "\n\n\n")
-		v = VolumeUsed(sumResponses, podList)
-		//b, _ := json.MarshalIndent(test, "", "    ")
-		//fmt.Println(string(b))
-
-	} else {
-		log.Warn().Msg("No pods found for the given labels")
 	}
 
 	return v, err
@@ -135,8 +127,8 @@ func VolumeUsed(sumResp []*opb.Response, pod *v1.PodList) *opb.AssessmentRespons
 	//}
 	var resp *opb.AssessmentResponse
 	var fi []string
-	//FileData := [][]string{}
-	fileResp := []*opb.FileAssessmentResp{}
+	//AssessmentFileData := [][]string{}
+	//fileResp := []*opb.FileAssessmentResp{}
 	for _, mounts := range p {
 		for _, sum := range sumResp {
 			for _, fileData := range sum.FileData {
@@ -152,13 +144,13 @@ func VolumeUsed(sumResp []*opb.Response, pod *v1.PodList) *opb.AssessmentRespons
 					resp.ContainerName = sum.ContainerName
 					resp.ClusterName = sum.ClusterName
 
-					fileResp = append(fileResp, &opb.FileAssessmentResp{
-						Source:      file.Source,
-						MountPath:   file.Destination,
-						UpdatedTime: file.UpdatedTime,
-						Status:      file.Status,
-						Severity:    "HIGH",
-					})
+					//fileResp = append(fileResp, &opb.FileAssessmentResp{
+					//	Source:      file.Source,
+					//	MountPath:   file.Destination,
+					//	UpdatedTime: file.UpdatedTime,
+					//	Status:      file.Status,
+					//	Severity:    "HIGH",
+					//})
 
 				} else if r.MatchString(file.Destination) {
 					resp.PodName = sum.PodName
@@ -167,13 +159,13 @@ func VolumeUsed(sumResp []*opb.Response, pod *v1.PodList) *opb.AssessmentRespons
 					resp.ContainerName = sum.ContainerName
 					resp.ClusterName = sum.ClusterName
 
-					fileResp = append(fileResp, &opb.FileAssessmentResp{
-						Source:      file.Source,
-						MountPath:   file.Destination,
-						UpdatedTime: file.UpdatedTime,
-						Status:      file.Status,
-						Severity:    "HIGH",
-					})
+					//fileResp = append(fileResp, &opb.FileAssessmentResp{
+					//	Source:      file.Source,
+					//	MountPath:   file.Destination,
+					//	UpdatedTime: file.UpdatedTime,
+					//	Status:      file.Status,
+					//	Severity:    "HIGH",
+					//})
 				}
 			}
 			//for _, m := range mounts.Mounts {
@@ -198,7 +190,7 @@ func VolumeUsed(sumResp []*opb.Response, pod *v1.PodList) *opb.AssessmentRespons
 		}
 	}
 
-	resp.FileData = fileResp
+	//resp.AssessmentFileData = fileResp
 
 	//for i := 0; i < len(result); i++ {
 	//	if (opb.AssessmentResponse{}) == result[i] {
@@ -217,9 +209,9 @@ func VolumeUsed(sumResp []*opb.Response, pod *v1.PodList) *opb.AssessmentRespons
 	//	fileStrSlice = append(fileStrSlice, r.UpdatedTime)
 	//	fileStrSlice = append(fileStrSlice, r.Status)
 	//	fileStrSlice = append(fileStrSlice, r.Severity)
-	//	FileData = append(FileData, fileStrSlice)
+	//	AssessmentFileData = append(AssessmentFileData, fileStrSlice)
 	//}
-	//WriteTable(FileHeader, FileData)
+	//WriteTable(FileHeader, AssessmentFileData)
 	return resp
 }
 

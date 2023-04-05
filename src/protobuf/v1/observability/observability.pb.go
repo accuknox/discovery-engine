@@ -123,17 +123,44 @@ type AssessmentResponse struct {
 	ClusterName       string                    `protobuf:"bytes,2,opt,name=ClusterName,proto3" json:"ClusterName,omitempty"`
 	Namespace         string                    `protobuf:"bytes,3,opt,name=Namespace,proto3" json:"Namespace,omitempty"`
 	Label             string                    `protobuf:"bytes,4,opt,name=Label,proto3" json:"Label,omitempty"`
-	ContainerName     string                    `protobuf:"bytes,5,opt,name=ContainerName,proto3" json:"ContainerName,omitempty"`
-	FileData []*FileAssessmentResp				`protobuf:"bytes,7,rep,name=FileData,proto3" json:"FileData,omitempty"`
+	ContainerName      string                `protobuf:"bytes,5,opt,name=ContainerName,proto3" json:"ContainerName,omitempty"`
+	//AssessmentFileData *FileAssessmentResp `protobuf:"bytes,6,rep,name=AssessmentFileData,proto3" json:"AssessmentFileData,omitempty"`
 }
 
-type FileAssessmentResp struct {
-	Source      string `protobuf:"bytes,1,opt,name=Source,proto3" json:"Source,omitempty"`
-	MountPath 	string `protobuf:"bytes,2,opt,name=MountPath,proto3" json:"MountPath,omitempty"`
-	UpdatedTime string `protobuf:"bytes,3,opt,name=UpdatedTime,proto3" json:"UpdatedTime,omitempty"`
-	Status      string `protobuf:"bytes,4,opt,name=Status,proto3" json:"Status,omitempty"`
-	Severity    string `protobuf:"bytes,4,opt,name=Severity,proto3" json:"Severity,omitempty"`
+func (x *AssessmentResponse) Reset() {
+	*x = AssessmentResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_v1_observability_observability_proto_msgTypes[6]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
 }
+
+func (x *AssessmentResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AssessmentResponse) ProtoMessage() {}
+
+func (x *AssessmentResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_v1_observability_observability_proto_msgTypes[6]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+//type FileAssessmentResp struct {
+//	Source      string `protobuf:"bytes,1,opt,name=Source,proto3" json:"Source,omitempty"`
+//	MountPath 	string `protobuf:"bytes,2,opt,name=MountPath,proto3" json:"MountPath,omitempty"`
+//	UpdatedTime string `protobuf:"bytes,3,opt,name=UpdatedTime,proto3" json:"UpdatedTime,omitempty"`
+//	Status      string `protobuf:"bytes,4,opt,name=Status,proto3" json:"Status,omitempty"`
+//	Severity    string `protobuf:"bytes,5,opt,name=Severity,proto3" json:"Severity,omitempty"`
+//}
 
 type Response struct {
 	state         protoimpl.MessageState
@@ -765,19 +792,19 @@ func file_v1_observability_observability_proto_rawDescGZIP() []byte {
 	return file_v1_observability_observability_proto_rawDescData
 }
 
-var file_v1_observability_observability_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_v1_observability_observability_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_v1_observability_observability_proto_goTypes = []interface{}{
-	(*AssessmentResponse)(nil),
 	(*Request)(nil),                // 0: v1.observability.Request
 	(*Response)(nil),               // 1: v1.observability.Response
 	(*SysProcFileSummaryData)(nil), // 2: v1.observability.SysProcFileSummaryData
 	(*SysNwSummaryData)(nil),       // 3: v1.observability.SysNwSummaryData
 	(*CiliumSummData)(nil),         // 4: v1.observability.CiliumSummData
-	(*PodNameResponse)(nil),        // 5: v1.observability.PodNameResponse
+	(*PodNameResponse)(nil),		// 5: v1.observability.PodNameResponse
+	(*AssessmentResponse)(nil),
 }
 var file_v1_observability_observability_proto_depIdxs = []int32{
 	2, // 0: v1.observability.Response.ProcessData:type_name -> v1.observability.SysProcFileSummaryData
-	2, // 1: v1.observability.Response.FileData:type_name -> v1.observability.SysProcFileSummaryData
+	2, // 1: v1.observability.Response.AssessmentFileData:type_name -> v1.observability.SysProcFileSummaryData
 	3, // 2: v1.observability.Response.IngressConnection:type_name -> v1.observability.SysNwSummaryData
 	3, // 3: v1.observability.Response.EgressConnection:type_name -> v1.observability.SysNwSummaryData
 	4, // 4: v1.observability.Response.IngressData:type_name -> v1.observability.CiliumSummData
@@ -872,7 +899,7 @@ func file_v1_observability_observability_proto_init() {
 				return nil
 			}
 		}
-		file_v1_observability_observability_proto_msgTypes[5].Exporter = func(v interface{}, i int) interface{} {
+		file_v1_observability_observability_proto_msgTypes[6].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*AssessmentResponse); i {
 			case 0:
 				return &v.state
@@ -892,7 +919,7 @@ func file_v1_observability_observability_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_v1_observability_observability_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

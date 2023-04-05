@@ -69,7 +69,7 @@ func (c *observabilityClient) GetPodNames(ctx context.Context, in *Request, opts
 type ObservabilityServer interface {
 	Summary(context.Context, *Request) (*Response, error)
 	GetPodNames(context.Context, *Request) (*PodNameResponse, error)
-	Scan(ctx context.Context, request *Request) (*AssessmentResponse, error)
+	Scan(context.Context,*Request) (*AssessmentResponse, error)
 	mustEmbedUnimplementedObservabilityServer()
 }
 
@@ -82,6 +82,9 @@ func (UnimplementedObservabilityServer) Summary(context.Context, *Request) (*Res
 }
 func (UnimplementedObservabilityServer) GetPodNames(context.Context, *Request) (*PodNameResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetPodNames not implemented")
+}
+func (UnimplementedObservabilityServer) Scan(context.Context, *Request) (*AssessmentResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Scan not implemented")
 }
 func (UnimplementedObservabilityServer) mustEmbedUnimplementedObservabilityServer() {}
 
@@ -102,7 +105,7 @@ func _Observability_Scan_Handler(srv interface{}, ctx context.Context, dec func(
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ObservabilityServer).Summary(ctx, in)
+		return srv.(ObservabilityServer).Scan(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
