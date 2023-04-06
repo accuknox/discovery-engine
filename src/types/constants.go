@@ -44,4 +44,7 @@ const (
 	// K8sNetworkPolicy
 	K8sNwPolicyAPIVersion = "networking.k8s.io/v1"
 	K8sNwPolicyKind       = "NetworkPolicy"
+
+	// max no. of tries to connect to kubearmor-relay
+	Maxtries = 6
 )

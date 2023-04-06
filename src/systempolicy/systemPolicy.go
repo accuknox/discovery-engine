@@ -1464,6 +1464,17 @@ func StartSystemLogRcvr() {
 	for {
 		if cfg.GetCfgSystemLogFrom() == "kubearmor" {
 			url := cluster.GetKubearmorRelayURL()
+			if url == "" {
+				log.Error().Msg("kubearmor-relay url not found, retrying...")
+				for i := 0; i < types.Maxtries; i++ {
+					time.Sleep(10 * time.Second)
+					url = cluster.GetKubearmorRelayURL()
+					if url != "" {
+						break
+					}
+				}
+				return
+			}
 			plugin.StartKubeArmorRelay(SystemStopChan, types.ConfigKubeArmorRelay{
 				KubeArmorRelayURL:  url,
 				KubeArmorRelayPort: cfg.CurrentCfg.ConfigKubeArmorRelay.KubeArmorRelayPort,
