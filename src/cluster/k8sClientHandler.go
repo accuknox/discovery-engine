@@ -491,7 +491,8 @@ func GetKubearmorRelayURL() string {
 		log.Error().Msg(err.Error())
 		return ""
 	}
-	if pods == nil {
+	if pods == nil || len(pods.Items) == 0 {
+		log.Error().Msgf("Unable to find kubearmor-relay")
 		return ""
 	}
 	namespace = pods.Items[0].Namespace
