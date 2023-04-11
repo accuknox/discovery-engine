@@ -1,0 +1,107 @@
+name: discovery-engine Workflow
+
+on:
+  push:
+    tags:
+    - "v[0-9]+.[0-9]+.[0-9]+"
+    - "v[0-9]+.[0-9]+.[0-9]+-*"
+  pull_request_target:
+    branches:
+    - "*"
+
+
+env:
+  REPO: public.ecr.aws/k9v9d5v2/
+  IMAGE_NAME: discovery-engine
+  CHART_NAME: discovery-engine-chart
+  CHART_PATH: ./deployment
+  CHART_REVISION_NAME: discovery-engine
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_DEV_ACCESS_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_DEV_SECRET_ID }} 
+  AWS_REGION: us-east-2
+  
+jobs:
+  tag-validate:
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+    - uses: rubenesp87/semver-validation-action@0.1.0
+      with:
+       version: ${{ github.ref_name }}
+       
+  go:
+    uses: accuknox/common-gh-actions/.github/workflows/go-checks.yml@main   
+    with:
+      go-version: v1.19
+      working-directory: .
+      go-fmt: true
+      go-lint: true
+      go-sec: true
+      go-build: true
+      go-test: true
+      go-swagger: true
+    secrets:
+      git-key: ${{ secrets.GIT_KEY }}
+      
+  docker-image-scan:
+    runs-on: ubuntu-latest
+    needs: [go, tag-validate]
+    if: always() && !contains(needs.tag-validate.result, 'failure') && !contains(needs.go.result, 'failure')
+    steps:
+    - name: Checkout source
+      uses: accuknox/common-gh-actions/actions/checkout-source@main 
+    - name: Set git ssh private key
+      run: echo "${{ secrets.GIT_KEY }}" > GIT-KEY     
+    - name: Docker build and Trivy scan
+      uses: accuknox/common-gh-actions/actions/docker-scan@main
+      with:
+        repo: ${{ env.REPO }}
+        image-name: ${{ env.IMAGE_NAME }}
+        tag: ${{ github.run_number }}
+        s3-bucket-name: accuknox-trivy-scan-reports
+        trivy-exit-code: 0
+        trivy-severity: HIGH,CRITICAL
+
+  docker-image-push:
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [docker-image-scan, helm-chart-validate]
+    steps:
+    - name: Checkout source
+      uses: accuknox/common-gh-actions/actions/checkout-source@main
+    - name: Set git ssh private key
+      run: echo "${{ secrets.GIT_KEY }}" > GIT-KEY 
+    - name: Docker build and Push image to ECR
+      uses: accuknox/common-gh-actions/actions/docker-push@main
+      with:
+        repo: ${{ env.REPO }}
+        image-name: ${{ env.IMAGE_NAME }}
+        tag: ${{ github.ref_name }}
+  
+  helm-chart-validate:
+    runs-on: ubuntu-latest
+    needs: [go, tag-validate]
+    if: always() && !contains(needs.version-validation.result, 'failure') && !contains(needs.go.result, 'failure')
+    steps:
+    - name: Checkout source
+      uses: accuknox/common-gh-actions/actions/checkout-source@main 
+    - name: Validate helm chart 
+      uses: accuknox/common-gh-actions/actions/helm-check@main
+      with:
+        chart-path: ${{ env.CHART_PATH }}
+        revision-name: ${{ env.CHART_REVISION_NAME }}     
+        
+  helm-chart-push:
+    runs-on: ubuntu-latest 
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [docker-image-push]
+    steps:
+    - name: Checkout source
+      uses: accuknox/common-gh-actions/actions/checkout-source@main
+    - name: Push helm chart to ECR
+      uses: accuknox/common-gh-actions/actions/helm-push@main
+      with:
+        chart-path: ${{ env.CHART_PATH }}
+        version: ${{ github.ref_name }}
+        ecr-region: ${{ env.AWS_REGION }}
+        ecr-repo: ${{ env.REPO }}
