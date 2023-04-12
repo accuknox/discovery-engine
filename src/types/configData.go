@@ -152,4 +152,5 @@ type Configuration struct {
 	ConfigObservability             ConfigObservability             `json:"config_observability,omitempty" bson:"config_observability,omitempty"`
 	ConfigPurgeOldDBEntries         ConfigPurgeOldDBEntries         `json:"config_purge_old_db_entries,omitempty" bson:"config_purge_old_db_entries,omitempty"`
 	ConfigRecommendPolicy           ConfigRecommendPolicy           `json:"config_recommend_policy,omitempty" bson:"config_recommend_policy,omitempty"`
+	ConfigAutoDepolyDiscoveredPolicy bool `json:"config_dsp,omitempty" bson:"config_dsp,omitempty"`
 }

@@ -161,6 +161,11 @@ func SetDefaultConfig() {
 
 	// pprof
 	viper.SetDefault("pprof", false)
+	viper.SetDefault("recommend.recommend-host-policy", true)
+
+	// discoveredPolicy config
+	viper.SetDefault("dsp.auto-deploy-dsp", true)
+
 }
 
 type cfgArray []string

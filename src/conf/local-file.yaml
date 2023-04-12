@@ -128,3 +128,6 @@ license:
   validate: "user-id"
 
 pprof: false
+# Discovered Policies Configuration  
+dsp:
+  auto-deploy-dsp: true
