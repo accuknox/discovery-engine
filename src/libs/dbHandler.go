@@ -362,17 +362,17 @@ func GetPodNames(cfg types.ConfigDB, filter types.ObsPodDetail) ([]string, error
 // =============== //
 // == Policy DB == //
 // =============== //
-func GetPolicyYamls(cfg types.ConfigDB, policyType string) ([]types.PolicyYaml, error) {
+func GetPolicyYamls(cfg types.ConfigDB, policyType string, filterOptions types.PolicyFilter) ([]types.PolicyYaml, error) {
 	var err error
 	var results []types.PolicyYaml
 
 	if cfg.DBDriver == "mysql" {
-		results, err = GetPolicyYamlsMySQL(cfg, policyType)
+		results, err = GetPolicyYamlsMySQL(cfg, policyType, filterOptions)
 		if err != nil {
 			return nil, err
 		}
 	} else if cfg.DBDriver == "sqlite3" {
-		results, err = GetPolicyYamlsSQLite(cfg, policyType)
+		results, err = GetPolicyYamlsSQLite(cfg, policyType, filterOptions)
 		if err != nil {
 			return nil, err
 		}
@@ -386,6 +386,16 @@ func UpdateOrInsertPolicyYamls(cfg types.ConfigDB, policies []types.PolicyYaml) 
 		err = UpdateOrInsertPolicyYamlsMySQL(cfg, policies)
 	} else if cfg.DBDriver == "sqlite3" {
 		err = UpdateOrInsertPolicyYamlsSQLite(cfg, policies)
+	}
+	return err
+}
+
+func DeletePolicyBasedOnPolicyName(cfg types.ConfigDB, policyName, namespace, labels string) error {
+	var err = errors.New("unknown db driver")
+	if cfg.DBDriver == "mysql" {
+		err = DeletePolicyBasedOnPolicyNameMySQL(cfg, policyName, namespace, labels)
+	} else if cfg.DBDriver == "sqlite3" {
+		err = DeletePolicyBasedOnPolicyNameSQLite(cfg, policyName, namespace, labels)
 	}
 	return err
 }
