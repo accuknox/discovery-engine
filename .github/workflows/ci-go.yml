@@ -1,0 +1,80 @@
+name: ci-go
+
+on:
+  push:
+    branches:
+      - '**'  # matches every branch
+  pull_request:
+    branches:
+      - '**'  # matches every branch
+
+jobs:
+  go-fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v2
+
+      - uses: actions/setup-go@v2
+        with:
+          go-version: v1.18
+
+      - name: Check gofmt
+        run: gofmt -s -d $(find . -type f -name '*.go' -print)
+        working-directory: src
+
+  go-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v2
+
+      - name: Run Revive Action by pulling pre-built image
+        uses: morphy2k/revive-action@v2
+        with:
+          path: "./src/..."
+
+  go-sec:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v2
+
+      - uses: actions/setup-go@v2
+        with:
+          go-version: v1.18
+
+      - name: Run Gosec Security Scanner
+        run: |
+          go install github.com/securego/gosec/v2/cmd/gosec@latest
+          go get .
+          gosec -exclude=G204,G304,G107 -exclude-dir=protobuf/ ./...  
+        working-directory: src
+
+  go-ginkgo-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v2
+
+      - uses: actions/setup-go@v2
+        with:
+          go-version: v1.18
+        
+      - name: Setup Enviroment
+        run: |  
+          # setup kubernetes environment
+          ./k3s/install_k3s.sh
+
+      - name: Run KubeArmor in background
+        run: |
+          curl -sfL http://get.kubearmor.io/ | sudo sh -s -- -b /usr/local/bin
+          karmor install
+
+      - name: Install Ginkgo
+        run: |
+          go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
+
+      - name: Run ginkgo tests
+        run: ginkgo -r
+        working-directory: tests
