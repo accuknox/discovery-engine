@@ -7,6 +7,7 @@ import (
 
 	"github.com/rs/zerolog"
 
+	"github.com/accuknox/auto-policy-discovery/src/admissioncontrollerpolicy"
 	analyzer "github.com/accuknox/auto-policy-discovery/src/analyzer"
 	core "github.com/accuknox/auto-policy-discovery/src/config"
 	fc "github.com/accuknox/auto-policy-discovery/src/feedconsumer"
@@ -118,6 +119,11 @@ func (s *workerServer) Convert(ctx context.Context, in *wpb.WorkerRequest) (*wpb
 		system.InitSysPolicyDiscoveryConfiguration()
 		system.WriteSystemPoliciesToFile(in.GetNamespace(), in.GetClustername(), in.GetLabels(), in.GetFromsource(), in.GetIncludenetwork())
 		return system.GetSysPolicy(in.Namespace, in.Clustername, in.Labels, in.Fromsource, in.Includenetwork), nil
+	} else if in.GetPolicytype() == "AdmissionControllerPolicy" {
+		log.Info().Msg("Convert admission controller policy called")
+		admissioncontrollerpolicy.InitAdmissionControllerPolicyDiscoveryConfiguration()
+		policies := admissioncontrollerpolicy.GetAdmissionControllerPolicy(in.Namespace, in.Clustername, in.Labels)
+		return admissioncontrollerpolicy.ConvertPoliciesToWorkerResponse(policies), nil
 	} else {
 		log.Error().Msgf("unsupported policy type - %s", in.GetPolicytype())
 	}

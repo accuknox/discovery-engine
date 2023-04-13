@@ -19,6 +19,7 @@ import (
 	"github.com/accuknox/auto-policy-discovery/src/types"
 	pb "github.com/kubearmor/KubeArmor/protobuf"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 // Global Variable
@@ -313,13 +314,18 @@ func ConvertKubeArmorLogToKnoxSystemLog(relayLog *pb.Alert) (types.KnoxSystemLog
 func ConnectKubeArmorRelay(cfg types.ConfigKubeArmorRelay) *grpc.ClientConn {
 	addr := net.JoinHostPort(cfg.KubeArmorRelayURL, cfg.KubeArmorRelayPort)
 
-	conn, err := grpc.Dial(addr, grpc.WithInsecure())
+	// Check for kubearmor-relay with 30s timeout
+	ctx, cf1 := context.WithTimeout(context.Background(), time.Second*30)
+	defer cf1()
+
+	// Blocking grpc Dial: in case of a bad connection, fails with timeout
+	conn, err := grpc.DialContext(ctx, addr, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 	if err != nil {
-		log.Error().Msg("err connecting kubearmor relay. " + err.Error())
+		log.Error().Msg("Error connecting kubearmor relay: " + err.Error())
 		return nil
 	}
 
-	log.Info().Msg("connected to kubearmor relay " + addr)
+	log.Info().Msg("Connected to kubearmor relay " + addr)
 	return conn
 }
 
@@ -327,7 +333,7 @@ func GetSystemAlertsFromKubeArmorRelay(trigger int) []*pb.Alert {
 	results := []*pb.Alert{}
 	KubeArmorRelayLogsMutex.Lock()
 	if len(KubeArmorRelayLogs) == 0 {
-		log.Info().Msgf("KubeArmor Relay traffic flow not exist")
+		log.Info().Msgf("KubeArmor Relay traffic flow does not exist")
 		KubeArmorRelayLogsMutex.Unlock()
 		return results
 	}

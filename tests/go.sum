@@ -95,8 +95,6 @@ github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578/go.mod h1:uGdko
 github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d/go.mod h1:3eOhrUMpNV+6aFIbp5/iudMxNCF27Vw2OZgy4xEx0Fg=
 github.com/StackExchange/wmi v1.2.1 h1:VIkavFPXSjcnS+O8yTq7NI32k0R5Aj+v39y29VYDOSA=
 github.com/StackExchange/wmi v1.2.1/go.mod h1:rcmrprowKIVzvc+NUiLncP2uuArMWLCbu9SBzvHz7e8=
-github.com/accuknox/auto-policy-discovery/src v0.0.0-20230112120402-12a2395cb6fa h1:pnfsXlCwZbrLd6nOd/3UZHtIkFJ3RXzi2EpbI+QcY8I=
-github.com/accuknox/auto-policy-discovery/src v0.0.0-20230112120402-12a2395cb6fa/go.mod h1:PvmbhNMbOH27CbhOTbWy3Vd0Od8B65ixNLd9STvBlP0=
 github.com/accuknox/auto-policy-discovery/src v0.0.0-20230207142942-3e2adb51594b h1:XiqvaZu63u8edBgKIUD69IKwgzY9tPCwm8WmQLrT0W4=
 github.com/accuknox/auto-policy-discovery/src v0.0.0-20230207142942-3e2adb51594b/go.mod h1:PvmbhNMbOH27CbhOTbWy3Vd0Od8B65ixNLd9STvBlP0=
 github.com/agnivade/levenshtein v1.0.1/go.mod h1:CURSv5d9Uaml+FovSIICkLbAUZ9S4RqaHDIsdSBg7lM=
