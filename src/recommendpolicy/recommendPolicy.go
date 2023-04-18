@@ -2,7 +2,7 @@ package recommendpolicy
 
 import (
 	"context"
-
+	"github.com/accuknox/auto-policy-discovery/src/admissioncontrollerpolicy"
 	"github.com/accuknox/auto-policy-discovery/src/cluster"
 	cfg "github.com/accuknox/auto-policy-discovery/src/config"
 	logger "github.com/accuknox/auto-policy-discovery/src/logging"
@@ -141,20 +141,53 @@ func RecommendPolicyMain() {
 		return
 	}
 	systempolicy.InitSysPolicyDiscoveryConfiguration()
-
 	policies := GetHardenPolicy(deployments, replicaSets, statefulSets, nsNotFilter)
-
 	systempolicy.UpdateSysPolicies(policies)
+
+	admissioncontrollerpolicy.InitAdmissionControllerPolicyDiscoveryConfiguration()
+	for _, d := range deployments.Items {
+		deploy := uniqueNsDeploy(d.Name, d.Namespace)
+
+		if deploy != nil {
+			DeployNsName = append(DeployNsName, *deploy)
+		}
+
+		for _, ns := range nsNotFilter {
+			if d.Namespace != ns {
+				generateHardenPolicy(d.Name, d.Namespace, d.Spec.Template.Labels)
+			}
+		}
+
+		nsNotFilterAdmissionControllerPolicy := cfg.CurrentCfg.ConfigAdmissionControllerPolicy.NsNotFilter
+		nsFilterAdmissionControllerPolicy := cfg.CurrentCfg.ConfigAdmissionControllerPolicy.NsFilter
+		recommendAdmissionControllerPolicy := cfg.GetCfgRecommendAdmissionControllerPolicy()
+
+		if recommendAdmissionControllerPolicy &&
+			isNamespaceAllowed(d.Namespace, nsNotFilterAdmissionControllerPolicy, nsFilterAdmissionControllerPolicy) {
+			generateAdmissionControllerPolicy(d.Name, d.Namespace, d.Spec.Template.Labels)
+		}
+	}
+
 }
 
 func generateHardenPolicy(name, namespace string, labels LabelMap) []types.KnoxSystemPolicy {
 	log.Info().Msgf("Generating hardening policy for: %v in namespace: %v", name, namespace)
-	policies, err := generatePolicy(name, namespace, labels)
+	policies, err := generateKnoxSystemPolicy(name, namespace, labels)
+
 	if err != nil {
 		log.Error().Msg(err.Error())
 		return nil
 	}
 	return policies
+}
+
+func generateAdmissionControllerPolicy(name, namespace string, labels LabelMap) {
+	policies, policiesToBeDeleted := generateKyvernoPolicy(name, namespace, labels)
+	admissioncontrollerpolicy.DeleteKyvernoPolicies(policiesToBeDeleted, namespace, labels)
+
+	// labels need to be passed as argument because labels in policies are set as preconditions
+	// deriving labels back from preconditions is error prone due to presence of other preconditions
+	admissioncontrollerpolicy.UpdateOrInsertKyvernoPolicies(policies, labels)
 }
 
 func uniqueNsDeploy(deployName, deployNamespace string) *types.Deployment {
