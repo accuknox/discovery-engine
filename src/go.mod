@@ -15,12 +15,14 @@ require (
 	github.com/clarketm/json v1.17.1
 	github.com/confluentinc/confluent-kafka-go v1.6.1
 	github.com/go-sql-driver/mysql v1.5.0
+	github.com/golang-jwt/jwt/v5 v5.0.0-rc.2
 	github.com/google/go-cmp v0.5.8
 	github.com/google/go-github v17.0.0+incompatible
 	github.com/kubearmor/KVMService/src/types v0.0.0-20220714130113-b0eba8c9ff34
 	github.com/kubearmor/KubeArmor/protobuf v0.0.0-20220504043216-6451e04be58b
 	github.com/kyverno/kyverno v1.6.10
 	github.com/mattn/go-sqlite3 v1.14.12
+	github.com/mervick/aes-everywhere/go/aes256 v0.0.0-20220903070135-f13ed3789ae1
 	github.com/robfig/cron v1.2.0
 	github.com/rs/zerolog v1.26.0
 	github.com/spf13/viper v1.10.1

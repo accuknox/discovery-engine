@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"errors"
+	"github.com/accuknox/auto-policy-discovery/src/license"
 	"strings"
 
 	"github.com/rs/zerolog"
@@ -23,6 +24,7 @@ import (
 	fpb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/consumer"
 	dpb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/discovery"
 	ipb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/insight"
+	lpb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/license"
 	opb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/observability"
 	ppb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/publisher"
 	wpb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/worker"
@@ -287,15 +289,26 @@ func (ps *publisherServer) GetSummary(req *ppb.SummaryRequest, srv ppb.Publisher
 	return obs.SysSummary.RelaySummaryEventToGrpcStream(srv, consumer)
 }
 
-// ================= //
-// == gRPC server == //
-// ================= //
-
-func GetNewServer() *grpc.Server {
+func StartGrpcServer() *grpc.Server {
 	s := grpc.NewServer()
 	grpc_health_v1.RegisterHealthServer(s, health.NewServer())
 
 	reflection.Register(s)
+
+	return s
+}
+
+func AddLicenseServer(s *grpc.Server) *grpc.Server {
+	licenseServer := &license.Server{}
+	lpb.RegisterLicenseServer(s, licenseServer)
+	return s
+}
+
+// ================= //
+// == gRPC server == //
+// ================= //
+
+func AddServers(s *grpc.Server) *grpc.Server {
 
 	// create server instances
 	workerServer := &workerServer{}
