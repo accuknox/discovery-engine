@@ -512,9 +512,13 @@ func GetSecrets(k8sClient *kubernetes.Clientset, label string, namespace string,
 
 	secrets, err := k8sClient.CoreV1().Secrets(namespace).Get(context.Background(), name, metav1.GetOptions{})
 
-	if err != nil {
+	if err != nil && !strings.Contains(err.Error(), "not found") {
 		log.Error().Msgf("error while getting license secrets with name: %s from %s namespace, error: %s", name, namespace, err.Error())
 		return nil, err
+	}
+
+	if secrets != nil && secrets.GetName() == "" {
+		return nil, nil
 	}
 
 	return secrets, nil
