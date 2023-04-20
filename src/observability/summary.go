@@ -26,6 +26,7 @@ func GetSummaryData(request *opb.Request) (*opb.Response, error) {
 		outNwResp := []*opb.SysNwSummaryData{}
 		bindNwResp := []*opb.SysNwSummaryData{}
 
+		resp.DeploymentName = podInfo.DeployName
 		resp.PodName = podInfo.PodName
 		resp.ClusterName = podInfo.ClusterName
 		resp.Namespace = podInfo.Namespace
@@ -146,5 +147,38 @@ func GetSummaryData(request *opb.Request) (*opb.Response, error) {
 		resp.EgressData = egressSummData
 	}
 
+	return &resp, err
+}
+
+func GetSummaryDataPerDeploy(request *opb.Request) (*opb.Response, error) {
+	resp := opb.Response{}
+	var err error = nil
+
+	podResp, err := GetPodNames(&opb.Request{DeployName: request.DeployName})
+	if err != nil {
+		return nil, errors.New("no system summary info present for the requested deployment")
+	}
+	var podNames []string
+	for _, pod := range podResp.PodName {
+		request.PodName = pod
+		podDataResp, err := GetSummaryData(request)
+		if err != nil {
+			return nil, errors.New("no system summary info present for the requested pod")
+		}
+		resp.IngressData = append(resp.IngressData, podDataResp.IngressData...)
+		resp.EgressData = append(resp.EgressData, podDataResp.EgressData...)
+		resp.ProcessData = append(resp.ProcessData, podDataResp.ProcessData...)
+		resp.FileData = append(resp.FileData, podDataResp.FileData...)
+		resp.IngressConnection = append(resp.IngressConnection, podDataResp.IngressConnection...)
+		resp.EgressConnection = append(resp.EgressConnection, podDataResp.EgressConnection...)
+		resp.BindConnection = append(resp.BindConnection, podDataResp.BindConnection...)
+		resp.DeploymentName = podDataResp.DeploymentName
+		resp.ClusterName = podDataResp.ClusterName
+		resp.Namespace = podDataResp.Namespace
+		resp.Label = podDataResp.Label
+		resp.ContainerName = podDataResp.ContainerName
+		podNames = append(podNames, pod)
+	}
+	resp.PodName = strings.Join(podNames, ",")
 	return &resp, err
 }

@@ -268,8 +268,19 @@ func (s *observabilityServer) Summary(ctx context.Context, in *opb.Request) (*op
 	return resp, err
 }
 
+// Service to fetch summary data per deployment
+func (s *observabilityServer) SummaryPerDeploy(ctx context.Context, in *opb.Request) (*opb.Response, error) {
+	resp, err := obs.GetSummaryDataPerDeploy(in)
+	return resp, err
+}
+
 func (s *observabilityServer) GetPodNames(ctx context.Context, in *opb.Request) (*opb.PodNameResponse, error) {
 	resp, err := obs.GetPodNames(in)
+	return &resp, err
+}
+
+func (s *observabilityServer) GetDeployNames(ctx context.Context, in *opb.Request) (*opb.DeployNameResponse, error) {
+	resp, err := obs.GetDeployNames(in)
 	return &resp, err
 }
 

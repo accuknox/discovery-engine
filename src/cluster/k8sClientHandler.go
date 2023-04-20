@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"flag"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -21,7 +20,7 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 )
 
-var parsed bool = false
+var parsed = false
 var kubeconfig *string
 
 type Config struct {
@@ -102,7 +101,7 @@ func ConnectInClusterAPIClient() *kubernetes.Clientset {
 		port = "6443"
 	}
 
-	read, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/token")
+	read, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/token")
 	if err != nil {
 		log.Error().Msg(err.Error())
 		return nil
@@ -118,13 +117,13 @@ func ConnectInClusterAPIClient() *kubernetes.Clientset {
 			Insecure: true,
 		},
 	}
-
-	if client, err := kubernetes.NewForConfig(kubeConfig); err != nil {
+	client, err := kubernetes.NewForConfig(kubeConfig)
+	if err != nil {
 		log.Error().Msg(err.Error())
 		return nil
-	} else {
-		return client
 	}
+	return client
+
 }
 
 // =============== //
@@ -136,6 +135,7 @@ func GetNamespacesFromK8sClient() []string {
 
 	client := ConnectK8sClient()
 	if client == nil {
+		log.Error().Msg("failed to create k8s client")
 		return results
 	}
 
@@ -161,7 +161,7 @@ func GetNamespacesFromK8sClient() []string {
 // == Pod == //
 // ========= //
 
-var skipLabelKey []string = []string{
+var skipLabelKey = []string{
 	"pod-template-hash",                  // common k8s hash label
 	"controller-revision-hash",           // from istana robot-shop
 	"statefulset.kubernetes.io/pod-name"} // from istana robot-shop
@@ -171,6 +171,7 @@ func GetPodsFromK8sClient() []types.Pod {
 
 	client := ConnectK8sClient()
 	if client == nil {
+		log.Error().Msg("failed to create k8s client")
 		return nil
 	}
 
@@ -278,6 +279,7 @@ func GetServicesFromK8sClient() []types.Service {
 
 	client := ConnectK8sClient()
 	if client == nil {
+		log.Error().Msg("failed to create k8s client")
 		return results
 	}
 
@@ -330,6 +332,7 @@ func GetEndpointsFromK8sClient() []types.Endpoint {
 
 	client := ConnectK8sClient()
 	if client == nil {
+		log.Error().Msg("failed to create k8s client")
 		return results
 	}
 
@@ -398,6 +401,7 @@ func GetEndpointsFromK8sClient() []types.Endpoint {
 func GetClusterNameFromK8sClient() string {
 	client := ConnectK8sClient()
 	if client == nil {
+		log.Error().Msg("failed to create k8s client")
 		return "default"
 	}
 
@@ -435,6 +439,7 @@ func GetDeploymentsFromK8sClient() []types.Deployment {
 
 	client := ConnectK8sClient()
 	if client == nil {
+		log.Error().Msg("failed to create k8s client")
 		return results
 	}
 
@@ -450,17 +455,111 @@ func GetDeploymentsFromK8sClient() []types.Deployment {
 			continue
 		}
 
-		var label string
+		if d.Spec.Selector.MatchLabels != nil {
+			var labels []string
 
-		for k, v := range d.Spec.Selector.MatchLabels {
-			label = k + "=" + v
+			for k, v := range d.Spec.Selector.MatchLabels {
+				labels = append(labels, k+"="+v)
+			}
+
+			results = append(results, types.Deployment{
+				Name:      d.Name,
+				Namespace: d.Namespace,
+				Labels:    strings.Join(labels, ","),
+			})
 		}
+	}
 
-		results = append(results, types.Deployment{
-			Name:      d.Name,
-			Namespace: d.Namespace,
-			Labels:    label,
-		})
+	results = append(results, GetReplicaSetsFromK8sClient()...)
+	results = append(results, GetStatefulSetsFromK8sClient()...)
+
+	return results
+}
+
+// ================= //
+// == ReplicaSet == //
+// ================= //
+
+func GetReplicaSetsFromK8sClient() []types.Deployment {
+	results := []types.Deployment{}
+
+	client := ConnectK8sClient()
+	if client == nil {
+		log.Error().Msg("failed to create k8s client")
+		return results
+	}
+
+	// get namespaces from k8s api client
+	replicasets, err := client.AppsV1().ReplicaSets("").List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return results
+	}
+
+	for _, rs := range replicasets.Items {
+		if rs.OwnerReferences == nil {
+			if rs.Namespace == "kube-system" {
+				continue
+			}
+
+			if rs.Spec.Selector.MatchLabels != nil {
+				var labels []string
+
+				for k, v := range rs.Spec.Selector.MatchLabels {
+					labels = append(labels, k+"="+v)
+				}
+
+				results = append(results, types.Deployment{
+					Name:      rs.Name,
+					Namespace: rs.Namespace,
+					Labels:    strings.Join(labels, ","),
+				})
+			}
+		}
+	}
+	return results
+}
+
+// ================= //
+// == StatefulSet == //
+// ================= //
+
+func GetStatefulSetsFromK8sClient() []types.Deployment {
+	results := []types.Deployment{}
+
+	client := ConnectK8sClient()
+	if client == nil {
+		log.Error().Msg("failed to create k8s client")
+		return results
+	}
+
+	// get namespaces from k8s api client
+	statefulset, err := client.AppsV1().StatefulSets("").List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return results
+	}
+
+	for _, sts := range statefulset.Items {
+		if sts.OwnerReferences == nil {
+			if sts.Namespace == "kube-system" {
+				continue
+			}
+
+			if sts.Spec.Selector.MatchLabels != nil {
+				var labels []string
+
+				for k, v := range sts.Spec.Selector.MatchLabels {
+					labels = append(labels, k+"="+v)
+				}
+
+				results = append(results, types.Deployment{
+					Name:      sts.Name,
+					Namespace: sts.Namespace,
+					Labels:    strings.Join(labels, ","),
+				})
+			}
+		}
 	}
 	return results
 }

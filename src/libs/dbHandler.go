@@ -359,6 +359,17 @@ func GetPodNames(cfg types.ConfigDB, filter types.ObsPodDetail) ([]string, error
 	return res, err
 }
 
+func GetDeployNames(cfg types.ConfigDB, filter types.ObsPodDetail) ([]string, error) {
+	res := []string{}
+	var err = errors.New("unknown db driver")
+	if cfg.DBDriver == "mysql" {
+		res, err = GetDeployNamesMySQL(cfg, filter)
+	} else if cfg.DBDriver == "sqlite3" {
+		res, err = GetDeployNamesSQLite(cfg, filter)
+	}
+	return res, err
+}
+
 // =============== //
 // == Policy DB == //
 // =============== //
