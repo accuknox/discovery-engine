@@ -140,8 +140,14 @@ func RecommendPolicyMain() {
 		log.Error().Msg("Error getting statefulsets err=" + err.Error())
 		return
 	}
+	daemonsets, err := client.AppsV1().DaemonSets("").List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		log.Error().Msg("Error getting daemonsets err=" + err.Error())
+		return
+	}
+
 	systempolicy.InitSysPolicyDiscoveryConfiguration()
-	policies := GetHardenPolicy(deployments, replicaSets, statefulSets, nsNotFilter)
+	policies := GetHardenPolicy(deployments, replicaSets, statefulSets, daemonsets, nsNotFilter)
 	if policies == nil {
 		log.Error().Msg("Error generating hardened policies")
 		return
@@ -214,7 +220,7 @@ func uniqueNsDeploy(deployName, deployNamespace string) *types.Deployment {
 	return &deploy
 }
 
-func GetHardenPolicy(deployments *v1.DeploymentList, replicaSets *v1.ReplicaSetList, statefulSets *v1.StatefulSetList, nsNotFilter []string) []types.KnoxSystemPolicy {
+func GetHardenPolicy(deployments *v1.DeploymentList, replicaSets *v1.ReplicaSetList, statefulSets *v1.StatefulSetList, daemonSets *v1.DaemonSetList, nsNotFilter []string) []types.KnoxSystemPolicy {
 
 	var policies []types.KnoxSystemPolicy
 	if !isLatest() {
@@ -222,9 +228,8 @@ func GetHardenPolicy(deployments *v1.DeploymentList, replicaSets *v1.ReplicaSetL
 		if err != nil {
 			log.Error().Msgf("Unable to download %v", err.Error())
 			return nil
-		} else {
-			log.Info().Msgf("Downloaded version: %v", version)
 		}
+		log.Info().Msgf("Downloaded version: %v", version)
 	}
 	for _, d := range deployments.Items {
 		deploy := uniqueNsDeploy(d.Name, d.Namespace)
@@ -252,6 +257,14 @@ func GetHardenPolicy(deployments *v1.DeploymentList, replicaSets *v1.ReplicaSetL
 		for _, ns := range nsNotFilter {
 			if s.Namespace != ns && len(s.ObjectMeta.OwnerReferences) == 0 {
 				policies = append(policies, generateHardenPolicy(s.Name, s.Namespace, s.Spec.Template.Labels)...)
+			}
+		}
+	}
+
+	for _, ds := range daemonSets.Items {
+		for _, ns := range nsNotFilter {
+			if ds.Namespace != ns && len(ds.ObjectMeta.OwnerReferences) == 0 {
+				policies = append(policies, generateHardenPolicy(ds.Name, ds.Namespace, ds.Spec.Template.Labels)...)
 			}
 		}
 	}
