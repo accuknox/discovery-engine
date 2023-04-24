@@ -9,7 +9,6 @@ replace (
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.0
-	github.com/accuknox/auto-policy-discovery/src v0.0.0-20230329032423-ce809848f042
 	github.com/apache/pulsar-client-go v0.8.1
 	github.com/cavaliergopher/grab/v3 v3.0.1
 	github.com/cilium/cilium v1.10.14
@@ -29,7 +28,7 @@ require (
 	go.mongodb.org/mongo-driver v1.7.4
 	golang.org/x/exp v0.0.0-20221114191408-850992195362
 	google.golang.org/grpc v1.46.0
-	google.golang.org/protobuf v1.28.1
+	google.golang.org/protobuf v1.30.0
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	k8s.io/api v0.26.3
 	k8s.io/apimachinery v0.26.3
@@ -70,7 +69,7 @@ require (
 	github.com/godbus/dbus v0.0.0-20190726142602-4481cbc300e2 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
-	github.com/golang/protobuf v1.5.2 // indirect
+	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/golang/snappy v0.0.3 // indirect
 	github.com/google/gnostic v0.5.7-v3refs // indirect
 	github.com/google/go-querystring v1.1.0 // indirect

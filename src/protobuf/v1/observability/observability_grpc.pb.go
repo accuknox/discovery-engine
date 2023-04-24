@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.2.0
 // - protoc             v3.19.6
-// source: v1/observability/observability.proto
+// source: observability.proto
 
 package observability
 
@@ -25,7 +25,6 @@ type ObservabilityClient interface {
 	Summary(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error)
 	GetPodNames(ctx context.Context, in *Request, opts ...grpc.CallOption) (*PodNameResponse, error)
 	Scan(ctx context.Context, in *Request, opts ...grpc.CallOption) (*AssessmentResponse, error)
-
 }
 
 type observabilityClient struct {
@@ -34,15 +33,6 @@ type observabilityClient struct {
 
 func NewObservabilityClient(cc grpc.ClientConnInterface) ObservabilityClient {
 	return &observabilityClient{cc}
-}
-
-func (c *observabilityClient) Scan(ctx context.Context, in *Request, opts ...grpc.CallOption) (*AssessmentResponse, error) {
-	out := new(AssessmentResponse)
-	err := c.cc.Invoke(ctx, "/v1.observability.Observability/Scan", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
 }
 
 func (c *observabilityClient) Summary(ctx context.Context, in *Request, opts ...grpc.CallOption) (*Response, error) {
@@ -63,13 +53,22 @@ func (c *observabilityClient) GetPodNames(ctx context.Context, in *Request, opts
 	return out, nil
 }
 
+func (c *observabilityClient) Scan(ctx context.Context, in *Request, opts ...grpc.CallOption) (*AssessmentResponse, error) {
+	out := new(AssessmentResponse)
+	err := c.cc.Invoke(ctx, "/v1.observability.Observability/Scan", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ObservabilityServer is the server API for Observability service.
 // All implementations must embed UnimplementedObservabilityServer
 // for forward compatibility
 type ObservabilityServer interface {
 	Summary(context.Context, *Request) (*Response, error)
 	GetPodNames(context.Context, *Request) (*PodNameResponse, error)
-	Scan(context.Context,*Request) (*AssessmentResponse, error)
+	Scan(context.Context, *Request) (*AssessmentResponse, error)
 	mustEmbedUnimplementedObservabilityServer()
 }
 
@@ -97,24 +96,6 @@ type UnsafeObservabilityServer interface {
 
 func RegisterObservabilityServer(s grpc.ServiceRegistrar, srv ObservabilityServer) {
 	s.RegisterService(&Observability_ServiceDesc, srv)
-}
-
-func _Observability_Scan_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Request)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(ObservabilityServer).Scan(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/v1.observability.Observability/Scan",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ObservabilityServer).Scan(ctx, req.(*Request))
-	}
-	return interceptor(ctx, in, info, handler)
 }
 
 func _Observability_Summary_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -153,6 +134,24 @@ func _Observability_GetPodNames_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Observability_Scan_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Request)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ObservabilityServer).Scan(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/v1.observability.Observability/Scan",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ObservabilityServer).Scan(ctx, req.(*Request))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Observability_ServiceDesc is the grpc.ServiceDesc for Observability service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -170,9 +169,9 @@ var Observability_ServiceDesc = grpc.ServiceDesc{
 		},
 		{
 			MethodName: "Scan",
-			Handler: _Observability_Scan_Handler,
+			Handler:    _Observability_Scan_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "v1/observability/observability.proto",
+	Metadata: "observability.proto",
 }

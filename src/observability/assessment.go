@@ -64,7 +64,6 @@ func Scan(request *opb.Request) (*opb.AssessmentResponse, error) {
 				PodName: podname,
 			})
 			if err != nil {
-				print("ERRRRRRRRRRRRRRRRRROR")
 				log.Warn().Msg(err.Error())
 				return nil, err
 			}
