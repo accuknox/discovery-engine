@@ -3,6 +3,10 @@ package admissioncontrollerpolicy
 import (
 	"context"
 	"fmt"
+	"path/filepath"
+	"regexp"
+	"strings"
+
 	"github.com/accuknox/auto-policy-discovery/src/cluster"
 	cfg "github.com/accuknox/auto-policy-discovery/src/config"
 	"github.com/accuknox/auto-policy-discovery/src/libs"
@@ -15,12 +19,9 @@ import (
 	kyvernov1 "github.com/kyverno/kyverno/api/kyverno/v1"
 	"github.com/rs/zerolog"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
+	apiextv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"path/filepath"
-	"regexp"
 	"sigs.k8s.io/yaml"
-	"strings"
 )
 
 var log *zerolog.Logger
@@ -142,8 +143,13 @@ func ConvertPoliciesToWorkerResponse(policies []kyvernov1.Policy) *wpb.WorkerRes
 }
 
 // AutoGenPrecondition generates a preconditions matching on particular labels for kyverno policy
-func AutoGenPrecondition(templateKey string, labels types.LabelMap, precondition apiextensions.JSON) apiextensions.JSON {
-	preconditionMap := precondition.(map[string]interface{})
+func AutoGenPrecondition(templateKey string, labels types.LabelMap, precondition apiextv1.JSON) apiextv1.JSON {
+	var preconditionMap map[string]interface{}
+	err := json.Unmarshal(precondition.Raw, &preconditionMap)
+	if err != nil {
+		log.Error().Msgf("unmarshalling precondition failed err=%v", err.Error())
+		return precondition
+	}
 	for key, value := range labels {
 		newPrecondition := map[string]interface{}{
 			"key":      "{{ request.object.spec." + templateKey + ".metadata.labels." + key + " || '' }}",
@@ -153,17 +159,31 @@ func AutoGenPrecondition(templateKey string, labels types.LabelMap, precondition
 		existingSlice := preconditionMap["all"].([]interface{})
 		preconditionMap["all"] = append(existingSlice, newPrecondition)
 	}
-	return preconditionMap
+	newPrecondition, err := json.Marshal(preconditionMap)
+	if err != nil {
+		log.Error().Msgf("marshalling precondition failed err=%v", err.Error())
+		return precondition
+	}
+	return apiextv1.JSON{
+		Raw: newPrecondition,
+	}
 }
 
 // AutoGenPattern generates a pattern changing validation pattern from Pod to high level controller
-func AutoGenPattern(templateKey string, pattern apiextensions.JSON) apiextensions.JSON {
+func AutoGenPattern(templateKey string, pattern apiextv1.JSON) apiextv1.JSON {
 	newPattern := map[string]interface{}{
 		"spec": map[string]interface{}{
 			templateKey: pattern,
 		},
 	}
-	return newPattern
+	newPatternBytes, err := json.Marshal(newPattern)
+	if err != nil {
+		log.Error().Msgf("marshalling pattern failed err=%v", err.Error())
+		return pattern
+	}
+	return apiextv1.JSON{
+		Raw: newPatternBytes,
+	}
 }
 
 // ShouldSATokenBeAutoMounted returns true if service account token should be auto mounted

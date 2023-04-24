@@ -207,7 +207,7 @@ func CheckCommandLineConfig() {
 	var cmdlineCfg cfgArray
 
 	pprofFlag := flag.Bool("pprof", false, "enable pprof")
-	version1 := flag.Bool("v", false, "print version and exit")
+	version1 := flag.Bool("ver", false, "print version and exit")
 	version2 := flag.Bool("version", false, "print version and exit")
 	flag.Var(&cmdlineCfg, "cfg", "Configuration key=val")
 
