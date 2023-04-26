@@ -38,7 +38,13 @@ func GetPolicy() []types.KnoxSystemPolicy {
 		return nil
 	}
 
-	policies := recommendpolicy.GetHardenPolicy(deployments, replicaSets, statefulSets, nsNotFilter)
+	daemonSets, err := client.AppsV1().DaemonSets("").List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		log.Error().Msg("error getting daemonsets err=" + err.Error())
+		return nil
+	}
+
+	policies := recommendpolicy.GetHardenPolicy(deployments, replicaSets, statefulSets, daemonSets, nsNotFilter)
 
 	return policies
 }
