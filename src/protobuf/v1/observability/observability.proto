@@ -16,15 +16,16 @@ message AssessmentResponse {
     string Namespace    = 3;
     string Label         = 4;
     string ContainerName  = 5;
+    repeated FileAssessmentResp FileResp = 6;
 }
 
-//message FileAssessmentResp {
-//    string Source = 1;
-//    string MountPath = 2;
-//    string UpdatedTime = 3;
-//    string Status = 4;
-//    string Severity = 5;
-//}
+message FileAssessmentResp {
+    string Source = 1;
+    string MountPath = 2;
+    string UpdatedTime = 3;
+    string Status = 4;
+    string Severity = 5;
+}
 
 message Request{
     string PodName = 1;

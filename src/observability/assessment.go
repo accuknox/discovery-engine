@@ -45,35 +45,25 @@ func Scan(request *opb.Request) (*opb.AssessmentResponse, error) {
 	if err != nil {
 		return nil, errors.New("could not connect to the server. Possible troubleshooting:\n- Check if discovery engine is running\n- kubectl get po -n accuknox-agents")
 	}
-
-	// create a client
-	//defer conn.Close()
-	//Sumclient := opb.NewObservabilityClient(conn)
-	//if err != nil {
-	//	fmt.Println(err)
-	//}
-	//podNameResp, err := GetPodNames(request)
-	//if err != nil {
-	//	fmt.Println(err)
-	//}
 	podNameResp, err := GetPodNames(request)
 	for _, podname := range podNameResp.PodName {
-
+		if podname == "" {
+			continue
+		}
+		//fmt.Println(podname)
 		if len(podList.Items) > 0 {
 			sumResp, err := GetSummaryData(&opb.Request{
 				PodName: podname,
+				Type:    "file",
 			})
+			//fmt.Println(sumResp)
 			if err != nil {
+				print("ERRROR")
 				log.Warn().Msg(err.Error())
 				return nil, err
 			}
-			//log.Info().Msg(sumResp.String())
 			sumResponses = append(sumResponses, sumResp)
-
-			//fmt.Print(ShouldSATokenBeAutoMounted(), "\n\n\n")
 			v = VolumeUsed(sumResponses, podList)
-			//b, _ := json.MarshalIndent(test, "", "    ")
-			//fmt.Println(string(b))
 
 		} else {
 			log.Warn().Msg("No pods found for the given labels")
@@ -124,18 +114,16 @@ func VolumeUsed(sumResp []*opb.Response, pod *v1.PodList) *opb.AssessmentRespons
 	//for _, pods := range pod.Items {
 	//	a, _ = getSATokenMountPath(pods)
 	//}
-	var resp *opb.AssessmentResponse
+	resp := opb.AssessmentResponse{}
 	var fi []string
 	//AssessmentFileData := [][]string{}
-	//fileResp := []*opb.FileAssessmentResp{}
+	fileResp := []*opb.FileAssessmentResp{}
 	for _, mounts := range p {
 		for _, sum := range sumResp {
 			for _, fileData := range sum.FileData {
 				fi = append(fi, fileData.Destination)
 			}
 			for _, file := range sum.FileData {
-				r, _ := regexp.Compile("\\/run\\/secrets\\/kubernetes.io\\/serviceaccount\\/[^\\/]+\\/token")
-				//fmt.Println(matchesSATokenPath())
 				if slices.Contains(mounts.Mounts, file.Destination) && mounts.Podname == sum.PodName {
 					resp.PodName = sum.PodName
 					resp.Namespace = sum.Namespace
@@ -143,13 +131,13 @@ func VolumeUsed(sumResp []*opb.Response, pod *v1.PodList) *opb.AssessmentRespons
 					resp.ContainerName = sum.ContainerName
 					resp.ClusterName = sum.ClusterName
 
-					//fileResp = append(fileResp, &opb.FileAssessmentResp{
-					//	Source:      file.Source,
-					//	MountPath:   file.Destination,
-					//	UpdatedTime: file.UpdatedTime,
-					//	Status:      file.Status,
-					//	Severity:    "HIGH",
-					//})
+					fileResp = append(fileResp, &opb.FileAssessmentResp{
+						Source:      file.Source,
+						MountPath:   file.Destination,
+						UpdatedTime: file.UpdatedTime,
+						Status:      file.Status,
+						Severity:    "",
+					})
 
 				} else if r.MatchString(file.Destination) {
 					resp.PodName = sum.PodName
@@ -158,13 +146,13 @@ func VolumeUsed(sumResp []*opb.Response, pod *v1.PodList) *opb.AssessmentRespons
 					resp.ContainerName = sum.ContainerName
 					resp.ClusterName = sum.ClusterName
 
-					//fileResp = append(fileResp, &opb.FileAssessmentResp{
-					//	Source:      file.Source,
-					//	MountPath:   file.Destination,
-					//	UpdatedTime: file.UpdatedTime,
-					//	Status:      file.Status,
-					//	Severity:    "HIGH",
-					//})
+					fileResp = append(fileResp, &opb.FileAssessmentResp{
+						Source:      file.Source,
+						MountPath:   file.Destination,
+						UpdatedTime: file.UpdatedTime,
+						Status:      file.Status,
+						Severity:    "HIGH",
+					})
 				}
 			}
 			//for _, m := range mounts.Mounts {
@@ -188,30 +176,9 @@ func VolumeUsed(sumResp []*opb.Response, pod *v1.PodList) *opb.AssessmentRespons
 			//}
 		}
 	}
-
-	//resp.AssessmentFileData = fileResp
-
-	//for i := 0; i < len(result); i++ {
-	//	if (opb.AssessmentResponse{}) == result[i] {
-	//		result = append(result[:i], result[i+1:]...)
-	//		i--
-	//	}
-	//}
-	//result = removeDuplicates(result)
-	//fmt.Println(result)
-
-	//for _, r := range result {
-	//	fileStrSlice := []string{}
-	//	fileStrSlice = append(fileStrSlice, r.Source)
-	//	fileStrSlice = append(fileStrSlice, r.MountPath)
-	//	fileStrSlice = append(fileStrSlice, r.PodName)
-	//	fileStrSlice = append(fileStrSlice, r.UpdatedTime)
-	//	fileStrSlice = append(fileStrSlice, r.Status)
-	//	fileStrSlice = append(fileStrSlice, r.Severity)
-	//	AssessmentFileData = append(AssessmentFileData, fileStrSlice)
-	//}
-	//WriteTable(FileHeader, AssessmentFileData)
-	return resp
+	fmt.Println("test", resp)
+	resp.FileResp = append(resp.FileResp, fileResp...)
+	return &resp
 }
 
 func myFunc(volSource v1.VolumeSource) (error, reflect.Type) {
