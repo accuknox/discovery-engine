@@ -59,19 +59,34 @@ func CheckLicenseSecret() error {
 		return errors.New("license secret doesn't exist for discovery-engine")
 	}
 
-	l := &License{
+	if string(secret.Data["user-id"]) == "" || string(secret.Data["key"]) == "" {
+		err := fmt.Errorf("invalid secret exists for license")
+		log.Error().Msgf("error: %s", err)
+		return err
+	}
+
+	LCfg.Lcs = &License{
 		UserId: string(secret.Data["user-id"]),
 		Key:    string(secret.Data["key"]),
 	}
-	err = l.ValidateLicense()
-	// Initialize to global config only after validation is done.
-	LCfg.Lcs = l
+	LCfg.Tkn, _ = LCfg.Lcs.getLicenseToken()
+
+	err = LCfg.Tkn.checkTokenExpiration()
 	if err != nil {
 		log.Error().Msgf("error while validating license retrieved through secrets, error: %s", err.Error())
 		return err
 	}
 
 	log.Info().Msgf("license validation successfully for user-id: %s with key: %s", LCfg.Lcs.UserId, LCfg.Lcs.Key)
+	return nil
+}
+
+func (t *Token) checkTokenExpiration() error {
+	if t.checkExpiration() {
+		err := fmt.Errorf("license is expired, valid license doesn't exist with user-id: %s, key: %s and platform uuid: %s", LCfg.Lcs.UserId, LCfg.Lcs.Key, LCfg.Lcs.PlatformUUID)
+		log.Error().Msgf("%s", err)
+		return err
+	}
 	return nil
 }
 
@@ -95,21 +110,9 @@ func (l *License) ValidateLicense() error {
 		//}
 	}
 
-	l.PlatformUUID, err = LCfg.getKubeSystemUUID()
-	if err != nil {
-		log.Error().Msgf("error while fetching uuid of kube-system namespace, error: %s", err.Error())
-		return err
-	}
+	t, err := l.getLicenseToken()
 
-	decryptedKey, err := decryptKey(l.Key, l.PlatformUUID)
 	if err != nil {
-		log.Error().Msgf("error while decrypting license key, error: %s", err.Error())
-		return err
-	}
-
-	t, err := validateToken(decryptedKey, l.UserId)
-	if err != nil {
-		log.Error().Msgf("error while validating jwt token")
 		return err
 	}
 
@@ -136,6 +139,28 @@ func (l *License) ValidateLicense() error {
 	log.Info().Msgf("secret for discovery engine license with name: %s and uuid: %s", secret.GetName(), secret.GetUID())
 	log.Info().Msgf("license installed successfully")
 	return nil
+}
+
+func (l *License) getLicenseToken() (*Token, error) {
+	var err error
+	l.PlatformUUID, err = LCfg.getKubeSystemUUID()
+	if err != nil {
+		log.Error().Msgf("error while fetching uuid of kube-system namespace, error: %s", err.Error())
+		return nil, err
+	}
+
+	decryptedKey, err := decryptKey(l.Key, l.PlatformUUID)
+	if err != nil {
+		log.Error().Msgf("error while decrypting license key, error: %s", err.Error())
+		return nil, err
+	}
+
+	t, err := validateToken(decryptedKey, l.UserId)
+	if err != nil {
+		log.Error().Msgf("error while validating jwt token")
+		return t, err
+	}
+	return t, nil
 }
 
 func (cfg *LicenseConfig) getKubeSystemUUID() (string, error) {
@@ -170,7 +195,7 @@ type Claims struct {
 func validateToken(decryptedKey string, userId string) (*Token, error) {
 
 	claims := &Claims{}
-
+	t := &Token{}
 	key, err := jwt.ParseRSAPublicKeyFromPEM([]byte(publicKey))
 	if err != nil {
 		return nil, fmt.Errorf("error parsing RSA public key: %v\n", err)
@@ -182,20 +207,22 @@ func validateToken(decryptedKey string, userId string) (*Token, error) {
 		}
 		return key, nil
 	})
+
+	if jwtToken != nil {
+		t = &Token{
+			jwt:    jwtToken,
+			claims: claims,
+		}
+	}
 	if err != nil {
 		log.Error().Msgf("error while parsing jwt token, error: %s", err.Error())
-		return nil, err
-	}
-
-	t := &Token{
-		jwt:    jwtToken,
-		claims: claims,
+		return t, err
 	}
 
 	err = t.validateClaims(userId)
 	if err != nil {
 		log.Error().Msgf("error while validating claims of jwt token, error: %s", err.Error())
-		return nil, err
+		return t, err
 	}
 
 	return t, err
