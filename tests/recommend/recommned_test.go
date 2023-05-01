@@ -10,7 +10,7 @@ import (
 	"github.com/accuknox/auto-policy-discovery/src/cluster"
 	"github.com/accuknox/auto-policy-discovery/src/recommendpolicy"
 	"github.com/accuknox/auto-policy-discovery/src/types"
-	"github.com/kubearmor/KubeArmor/tests/util"
+	"github.com/kubearmor/discovery-engine/tests/util"
 	"github.com/rs/zerolog"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
