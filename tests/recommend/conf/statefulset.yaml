@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-statefulset
+  namespace: rs-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: statefulset-app
+  serviceName: my-service
+  template:
+    metadata:
+      labels:
+        app: statefulset-app
+    spec:
+      containers:
+      - name: my-container
+        image: nginx:latest
+        ports:
+        - containerPort: 80

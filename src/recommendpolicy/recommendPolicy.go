@@ -2,6 +2,7 @@ package recommendpolicy
 
 import (
 	"context"
+
 	"github.com/accuknox/auto-policy-discovery/src/admissioncontrollerpolicy"
 	"github.com/accuknox/auto-policy-discovery/src/cluster"
 	cfg "github.com/accuknox/auto-policy-discovery/src/config"
@@ -10,6 +11,7 @@ import (
 	"github.com/accuknox/auto-policy-discovery/src/types"
 	"github.com/robfig/cron"
 	"github.com/rs/zerolog"
+	v1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -31,13 +33,12 @@ var RecommendStopChan chan struct{}
 // const values
 const (
 	// operation mode
-	OP_MODE_NOOP    = 0
-	OP_MODE_CRONJOB = 1
-	OP_MODE_ONETIME = 2
+	opModeNoop    = 0
+	opModeCronjob = 1
 
 	// status
-	STATUS_RUNNING = "running"
-	STATUS_IDLE    = "idle"
+	statusRunning = "running"
+	statusIdle    = "idle"
 )
 
 // CurrentVersion stores the current version of policy-template
@@ -55,20 +56,20 @@ var DeployNsName []types.Deployment
 // init Function
 func init() {
 	log = logger.GetInstance()
-	RecommendWorkerStatus = STATUS_IDLE
+	RecommendWorkerStatus = statusIdle
 	RecommendStopChan = make(chan struct{})
 }
 
 // StartRecommendWorker starts the recommended worker
 func StartRecommendWorker() {
-	if RecommendWorkerStatus != STATUS_IDLE {
+	if RecommendWorkerStatus != statusIdle {
 		log.Info().Msg("There is no idle recommend policy worker")
 
 		return
 	}
-	if cfg.GetCfgRecOperationMode() == OP_MODE_NOOP { // Do not run the operation
+	if cfg.GetCfgRecOperationMode() == opModeNoop { // Do not run the operation
 		log.Info().Msg("Recommendation operation mode is NOOP ... NO RECOMMENDED POLICY")
-	} else if cfg.GetCfgRecOperationMode() == OP_MODE_CRONJOB { // every time intervals
+	} else if cfg.GetCfgRecOperationMode() == opModeCronjob { // every time intervals
 		DeployNsName = []types.Deployment{}
 		log.Info().Msg("Recommended policy cron job started")
 		RecommendPolicyMain()
@@ -81,10 +82,10 @@ func StartRecommendWorker() {
 
 // StopRecommendWorker stops the recommendation worker
 func StopRecommendWorker() {
-	if cfg.GetCfgRecOperationMode() == OP_MODE_CRONJOB { // every time intervals
+	if cfg.GetCfgRecOperationMode() == opModeCronjob { // every time intervals
 		StopRecommendCronJob()
 	} else {
-		if RecommendWorkerStatus != STATUS_RUNNING {
+		if RecommendWorkerStatus != statusRunning {
 			log.Info().Msg("There is no running policy recommendation worker")
 			return
 		}
@@ -122,20 +123,37 @@ func StopRecommendCronJob() {
 // RecommendPolicyMain generates recommended policies from policy-template GH
 func RecommendPolicyMain() {
 
-	nsNotFilterSysPolicy := cfg.CurrentCfg.ConfigSysPolicy.NsNotFilter
-
-	if !isLatest() {
-		if _, err := DownloadAndUnzipRelease(); err != nil {
-			log.Error().Msgf("Unable to download %v", err.Error())
-		}
-	}
+	nsNotFilter := cfg.CurrentCfg.ConfigSysPolicy.NsNotFilter
 	client := cluster.ConnectK8sClient()
 	deployments, err := client.AppsV1().Deployments("").List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		log.Error().Msg(err.Error())
 		return
 	}
+	replicaSets, err := client.AppsV1().ReplicaSets("").List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		log.Error().Msg("Error getting replicasets err=" + err.Error())
+		return
+	}
+	statefulSets, err := client.AppsV1().StatefulSets("").List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		log.Error().Msg("Error getting statefulsets err=" + err.Error())
+		return
+	}
+	daemonsets, err := client.AppsV1().DaemonSets("").List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		log.Error().Msg("Error getting daemonsets err=" + err.Error())
+		return
+	}
+
 	systempolicy.InitSysPolicyDiscoveryConfiguration()
+	policies := GetHardenPolicy(deployments, replicaSets, statefulSets, daemonsets, nsNotFilter)
+	if policies == nil {
+		log.Error().Msg("Error generating hardened policies")
+		return
+	}
+	systempolicy.UpdateSysPolicies(policies)
+
 	admissioncontrollerpolicy.InitAdmissionControllerPolicyDiscoveryConfiguration()
 	for _, d := range deployments.Items {
 		deploy := uniqueNsDeploy(d.Name, d.Namespace)
@@ -144,7 +162,7 @@ func RecommendPolicyMain() {
 			DeployNsName = append(DeployNsName, *deploy)
 		}
 
-		for _, ns := range nsNotFilterSysPolicy {
+		for _, ns := range nsNotFilter {
 			if d.Namespace != ns {
 				generateHardenPolicy(d.Name, d.Namespace, d.Spec.Template.Labels)
 			}
@@ -159,16 +177,18 @@ func RecommendPolicyMain() {
 			generateAdmissionControllerPolicy(d.Name, d.Namespace, d.Spec.Template.Labels)
 		}
 	}
+
 }
 
-func generateHardenPolicy(name, namespace string, labels LabelMap) {
-	log.Info().Msgf("Generating hardening policy for deployment: %v in namespace: %v", name, namespace)
+func generateHardenPolicy(name, namespace string, labels LabelMap) []types.KnoxSystemPolicy {
+	log.Info().Msgf("Generating hardening policy for: %v in namespace: %v", name, namespace)
 	policies, err := generateKnoxSystemPolicy(name, namespace, labels)
+
 	if err != nil {
 		log.Error().Msg(err.Error())
-		return
+		return nil
 	}
-	systempolicy.UpdateSysPolicies(policies)
+	return policies
 }
 
 func generateAdmissionControllerPolicy(name, namespace string, labels LabelMap) {
@@ -198,4 +218,55 @@ func uniqueNsDeploy(deployName, deployNamespace string) *types.Deployment {
 	}
 
 	return &deploy
+}
+
+func GetHardenPolicy(deployments *v1.DeploymentList, replicaSets *v1.ReplicaSetList, statefulSets *v1.StatefulSetList, daemonSets *v1.DaemonSetList, nsNotFilter []string) []types.KnoxSystemPolicy {
+
+	var policies []types.KnoxSystemPolicy
+	if !isLatest() {
+		version, err := DownloadAndUnzipRelease()
+		if err != nil {
+			log.Error().Msgf("Unable to download %v", err.Error())
+			return nil
+		}
+		log.Info().Msgf("Downloaded version: %v", version)
+	}
+	for _, d := range deployments.Items {
+		deploy := uniqueNsDeploy(d.Name, d.Namespace)
+
+		if deploy != nil {
+			DeployNsName = append(DeployNsName, *deploy)
+		}
+
+		for _, ns := range nsNotFilter {
+			if d.Namespace != ns && len(d.ObjectMeta.OwnerReferences) == 0 {
+				policies = append(policies, generateHardenPolicy(d.Name, d.Namespace, d.Spec.Template.Labels)...)
+			}
+		}
+	}
+
+	for _, r := range replicaSets.Items {
+		for _, ns := range nsNotFilter {
+			if r.Namespace != ns && len(r.ObjectMeta.OwnerReferences) == 0 {
+				policies = append(policies, generateHardenPolicy(r.Name, r.Namespace, r.Spec.Template.Labels)...)
+			}
+		}
+	}
+
+	for _, s := range statefulSets.Items {
+		for _, ns := range nsNotFilter {
+			if s.Namespace != ns && len(s.ObjectMeta.OwnerReferences) == 0 {
+				policies = append(policies, generateHardenPolicy(s.Name, s.Namespace, s.Spec.Template.Labels)...)
+			}
+		}
+	}
+
+	for _, ds := range daemonSets.Items {
+		for _, ns := range nsNotFilter {
+			if ds.Namespace != ns && len(ds.ObjectMeta.OwnerReferences) == 0 {
+				policies = append(policies, generateHardenPolicy(ds.Name, ds.Namespace, ds.Spec.Template.Labels)...)
+			}
+		}
+	}
+	return policies
 }
