@@ -7,6 +7,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/mervick/aes-everywhere/go/aes256"
 	"github.com/rs/zerolog/log"
+	"github.com/spf13/viper"
 	"k8s.io/client-go/kubernetes"
 	"os"
 	"strings"
@@ -24,6 +25,7 @@ const (
 
 // LicenseConfig to store configs required for licensing
 type LicenseConfig struct {
+	Enabled   bool
 	k8sClient *kubernetes.Clientset
 	Tkn       *Token
 	Lcs       *License
@@ -40,7 +42,9 @@ var LCfg *LicenseConfig
 
 // InitializeConfig to initialize license config
 func InitializeConfig(k8sClient *kubernetes.Clientset) {
+	enabled := viper.GetBool("license.enabled")
 	LCfg = &LicenseConfig{
+		Enabled:   enabled,
 		k8sClient: k8sClient,
 		Tkn:       nil,
 		Lcs:       nil,

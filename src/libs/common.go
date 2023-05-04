@@ -152,6 +152,7 @@ func SetDefaultConfig() {
 	viper.SetDefault("recommend.operation-mode", 1)
 	viper.SetDefault("recommend.host-policy", true)
 	viper.SetDefault("recommend.admission-controller-policy", true)
+	viper.SetDefault("license.enabled", false)
 }
 
 type cfgArray []string
@@ -222,7 +223,7 @@ func CheckCommandLineConfig() {
 		os.Exit(0)
 	}
 
-	viper.SetConfigName(GetEnv("CONF_FILE_NAME", "conf"))
+	viper.SetConfigName(GetEnv("CONF_FILE_NAME", "local"))
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath(*configFilePath)
 	if err := viper.ReadInConfig(); err != nil {
