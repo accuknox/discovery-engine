@@ -223,7 +223,7 @@ func CheckCommandLineConfig() {
 		os.Exit(0)
 	}
 
-	viper.SetConfigName(GetEnv("CONF_FILE_NAME", "local"))
+	viper.SetConfigName(GetEnv("CONF_FILE_NAME", "conf"))
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath(*configFilePath)
 	if err := viper.ReadInConfig(); err != nil {

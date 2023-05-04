@@ -139,6 +139,7 @@ data:
     # license
     license:
       enabled: false
+      validate: "user-id"
 ---
 apiVersion: v1
 kind: Service

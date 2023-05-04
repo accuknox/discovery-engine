@@ -74,4 +74,6 @@ recommend:
 
 # license
 license:
-  enabled: false
+  enabled: true
+  # validate can be user-id or platform-uuid
+  validate: "user-id"

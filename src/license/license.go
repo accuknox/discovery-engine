@@ -26,6 +26,7 @@ const (
 // LicenseConfig to store configs required for licensing
 type LicenseConfig struct {
 	Enabled   bool
+	validate  string
 	k8sClient *kubernetes.Clientset
 	Tkn       *Token
 	Lcs       *License
@@ -43,8 +44,10 @@ var LCfg *LicenseConfig
 // InitializeConfig to initialize license config
 func InitializeConfig(k8sClient *kubernetes.Clientset) {
 	enabled := viper.GetBool("license.enabled")
+	validate := viper.GetString("license.validate")
 	LCfg = &LicenseConfig{
 		Enabled:   enabled,
+		validate:  validate,
 		k8sClient: k8sClient,
 		Tkn:       nil,
 		Lcs:       nil,
@@ -147,13 +150,20 @@ func (l *License) ValidateLicense() error {
 
 func (l *License) getLicenseToken() (*Token, error) {
 	var err error
-	l.PlatformUUID, err = LCfg.getKubeSystemUUID()
-	if err != nil {
-		log.Error().Msgf("error while fetching uuid of kube-system namespace, error: %s", err.Error())
-		return nil, err
+	var passphrase string
+
+	if LCfg.validate == "platform-uuid" {
+		l.PlatformUUID, err = LCfg.getKubeSystemUUID()
+		if err != nil {
+			log.Error().Msgf("error while fetching uuid of kube-system namespace, error: %s", err.Error())
+			return nil, err
+		}
+		passphrase = l.PlatformUUID
+	} else {
+		passphrase = l.UserId
 	}
 
-	decryptedKey, err := decryptKey(l.Key, l.PlatformUUID)
+	decryptedKey, err := decryptKey(l.Key, passphrase)
 	if err != nil {
 		log.Error().Msgf("error while decrypting license key, error: %s", err.Error())
 		return nil, err
@@ -176,8 +186,8 @@ func (cfg *LicenseConfig) getKubeSystemUUID() (string, error) {
 	return uuid, nil
 }
 
-func decryptKey(key string, platformUUID string) (string, error) {
-	decryptedKey := aes256.Decrypt(key, platformUUID)
+func decryptKey(key string, passphrase string) (string, error) {
+	decryptedKey := aes256.Decrypt(key, passphrase)
 	tokenSplit := strings.Split(decryptedKey, ".")
 	if len(tokenSplit) != 3 {
 		log.Error().Msgf("invalid licence key")

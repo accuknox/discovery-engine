@@ -36,3 +36,4 @@ logging:
 # license
 license:
   enabled: false
+  validate: "user-id"
