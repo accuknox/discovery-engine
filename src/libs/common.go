@@ -152,6 +152,7 @@ func SetDefaultConfig() {
 	viper.SetDefault("recommend.operation-mode", 1)
 	viper.SetDefault("recommend.host-policy", true)
 	viper.SetDefault("recommend.admission-controller-policy", true)
+	viper.SetDefault("license.enabled", false)
 }
 
 type cfgArray []string
