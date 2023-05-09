@@ -589,6 +589,7 @@ func WriteKubeArmorPolicyToYamlFile(fname string, policies []types.KubeArmorPoli
 			continue
 		}
 		writeYamlByte(f, yamlBytes)
+		f.WriteString("---\n")
 	}
 
 	if err := f.Close(); err != nil {

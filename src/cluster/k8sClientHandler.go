@@ -6,8 +6,10 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/accuknox/auto-policy-discovery/src/config"
 	"github.com/accuknox/auto-policy-discovery/src/libs"
 	"github.com/accuknox/auto-policy-discovery/src/types"
+	"github.com/rs/zerolog/log"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -346,6 +348,7 @@ func GetClusterNameFromK8sClient() string {
 
 func GetDeploymentsFromK8sClient() []types.Deployment {
 	results := []types.Deployment{}
+	nsNotFilter := config.CurrentCfg.ConfigSysPolicy.NsNotFilter
 
 	client := ConnectK8sClient()
 	if client == nil {
@@ -361,8 +364,10 @@ func GetDeploymentsFromK8sClient() []types.Deployment {
 	}
 
 	for _, d := range deployments.Items {
-		if d.Namespace == "kube-system" {
-			continue
+		for _, notns := range nsNotFilter {
+			if strings.Contains(d.Namespace, notns) {
+				continue
+			}
 		}
 
 		if d.Spec.Selector.MatchLabels != nil {
@@ -379,9 +384,9 @@ func GetDeploymentsFromK8sClient() []types.Deployment {
 			})
 		}
 	}
-
 	results = append(results, GetReplicaSetsFromK8sClient()...)
 	results = append(results, GetStatefulSetsFromK8sClient()...)
+	results = append(results, GetDaemonSetsFromK8sClient()...)
 
 	return results
 }
@@ -392,6 +397,7 @@ func GetDeploymentsFromK8sClient() []types.Deployment {
 
 func GetReplicaSetsFromK8sClient() []types.Deployment {
 	results := []types.Deployment{}
+	nsNotFilter := config.CurrentCfg.ConfigSysPolicy.NsNotFilter
 
 	client := ConnectK8sClient()
 	if client == nil {
@@ -408,8 +414,10 @@ func GetReplicaSetsFromK8sClient() []types.Deployment {
 
 	for _, rs := range replicasets.Items {
 		if rs.OwnerReferences == nil {
-			if rs.Namespace == "kube-system" {
-				continue
+			for _, notns := range nsNotFilter {
+				if strings.Contains(rs.Namespace, notns) {
+					continue
+				}
 			}
 
 			if rs.Spec.Selector.MatchLabels != nil {
@@ -431,11 +439,59 @@ func GetReplicaSetsFromK8sClient() []types.Deployment {
 }
 
 // ================= //
+// == Daemonset  == //
+// ================= //
+
+func GetDaemonSetsFromK8sClient() []types.Deployment {
+	results := []types.Deployment{}
+	nsNotFilter := config.CurrentCfg.ConfigSysPolicy.NsNotFilter
+
+	client := ConnectK8sClient()
+	if client == nil {
+		log.Error().Msg("failed to create k8s client")
+		return results
+	}
+
+	// get namespaces from k8s api client
+	daemonsets, err := client.AppsV1().DaemonSets("").List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return results
+	}
+
+	for _, ds := range daemonsets.Items {
+		if ds.OwnerReferences == nil {
+			for _, notns := range nsNotFilter {
+				if strings.Contains(ds.Namespace, notns) {
+					continue
+				}
+			}
+
+			if ds.Spec.Selector.MatchLabels != nil {
+				var labels []string
+
+				for k, v := range ds.Spec.Selector.MatchLabels {
+					labels = append(labels, k+"="+v)
+				}
+
+				results = append(results, types.Deployment{
+					Name:      ds.Name,
+					Namespace: ds.Namespace,
+					Labels:    strings.Join(labels, ","),
+				})
+			}
+		}
+	}
+	return results
+}
+
+// ================= //
 // == StatefulSet == //
 // ================= //
 
 func GetStatefulSetsFromK8sClient() []types.Deployment {
 	results := []types.Deployment{}
+	nsNotFilter := config.CurrentCfg.ConfigSysPolicy.NsNotFilter
 
 	client := ConnectK8sClient()
 	if client == nil {
@@ -452,8 +508,10 @@ func GetStatefulSetsFromK8sClient() []types.Deployment {
 
 	for _, sts := range statefulset.Items {
 		if sts.OwnerReferences == nil {
-			if sts.Namespace == "kube-system" {
-				continue
+			for _, notns := range nsNotFilter {
+				if strings.Contains(sts.Namespace, notns) {
+					continue
+				}
 			}
 
 			if sts.Spec.Selector.MatchLabels != nil {
