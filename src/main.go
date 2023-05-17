@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"math/rand"
 	"net"
 	"os"
@@ -44,7 +43,9 @@ func init() {
 		// Server for pprof
 		go func() {
 			log.Info().Msgf("pprof enabled on :6060\n")
-			fmt.Println(http.ListenAndServe(":6060", nil))
+			r := http.NewServeMux()
+			r.Handle("/debug/", http.DefaultServeMux)
+			http.ListenAndServe(":6060", r)
 		}()
 	}
 
