@@ -45,7 +45,7 @@ func init() {
 			log.Info().Msgf("pprof enabled on :6060\n")
 			r := http.NewServeMux()
 			r.Handle("/debug/", http.DefaultServeMux)
-			http.ListenAndServe(":6060", r)
+			http.ListenAndServe("localhost:6060", r)
 		}()
 	}
 
