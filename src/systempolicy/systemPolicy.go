@@ -1473,7 +1473,9 @@ func StartSystemLogRcvr() {
 						break
 					}
 				}
-				return
+			}
+			if url == "" {
+				url = cfg.CurrentCfg.ConfigKubeArmorRelay.KubeArmorRelayURL
 			}
 			plugin.StartKubeArmorRelay(SystemStopChan, types.ConfigKubeArmorRelay{
 				KubeArmorRelayURL:  url,

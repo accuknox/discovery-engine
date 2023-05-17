@@ -125,6 +125,9 @@ func RecommendPolicyMain() {
 
 	nsNotFilter := cfg.CurrentCfg.ConfigSysPolicy.NsNotFilter
 	client := cluster.ConnectK8sClient()
+	if client == nil {
+		return
+	}
 	deployments, err := client.AppsV1().Deployments("").List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		log.Error().Msg(err.Error())

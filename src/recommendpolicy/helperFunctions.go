@@ -4,8 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/accuknox/auto-policy-discovery/src/admissioncontrollerpolicy"
 	"strings"
+
+	"github.com/accuknox/auto-policy-discovery/src/admissioncontrollerpolicy"
 
 	"github.com/clarketm/json"
 	kyvernov1 "github.com/kyverno/kyverno/api/kyverno/v1"
@@ -78,7 +79,6 @@ func generateKnoxSystemPolicy(name, namespace string, labels LabelMap) ([]types.
 				}
 				policies = append(policies, policy)
 			} else if ms.Kind == types.KindKubeArmorHostPolicy && cfg.GetCfgRecommendHostPolicy() {
-
 				nodeList, err := cluster.GetNodesFromK8sClient()
 				if err != nil {
 					log.Error().Msg(err.Error())
@@ -218,6 +218,11 @@ func addPolicyRule(policy *types.KnoxSystemPolicy, r *types.KnoxSystemSpec) {
 
 func initDeploymentWatcher() {
 	clientset := cluster.ConnectK8sClient()
+
+	if clientset == nil {
+		return
+	}
+
 	watcher, err := clientset.AppsV1().Deployments("").Watch(context.TODO(), metav1.ListOptions{})
 
 	if err != nil {
