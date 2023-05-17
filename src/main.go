@@ -3,11 +3,10 @@ package main
 import (
 	"math/rand"
 	"net"
+	"net/http"
+	"net/http/pprof"
 	"os"
 	"time"
-
-	"net/http"
-	_ "net/http/pprof"
 
 	"github.com/accuknox/auto-policy-discovery/src/cluster"
 	"github.com/accuknox/auto-policy-discovery/src/config"
@@ -38,14 +37,16 @@ func init() {
 	log = logger.GetInstance()
 
 	//Get pprof flag
-	pprof := viper.GetBool("pprof")
-	if pprof {
+	if viper.GetBool("pprof") {
 		// Server for pprof
 		go func() {
 			log.Info().Msgf("pprof enabled on :6060\n")
-			r := http.NewServeMux()
-			r.Handle("/debug/", http.DefaultServeMux)
-			http.ListenAndServe(":6060", r)
+			http.Handle("/debug/pprof/", http.HandlerFunc(pprof.Index))
+			http.Handle("/debug/pprof/cmdline", http.HandlerFunc(pprof.Cmdline))
+			http.Handle("/debug/pprof/profile", http.HandlerFunc(pprof.Profile))
+			http.Handle("/debug/pprof/symbol", http.HandlerFunc(pprof.Symbol))
+			http.Handle("/debug/pprof/trace", http.HandlerFunc(pprof.Trace))
+			http.ListenAndServe(":6060", nil)
 		}()
 	}
 
