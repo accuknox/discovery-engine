@@ -125,3 +125,5 @@ license:
   enabled: false
   # validate can be user-id or platform-uuid
   validate: "user-id"
+
+pprof: false

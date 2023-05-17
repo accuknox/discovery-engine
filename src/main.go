@@ -1,6 +1,15 @@
 package main
 
 import (
+	"fmt"
+	"math/rand"
+	"net"
+	"os"
+	"time"
+
+	"net/http"
+	_ "net/http/pprof"
+
 	"github.com/accuknox/auto-policy-discovery/src/cluster"
 	"github.com/accuknox/auto-policy-discovery/src/config"
 	"github.com/accuknox/auto-policy-discovery/src/libs"
@@ -10,10 +19,6 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
-	"math/rand"
-	"net"
-	"os"
-	"time"
 )
 
 var cfg cluster.Config
@@ -32,6 +37,16 @@ func init() {
 	// 2. setup logger
 	logger.SetLogLevel(viper.GetString("logging.level"))
 	log = logger.GetInstance()
+
+	//Get pprof flag
+	pprof := viper.GetBool("pprof")
+	if pprof {
+		// Server for pprof
+		go func() {
+			log.Info().Msgf("pprof enabled on :6060\n")
+			fmt.Println(http.ListenAndServe(":6060", nil))
+		}()
+	}
 
 	log.Info().Msgf("NETWORK-POLICY: %+v", config.GetCfgNet())
 	log.Info().Msgf("CILIUM: %+v", config.GetCfgCiliumHubble())
