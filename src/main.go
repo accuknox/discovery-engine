@@ -46,7 +46,15 @@ func init() {
 			http.Handle("/debug/pprof/profile", http.HandlerFunc(pprof.Profile))
 			http.Handle("/debug/pprof/symbol", http.HandlerFunc(pprof.Symbol))
 			http.Handle("/debug/pprof/trace", http.HandlerFunc(pprof.Trace))
-			http.ListenAndServe(":6060", nil)
+
+			server := &http.Server{
+				Addr:              ":6060",
+				ReadHeaderTimeout: 5 * time.Second,
+			}
+
+			if err := server.ListenAndServe(); err != nil {
+				log.Error().Msgf("failed to serve : %+v", err.Error())
+			}
 		}()
 	}
 
@@ -95,6 +103,7 @@ func main() {
 
 }
 
+// CreateListenerAndGrpcServer - Creates a new connection and listens on a given port
 func CreateListenerAndGrpcServer() (net.Listener, *grpc.Server) {
 	// create server
 	lis, err := net.Listen("tcp", ":"+grpcserver.PortNumber)
