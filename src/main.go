@@ -46,7 +46,13 @@ func init() {
 			http.Handle("/debug/pprof/profile", http.HandlerFunc(pprof.Profile))
 			http.Handle("/debug/pprof/symbol", http.HandlerFunc(pprof.Symbol))
 			http.Handle("/debug/pprof/trace", http.HandlerFunc(pprof.Trace))
-			http.ListenAndServe(":6060", nil)
+
+			server := &http.Server{
+				Addr:              ":6060",
+				ReadHeaderTimeout: 5 * time.Second,
+			}
+
+			server.ListenAndServe()
 		}()
 	}
 
