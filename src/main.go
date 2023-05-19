@@ -103,6 +103,7 @@ func main() {
 
 }
 
+// CreateListenerAndGrpcServer - Creates a new connection and listens on a given port
 func CreateListenerAndGrpcServer() (net.Listener, *grpc.Server) {
 	// create server
 	lis, err := net.Listen("tcp", ":"+grpcserver.PortNumber)
