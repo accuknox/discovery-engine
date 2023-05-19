@@ -52,7 +52,9 @@ func init() {
 				ReadHeaderTimeout: 5 * time.Second,
 			}
 
-			server.ListenAndServe()
+			if err := server.ListenAndServe(); err != nil {
+				log.Error().Msgf("failed to serve : %+v", err.Error())
+			}
 		}()
 	}
 
