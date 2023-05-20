@@ -84,3 +84,6 @@ recommend:
 license:
   enabled: false
   validate: "user-id"
+
+# pprof
+pprof: false

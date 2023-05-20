@@ -1,6 +1,13 @@
 package main
 
 import (
+	"math/rand"
+	"net"
+	"net/http"
+	"net/http/pprof"
+	"os"
+	"time"
+
 	"github.com/accuknox/auto-policy-discovery/src/cluster"
 	"github.com/accuknox/auto-policy-discovery/src/config"
 	"github.com/accuknox/auto-policy-discovery/src/libs"
@@ -10,10 +17,6 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
-	"math/rand"
-	"net"
-	"os"
-	"time"
 )
 
 var cfg cluster.Config
@@ -32,6 +35,28 @@ func init() {
 	// 2. setup logger
 	logger.SetLogLevel(viper.GetString("logging.level"))
 	log = logger.GetInstance()
+
+	//Get pprof flag
+	if viper.GetBool("pprof") {
+		// Server for pprof
+		go func() {
+			log.Info().Msgf("pprof enabled on :6060\n")
+			http.Handle("/debug/pprof/", http.HandlerFunc(pprof.Index))
+			http.Handle("/debug/pprof/cmdline", http.HandlerFunc(pprof.Cmdline))
+			http.Handle("/debug/pprof/profile", http.HandlerFunc(pprof.Profile))
+			http.Handle("/debug/pprof/symbol", http.HandlerFunc(pprof.Symbol))
+			http.Handle("/debug/pprof/trace", http.HandlerFunc(pprof.Trace))
+
+			server := &http.Server{
+				Addr:              ":6060",
+				ReadHeaderTimeout: 5 * time.Second,
+			}
+
+			if err := server.ListenAndServe(); err != nil {
+				log.Error().Msgf("failed to serve : %+v", err.Error())
+			}
+		}()
+	}
 
 	log.Info().Msgf("NETWORK-POLICY: %+v", config.GetCfgNet())
 	log.Info().Msgf("CILIUM: %+v", config.GetCfgCiliumHubble())
@@ -78,6 +103,7 @@ func main() {
 
 }
 
+// CreateListenerAndGrpcServer - Creates a new connection and listens on a given port
 func CreateListenerAndGrpcServer() (net.Listener, *grpc.Server) {
 	// create server
 	lis, err := net.Listen("tcp", ":"+grpcserver.PortNumber)
