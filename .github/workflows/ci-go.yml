@@ -15,9 +15,9 @@ jobs:
       - name: Checkout Source
         uses: actions/checkout@v2
 
-      - uses: actions/setup-go@v2
+      - uses: actions/setup-go@v3
         with:
-          go-version: v1.18
+          go-version: v1.20
 
       - name: Check gofmt
         run: gofmt -s -d $(find . -type f -name '*.go' -print)
@@ -40,9 +40,9 @@ jobs:
       - name: Checkout Source
         uses: actions/checkout@v2
 
-      - uses: actions/setup-go@v2
+      - uses: actions/setup-go@v3
         with:
-          go-version: v1.18
+          go-version: v1.20
 
       - name: Run Gosec Security Scanner
         run: |
@@ -57,9 +57,9 @@ jobs:
       - name: Checkout Source
         uses: actions/checkout@v2
 
-      - uses: actions/setup-go@v2
+      - uses: actions/setup-go@v3
         with:
-          go-version: v1.18
+          go-version: v1.20
         
       - name: Setup Enviroment
         run: |  
