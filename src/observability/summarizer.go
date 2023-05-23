@@ -76,6 +76,9 @@ func extractNetworkInfoFromSystemLog(netLog pb.Alert, pods []types.Pod, services
 func convertSysLogToSysSummaryMap(syslogs []*pb.Alert) {
 
 	deployments := cluster.GetDeploymentsFromK8sClient()
+	deployments = append(deployments, cluster.GetReplicaSetsFromK8sClient()...)
+	deployments = append(deployments, cluster.GetStatefulSetsFromK8sClient()...)
+	deployments = append(deployments, cluster.GetDaemonSetsFromK8sClient()...)
 
 	var services []types.Service
 	var pods []types.Pod

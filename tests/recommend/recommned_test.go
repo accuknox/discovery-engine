@@ -1,7 +1,6 @@
 package recommend_test
 
 import (
-	"context"
 	"fmt"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -12,35 +11,31 @@ import (
 	"github.com/accuknox/auto-policy-discovery/src/types"
 	"github.com/kubearmor/discovery-engine/tests/util"
 	"github.com/rs/zerolog"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var log *zerolog.Logger
 
 func GetPolicy() []types.KnoxSystemPolicy {
-	client := cluster.ConnectK8sClient()
 	nsNotFilter := []string{"kube-system"}
 
-	deployments, err := client.AppsV1().Deployments("").List(context.Background(), metav1.ListOptions{})
-	if err != nil {
-		log.Error().Msg(err.Error())
+	deployments := cluster.GetDeploymentsFromK8sClient()
+	if deployments == nil {
+		log.Error().Msg("Error getting Deployments from k8s client.")
 		return nil
 	}
-	replicaSets, err := client.AppsV1().ReplicaSets("").List(context.Background(), metav1.ListOptions{})
-	if err != nil {
-		log.Error().Msg("error getting replicasets err=" + err.Error())
+	replicaSets := cluster.GetReplicaSetsFromK8sClient()
+	if replicaSets == nil {
+		log.Error().Msg("Error getting ReplicaSets from k8s client")
 		return nil
 	}
-
-	statefulSets, err := client.AppsV1().StatefulSets("").List(context.Background(), metav1.ListOptions{})
-	if err != nil {
-		log.Error().Msg("error getting statefulsets err=" + err.Error())
+	statefulSets := cluster.GetStatefulSetsFromK8sClient()
+	if statefulSets == nil {
+		log.Error().Msg("Error getting StatefulSets from k8s client")
 		return nil
 	}
-
-	daemonSets, err := client.AppsV1().DaemonSets("").List(context.Background(), metav1.ListOptions{})
-	if err != nil {
-		log.Error().Msg("error getting daemonsets err=" + err.Error())
+	daemonSets := cluster.GetDaemonSetsFromK8sClient()
+	if daemonSets == nil {
+		log.Error().Msg("Error getting DaemonSets from k8s client")
 		return nil
 	}
 
