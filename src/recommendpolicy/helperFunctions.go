@@ -11,6 +11,7 @@ import (
 	"github.com/clarketm/json"
 	kyvernov1 "github.com/kyverno/kyverno/api/kyverno/v1"
 	v1 "k8s.io/api/apps/v1"
+	apiextv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 
@@ -150,19 +151,39 @@ func createRestrictAutomountSATokenPolicy(ms types.MatchSpec, name, namespace st
 	policySpec.Rules[0].MatchResources.Any[0].ResourceDescription.Kinds = []string{"Deployment"}
 
 	// Add precondition to match on particular labels
-	preconditions := policySpec.Rules[0].AnyAllConditions
-	autogenPreconditions := admissioncontrollerpolicy.AutoGenPrecondition("template", labels, preconditions)
-	policySpec.Rules[0].AnyAllConditions = autogenPreconditions
-	log.Info().Msgf("auto-gen precondition: %v", autogenPreconditions)
+	preconditions := policySpec.Rules[0].RawAnyAllConditions
+	autogenPreconditions := admissioncontrollerpolicy.AutoGenPrecondition("template", labels, *preconditions)
+	policySpec.Rules[0].RawAnyAllConditions = &autogenPreconditions
+	logAutogenPreconditions(autogenPreconditions)
 
 	// Update pattern to match from pod -> deployment (autogen)
-	pattern := policySpec.Rules[0].Validation.Pattern
-	autogenPattern := admissioncontrollerpolicy.AutoGenPattern("template", pattern)
-	policySpec.Rules[0].Validation.Pattern = autogenPattern
-	log.Info().Msgf("auto-gen pattern: %v", autogenPattern)
+	pattern := policySpec.Rules[0].Validation.RawPattern
+	autogenPattern := admissioncontrollerpolicy.AutoGenPattern("template", *pattern)
+	policySpec.Rules[0].Validation.RawPattern = &autogenPattern
+	logAutogenPattern(autogenPattern)
 
 	policy.Spec = *policySpec
 	return policy
+}
+
+func logAutogenPattern(autogenPattern apiextv1.JSON) {
+	var autogenPatternMap map[string]interface{}
+	err := json.Unmarshal(autogenPattern.Raw, &autogenPatternMap)
+	if err != nil {
+		log.Error().Msgf("unmarshalling pattern failed err=%v", err.Error())
+	} else {
+		log.Info().Msgf("auto-gen pattern: %v", autogenPatternMap)
+	}
+}
+
+func logAutogenPreconditions(autogenPreconditions apiextv1.JSON) {
+	var autogenPreconditionsMap map[string]interface{}
+	err := json.Unmarshal(autogenPreconditions.Raw, &autogenPreconditionsMap)
+	if err != nil {
+		log.Error().Msgf("unmarshalling precondition failed err=%v", err.Error())
+	} else {
+		log.Info().Msgf("auto-gen precondition: %v", autogenPreconditionsMap)
+	}
 }
 
 func createPolicy(ms types.MatchSpec, name, namespace string, labels LabelMap) (types.KnoxSystemPolicy, error) {

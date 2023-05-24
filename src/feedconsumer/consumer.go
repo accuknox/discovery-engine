@@ -304,7 +304,7 @@ func (cfc *KnoxFeedConsumer) startConsumerPulsar() {
 
 		default:
 			ev := <-pulsarReceiver
-			sub.Ack(ev)
+			_ = sub.Ack(ev)
 			run = cfc.HandlePollEvent(ev.Message)
 		}
 	}
