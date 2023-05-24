@@ -1,7 +1,7 @@
 package recommendpolicy
 
 import (
-	"context"
+	"strings"
 
 	"github.com/accuknox/auto-policy-discovery/src/admissioncontrollerpolicy"
 	"github.com/accuknox/auto-policy-discovery/src/cluster"
@@ -9,10 +9,9 @@ import (
 	logger "github.com/accuknox/auto-policy-discovery/src/logging"
 	"github.com/accuknox/auto-policy-discovery/src/systempolicy"
 	"github.com/accuknox/auto-policy-discovery/src/types"
+	v1 "github.com/kyverno/kyverno/api/kyverno/v1"
 	"github.com/robfig/cron"
 	"github.com/rs/zerolog"
-	v1 "k8s.io/api/apps/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var log *zerolog.Logger
@@ -128,29 +127,29 @@ func RecommendPolicyMain() {
 	if client == nil {
 		return
 	}
-	deployments, err := client.AppsV1().Deployments("").List(context.Background(), metav1.ListOptions{})
-	if err != nil {
-		log.Error().Msg(err.Error())
+	deployments := cluster.GetDeploymentsFromK8sClient()
+	if deployments == nil {
+		log.Error().Msg("Error getting Deployments from k8s client.")
 		return
 	}
-	replicaSets, err := client.AppsV1().ReplicaSets("").List(context.Background(), metav1.ListOptions{})
-	if err != nil {
-		log.Error().Msg("Error getting replicasets err=" + err.Error())
+	replicaSets := cluster.GetReplicaSetsFromK8sClient()
+	if replicaSets == nil {
+		log.Error().Msg("Error getting ReplicaSets from k8s client")
 		return
 	}
-	statefulSets, err := client.AppsV1().StatefulSets("").List(context.Background(), metav1.ListOptions{})
-	if err != nil {
-		log.Error().Msg("Error getting statefulsets err=" + err.Error())
+	statefulSets := cluster.GetStatefulSetsFromK8sClient()
+	if statefulSets == nil {
+		log.Error().Msg("Error getting StatefulSets from k8s client")
 		return
 	}
-	daemonsets, err := client.AppsV1().DaemonSets("").List(context.Background(), metav1.ListOptions{})
-	if err != nil {
-		log.Error().Msg("Error getting daemonsets err=" + err.Error())
+	daemonSets := cluster.GetDaemonSetsFromK8sClient()
+	if daemonSets == nil {
+		log.Error().Msg("Error getting DaemonSets from k8s client")
 		return
 	}
 
 	systempolicy.InitSysPolicyDiscoveryConfiguration()
-	policies := GetHardenPolicy(deployments, replicaSets, statefulSets, daemonsets, nsNotFilter)
+	policies := GetHardenPolicy(deployments, replicaSets, statefulSets, daemonSets, nsNotFilter)
 	if policies == nil {
 		log.Error().Msg("Error generating hardened policies")
 		return
@@ -158,28 +157,8 @@ func RecommendPolicyMain() {
 	systempolicy.UpdateSysPolicies(policies)
 
 	admissioncontrollerpolicy.InitAdmissionControllerPolicyDiscoveryConfiguration()
-	for _, d := range deployments.Items {
-		deploy := uniqueNsDeploy(d.Name, d.Namespace)
 
-		if deploy != nil {
-			DeployNsName = append(DeployNsName, *deploy)
-		}
-
-		for _, ns := range nsNotFilter {
-			if d.Namespace != ns {
-				generateHardenPolicy(d.Name, d.Namespace, d.Spec.Template.Labels)
-			}
-		}
-
-		nsNotFilterAdmissionControllerPolicy := cfg.CurrentCfg.ConfigAdmissionControllerPolicy.NsNotFilter
-		nsFilterAdmissionControllerPolicy := cfg.CurrentCfg.ConfigAdmissionControllerPolicy.NsFilter
-		recommendAdmissionControllerPolicy := cfg.GetCfgRecommendAdmissionControllerPolicy()
-
-		if recommendAdmissionControllerPolicy &&
-			isNamespaceAllowed(d.Namespace, nsNotFilterAdmissionControllerPolicy, nsFilterAdmissionControllerPolicy) {
-			generateAdmissionControllerPolicy(d.Name, d.Namespace, d.Spec.Template.Labels)
-		}
-	}
+	GetAdmissionControllerPolicy(deployments, replicaSets, statefulSets, daemonSets)
 
 }
 
@@ -194,13 +173,16 @@ func generateHardenPolicy(name, namespace string, labels LabelMap) []types.KnoxS
 	return policies
 }
 
-func generateAdmissionControllerPolicy(name, namespace string, labels LabelMap) {
+func generateAdmissionControllerPolicy(name, namespace string, labels LabelMap) []v1.Policy {
 	policies, policiesToBeDeleted := generateKyvernoPolicy(name, namespace, labels)
+
 	admissioncontrollerpolicy.DeleteKyvernoPolicies(policiesToBeDeleted, namespace, labels)
 
 	// labels need to be passed as argument because labels in policies are set as preconditions
 	// deriving labels back from preconditions is error prone due to presence of other preconditions
 	admissioncontrollerpolicy.UpdateOrInsertKyvernoPolicies(policies, labels)
+
+	return policies
 }
 
 func uniqueNsDeploy(deployName, deployNamespace string) *types.Deployment {
@@ -223,7 +205,55 @@ func uniqueNsDeploy(deployName, deployNamespace string) *types.Deployment {
 	return &deploy
 }
 
-func GetHardenPolicy(deployments *v1.DeploymentList, replicaSets *v1.ReplicaSetList, statefulSets *v1.StatefulSetList, daemonSets *v1.DaemonSetList, nsNotFilter []string) []types.KnoxSystemPolicy {
+func GetAdmissionControllerPolicy(deployments, replicaSets, statefulSets, daemonSets []types.Deployment) []v1.Policy {
+
+	var policies []v1.Policy
+
+	nsNotFilterAdmissionControllerPolicy := cfg.CurrentCfg.ConfigAdmissionControllerPolicy.NsNotFilter
+	nsFilterAdmissionControllerPolicy := cfg.CurrentCfg.ConfigAdmissionControllerPolicy.NsFilter
+	recommendAdmissionControllerPolicy := cfg.GetCfgRecommendAdmissionControllerPolicy()
+
+	for _, d := range deployments {
+
+		labelMap := labelArrayToLabelMap(strings.Split(d.Labels, ","))
+
+		if recommendAdmissionControllerPolicy &&
+			isNamespaceAllowed(d.Namespace, nsNotFilterAdmissionControllerPolicy, nsFilterAdmissionControllerPolicy) {
+			policies = append(policies, generateAdmissionControllerPolicy(d.Name, d.Namespace, labelMap)...)
+		}
+	}
+	for _, d := range replicaSets {
+
+		labelMap := labelArrayToLabelMap(strings.Split(d.Labels, ","))
+
+		if recommendAdmissionControllerPolicy &&
+			isNamespaceAllowed(d.Namespace, nsNotFilterAdmissionControllerPolicy, nsFilterAdmissionControllerPolicy) {
+			policies = append(policies, generateAdmissionControllerPolicy(d.Name, d.Namespace, labelMap)...)
+		}
+	}
+	for _, d := range statefulSets {
+
+		labelMap := labelArrayToLabelMap(strings.Split(d.Labels, ","))
+
+		if recommendAdmissionControllerPolicy &&
+			isNamespaceAllowed(d.Namespace, nsNotFilterAdmissionControllerPolicy, nsFilterAdmissionControllerPolicy) {
+			policies = append(policies, generateAdmissionControllerPolicy(d.Name, d.Namespace, labelMap)...)
+		}
+	}
+	for _, d := range daemonSets {
+
+		labelMap := labelArrayToLabelMap(strings.Split(d.Labels, ","))
+
+		if recommendAdmissionControllerPolicy &&
+			isNamespaceAllowed(d.Namespace, nsNotFilterAdmissionControllerPolicy, nsFilterAdmissionControllerPolicy) {
+			policies = append(policies, generateAdmissionControllerPolicy(d.Name, d.Namespace, labelMap)...)
+		}
+	}
+
+	return policies
+}
+
+func GetHardenPolicy(deployments, replicaSets, statefulSets, daemonSets []types.Deployment, nsNotFilter []string) []types.KnoxSystemPolicy {
 
 	var policies []types.KnoxSystemPolicy
 	if !isLatest() {
@@ -234,7 +264,7 @@ func GetHardenPolicy(deployments *v1.DeploymentList, replicaSets *v1.ReplicaSetL
 		}
 		log.Info().Msgf("Downloaded version: %v", version)
 	}
-	for _, d := range deployments.Items {
+	for _, d := range deployments {
 		deploy := uniqueNsDeploy(d.Name, d.Namespace)
 
 		if deploy != nil {
@@ -242,32 +272,36 @@ func GetHardenPolicy(deployments *v1.DeploymentList, replicaSets *v1.ReplicaSetL
 		}
 
 		for _, ns := range nsNotFilter {
-			if d.Namespace != ns && len(d.ObjectMeta.OwnerReferences) == 0 {
-				policies = append(policies, generateHardenPolicy(d.Name, d.Namespace, d.Spec.Template.Labels)...)
+			if d.Namespace != ns {
+				labelMap := labelArrayToLabelMap(strings.Split(d.Labels, ","))
+				policies = append(policies, generateHardenPolicy(d.Name, d.Namespace, labelMap)...)
 			}
 		}
 	}
 
-	for _, r := range replicaSets.Items {
+	for _, r := range replicaSets {
 		for _, ns := range nsNotFilter {
-			if r.Namespace != ns && len(r.ObjectMeta.OwnerReferences) == 0 {
-				policies = append(policies, generateHardenPolicy(r.Name, r.Namespace, r.Spec.Template.Labels)...)
+			if r.Namespace != ns {
+				labelMap := labelArrayToLabelMap(strings.Split(r.Labels, ","))
+				policies = append(policies, generateHardenPolicy(r.Name, r.Namespace, labelMap)...)
 			}
 		}
 	}
 
-	for _, s := range statefulSets.Items {
+	for _, s := range statefulSets {
 		for _, ns := range nsNotFilter {
-			if s.Namespace != ns && len(s.ObjectMeta.OwnerReferences) == 0 {
-				policies = append(policies, generateHardenPolicy(s.Name, s.Namespace, s.Spec.Template.Labels)...)
+			if s.Namespace != ns {
+				labelMap := labelArrayToLabelMap(strings.Split(s.Labels, ","))
+				policies = append(policies, generateHardenPolicy(s.Name, s.Namespace, labelMap)...)
 			}
 		}
 	}
 
-	for _, ds := range daemonSets.Items {
+	for _, ds := range daemonSets {
 		for _, ns := range nsNotFilter {
-			if ds.Namespace != ns && len(ds.ObjectMeta.OwnerReferences) == 0 {
-				policies = append(policies, generateHardenPolicy(ds.Name, ds.Namespace, ds.Spec.Template.Labels)...)
+			if ds.Namespace != ns {
+				labelMap := labelArrayToLabelMap(strings.Split(ds.Labels, ","))
+				policies = append(policies, generateHardenPolicy(ds.Name, ds.Namespace, labelMap)...)
 			}
 		}
 	}

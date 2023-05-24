@@ -302,3 +302,19 @@ func isNamespaceAllowed(namespace string, nsNotFilter, nsFilter []string) bool {
 	}
 	return true
 }
+
+func labelSplitter(r rune) bool {
+	return r == ':' || r == '='
+}
+
+func labelArrayToLabelMap(labels []string) LabelMap {
+	labelMap := LabelMap{}
+	for _, label := range labels {
+		kvPair := strings.FieldsFunc(label, labelSplitter)
+		if len(kvPair) != 2 {
+			continue
+		}
+		labelMap[kvPair[0]] = kvPair[1]
+	}
+	return labelMap
+}

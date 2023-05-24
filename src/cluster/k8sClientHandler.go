@@ -443,7 +443,7 @@ func GetDeploymentsFromK8sClient() []types.Deployment {
 		return results
 	}
 
-	// get namespaces from k8s api client
+	// get deployment list from k8s api client
 	deployments, err := client.AppsV1().Deployments("").List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		log.Error().Msg(err.Error())
@@ -469,10 +469,6 @@ func GetDeploymentsFromK8sClient() []types.Deployment {
 			})
 		}
 	}
-
-	results = append(results, GetReplicaSetsFromK8sClient()...)
-	results = append(results, GetStatefulSetsFromK8sClient()...)
-
 	return results
 }
 
@@ -489,14 +485,14 @@ func GetReplicaSetsFromK8sClient() []types.Deployment {
 		return results
 	}
 
-	// get namespaces from k8s api client
-	replicasets, err := client.AppsV1().ReplicaSets("").List(context.Background(), metav1.ListOptions{})
+	// get ReplicaSet list from k8s api client
+	replicaSets, err := client.AppsV1().ReplicaSets("").List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		log.Error().Msg(err.Error())
 		return results
 	}
 
-	for _, rs := range replicasets.Items {
+	for _, rs := range replicaSets.Items {
 		if rs.OwnerReferences == nil {
 			if rs.Namespace == "kube-system" {
 				continue
@@ -533,14 +529,14 @@ func GetStatefulSetsFromK8sClient() []types.Deployment {
 		return results
 	}
 
-	// get namespaces from k8s api client
-	statefulset, err := client.AppsV1().StatefulSets("").List(context.Background(), metav1.ListOptions{})
+	// get StatefulSet List from k8s api client
+	statefulSets, err := client.AppsV1().StatefulSets("").List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		log.Error().Msg(err.Error())
 		return results
 	}
 
-	for _, sts := range statefulset.Items {
+	for _, sts := range statefulSets.Items {
 		if sts.OwnerReferences == nil {
 			if sts.Namespace == "kube-system" {
 				continue
@@ -556,6 +552,50 @@ func GetStatefulSetsFromK8sClient() []types.Deployment {
 				results = append(results, types.Deployment{
 					Name:      sts.Name,
 					Namespace: sts.Namespace,
+					Labels:    strings.Join(labels, ","),
+				})
+			}
+		}
+	}
+	return results
+}
+
+// ================= //
+// == DaemonSets == //
+// ================= //
+
+func GetDaemonSetsFromK8sClient() []types.Deployment {
+	results := []types.Deployment{}
+
+	client := ConnectK8sClient()
+	if client == nil {
+		log.Error().Msg("failed to create k8s client")
+		return results
+	}
+
+	// get DaemonSet List from k8s api client
+	daemonSets, err := client.AppsV1().DaemonSets("").List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return results
+	}
+
+	for _, rs := range daemonSets.Items {
+		if rs.OwnerReferences == nil {
+			if rs.Namespace == "kube-system" {
+				continue
+			}
+
+			if rs.Spec.Selector.MatchLabels != nil {
+				var labels []string
+
+				for k, v := range rs.Spec.Selector.MatchLabels {
+					labels = append(labels, k+"="+v)
+				}
+
+				results = append(results, types.Deployment{
+					Name:      rs.Name,
+					Namespace: rs.Namespace,
 					Labels:    strings.Join(labels, ","),
 				})
 			}
