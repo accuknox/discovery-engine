@@ -175,7 +175,8 @@ type ObsPodDetail struct {
 	ClusterName   string
 	ContainerName string
 	Labels        string
-	DeployName    string
+	ParentName    string
+	ParentType    string
 }
 
 type SysObsProcFileData struct {

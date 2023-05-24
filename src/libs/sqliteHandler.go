@@ -722,7 +722,8 @@ func CreateSystemSummaryTableSQLite(cfg types.ConfigDB) error {
 			"	`podname` varchar(50) DEFAULT NULL," +
 			"	`operation` varchar(10) DEFAULT NULL," +
 			"	`labels` varchar(100) DEFAULT NULL," +
-			"	`deployment_name` varchar(50) DEFAULT NULL," +
+			"	`resource_name` varchar(50) DEFAULT NULL," +
+			"	`resource_type` varchar(50) DEFAULT NULL," +
 			"	`source` varchar(100) DEFAULT NULL," +
 			"	`destination` varchar(100) DEFAULT NULL," +
 			"	`destination_namespace` varchar(50) DEFAULT NULL," +
@@ -1579,9 +1580,13 @@ func GetPodNamesSQLite(cfg types.ConfigDB, filter types.ObsPodDetail) ([]string,
 		concatWhereClause(&whereClause, "container_name")
 		sysargs = append(sysargs, filter.ContainerName)
 	}
-	if filter.DeployName != "" {
-		concatWhereClause(&whereClause, "deployment_name")
-		sysargs = append(sysargs, filter.DeployName)
+	if filter.ParentName != "" {
+		concatWhereClause(&whereClause, "resource_name")
+		sysargs = append(sysargs, filter.ParentName)
+	}
+	if filter.ParentType != "" {
+		concatWhereClause(&whereClause, "resource_type")
+		sysargs = append(sysargs, filter.ParentType)
 	}
 
 	results, err = db.Query(query+whereClause, sysargs...)
@@ -1604,17 +1609,17 @@ func GetPodNamesSQLite(cfg types.ConfigDB, filter types.ObsPodDetail) ([]string,
 	return resPodNames, err
 }
 
-func GetDeployNamesSQLite(cfg types.ConfigDB, filter types.ObsPodDetail) ([]string, error) {
+func GetDeployNamesSQLite(cfg types.ConfigDB, filter types.ObsPodDetail) (map[string]string, error) {
 	db := connectSQLite(cfg, config.GetCfgObservabilityDBName())
 	defer db.Close()
 
-	resDeployNames := []string{}
+	resDeployNames := map[string]string{}
 
 	var results *sql.Rows
 	var err error
 
-	// Get podnames from system table
-	query := "SELECT deployment_name FROM " + TableSystemSummarySQLite + " "
+	// Get resource_name and resource_type from system table
+	query := "SELECT resource_name, resource_type FROM " + TableSystemSummarySQLite + " "
 
 	var whereClause string
 	var sysargs []interface{}
@@ -1627,9 +1632,13 @@ func GetDeployNamesSQLite(cfg types.ConfigDB, filter types.ObsPodDetail) ([]stri
 		concatWhereClause(&whereClause, "namespace_name")
 		sysargs = append(sysargs, filter.Namespace)
 	}
-	if filter.DeployName != "" {
-		concatWhereClause(&whereClause, "deployment_name")
-		sysargs = append(sysargs, filter.DeployName)
+	if filter.ParentName != "" {
+		concatWhereClause(&whereClause, "resource_name")
+		sysargs = append(sysargs, filter.ParentName)
+	}
+	if filter.ParentType != "" {
+		concatWhereClause(&whereClause, "resource_type")
+		sysargs = append(sysargs, filter.ParentType)
 	}
 	if filter.Labels != "" {
 		concatWhereClause(&whereClause, "labels")
@@ -1644,13 +1653,14 @@ func GetDeployNamesSQLite(cfg types.ConfigDB, filter types.ObsPodDetail) ([]stri
 	defer results.Close()
 
 	for results.Next() {
-		var locDeployName string
+		var locDeployName, locDeployType string
 		if err := results.Scan(
 			&locDeployName,
+			&locDeployType,
 		); err != nil {
 			return nil, err
 		}
-		resDeployNames = append(resDeployNames, locDeployName)
+		resDeployNames[locDeployName] = locDeployType
 	}
 
 	return resDeployNames, err

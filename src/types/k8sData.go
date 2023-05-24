@@ -49,4 +49,5 @@ type Deployment struct {
 	Name      string `json:"name" bson:"name"`
 	Namespace string `json:"namespace" bson:"namespace"`
 	Labels    string `json:"labels" bson:"labels"`
+	Type      string `json:"type" bson:"type"`
 }

@@ -61,4 +61,12 @@ const (
 	// RecommendedPolicyDescriptionAnnotation is the annotation used to store the description of the recommended policy.
 	// This annotation is used to identify the description associated with a policy by kubearmor-client.
 	RecommendedPolicyDescriptionAnnotation = "policies.kyverno.io/description"
+
+	// Resource types
+	K8sDeploymentType   = "Deployment"
+	K8sStatefulSetsType = "StatefulSet"
+	K8sReplicaSetsType  = "ReplicaSet"
+	K8sDaemonSetsType   = "DaemonSet"
+	K8sJobsType         = "Job"
+	K8sCronJobsType     = "CronJob"
 )

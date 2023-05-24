@@ -115,7 +115,8 @@ func GetPodNames(request *opb.Request) (opb.PodNameResponse, error) {
 		ClusterName:   request.ClusterName,
 		ContainerName: request.ContainerName,
 		Labels:        request.Label,
-		DeployName:    request.DeployName,
+		ParentName:    request.ResourceOwner,
+		ParentType:    request.ResourceType,
 	})
 	if err != nil {
 		return opb.PodNameResponse{}, err
@@ -138,17 +139,18 @@ func GetDeployNames(request *opb.Request) (opb.DeployNameResponse, error) {
 		ClusterName:   request.ClusterName,
 		ContainerName: request.ContainerName,
 		Labels:        request.Label,
-		DeployName:    request.DeployName,
+		ParentName:    request.ResourceOwner,
+		ParentType:    request.ResourceType,
 	})
 	if err != nil {
 		return opb.DeployNameResponse{}, err
 	}
 
-	result = common.StringDeDuplication(result)
+	result = common.MapDeDuplicates(result)
 
 	if len(result) <= 0 {
 		return opb.DeployNameResponse{}, errors.New("no pods matching the input request")
 	}
 
-	return opb.DeployNameResponse{DeployName: result}, nil
+	return opb.DeployNameResponse{DeployData: result}, nil
 }

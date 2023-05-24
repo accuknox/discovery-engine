@@ -88,6 +88,22 @@ func StringDeDuplication(strSlice []string) []string {
 	return list
 }
 
+func MapDeDuplicates(inputMap map[string]string) map[string]string {
+	// Create a new map to store the unique values
+	uniqueMap := make(map[string]string)
+
+	// Iterate over the input map
+	for key, value := range inputMap {
+		// Check if the value already exists in the unique map
+		if _, exists := uniqueMap[key]; !exists {
+			// If not, add it to the unique map
+			uniqueMap[key] = value
+		}
+	}
+
+	return uniqueMap
+}
+
 func HashInt(s string) uint32 {
 	h := fnv.New32a()
 	_, _ = h.Write([]byte(s))

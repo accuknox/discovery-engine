@@ -15,6 +15,7 @@ message SummaryRequest{
     string PodName = 4;
     string DeploymentName = 5;
     string Operation = 6;
+    string ResourceType = 7;
 }
 
 message Workload {

@@ -15,6 +15,7 @@ type SummaryConsumer struct {
 	Namespace     string
 	Labels        string
 	Deployment    string
+	DeployType    string
 	Operation     string
 	Events        chan *types.SystemSummary
 }
@@ -84,6 +85,9 @@ func validateSummaryRequest(consumer *SummaryConsumer, summary types.SystemSumma
 	}
 
 	if consumer.Deployment != "" && consumer.Deployment != summary.Deployment {
+		return false
+	}
+	if consumer.DeployType != "" && consumer.DeployType != summary.Workload.Type {
 		return false
 	}
 

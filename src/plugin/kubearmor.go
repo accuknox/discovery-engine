@@ -434,10 +434,14 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 				if len(res.Resource) != 0 && res.Operation != "Network" && !strings.HasPrefix(res.Resource, "/") {
 					continue
 				}
-				owner := pb.Podowner{
-					Ref:  res.Owner.Ref,
-					Name: res.Owner.Name,
+				var owner pb.Podowner
+				if res.Owner != nil {
+					owner = pb.Podowner{
+						Ref:  res.Owner.Ref,
+						Name: res.Owner.Name,
+					}
 				}
+
 				kubearmorLog := pb.Alert{
 					Timestamp:         res.Timestamp,
 					UpdatedTime:       res.UpdatedTime,

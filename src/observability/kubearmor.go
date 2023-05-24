@@ -229,7 +229,7 @@ func GetKubearmorSummaryData(req *opb.Request) ([]types.SysObsProcFileData, []ty
 		ContainerName: req.ContainerName,
 		ClusterName:   req.ClusterName,
 		Labels:        req.Label,
-		Deployment:    req.DeployName,
+		Deployment:    req.ResourceOwner,
 	})
 	if err != nil {
 		return nil, nil, nil, types.ObsPodDetail{}
@@ -242,7 +242,8 @@ func GetKubearmorSummaryData(req *opb.Request) ([]types.SysObsProcFileData, []ty
 			podInfo.ContainerName = ss.ContainerName
 			podInfo.Labels = ss.Labels
 			podInfo.Namespace = ss.NamespaceName
-			podInfo.DeployName = ss.Deployment
+			podInfo.ParentName = ss.Deployment
+			podInfo.ParentType = ss.Workload.Type
 		}
 
 		t := time.Unix(ss.UpdatedTime, 0)

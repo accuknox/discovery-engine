@@ -26,7 +26,9 @@ func GetSummaryData(request *opb.Request) (*opb.Response, error) {
 		outNwResp := []*opb.SysNwSummaryData{}
 		bindNwResp := []*opb.SysNwSummaryData{}
 
-		resp.DeploymentName = podInfo.DeployName
+		resp.DeploymentName = podInfo.ParentName
+		resp.ResourceType = podInfo.ParentType
+
 		resp.PodName = podInfo.PodName
 		resp.ClusterName = podInfo.ClusterName
 		resp.Namespace = podInfo.Namespace
@@ -154,7 +156,7 @@ func GetSummaryDataPerDeploy(request *opb.Request) (*opb.Response, error) {
 	resp := opb.Response{}
 	var err error = nil
 
-	podResp, err := GetPodNames(&opb.Request{DeployName: request.DeployName})
+	podResp, err := GetPodNames(&opb.Request{ResourceOwner: request.ResourceOwner})
 	if err != nil {
 		return nil, errors.New("no system summary info present for the requested deployment")
 	}
@@ -173,6 +175,7 @@ func GetSummaryDataPerDeploy(request *opb.Request) (*opb.Response, error) {
 		resp.EgressConnection = append(resp.EgressConnection, podDataResp.EgressConnection...)
 		resp.BindConnection = append(resp.BindConnection, podDataResp.BindConnection...)
 		resp.DeploymentName = podDataResp.DeploymentName
+		resp.ResourceType = podDataResp.ResourceType
 		resp.ClusterName = podDataResp.ClusterName
 		resp.Namespace = podDataResp.Namespace
 		resp.Label = podDataResp.Label

@@ -1572,9 +1572,13 @@ func GetPodNamesMySQL(cfg types.ConfigDB, filter types.ObsPodDetail) ([]string, 
 		concatWhereClause(&whereClause, "container_name")
 		sysargs = append(sysargs, filter.ContainerName)
 	}
-	if filter.DeployName != "" {
-		concatWhereClause(&whereClause, "deployment_name")
-		sysargs = append(sysargs, filter.DeployName)
+	if filter.ParentName != "" {
+		concatWhereClause(&whereClause, "resource_name")
+		sysargs = append(sysargs, filter.ParentName)
+	}
+	if filter.ParentType != "" {
+		concatWhereClause(&whereClause, "resource_type")
+		sysargs = append(sysargs, filter.ParentType)
 	}
 
 	results, err = db.Query(query+whereClause, sysargs...)
@@ -1597,17 +1601,17 @@ func GetPodNamesMySQL(cfg types.ConfigDB, filter types.ObsPodDetail) ([]string, 
 	return resPodNames, err
 }
 
-func GetDeployNamesMySQL(cfg types.ConfigDB, filter types.ObsPodDetail) ([]string, error) {
+func GetDeployNamesMySQL(cfg types.ConfigDB, filter types.ObsPodDetail) (map[string]string, error) {
 	db := connectMySQL(cfg)
 	defer db.Close()
 
-	resDeployNames := []string{}
+	resDeployNames := map[string]string{}
 
 	var results *sql.Rows
 	var err error
 
 	// Get podnames from system table
-	query := "SELECT deployment_name FROM " + TableSystemSummarySQLite + " "
+	query := "SELECT resource_name, resource_type FROM " + TableSystemSummarySQLite + " "
 
 	var whereClause string
 	var sysargs []interface{}
@@ -1620,9 +1624,13 @@ func GetDeployNamesMySQL(cfg types.ConfigDB, filter types.ObsPodDetail) ([]strin
 		concatWhereClause(&whereClause, "namespace_name")
 		sysargs = append(sysargs, filter.Namespace)
 	}
-	if filter.DeployName != "" {
-		concatWhereClause(&whereClause, "deployment_name")
-		sysargs = append(sysargs, filter.DeployName)
+	if filter.ParentName != "" {
+		concatWhereClause(&whereClause, "resource_name")
+		sysargs = append(sysargs, filter.ParentName)
+	}
+	if filter.ParentType != "" {
+		concatWhereClause(&whereClause, "resource_type")
+		sysargs = append(sysargs, filter.ParentType)
 	}
 	if filter.Labels != "" {
 		concatWhereClause(&whereClause, "labels")
@@ -1637,13 +1645,14 @@ func GetDeployNamesMySQL(cfg types.ConfigDB, filter types.ObsPodDetail) ([]strin
 	defer results.Close()
 
 	for results.Next() {
-		var locDeployName string
+		var locDeployName, locDeployType string
 		if err := results.Scan(
 			&locDeployName,
+			&locDeployType,
 		); err != nil {
 			return nil, err
 		}
-		resDeployNames = append(resDeployNames, locDeployName)
+		resDeployNames[locDeployName] = locDeployType
 	}
 
 	return resDeployNames, err

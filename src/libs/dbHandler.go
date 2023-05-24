@@ -361,8 +361,8 @@ func GetPodNames(cfg types.ConfigDB, filter types.ObsPodDetail) ([]string, error
 	return res, err
 }
 
-func GetDeployNames(cfg types.ConfigDB, filter types.ObsPodDetail) ([]string, error) {
-	res := []string{}
+func GetDeployNames(cfg types.ConfigDB, filter types.ObsPodDetail) (map[string]string, error) {
+	res := map[string]string{}
 	var err = errors.New("unknown db driver")
 	if cfg.DBDriver == "mysql" {
 		res, err = GetDeployNamesMySQL(cfg, filter)
@@ -433,7 +433,7 @@ func upsertSysSummarySQL(db *sql.DB, summary types.SystemSummary, timeCount type
 	summary.Labels = strings.Join(sortedLabels, ",")
 
 	queryString := `cluster_name = ? and cluster_id = ? and workspace_id = ? and namespace_name = ? and namespace_id = ? and container_name = ? and container_image = ? 
-					and podname = ? and operation = ? and labels = ? and deployment_name = ? and source = ? and destination = ? 
+					and podname = ? and operation = ? and labels = ? and resource_name = ? and resource_type = ? and source = ? and destination = ? 
 					and destination_namespace = ? and destination_labels = ? and type = ? and ip = ? and port = ? and protocol = ? and action = ? and bindport = ? and bindaddr = ?`
 
 	query := "UPDATE " + TableSystemSummarySQLite + " SET count=count+?, updated_time=? WHERE " + queryString + " "
@@ -458,6 +458,7 @@ func upsertSysSummarySQL(db *sql.DB, summary types.SystemSummary, timeCount type
 		summary.Operation,
 		summary.Labels,
 		summary.Deployment,
+		summary.Workload.Type,
 		summary.Source,
 		summary.Destination,
 		summary.DestNamespace,
@@ -479,8 +480,8 @@ func upsertSysSummarySQL(db *sql.DB, summary types.SystemSummary, timeCount type
 
 	if err == nil && rowsAffected == 0 {
 
-		insertQueryString := `(cluster_name,cluster_id,workspace_id,namespace_name,namespace_id,container_name,container_image,container_id,podname,operation,labels,deployment_name,
-				source,destination,destination_namespace,destination_labels,type,ip,port,protocol,action,count,updated_time,bindport,bindaddr) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+		insertQueryString := `(cluster_name,cluster_id,workspace_id,namespace_name,namespace_id,container_name,container_image,container_id,podname,operation,labels,resource_name, resource_type,
+				source,destination,destination_namespace,destination_labels,type,ip,port,protocol,action,count,updated_time,bindport,bindaddr) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
 
 		insertQuery := "INSERT INTO " + TableSystemSummarySQLite + insertQueryString
 
@@ -503,6 +504,7 @@ func upsertSysSummarySQL(db *sql.DB, summary types.SystemSummary, timeCount type
 			summary.Operation,
 			summary.Labels,
 			summary.Deployment,
+			summary.Workload.Type,
 			summary.Source,
 			summary.Destination,
 			summary.DestNamespace,
@@ -545,7 +547,7 @@ func getSysSummarySQL(db *sql.DB, dbName string, filterOptions types.SystemSumma
 	resSummary := []types.SystemSummary{}
 
 	query := `SELECT cluster_name,cluster_id,workspace_id,namespace_name,namespace_id,container_name,
-	container_image,container_id,podname,operation,labels,deployment_name,source,destination,destination_namespace,
+	container_image,container_id,podname,operation,labels,resource_name,resource_type,source,destination,destination_namespace,
 	destination_labels,type,ip,port,protocol,action,count,updated_time,bindport,bindaddr FROM ` + dbName
 
 	var whereClause string
@@ -596,8 +598,12 @@ func getSysSummarySQL(db *sql.DB, dbName string, filterOptions types.SystemSumma
 		args = append(args, filterOptions.Labels)
 	}
 	if filterOptions.Deployment != "" {
-		concatWhereClause(&whereClause, "deployment_name")
+		concatWhereClause(&whereClause, "resource_name")
 		args = append(args, filterOptions.Deployment)
+	}
+	if filterOptions.Workload.Type != "" {
+		concatWhereClause(&whereClause, "parent_type")
+		args = append(args, filterOptions.Workload.Type)
 	}
 	if filterOptions.Source != "" {
 		concatWhereClause(&whereClause, "source")
@@ -631,6 +637,7 @@ func getSysSummarySQL(db *sql.DB, dbName string, filterOptions types.SystemSumma
 			&localSum.Operation,
 			&localSum.Labels,
 			&localSum.Deployment,
+			&localSum.Workload.Type,
 			&localSum.Source,
 			&localSum.Destination,
 			&localSum.DestNamespace,

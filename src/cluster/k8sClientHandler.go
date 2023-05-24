@@ -430,11 +430,12 @@ func GetClusterNameFromK8sClient() string {
 	return "default"
 }
 
-// ================= //
-// == Deployments == //
-// ================= //
+// =================== //
+// == K8s Resources == //
+// =================== //
 
-func GetDeploymentsFromK8sClient() []types.Deployment {
+func GetObjectSetsFromK8sClient(objectSet []string) []types.Deployment {
+
 	results := []types.Deployment{}
 
 	client := ConnectK8sClient()
@@ -443,124 +444,103 @@ func GetDeploymentsFromK8sClient() []types.Deployment {
 		return results
 	}
 
-	// get namespaces from k8s api client
-	deployments, err := client.AppsV1().Deployments("").List(context.Background(), metav1.ListOptions{})
-	if err != nil {
-		log.Error().Msg(err.Error())
-		return results
-	}
+	for _, obj := range objectSet {
 
-	for _, d := range deployments.Items {
-		if d.Namespace == "kube-system" {
+		switch obj {
+		case types.K8sDeploymentType:
+			deployments, err := client.AppsV1().Deployments("").List(context.Background(), metav1.ListOptions{})
+			if err != nil {
+				log.Error().Msg(err.Error())
+				return results
+			}
+			for _, d := range deployments.Items {
+				results = append(results, GenerateResourceList(d.OwnerReferences, d.Name, d.Namespace, types.K8sDeploymentType, d.Spec.Selector.MatchLabels)...)
+			}
+
+		case types.K8sStatefulSetsType:
+			// get StatefulSet List from k8s api client
+			statefulSets, err := client.AppsV1().StatefulSets("").List(context.Background(), metav1.ListOptions{})
+			if err != nil {
+				log.Error().Msg(err.Error())
+				return results
+			}
+			for _, sts := range statefulSets.Items {
+				results = append(results, GenerateResourceList(sts.OwnerReferences, sts.Name, sts.Namespace, types.K8sStatefulSetsType, sts.Spec.Selector.MatchLabels)...)
+			}
+
+		case types.K8sDaemonSetsType:
+			// get DaemonSet List from k8s api client
+			daemonSets, err := client.AppsV1().DaemonSets("").List(context.Background(), metav1.ListOptions{})
+			if err != nil {
+				log.Error().Msg(err.Error())
+				return results
+			}
+			for _, ds := range daemonSets.Items {
+				results = append(results, GenerateResourceList(ds.OwnerReferences, ds.Name, ds.Namespace, types.K8sDaemonSetsType, ds.Spec.Selector.MatchLabels)...)
+			}
+
+		case types.K8sReplicaSetsType:
+			// get ReplicaSet list from k8s api client
+			replicaSets, err := client.AppsV1().ReplicaSets("").List(context.Background(), metav1.ListOptions{})
+			if err != nil {
+				log.Error().Msg(err.Error())
+				return results
+			}
+			for _, rs := range replicaSets.Items {
+				results = append(results, GenerateResourceList(rs.OwnerReferences, rs.Name, rs.Namespace, types.K8sReplicaSetsType, rs.Spec.Selector.MatchLabels)...)
+			}
+		case types.K8sJobsType:
+			// get Jobs List from k8s api client
+			jobs, err := client.BatchV1().Jobs("").List(context.Background(), metav1.ListOptions{})
+			if err != nil {
+				log.Error().Msg(err.Error())
+				return results
+			}
+			for _, job := range jobs.Items {
+				results = append(results, GenerateResourceList(job.OwnerReferences, job.Name, job.Namespace, types.K8sJobsType, job.Spec.Selector.MatchLabels)...)
+			}
+		default:
 			continue
 		}
 
-		if d.Spec.Selector.MatchLabels != nil {
-			var labels []string
+	}
 
-			for k, v := range d.Spec.Selector.MatchLabels {
-				labels = append(labels, k+"="+v)
+	return results
+
+}
+
+func GenerateResourceList(ownerReference []metav1.OwnerReference, name, namespace, resourceType string, labelMap map[string]string) []types.Deployment {
+	results := []types.Deployment{}
+
+	if resourceType == types.K8sJobsType {
+		for _, or := range ownerReference {
+			if or.Kind == types.K8sCronJobsType {
+				ownerReference = nil
+				resourceType = types.K8sCronJobsType
+				break
 			}
-
-			results = append(results, types.Deployment{
-				Name:      d.Name,
-				Namespace: d.Namespace,
-				Labels:    strings.Join(labels, ","),
-			})
 		}
 	}
 
-	results = append(results, GetReplicaSetsFromK8sClient()...)
-	results = append(results, GetStatefulSetsFromK8sClient()...)
-
-	return results
-}
-
-// ================= //
-// == ReplicaSet == //
-// ================= //
-
-func GetReplicaSetsFromK8sClient() []types.Deployment {
-	results := []types.Deployment{}
-
-	client := ConnectK8sClient()
-	if client == nil {
-		log.Error().Msg("failed to create k8s client")
-		return results
-	}
-
-	// get namespaces from k8s api client
-	replicasets, err := client.AppsV1().ReplicaSets("").List(context.Background(), metav1.ListOptions{})
-	if err != nil {
-		log.Error().Msg(err.Error())
-		return results
-	}
-
-	for _, rs := range replicasets.Items {
-		if rs.OwnerReferences == nil {
-			if rs.Namespace == "kube-system" {
-				continue
-			}
-
-			if rs.Spec.Selector.MatchLabels != nil {
+	if namespace != "kube-system" {
+		if ownerReference == nil {
+			if labelMap != nil {
 				var labels []string
 
-				for k, v := range rs.Spec.Selector.MatchLabels {
+				for k, v := range labelMap {
 					labels = append(labels, k+"="+v)
 				}
 
 				results = append(results, types.Deployment{
-					Name:      rs.Name,
-					Namespace: rs.Namespace,
+					Name:      name,
+					Namespace: namespace,
 					Labels:    strings.Join(labels, ","),
+					Type:      resourceType,
 				})
 			}
 		}
 	}
-	return results
-}
 
-// ================= //
-// == StatefulSet == //
-// ================= //
-
-func GetStatefulSetsFromK8sClient() []types.Deployment {
-	results := []types.Deployment{}
-
-	client := ConnectK8sClient()
-	if client == nil {
-		log.Error().Msg("failed to create k8s client")
-		return results
-	}
-
-	// get namespaces from k8s api client
-	statefulset, err := client.AppsV1().StatefulSets("").List(context.Background(), metav1.ListOptions{})
-	if err != nil {
-		log.Error().Msg(err.Error())
-		return results
-	}
-
-	for _, sts := range statefulset.Items {
-		if sts.OwnerReferences == nil {
-			if sts.Namespace == "kube-system" {
-				continue
-			}
-
-			if sts.Spec.Selector.MatchLabels != nil {
-				var labels []string
-
-				for k, v := range sts.Spec.Selector.MatchLabels {
-					labels = append(labels, k+"="+v)
-				}
-
-				results = append(results, types.Deployment{
-					Name:      sts.Name,
-					Namespace: sts.Namespace,
-					Labels:    strings.Join(labels, ","),
-				})
-			}
-		}
-	}
 	return results
 }
 
