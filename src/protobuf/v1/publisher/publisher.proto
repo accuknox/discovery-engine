@@ -17,6 +17,11 @@ message SummaryRequest{
     string Operation = 6;
 }
 
+message Workload {
+  string Type = 1;
+  string Name = 2;
+}
+
 message SummaryResponse{
     string ClusterName = 1;
     int32 ClusterId = 2;
@@ -29,7 +34,7 @@ message SummaryResponse{
     int32 PodId = 9;
     string Operation = 10;
     string Labels = 11;
-    string DeploymentName = 12;
+    string DeploymentName = 12 [deprecated=true];
     string Source = 13;
     string Destination = 14;
     string DestNamespace = 15;
@@ -49,4 +54,5 @@ message SummaryResponse{
     string Message = 29;
     string Enforcer = 30;
     string PolicyName = 31;
+    Workload Workload=32;
 }
