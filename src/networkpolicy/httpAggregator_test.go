@@ -12,7 +12,7 @@ import (
 
 func TestGetChildNodesCount(t *testing.T) {
 	node := &Node{}
-	node.childNodes = []*Node{&Node{
+	node.childNodes = []*Node{{
 		path:       "/",
 		touchCount: 1,
 	}}
