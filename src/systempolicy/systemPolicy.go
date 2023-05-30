@@ -31,10 +31,14 @@ import (
 	"github.com/robfig/cron"
 )
 
-var log *zerolog.Logger
+var (
+	log          *zerolog.Logger
+	SystemLogMap map[types.KnoxSystemLog]bool
+)
 
 func init() {
 	log = logger.GetInstance()
+	SystemLogMap = make(map[types.KnoxSystemLog]bool)
 }
 
 // const values
@@ -168,7 +172,7 @@ type SysLogKey struct {
 // == System Log == //
 // ================ //
 
-func getSystemLogs() []types.KnoxSystemLog {
+func getSystemLogs() map[types.KnoxSystemLog]bool {
 	systemLogs := []types.KnoxSystemLog{}
 
 	if SystemLogFrom == "file" {
@@ -228,7 +232,8 @@ func getSystemLogs() []types.KnoxSystemLog {
 		for _, relayLog := range relayLogs {
 			log, err := plugin.ConvertKubeArmorLogToKnoxSystemLog(relayLog)
 			if err == nil {
-				systemLogs = append(systemLogs, log)
+				// systemLogs = append(systemLogs, log)
+				SystemLogMap[log] = true
 			}
 		}
 	} else if SystemLogFrom == "feed-consumer" {
@@ -239,17 +244,12 @@ func getSystemLogs() []types.KnoxSystemLog {
 		if len(sysLogs) == 0 || len(sysLogs) < OperationTrigger {
 			return nil
 		}
-
-		// convert kubearmor system logs -> knox system logs
-		for _, sysLog := range sysLogs {
-			systemLogs = append(systemLogs, *sysLog)
-		}
 	} else {
 		log.Error().Msgf("System log from not correct: %s", SystemLogFrom)
 		return nil
 	}
 
-	return systemLogs
+	return SystemLogMap
 }
 
 func populateKnoxSysPolicyFromWPFSDb(namespace, clustername, labels, fromsource string) []types.KnoxSystemPolicy {
@@ -459,25 +459,24 @@ func clusteringSystemLogsByNamespacePod(logs []types.KnoxSystemLog) map[SysLogKe
 	return results
 }
 
-func systemLogDeduplication(logs []types.KnoxSystemLog) []types.KnoxSystemLog {
+func cleanseSystemLog(logMap map[types.KnoxSystemLog]bool) []types.KnoxSystemLog {
 	results := []types.KnoxSystemLog{}
 
-	for _, log := range logs {
-		if libs.ContainsElement(results, log) {
-			continue
-		}
-
-		// if source == resource, skip
+	for log := range logMap {
 		if log.Source == log.Resource {
+			delete(logMap, log)
 			continue
 		}
 
 		// if pod name or namespace == ""
 		if log.PodName == "" || log.Namespace == "" {
+			delete(logMap, log)
 			continue
 		}
 
 		results = append(results, log)
+
+		delete(logMap, log)
 	}
 
 	return results
@@ -1077,12 +1076,16 @@ func InitSysPolicyDiscoveryConfiguration() {
 	FileFromSource = cfg.GetCfgSystemFileFromSource()
 }
 
-func PopulateSystemPoliciesFromSystemLogs(sysLogs []types.KnoxSystemLog) []types.KnoxSystemPolicy {
+func PopulateSystemPoliciesFromSystemLogs(sysLogMap map[types.KnoxSystemLog]bool) []types.KnoxSystemPolicy {
+
+	if len(sysLogMap) == 0 {
+		return nil
+	}
 
 	discoveredSystemPolicies := []types.KnoxSystemPolicy{}
 
 	// delete duplicate logs
-	sysLogs = systemLogDeduplication(sysLogs)
+	sysLogs := cleanseSystemLog(sysLogMap)
 
 	// get cluster names, iterate each cluster
 	clusteredLogs := clusteringSystemLogsByCluster(sysLogs)
@@ -1435,6 +1438,7 @@ func InsertSysPoliciesYamlToDB(policies []types.KnoxSystemPolicy) {
 }
 
 func DiscoverSystemPolicyMain() {
+
 	if SystemWorkerStatus == STATUS_RUNNING {
 		return
 	}
@@ -1447,13 +1451,7 @@ func DiscoverSystemPolicyMain() {
 
 	InitSysPolicyDiscoveryConfiguration()
 
-	// get system logs
-	allSystemkLogs := getSystemLogs()
-	if allSystemkLogs == nil {
-		return
-	}
-
-	PopulateSystemPoliciesFromSystemLogs(allSystemkLogs)
+	PopulateSystemPoliciesFromSystemLogs(getSystemLogs())
 }
 
 // ==================================== //

@@ -1,38 +1,47 @@
 package observability
 
 import (
+	"sync"
+
+	"github.com/accuknox/auto-policy-discovery/src/common"
+	cfg "github.com/accuknox/auto-policy-discovery/src/config"
 	"github.com/accuknox/auto-policy-discovery/src/types"
 )
 
 func ProcessSystemSummary() {
-	if len(PublisherMap) <= 0 {
+
+	if len(SummarizerMap) == 0 {
 		return
 	}
 
-	PublisherMutex.Lock()
-	// publish summary map in GRPC
-	for ss, sstc := range PublisherMap {
-		var locSummary types.SystemSummary = ss
+	SummarizerMapMutex.Lock()
+	tempSummarizerMap := common.MoveMap(SummarizerMap)
+	SummarizerMapMutex.Unlock()
 
-		// update count/time
-		locSummary.Count = sstc.Count
-		locSummary.UpdatedTime = sstc.UpdatedTime
+	var ProcessSystemSummaryWg sync.WaitGroup
 
-		// publish data to feeder grpc
-		SysSummary.Publish(&locSummary)
-
-		// clear each published entry from data map
-		delete(PublisherMap, ss)
+	if cfg.GetCfgObservabilityWriteToDB() {
+		ProcessSystemSummaryWg.Add(1)
+		go UpsertSummaryCronJob(tempSummarizerMap, &ProcessSystemSummaryWg)
 	}
-	PublisherMutex.Unlock()
-}
 
-func updatePublisherMap() {
-	for ss, sstc := range SummarizerMap {
-		PublisherMap[ss] = types.SysSummaryTimeCount{
-			Count:       PublisherMap[ss].Count + sstc.Count,
-			UpdatedTime: sstc.UpdatedTime,
+	if cfg.GetCfgPublisherEnable() {
+		PublisherMutex.Lock()
+		// publish summary map in GRPC
+		for ss, sstc := range tempSummarizerMap {
+			var locSummary types.SystemSummary = ss
+
+			// update count/time
+			locSummary.Count = sstc.Count
+			locSummary.UpdatedTime = sstc.UpdatedTime
+
+			// publish data to feeder grpc
+			SysSummary.Publish(&locSummary)
+
+			// clear each published entry from data map
+			delete(tempSummarizerMap, ss)
 		}
-		delete(SummarizerMap, ss)
+		PublisherMutex.Unlock()
 	}
+	ProcessSystemSummaryWg.Wait()
 }

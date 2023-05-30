@@ -93,3 +93,12 @@ func HashInt(s string) uint32 {
 	_, _ = h.Write([]byte(s))
 	return h.Sum32()
 }
+
+func MoveMap[K, V comparable](m map[K]V) map[K]V {
+	result := make(map[K]V)
+	for k, v := range m {
+		result[k] = v
+		delete(m, k)
+	}
+	return result
+}
