@@ -180,6 +180,7 @@ func LoadConfigFromFile() {
 	CurrentCfg.ConfigSysPolicy.FromSourceFilter = viper.GetStringSlice("application.system.fromsource-filter")
 
 	CurrentCfg.ConfigAdmissionControllerPolicy.NsFilter, CurrentCfg.ConfigAdmissionControllerPolicy.NsNotFilter = getConfigNsFilter("application.admission-controller.namespace-filter")
+	CurrentCfg.ConfigAdmissionControllerPolicy.GenericPolicyList = viper.GetStringSlice("application.admission-controller.generic-policy-list")
 
 	// load cluster resource info
 	CurrentCfg.ConfigClusterMgmt = types.ConfigClusterMgmt{

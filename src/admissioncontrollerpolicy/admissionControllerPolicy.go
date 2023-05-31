@@ -47,8 +47,8 @@ func InitAdmissionControllerPolicyDiscoveryConfiguration() {
 }
 
 // UpdateOrInsertKyvernoPolicies updates or inserts kyverno policies to DB
-func UpdateOrInsertKyvernoPolicies(kyvernoPolicies []kyvernov1.Policy, labels types.LabelMap) {
-	UpdateOrInsertPolicyYamlToDB(kyvernoPolicies, labels)
+func UpdateOrInsertKyvernoPolicies(kyvernoPolicies []kyvernov1.PolicyInterface, labels types.LabelMap, generic bool) {
+	UpdateOrInsertPolicyYamlToDB(kyvernoPolicies, labels, generic)
 }
 
 // DeleteKyvernoPolicies deletes kyverno policies from DB
@@ -62,26 +62,46 @@ func DeleteKyvernoPolicies(kyvernoPolicies []string, namespace string, labels ma
 }
 
 // UpdateOrInsertPolicyYamlToDB upserts admission controller policies to DB
-func UpdateOrInsertPolicyYamlToDB(kyvernoPolicies []kyvernov1.Policy, labels types.LabelMap) {
+func UpdateOrInsertPolicyYamlToDB(kyvernoPolicies []kyvernov1.PolicyInterface, labels types.LabelMap, generic bool) {
 
 	var res []types.PolicyYaml
-	for _, kyvernoPolicy := range kyvernoPolicies {
-		jsonBytes, err := json.Marshal(kyvernoPolicy)
+	for _, kyvernoPolicyInterface := range kyvernoPolicies {
+		var jsonBytes []byte
+		var yamlBytes []byte
+		var err error
+
+		switch kyvernoPolicyInterface.(type) {
+		case *kyvernov1.ClusterPolicy:
+			kyvernoClusterPolicy := kyvernoPolicyInterface.(*kyvernov1.ClusterPolicy)
+			jsonBytes, err = json.Marshal(*kyvernoClusterPolicy)
+			if err != nil {
+				log.Error().Msg(err.Error())
+				continue
+			}
+		case *kyvernov1.Policy:
+			kyvernoPolicy := kyvernoPolicyInterface.(*kyvernov1.Policy)
+			jsonBytes, err = json.Marshal(*kyvernoPolicy)
+			if err != nil {
+				log.Error().Msg(err.Error())
+				continue
+			}
+		}
+		yamlBytes, err = yaml.JSONToYAML(jsonBytes)
 		if err != nil {
 			log.Error().Msg(err.Error())
 			continue
 		}
-		yamlBytes, err := yaml.JSONToYAML(jsonBytes)
-		if err != nil {
-			log.Error().Msg(err.Error())
-			continue
+
+		policyType := types.PolicyTypeAdmissionController
+		if generic {
+			policyType = types.PolicyTypeAdmissionControllerGeneric
 		}
 
 		policyYaml := types.PolicyYaml{
-			Type:        types.PolicyTypeAdmissionController,
-			Kind:        kyvernoPolicy.TypeMeta.Kind,
-			Name:        kyvernoPolicy.ObjectMeta.Name,
-			Namespace:   kyvernoPolicy.ObjectMeta.Namespace,
+			Type:        policyType,
+			Kind:        kyvernoPolicyInterface.GetKind(),
+			Name:        kyvernoPolicyInterface.GetName(),
+			Namespace:   kyvernoPolicyInterface.GetNamespace(),
 			Cluster:     cfg.GetCfgClusterName(),
 			WorkspaceId: cfg.GetCfgWorkspaceId(),
 			ClusterId:   cfg.GetCfgClusterId(),
@@ -97,14 +117,14 @@ func UpdateOrInsertPolicyYamlToDB(kyvernoPolicies []kyvernov1.Policy, labels typ
 }
 
 // GetAdmissionControllerPolicy returns admission controller policies
-func GetAdmissionControllerPolicy(namespace, clusterName, labels string) []kyvernov1.Policy {
+func GetAdmissionControllerPolicy(namespace, clusterName, labels, policyType string) []kyvernov1.Policy {
 	var kyvernoPolicies []kyvernov1.Policy
 	filterOptions := types.PolicyFilter{
 		Cluster:   clusterName,
 		Namespace: namespace,
 		Labels:    libs.LabelMapFromString(labels),
 	}
-	policyYamls, err := libs.GetPolicyYamls(CfgDB, types.PolicyTypeAdmissionController, filterOptions)
+	policyYamls, err := libs.GetPolicyYamls(CfgDB, policyType, filterOptions)
 	if err != nil {
 		log.Error().Msgf("fetching policy yaml from DB failed err=%v", err.Error())
 		return nil
@@ -143,7 +163,7 @@ func ConvertPoliciesToWorkerResponse(policies []kyvernov1.Policy) *wpb.WorkerRes
 }
 
 // AutoGenPrecondition generates a preconditions matching on particular labels for kyverno policy
-func AutoGenPrecondition(templateKey string, labels types.LabelMap, precondition apiextv1.JSON) apiextv1.JSON {
+func AutoGenPrecondition(patternToBeInsertedForReachingLabels string, labels types.LabelMap, precondition apiextv1.JSON) apiextv1.JSON {
 	var preconditionMap map[string]interface{}
 	err := json.Unmarshal(precondition.Raw, &preconditionMap)
 	if err != nil {
@@ -152,7 +172,7 @@ func AutoGenPrecondition(templateKey string, labels types.LabelMap, precondition
 	}
 	for key, value := range labels {
 		newPrecondition := map[string]interface{}{
-			"key":      "{{ request.object.spec." + templateKey + ".metadata.labels." + key + " || '' }}",
+			"key":      "{{ request.object.spec." + patternToBeInsertedForReachingLabels + ".metadata.labels." + key + " || '' }}",
 			"operator": "Equals",
 			"value":    value,
 		}
@@ -170,12 +190,15 @@ func AutoGenPrecondition(templateKey string, labels types.LabelMap, precondition
 }
 
 // AutoGenPattern generates a pattern changing validation pattern from Pod to high level controller
-func AutoGenPattern(templateKey string, pattern apiextv1.JSON) apiextv1.JSON {
-	newPattern := map[string]interface{}{
-		"spec": map[string]interface{}{
-			templateKey: pattern,
-		},
-	}
+//
+//	patternToBeAppended is the pattern to be appended to the current pattern
+//	example:
+//	patternToBeAppended: spec.template
+//	patternToBeAppended: spec.jobTemplate.spec.template
+//
+// Only linear patterns are supported, patterns like spec.[*].template are not supported
+func AutoGenPattern(patternToBeAppended string, pattern apiextv1.JSON) apiextv1.JSON {
+	newPattern := joinPatterns(patternToBeAppended, pattern)
 	newPatternBytes, err := json.Marshal(newPattern)
 	if err != nil {
 		log.Error().Msgf("marshalling pattern failed err=%v", err.Error())
@@ -184,6 +207,23 @@ func AutoGenPattern(templateKey string, pattern apiextv1.JSON) apiextv1.JSON {
 	return apiextv1.JSON{
 		Raw: newPatternBytes,
 	}
+}
+
+func joinPatterns(patternToBeAppended string, pattern apiextv1.JSON) map[string]interface{} {
+	mapKeys := strings.Split(patternToBeAppended, ".")
+	var result map[string]interface{}
+	for i := len(mapKeys) - 1; i >= 0; i-- {
+		if i == len(mapKeys)-1 {
+			result = map[string]interface{}{
+				mapKeys[i]: pattern,
+			}
+		} else {
+			result = map[string]interface{}{
+				mapKeys[i]: result,
+			}
+		}
+	}
+	return result
 }
 
 // ShouldSATokenBeAutoMounted returns true if service account token should be auto mounted
