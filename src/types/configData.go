@@ -92,8 +92,9 @@ type ConfigSystemPolicy struct {
 }
 
 type ConfigAdmissionControllerPolicy struct {
-	NsFilter    []string `json:"system_policy_ns_filter,omitempty" bson:"system_policy_ns_filter,omitempty"`
-	NsNotFilter []string `json:"system_policy_ns_not_filter,omitempty" bson:"system_policy_ns_not_filter,omitempty"`
+	NsFilter          []string `json:"system_policy_ns_filter,omitempty" bson:"system_policy_ns_filter,omitempty"`
+	NsNotFilter       []string `json:"system_policy_ns_not_filter,omitempty" bson:"system_policy_ns_not_filter,omitempty"`
+	GenericPolicyList []string `json:"generic_policy_list,omitempty" bson:"generic_policy_list,omitempty"`
 }
 
 type ConfigClusterMgmt struct {

@@ -158,6 +158,11 @@ func RecommendPolicyMain() {
 	systempolicy.UpdateSysPolicies(policies)
 
 	admissioncontrollerpolicy.InitAdmissionControllerPolicyDiscoveryConfiguration()
+
+	nsNotFilterAdmissionControllerPolicy := cfg.CurrentCfg.ConfigAdmissionControllerPolicy.NsNotFilter
+	nsFilterAdmissionControllerPolicy := cfg.CurrentCfg.ConfigAdmissionControllerPolicy.NsFilter
+	recommendAdmissionControllerPolicy := cfg.GetCfgRecommendAdmissionControllerPolicy()
+
 	for _, d := range deployments.Items {
 		deploy := uniqueNsDeploy(d.Name, d.Namespace)
 
@@ -171,16 +176,16 @@ func RecommendPolicyMain() {
 			}
 		}
 
-		nsNotFilterAdmissionControllerPolicy := cfg.CurrentCfg.ConfigAdmissionControllerPolicy.NsNotFilter
-		nsFilterAdmissionControllerPolicy := cfg.CurrentCfg.ConfigAdmissionControllerPolicy.NsFilter
-		recommendAdmissionControllerPolicy := cfg.GetCfgRecommendAdmissionControllerPolicy()
-
 		if recommendAdmissionControllerPolicy &&
 			isNamespaceAllowed(d.Namespace, nsNotFilterAdmissionControllerPolicy, nsFilterAdmissionControllerPolicy) {
 			generateAdmissionControllerPolicy(d.Name, d.Namespace, d.Spec.Template.Labels)
 		}
 	}
 
+	if recommendAdmissionControllerPolicy {
+		genericAdmissionControllerPolicyList := cfg.CurrentCfg.ConfigAdmissionControllerPolicy.GenericPolicyList
+		generateGenericAdmissionControllerPolicy(genericAdmissionControllerPolicyList)
+	}
 }
 
 func generateHardenPolicy(name, namespace string, labels LabelMap) []types.KnoxSystemPolicy {
@@ -200,7 +205,12 @@ func generateAdmissionControllerPolicy(name, namespace string, labels LabelMap) 
 
 	// labels need to be passed as argument because labels in policies are set as preconditions
 	// deriving labels back from preconditions is error prone due to presence of other preconditions
-	admissioncontrollerpolicy.UpdateOrInsertKyvernoPolicies(policies, labels)
+	admissioncontrollerpolicy.UpdateOrInsertKyvernoPolicies(policies, labels, false)
+}
+
+func generateGenericAdmissionControllerPolicy(genericAdmissionControllerPolicyList []string) {
+	policies := generateGenericKyvernoPolicy(genericAdmissionControllerPolicyList)
+	admissioncontrollerpolicy.UpdateOrInsertKyvernoPolicies(policies, map[string]string{}, true)
 }
 
 func uniqueNsDeploy(deployName, deployNamespace string) *types.Deployment {

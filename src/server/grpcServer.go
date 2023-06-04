@@ -3,8 +3,9 @@ package server
 import (
 	"context"
 	"errors"
-	"github.com/accuknox/auto-policy-discovery/src/license"
 	"strings"
+
+	"github.com/accuknox/auto-policy-discovery/src/license"
 
 	"github.com/rs/zerolog"
 
@@ -111,23 +112,24 @@ func (s *workerServer) GetWorkerStatus(ctx context.Context, in *wpb.WorkerReques
 
 func (s *workerServer) Convert(ctx context.Context, in *wpb.WorkerRequest) (*wpb.WorkerResponse, error) {
 
-	if strings.Contains(in.GetPolicytype(), "NetworkPolicy") {
+	policyType := in.GetPolicytype()
+	if strings.Contains(policyType, "NetworkPolicy") {
 		log.Info().Msg("Convert network policy called")
 		network.InitNetPolicyDiscoveryConfiguration()
 		network.WriteNetworkPoliciesToFile(in.GetClustername(), in.GetNamespace())
-		return network.GetNetPolicy(in.Clustername, in.Namespace, in.GetPolicytype()), nil
-	} else if in.GetPolicytype() == "KubearmorSecurityPolicy" {
+		return network.GetNetPolicy(in.Clustername, in.Namespace, policyType), nil
+	} else if policyType == "KubearmorSecurityPolicy" {
 		log.Info().Msg("Convert system policy called")
 		system.InitSysPolicyDiscoveryConfiguration()
 		system.WriteSystemPoliciesToFile(in.GetNamespace(), in.GetClustername(), in.GetLabels(), in.GetFromsource(), in.GetIncludenetwork())
 		return system.GetSysPolicy(in.Namespace, in.Clustername, in.Labels, in.Fromsource, in.Includenetwork), nil
-	} else if in.GetPolicytype() == "AdmissionControllerPolicy" {
+	} else if policyType == types.PolicyTypeAdmissionController || policyType == types.PolicyTypeAdmissionControllerGeneric {
 		log.Info().Msg("Convert admission controller policy called")
 		admissioncontrollerpolicy.InitAdmissionControllerPolicyDiscoveryConfiguration()
-		policies := admissioncontrollerpolicy.GetAdmissionControllerPolicy(in.Namespace, in.Clustername, in.Labels)
+		policies := admissioncontrollerpolicy.GetAdmissionControllerPolicy(in.Namespace, in.Clustername, in.Labels, policyType)
 		return admissioncontrollerpolicy.ConvertPoliciesToWorkerResponse(policies), nil
 	} else {
-		log.Error().Msgf("unsupported policy type - %s", in.GetPolicytype())
+		log.Error().Msgf("unsupported policy type - %s", policyType)
 	}
 
 	return &wpb.WorkerResponse{Res: "ok"}, nil
