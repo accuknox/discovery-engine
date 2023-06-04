@@ -23,19 +23,19 @@ message Request{
 }
 
 message Response{
-    string DeploymentName = 1;
-    string PodName = 2;
-    string ClusterName = 3;
-    string Namespace = 4;
-    string Label = 5;
-    string ContainerName = 6;
-    repeated SysProcFileSummaryData ProcessData = 7;
-    repeated SysProcFileSummaryData FileData = 8;
-    repeated SysNwSummaryData IngressConnection = 9;
-    repeated SysNwSummaryData EgressConnection = 10;
-    repeated CiliumSummData IngressData = 11;
-    repeated CiliumSummData EgressData = 12;
-    repeated SysNwSummaryData BindConnection = 13;
+    string DeploymentName = 13;
+    string PodName = 1;
+    string ClusterName = 2;
+    string Namespace = 3;
+    string Label = 4;
+    string ContainerName = 5;
+    repeated SysProcFileSummaryData ProcessData = 6;
+    repeated SysProcFileSummaryData FileData = 7;
+    repeated SysNwSummaryData IngressConnection = 8;
+    repeated SysNwSummaryData EgressConnection = 9;
+    repeated CiliumSummData IngressData = 10;
+    repeated CiliumSummData EgressData = 11;
+    repeated SysNwSummaryData BindConnection = 12;
 }
 
 message SysProcFileSummaryData {
