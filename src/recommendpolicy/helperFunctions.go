@@ -19,20 +19,6 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-const (
-	// RecommendedPolicyTagsAnnotation is the annotation used to store the tags of the recommended policy.
-	// This annotation is used to identify the tags associated with a policy by kubearmor-client.
-	RecommendedPolicyTagsAnnotation = "recommended-policies.accuknox.com/tags"
-
-	// RecommendedPolicyTitleAnnotation is the annotation used to store the title of the recommended policy.
-	// This annotation is used to identify the title associated with a policy by kubearmor-client.
-	RecommendedPolicyTitleAnnotation = "policies.kyverno.io/title"
-
-	// RecommendedPolicyDescriptionAnnotation is the annotation used to store the description of the recommended policy.
-	// This annotation is used to identify the description associated with a policy by kubearmor-client.
-	RecommendedPolicyDescriptionAnnotation = "policies.kyverno.io/description"
-)
-
 var policyRules []types.MatchSpec
 
 func updateRulesYAML(yamlFile []byte) string {
@@ -217,7 +203,7 @@ func generateKyvernoPolicy(name, namespace string, labels LabelMap) ([]kyvernov1
 func createRestrictAutomountSATokenPolicy(ms types.MatchSpec, name, namespace string, labels LabelMap) kyvernov1.PolicyInterface {
 	policyInterface := *(ms.KyvernoPolicy)
 	policy := (policyInterface.(*kyvernov1.Policy)).DeepCopy()
-	policy.Annotations[RecommendedPolicyTagsAnnotation] = strings.Join(ms.KyvernoPolicyTags, ",")
+	policy.Annotations[types.RecommendedPolicyTagsAnnotation] = strings.Join(ms.KyvernoPolicyTags, ",")
 	policy.Name = name + "-" + ms.Name
 	policy.Namespace = namespace
 
@@ -279,11 +265,11 @@ func createGenericKyvernoPolicy(ms types.MatchSpec) kyvernov1.PolicyInterface {
 	switch policyInterface.(type) {
 	case *kyvernov1.ClusterPolicy:
 		policy := (policyInterface.(*kyvernov1.ClusterPolicy)).DeepCopy()
-		policy.Annotations[RecommendedPolicyTagsAnnotation] = strings.Join(ms.KyvernoPolicyTags, ",")
+		policy.Annotations[types.RecommendedPolicyTagsAnnotation] = strings.Join(ms.KyvernoPolicyTags, ",")
 		return kyvernov1.PolicyInterface(policy)
 	case *kyvernov1.Policy:
 		policy := (policyInterface.(*kyvernov1.Policy)).DeepCopy()
-		policy.Annotations[RecommendedPolicyTagsAnnotation] = strings.Join(ms.KyvernoPolicyTags, ",")
+		policy.Annotations[types.RecommendedPolicyTagsAnnotation] = strings.Join(ms.KyvernoPolicyTags, ",")
 		return kyvernov1.PolicyInterface(policy)
 	default:
 		log.Error().Msgf("Unknown kyverno policy type: %v", policyInterface)
@@ -315,13 +301,13 @@ func containsRequiredAnnotations(annotations map[string]string) bool {
 	if annotations == nil {
 		return false
 	}
-	if _, ok := annotations[RecommendedPolicyTagsAnnotation]; !ok {
+	if _, ok := annotations[types.RecommendedPolicyTagsAnnotation]; !ok {
 		return false
 	}
-	if _, ok := annotations[RecommendedPolicyTitleAnnotation]; !ok {
+	if _, ok := annotations[types.RecommendedPolicyTitleAnnotation]; !ok {
 		return false
 	}
-	if _, ok := annotations[RecommendedPolicyDescriptionAnnotation]; !ok {
+	if _, ok := annotations[types.RecommendedPolicyDescriptionAnnotation]; !ok {
 		return false
 	}
 	return true
