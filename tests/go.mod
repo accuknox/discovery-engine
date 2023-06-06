@@ -4,6 +4,7 @@ go 1.20
 
 replace (
 	github.com/accuknox/auto-policy-discovery/src => ../src
+	github.com/accuknox/auto-policy-discovery/src/protobuf => ../src/protobuf
 	github.com/miekg/dns => github.com/cilium/dns v1.1.4-0.20190417235132-8e25ec9a0ff3
 	github.com/optiopay/kafka => github.com/cilium/kafka v0.0.0-20180809090225-01ce283b732b
 )
@@ -11,6 +12,7 @@ replace (
 require (
 	github.com/AthenZ/athenz v1.11.27
 	github.com/accuknox/auto-policy-discovery/src v0.0.0-20230412181753-bb7037ee5965
+	github.com/accuknox/auto-policy-discovery/src/protobuf v0.0.0-00010101000000-000000000000
 	github.com/kubearmor/kubearmor-client v0.13.1
 	github.com/onsi/ginkgo/v2 v2.9.1
 	github.com/onsi/gomega v1.27.4
@@ -168,7 +170,7 @@ require (
 	github.com/klauspost/compress v1.16.5 // indirect
 	github.com/kubearmor/KVMService/src/types v0.0.0-20220714130113-b0eba8c9ff34 // indirect
 	github.com/kubearmor/KubeArmor/pkg/KubeArmorController v0.0.0-20230307075632-73ce4fa43639 // indirect
-	github.com/kubearmor/KubeArmor/protobuf v0.0.0-20230426155201-4a0d0af2a5d6 // indirect
+	github.com/kubearmor/KubeArmor/protobuf v0.0.0-20230515155803-35434b6407a5 // indirect
 	github.com/kyverno/kyverno v1.9.2 // indirect
 	github.com/leodido/go-urn v1.2.3 // indirect
 	github.com/letsencrypt/boulder v0.0.0-20230421210027-914e971f1558 // indirect
@@ -268,18 +270,18 @@ require (
 	golang.org/x/crypto v0.8.0 // indirect
 	golang.org/x/exp v0.0.0-20230420155640-133eef4313cb // indirect
 	golang.org/x/mod v0.10.0 // indirect
-	golang.org/x/net v0.9.0 // indirect
+	golang.org/x/net v0.10.0 // indirect
 	golang.org/x/oauth2 v0.7.0 // indirect
 	golang.org/x/sync v0.1.0 // indirect
-	golang.org/x/sys v0.7.0 // indirect
-	golang.org/x/term v0.7.0 // indirect
+	golang.org/x/sys v0.8.0 // indirect
+	golang.org/x/term v0.8.0 // indirect
 	golang.org/x/text v0.9.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
 	golang.org/x/tools v0.8.0 // indirect
 	google.golang.org/api v0.119.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20230410155749-daa745c078e1 // indirect
-	google.golang.org/grpc v1.54.0 // indirect
+	google.golang.org/grpc v1.55.0 // indirect
 	google.golang.org/protobuf v1.30.0 // indirect
 	gopkg.in/go-jose/go-jose.v2 v2.6.1 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
