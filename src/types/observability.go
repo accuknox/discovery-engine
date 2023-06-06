@@ -131,7 +131,7 @@ type SystemSummary struct {
 	Message        string   `json:"Message,omitempty"`
 	Enforcer       string   `json:"Enforcer,omitempty"`
 	PolicyName     string   `json:"PolicyName,omitempty"`
-	Workload       Workload `json:"Workload",omitempty"`
+	Workload       Workload `json:"Workload,omitempty"`
 }
 
 type SysSummaryTimeCount struct {

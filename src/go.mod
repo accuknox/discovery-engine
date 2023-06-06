@@ -19,7 +19,7 @@ require (
 	github.com/google/go-cmp v0.5.9
 	github.com/google/go-github v17.0.0+incompatible
 	github.com/kubearmor/KVMService/src/types v0.0.0-20220714130113-b0eba8c9ff34
-	github.com/kubearmor/KubeArmor/protobuf v0.0.0-20230525071442-efa0ff3ab954
+	github.com/kubearmor/KubeArmor/protobuf v0.0.0-20230515155803-35434b6407a5
 	github.com/kyverno/kyverno v1.9.2
 	github.com/mattn/go-sqlite3 v1.14.16
 	github.com/mervick/aes-everywhere/go/aes256 v0.0.0-20220903070135-f13ed3789ae1
