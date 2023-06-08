@@ -1,5 +1,7 @@
 package types
 
+import kyvernov1 "github.com/kyverno/kyverno/api/kyverno/v1"
+
 // LabelMap stores the label of an endpoint
 type LabelMap = map[string]string
 
@@ -339,12 +341,14 @@ type PolicyYaml struct {
 
 // MatchSpec spec to match for defining policy
 type MatchSpec struct {
-	Name         string         `json:"name" yaml:"name"`
-	Precondition []string       `json:"precondition" yaml:"precondition"`
-	Description  Description    `json:"description" yaml:"description"`
-	Yaml         string         `json:"yaml" yaml:"yaml"`
-	Spec         KnoxSystemSpec `json:"spec,omitempty" yaml:"spec,omitempty"`
-	Kind         string         `json:"kind,omitempty" yaml:"kind,omitempty" bson:"kind,omitempty"`
+	Name              string                     `json:"name" yaml:"name"`
+	Precondition      []string                   `json:"precondition" yaml:"precondition"`
+	Description       Description                `json:"description" yaml:"description"`
+	Yaml              string                     `json:"yaml" yaml:"yaml"`
+	Spec              KnoxSystemSpec             `json:"spec,omitempty" yaml:"spec,omitempty"`
+	Kind              string                     `json:"kind,omitempty" yaml:"kind,omitempty" bson:"kind,omitempty"`
+	KyvernoPolicy     *kyvernov1.PolicyInterface `json:"kyvernoPolicy,omitempty" yaml:"kyvernoPolicy,omitempty"`
+	KyvernoPolicyTags []string                   `json:"kyvernoPolicyTags,omitempty" yaml:"kyvernoPolicyTags,omitempty"`
 }
 
 // Ref for the policy rules

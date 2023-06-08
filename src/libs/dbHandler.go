@@ -3,6 +3,8 @@ package libs
 import (
 	"database/sql"
 	"errors"
+	"sort"
+	"strings"
 
 	cfg "github.com/accuknox/auto-policy-discovery/src/config"
 	logger "github.com/accuknox/auto-policy-discovery/src/logging"
@@ -142,11 +144,11 @@ var LastSysAlertID int64 = 0
 
 func UpdateOutdatedSystemPolicy(cfg types.ConfigDB, outdatedPolicy string, latestPolicy string) {
 	if cfg.DBDriver == "mysql" {
-		if err := UpdateOutdatedNetworkPolicyFromMySQL(cfg, outdatedPolicy, latestPolicy); err != nil {
+		if err := UpdateOutdatedSystemPolicyFromMySQL(cfg, outdatedPolicy, latestPolicy); err != nil {
 			log.Error().Msg(err.Error())
 		}
 	} else if cfg.DBDriver == "sqlite3" {
-		if err := UpdateOutdatedNetworkPolicyFromSQLite(cfg, outdatedPolicy, latestPolicy); err != nil {
+		if err := UpdateOutdatedSystemPolicyFromSQLite(cfg, outdatedPolicy, latestPolicy); err != nil {
 			log.Error().Msg(err.Error())
 		}
 	}
@@ -359,20 +361,31 @@ func GetPodNames(cfg types.ConfigDB, filter types.ObsPodDetail) ([]string, error
 	return res, err
 }
 
+func GetDeployNames(cfg types.ConfigDB, filter types.ObsPodDetail) ([]string, error) {
+	res := []string{}
+	var err = errors.New("unknown db driver")
+	if cfg.DBDriver == "mysql" {
+		res, err = GetDeployNamesMySQL(cfg, filter)
+	} else if cfg.DBDriver == "sqlite3" {
+		res, err = GetDeployNamesSQLite(cfg, filter)
+	}
+	return res, err
+}
+
 // =============== //
 // == Policy DB == //
 // =============== //
-func GetPolicyYamls(cfg types.ConfigDB, policyType string) ([]types.PolicyYaml, error) {
+func GetPolicyYamls(cfg types.ConfigDB, policyType string, filterOptions types.PolicyFilter) ([]types.PolicyYaml, error) {
 	var err error
 	var results []types.PolicyYaml
 
 	if cfg.DBDriver == "mysql" {
-		results, err = GetPolicyYamlsMySQL(cfg, policyType)
+		results, err = GetPolicyYamlsMySQL(cfg, policyType, filterOptions)
 		if err != nil {
 			return nil, err
 		}
 	} else if cfg.DBDriver == "sqlite3" {
-		results, err = GetPolicyYamlsSQLite(cfg, policyType)
+		results, err = GetPolicyYamlsSQLite(cfg, policyType, filterOptions)
 		if err != nil {
 			return nil, err
 		}
@@ -386,6 +399,16 @@ func UpdateOrInsertPolicyYamls(cfg types.ConfigDB, policies []types.PolicyYaml) 
 		err = UpdateOrInsertPolicyYamlsMySQL(cfg, policies)
 	} else if cfg.DBDriver == "sqlite3" {
 		err = UpdateOrInsertPolicyYamlsSQLite(cfg, policies)
+	}
+	return err
+}
+
+func DeletePolicyBasedOnPolicyName(cfg types.ConfigDB, policyName, namespace, labels string) error {
+	var err = errors.New("unknown db driver")
+	if cfg.DBDriver == "mysql" {
+		err = DeletePolicyBasedOnPolicyNameMySQL(cfg, policyName, namespace, labels)
+	} else if cfg.DBDriver == "sqlite3" {
+		err = DeletePolicyBasedOnPolicyNameSQLite(cfg, policyName, namespace, labels)
 	}
 	return err
 }
@@ -404,8 +427,13 @@ func UpsertSystemSummary(cfg types.ConfigDB, summaryMap map[types.SystemSummary]
 }
 
 func upsertSysSummarySQL(db *sql.DB, summary types.SystemSummary, timeCount types.SysSummaryTimeCount) error {
+	// sorts pod labels upon pod restart
+	sortedLabels := strings.Split(summary.Labels, ",")
+	sort.Strings(sortedLabels)
+	summary.Labels = strings.Join(sortedLabels, ",")
+
 	queryString := `cluster_name = ? and cluster_id = ? and workspace_id = ? and namespace_name = ? and namespace_id = ? and container_name = ? and container_image = ? 
-					and container_id = ? and podname = ? and operation = ? and labels = ? and deployment_name = ? and source = ? and destination = ? 
+					and podname = ? and operation = ? and labels = ? and deployment_name = ? and source = ? and destination = ? 
 					and destination_namespace = ? and destination_labels = ? and type = ? and ip = ? and port = ? and protocol = ? and action = ? and bindport = ? and bindaddr = ?`
 
 	query := "UPDATE " + TableSystemSummarySQLite + " SET count=count+?, updated_time=? WHERE " + queryString + " "
@@ -426,7 +454,6 @@ func upsertSysSummarySQL(db *sql.DB, summary types.SystemSummary, timeCount type
 		summary.NamespaceId,
 		summary.ContainerName,
 		summary.ContainerImage,
-		summary.ContainerID,
 		summary.PodName,
 		summary.Operation,
 		summary.Labels,

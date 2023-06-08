@@ -75,6 +75,21 @@ data:
         - "!kube-system"
         fromsource-filter:
         - "knoxAutoPolicy"
+        
+      admission-controller:
+        generic-policy-list:
+        - "restrict-deprecated-registry"
+        - "prevent-cr8escape"
+        - "check-kernel-version"
+        - "restrict-ingress-defaultbackend"
+        - "restrict-nginx-ingress-annotations"
+        - "restrict-ingress-paths"
+        - "prevent-naked-pods"
+        - "restrict-wildcard-verbs"
+        - "restrict-wildcard-resources"
+        - "require-requests-limits"
+        - "require-pod-probes"
+        - "drop-cap-net-raw"
 
       cluster:
         cluster-info-from: "k8sclient"            # k8sclient|accuknox
@@ -135,6 +150,11 @@ data:
     recommend:
       operation-mode: 1                       # 1: cronjob | 2: one-time-job
       cron-job-time-interval: "1h0m00s"       # format: XhYmZs
+    
+    # license
+    license:
+      enabled: false
+      validate: "user-id"
 ---
 apiVersion: v1
 kind: Service
@@ -163,8 +183,8 @@ metadata:
   name: discovery-engine-role
 rules:
 - apiGroups: ["*"]
-  resources: ["pods", "services", "deployments", "endpoints", "namespaces", "nodes"]
-  verbs: ["get", "list", "watch"]
+  resources: ["pods", "services", "deployments", "endpoints", "namespaces", "nodes", "replicasets", "statefulsets", "daemonsets", "secrets"]
+  verbs: ["get", "list", "watch", "create", "update", "delete"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding

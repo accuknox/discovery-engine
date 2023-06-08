@@ -94,39 +94,44 @@ type NetworkSummary struct {
 	UpdatedTime          int64  `json:"UpdatedTime,omitempty"`
 	Count                int32  `json:"Count,omitempty"`
 }
+type Workload struct {
+	Type string `json:"Type,omitempty"`
+	Name string `json:"Name,omitempty"`
+}
 
 type SystemSummary struct {
-	ClusterName    string `json:"ClusterName,omitempty"`
-	ClusterId      int32  `json:"ClusterId,omitempty"`
-	NamespaceName  string `json:"Namespace,omitempty"`
-	NamespaceId    int32  `json:"NamespaceId,omitempty"`
-	ContainerName  string `json:"ContainerName,omitempty"`
-	ContainerImage string `json:"ContainerImage,omitempty"`
-	ContainerID    string `json:"ContainerID,omitempty"`
-	PodName        string `json:"PodName,omitempty"`
-	PodId          int32  `json:"PodId,omitempty"`
-	Operation      string `json:"Operation,omitempty"`
-	Labels         string `json:"Labels,omitempty"`
-	Deployment     string `json:"Deployment,omitempty"`
-	Source         string `json:"Source,omitempty"`
-	Destination    string `json:"Resource,omitempty"`
-	DestNamespace  string `json:"DestNamespace,omitempty"`
-	DestLabels     string `json:"DestLabels,omitempty"`
-	NwType         string `json:"Type,omitempty"`
-	IP             string `json:"IP,omitempty"`
-	Port           int32  `json:"Port,omitempty"`
-	Protocol       string `json:"Protocol,omitempty"`
-	Action         string `json:"Action,omitempty"`
-	Count          int32  `json:"Count,omitempty"`
-	UpdatedTime    int64  `json:"UpdatedTime,omitempty"`
-	WorkspaceId    int32  `json:"WorkspaceId,omitempty"`
-	BindPort       string `json:"BindPort,omitempty"`
-	BindAddress    string `json:"BindAddress,omitempty"`
-	Severity       string `json:"Severity,omitempty"`
-	Tags           string `json:"Tags,omitempty"`
-	Message        string `json:"Message,omitempty"`
-	Enforcer       string `json:"Enforcer,omitempty"`
-	PolicyName     string `json:"PolicyName,omitempty"`
+	ClusterName    string   `json:"ClusterName,omitempty"`
+	ClusterId      int32    `json:"ClusterId,omitempty"`
+	NamespaceName  string   `json:"Namespace,omitempty"`
+	NamespaceId    int32    `json:"NamespaceId,omitempty"`
+	ContainerName  string   `json:"ContainerName,omitempty"`
+	ContainerImage string   `json:"ContainerImage,omitempty"`
+	ContainerID    string   `json:"ContainerID,omitempty"`
+	PodName        string   `json:"PodName,omitempty"`
+	PodId          int32    `json:"PodId,omitempty"`
+	Operation      string   `json:"Operation,omitempty"`
+	Labels         string   `json:"Labels,omitempty"`
+	Deployment     string   `json:"Deployment,omitempty"`
+	Source         string   `json:"Source,omitempty"`
+	Destination    string   `json:"Resource,omitempty"`
+	DestNamespace  string   `json:"DestNamespace,omitempty"`
+	DestLabels     string   `json:"DestLabels,omitempty"`
+	NwType         string   `json:"Type,omitempty"`
+	IP             string   `json:"IP,omitempty"`
+	Port           int32    `json:"Port,omitempty"`
+	Protocol       string   `json:"Protocol,omitempty"`
+	Action         string   `json:"Action,omitempty"`
+	Count          int32    `json:"Count,omitempty"`
+	UpdatedTime    int64    `json:"UpdatedTime,omitempty"`
+	WorkspaceId    int32    `json:"WorkspaceId,omitempty"`
+	BindPort       string   `json:"BindPort,omitempty"`
+	BindAddress    string   `json:"BindAddress,omitempty"`
+	Severity       string   `json:"Severity,omitempty"`
+	Tags           string   `json:"Tags,omitempty"`
+	Message        string   `json:"Message,omitempty"`
+	Enforcer       string   `json:"Enforcer,omitempty"`
+	PolicyName     string   `json:"PolicyName,omitempty"`
+	Workload       Workload `json:"Workload,omitempty"`
 }
 
 type SysSummaryTimeCount struct {
@@ -170,6 +175,7 @@ type ObsPodDetail struct {
 	ClusterName   string
 	ContainerName string
 	Labels        string
+	DeployName    string
 }
 
 type SysObsProcFileData struct {

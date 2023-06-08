@@ -1,0 +1,33 @@
+syntax="proto3";
+
+package v1.license;
+
+option go_package = "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/license";
+
+
+message LicenseInstallRequest{
+  string key=1;
+  string userId=2;
+}
+
+service License{
+  rpc InstallLicense(LicenseInstallRequest) returns (LicenseInstallResponse);
+  rpc GetLicenseStatus(LicenseStatusRequest) returns (LicenseStatusResponse);
+}
+
+message LicenseInstallResponse{
+  int32 res=1;
+  string message=2;
+}
+
+message LicenseStatusRequest{}
+
+message LicenseStatusResponse{
+  string key=1;
+  string userId=2;
+  string platformUUID=3;
+  string issuedAt=4;
+  string expiration=5;
+  repeated string features=6;
+  string status=7;
+}

@@ -24,9 +24,9 @@ func TestGetLatestCIDRs(t *testing.T) {
 			},
 
 			Egress: []types.Egress{
-				types.Egress{
+				{
 					ToCIDRs: []types.SpecCIDR{
-						types.SpecCIDR{
+						{
 							CIDRs: []string{"10.0.0.1/32"},
 						},
 					},
@@ -64,9 +64,9 @@ func TestGetLatestFQDNs(t *testing.T) {
 			},
 
 			Egress: []types.Egress{
-				types.Egress{
+				{
 					ToFQDNs: []types.SpecFQDN{
-						types.SpecFQDN{
+						{
 							MatchNames: []string{"test.com"},
 						},
 					},
@@ -104,9 +104,9 @@ func TestGetLastedHTTPPolicy(t *testing.T) {
 			},
 
 			Egress: []types.Egress{
-				types.Egress{
+				{
 					ToHTTPs: []types.SpecHTTP{
-						types.SpecHTTP{
+						{
 							Method: "GET",
 							Path:   "/",
 						},
@@ -145,7 +145,7 @@ func TestGetLatestMatchLabelsPolicy(t *testing.T) {
 			},
 
 			Egress: []types.Egress{
-				types.Egress{
+				{
 					MatchLabels: map[string]string{
 						"app": "destination",
 					},
@@ -183,7 +183,7 @@ func TestGetLatestEntityPolicy(t *testing.T) {
 			},
 
 			Egress: []types.Egress{
-				types.Egress{
+				{
 					ToEntities: []string{"testEntity"},
 				},
 			},
@@ -219,9 +219,9 @@ func TestGetLatestServicePolicy(t *testing.T) {
 			},
 
 			Egress: []types.Egress{
-				types.Egress{
+				{
 					ToServices: []types.SpecService{
-						types.SpecService{
+						{
 							ServiceName: "testService",
 							Namespace:   "testNamespace",
 						},
@@ -264,9 +264,9 @@ func TestUpdateHTTP(t *testing.T) {
 			},
 
 			Egress: []types.Egress{
-				types.Egress{
+				{
 					ToHTTPs: []types.SpecHTTP{
-						types.SpecHTTP{
+						{
 							Method: "GET",
 							Path:   "/",
 						},
@@ -316,15 +316,15 @@ func TestUpdateToPorts(t *testing.T) {
 			},
 
 			Egress: []types.Egress{
-				types.Egress{
+				{
 					ToPorts: []types.SpecPort{
-						types.SpecPort{
+						{
 							Port:     "80",
 							Protocol: "tcp",
 						},
 					},
 					ToCIDRs: []types.SpecCIDR{
-						types.SpecCIDR{
+						{
 							CIDRs: []string{"10.0.0.1/32"},
 						},
 					},
@@ -373,9 +373,9 @@ func TestUpdateMatchLabels(t *testing.T) {
 			},
 
 			Egress: []types.Egress{
-				types.Egress{
+				{
 					ToPorts: []types.SpecPort{
-						types.SpecPort{
+						{
 							Port:     "80",
 							Protocol: "tcp",
 						},
@@ -428,7 +428,7 @@ func TestUpdateEntity(t *testing.T) {
 			},
 
 			Egress: []types.Egress{
-				types.Egress{
+				{
 					ToEntities: []string{"testEntity"},
 				},
 			},
@@ -467,9 +467,9 @@ func TestUpdateService(t *testing.T) {
 			},
 
 			Egress: []types.Egress{
-				types.Egress{
+				{
 					ToServices: []types.SpecService{
-						types.SpecService{
+						{
 							ServiceName: "testService",
 							Namespace:   "testNamespace",
 						},

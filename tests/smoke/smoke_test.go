@@ -10,7 +10,7 @@ import (
 
 	opb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/observability"
 	"github.com/accuknox/auto-policy-discovery/src/types"
-	"github.com/kubearmor/KubeArmor/tests/util"
+	"github.com/kubearmor/discovery-engine/tests/util"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/rs/zerolog/log"
@@ -204,7 +204,6 @@ var _ = BeforeSuite(func() {
 })
 
 var _ = AfterSuite(func() {
-	util.KubearmorPortForwardStop()
 	WordpressPortForwardStop()
 })
 
@@ -385,6 +384,7 @@ var _ = Describe("Smoke", func() {
 
 	AfterEach(func() {
 		util.KarmorLogStop()
+		//
 	})
 
 	Describe("Auto Policy Discovery", func() {

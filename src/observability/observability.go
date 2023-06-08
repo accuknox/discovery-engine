@@ -115,6 +115,7 @@ func GetPodNames(request *opb.Request) (opb.PodNameResponse, error) {
 		ClusterName:   request.ClusterName,
 		ContainerName: request.ContainerName,
 		Labels:        request.Label,
+		DeployName:    request.DeployName,
 	})
 	if err != nil {
 		return opb.PodNameResponse{}, err
@@ -127,4 +128,27 @@ func GetPodNames(request *opb.Request) (opb.PodNameResponse, error) {
 	}
 
 	return opb.PodNameResponse{PodName: result}, nil
+}
+
+func GetDeployNames(request *opb.Request) (opb.DeployNameResponse, error) {
+
+	result, err := libs.GetDeployNames(CfgDB, types.ObsPodDetail{
+		PodName:       request.PodName,
+		Namespace:     request.NameSpace,
+		ClusterName:   request.ClusterName,
+		ContainerName: request.ContainerName,
+		Labels:        request.Label,
+		DeployName:    request.DeployName,
+	})
+	if err != nil {
+		return opb.DeployNameResponse{}, err
+	}
+
+	result = common.StringDeDuplication(result)
+
+	if len(result) <= 0 {
+		return opb.DeployNameResponse{}, errors.New("no pods matching the input request")
+	}
+
+	return opb.DeployNameResponse{DeployName: result}, nil
 }

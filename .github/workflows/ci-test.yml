@@ -17,7 +17,7 @@ jobs:
 
       - uses: actions/setup-go@v2
         with:
-          go-version: v1.18
+          go-version: v1.20
 
       - name: Unit Test
         run: ./tests/test-go-unit.sh
@@ -30,7 +30,7 @@ jobs:
 
       - uses: actions/setup-go@v2
         with:
-          go-version: v1.18
+          go-version: v1.20
 
       - name: Setup Env
         run: |

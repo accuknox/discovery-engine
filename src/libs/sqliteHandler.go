@@ -1579,6 +1579,10 @@ func GetPodNamesSQLite(cfg types.ConfigDB, filter types.ObsPodDetail) ([]string,
 		concatWhereClause(&whereClause, "container_name")
 		sysargs = append(sysargs, filter.ContainerName)
 	}
+	if filter.DeployName != "" {
+		concatWhereClause(&whereClause, "deployment_name")
+		sysargs = append(sysargs, filter.DeployName)
+	}
 
 	results, err = db.Query(query+whereClause, sysargs...)
 	if err != nil {
@@ -1600,11 +1604,63 @@ func GetPodNamesSQLite(cfg types.ConfigDB, filter types.ObsPodDetail) ([]string,
 	return resPodNames, err
 }
 
+func GetDeployNamesSQLite(cfg types.ConfigDB, filter types.ObsPodDetail) ([]string, error) {
+	db := connectSQLite(cfg, config.GetCfgObservabilityDBName())
+	defer db.Close()
+
+	resDeployNames := []string{}
+
+	var results *sql.Rows
+	var err error
+
+	// Get podnames from system table
+	query := "SELECT deployment_name FROM " + TableSystemSummarySQLite + " "
+
+	var whereClause string
+	var sysargs []interface{}
+
+	if filter.ClusterName != "" {
+		concatWhereClause(&whereClause, "cluster_name")
+		sysargs = append(sysargs, filter.ClusterName)
+	}
+	if filter.Namespace != "" {
+		concatWhereClause(&whereClause, "namespace_name")
+		sysargs = append(sysargs, filter.Namespace)
+	}
+	if filter.DeployName != "" {
+		concatWhereClause(&whereClause, "deployment_name")
+		sysargs = append(sysargs, filter.DeployName)
+	}
+	if filter.Labels != "" {
+		concatWhereClause(&whereClause, "labels")
+		sysargs = append(sysargs, filter.Labels)
+	}
+
+	results, err = db.Query(query+whereClause, sysargs...)
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return nil, err
+	}
+	defer results.Close()
+
+	for results.Next() {
+		var locDeployName string
+		if err := results.Scan(
+			&locDeployName,
+		); err != nil {
+			return nil, err
+		}
+		resDeployNames = append(resDeployNames, locDeployName)
+	}
+
+	return resDeployNames, err
+}
+
 // =============== //
 // == Policy DB == //
 // =============== //
 
-func GetPolicyYamlsSQLite(cfg types.ConfigDB, policyType string) ([]types.PolicyYaml, error) {
+func GetPolicyYamlsSQLite(cfg types.ConfigDB, policyType string, filterOptions types.PolicyFilter) ([]types.PolicyYaml, error) {
 	db := connectSQLite(cfg, cfg.SQLiteDBPath)
 	defer db.Close()
 
@@ -1614,9 +1670,29 @@ func GetPolicyYamlsSQLite(cfg types.ConfigDB, policyType string) ([]types.Policy
 	var err error
 
 	query := "SELECT type,kind,cluster_name,namespace,labels,policy_name,policy_yaml,workspace_id,cluster_id FROM " + PolicyYaml_TableName
-	query = query + " WHERE type = ?"
 
-	results, err = db.Query(query, policyType)
+	var whereClause string
+	var args []interface{}
+
+	concatWhereClause(&whereClause, "type")
+	args = append(args, policyType)
+
+	if filterOptions.Namespace != "" {
+		concatWhereClause(&whereClause, "namespace")
+		args = append(args, filterOptions.Namespace)
+	}
+
+	if filterOptions.Cluster != "" {
+		concatWhereClause(&whereClause, "cluster_name")
+		args = append(args, filterOptions.Cluster)
+	}
+
+	if labels := LabelMapToString(filterOptions.Labels); labels != "" {
+		concatWhereClause(&whereClause, "labels")
+		args = append(args, labels)
+	}
+
+	results, err = db.Query(query+whereClause, args...)
 	if err != nil {
 		log.Error().Msg(err.Error())
 		return nil, err
@@ -1709,6 +1785,45 @@ func updateOrInsertPolicyYamlSQLite(db *sql.DB, policy types.PolicyYaml) error {
 	}
 
 	return err
+}
+
+func DeletePolicyBasedOnPolicyNameSQLite(cfg types.ConfigDB, policyName, namespace, labels string) error {
+	db := connectSQLite(cfg, cfg.SQLiteDBPath)
+	defer func(db *sql.DB) {
+		err := db.Close()
+		if err != nil {
+			log.Warn().Msgf("error while closing db err=%v", err.Error())
+		}
+	}(db)
+
+	query := "DELETE FROM " + PolicyYamlSQLite_TableName + " WHERE policy_name = ? AND namespace = ? AND labels = ?"
+	deleteStmt, err := db.Prepare(query)
+	if err != nil {
+		return err
+	}
+	defer func(deleteStmt *sql.Stmt) {
+		err := deleteStmt.Close()
+		if err != nil {
+			log.Warn().Msgf("error while closing deleteStmt err=%v", err.Error())
+		}
+	}(deleteStmt)
+
+	result, err := deleteStmt.Exec(policyName, namespace, labels)
+	if err != nil {
+		log.Error().Msg(err.Error())
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected != 0 {
+		log.Info().Msgf("deleted policy %s from db", policyName)
+	}
+
+	return nil
 }
 
 // ================ //

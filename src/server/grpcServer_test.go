@@ -7,6 +7,5 @@ import (
 )
 
 func TestGetNewServer(t *testing.T) {
-	server := GetNewServer()
-	assert.NotNil(t, server)
+	assert.NotNil(t, AddServers(AddLicenseServer(StartGrpcServer())))
 }

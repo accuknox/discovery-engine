@@ -24,6 +24,21 @@ application:
     fromsource-filter:
       - "knoxAutoPolicy"
 
+  admission-controller:
+    generic-policy-list:
+      - "restrict-deprecated-registry"
+      - "prevent-cr8escape"
+      - "check-kernel-version"
+      - "restrict-ingress-defaultbackend"
+      - "restrict-nginx-ingress-annotations"
+      - "restrict-ingress-paths"
+      - "prevent-naked-pods"
+      - "restrict-wildcard-verbs"
+      - "restrict-wildcard-resources"
+      - "require-requests-limits"
+      - "require-pod-probes"
+      - "drop-cap-net-raw"
+
   cluster:
     cluster-info-from: "k8sclient"            # k8sclient|accuknox
     cluster-mgmt-url: "http://localhost:8080"
@@ -79,4 +94,11 @@ feed-consumer:
 recommend:
   operation-mode: 1                       # 1: cronjob | 2: one-time-job
   cron-job-time-interval: "1h0m00s"       # format: XhYmZs
-  
+
+# license
+license:
+  enabled: false
+  validate: "user-id"
+
+# pprof
+pprof: false

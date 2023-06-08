@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net"
 	"path/filepath"
 	"strconv"
@@ -20,6 +19,7 @@ import (
 	"github.com/accuknox/auto-policy-discovery/src/types"
 	pb "github.com/kubearmor/KubeArmor/protobuf"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 // Global Variable
@@ -314,13 +314,18 @@ func ConvertKubeArmorLogToKnoxSystemLog(relayLog *pb.Alert) (types.KnoxSystemLog
 func ConnectKubeArmorRelay(cfg types.ConfigKubeArmorRelay) *grpc.ClientConn {
 	addr := net.JoinHostPort(cfg.KubeArmorRelayURL, cfg.KubeArmorRelayPort)
 
-	conn, err := grpc.Dial(addr, grpc.WithInsecure())
+	// Check for kubearmor-relay with 30s timeout
+	ctx, cf1 := context.WithTimeout(context.Background(), time.Second*30)
+	defer cf1()
+
+	// Blocking grpc Dial: in case of a bad connection, fails with timeout
+	conn, err := grpc.DialContext(ctx, addr, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 	if err != nil {
-		log.Error().Msg("err connecting kubearmor relay. " + err.Error())
+		log.Error().Msg("Error connecting kubearmor relay: " + err.Error())
 		return nil
 	}
 
-	log.Info().Msg("connected to kubearmor relay " + addr)
+	log.Info().Msg("Connected to kubearmor relay " + addr)
 	return conn
 }
 
@@ -328,7 +333,7 @@ func GetSystemAlertsFromKubeArmorRelay(trigger int) []*pb.Alert {
 	results := []*pb.Alert{}
 	KubeArmorRelayLogsMutex.Lock()
 	if len(KubeArmorRelayLogs) == 0 {
-		log.Info().Msgf("KubeArmor Relay traffic flow not exist")
+		log.Info().Msgf("KubeArmor Relay traffic flow does not exist")
 		KubeArmorRelayLogsMutex.Unlock()
 		return results
 	}
@@ -378,12 +383,10 @@ func ignoreLogFromRelayWithNamespace(nsFilter, nsNotFilter []string, namespace s
 
 var KubeArmorRelayStarted = false
 
-func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay) chan error {
-	error := make(chan error)
-
+func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay) {
 	if KubeArmorRelayStarted {
 		// log.Info().Msg("kubearmor relay already started")
-		return nil
+		return
 	}
 	KubeArmorRelayStarted = true
 	conn := ConnectKubeArmorRelay(cfg)
@@ -406,7 +409,6 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 		stream, err := client.WatchLogs(context.Background(), &req)
 		if err != nil {
 			log.Error().Msg("unable to stream systems logs: " + err.Error())
-			error <- fmt.Errorf("unable to stream systems logs: " + err.Error())
 			return
 		}
 		for {
@@ -430,10 +432,12 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 				}
 
 				if len(res.Resource) != 0 && res.Operation != "Network" && !strings.HasPrefix(res.Resource, "/") {
-					log.Warn().Msgf("Relative path found: %v", res)
 					continue
 				}
-
+				owner := pb.Podowner{
+					Ref:  res.Owner.Ref,
+					Name: res.Owner.Name,
+				}
 				kubearmorLog := pb.Alert{
 					Timestamp:         res.Timestamp,
 					UpdatedTime:       res.UpdatedTime,
@@ -458,6 +462,7 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 					Resource:          res.Resource,
 					Data:              res.Data,
 					Result:            res.Result,
+					Owner:             &owner,
 				}
 
 				KubeArmorRelayLogsMutex.Lock()
@@ -470,7 +475,9 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 
 				if config.CurrentCfg.ConfigNetPolicy.NetworkLogFrom == "kubearmor" {
 					if res.Operation == "Network" {
+						KubeArmorRelayLogsMutex.Lock()
 						KubeArmorNetworkLogs = append(KubeArmorNetworkLogs, &kubearmorLog)
+						KubeArmorRelayLogsMutex.Unlock()
 					}
 				}
 			}
@@ -487,7 +494,6 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 		stream, err := client.WatchAlerts(context.Background(), &req)
 		if err != nil {
 			log.Error().Msg("unable to stream systems alerts: " + err.Error())
-			error <- fmt.Errorf("unable to stream systems alerts: " + err.Error())
 			return
 		}
 		for {
@@ -511,7 +517,6 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 				}
 
 				if len(res.Resource) != 0 && res.Operation != "Network" && !strings.HasPrefix(res.Resource, "/") {
-					log.Warn().Msgf("Relative path found: %v", res)
 					continue
 				}
 
@@ -532,7 +537,6 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 			}
 		}
 	}()
-	return error
 }
 
 func GetSystemLogsFromFeedConsumer(trigger int) []*types.KnoxSystemLog {
@@ -558,13 +562,14 @@ func GetSystemLogsFromFeedConsumer(trigger int) []*types.KnoxSystemLog {
 }
 
 func GetNetworkLogsFromKubeArmor() []*pb.Alert {
-	if len(KubeArmorNetworkLogs) <= 0 {
-		return nil
-	}
-
+	KubeArmorRelayLogsMutex.Lock()
 	results := KubeArmorNetworkLogs      // copy
 	KubeArmorNetworkLogs = []*pb.Alert{} // reset
+	KubeArmorRelayLogsMutex.Unlock()
 
+	if len(results) <= 0 {
+		return nil
+	}
 	log.Info().Msgf("The total number of KubeArmor network log : [%d]", len(results))
 
 	return results
@@ -586,6 +591,7 @@ func ConvertKubeArmorNetLogToKnoxNetLog(kaNwLogs []*pb.Alert) []types.KnoxNetwor
 		var ip, port string
 		locKnoxLog := types.KnoxNetworkLog{
 			ClusterName:       kalog.ClusterName,
+			ContainerName:     kalog.ContainerName,
 			SrcNamespace:      kalog.NamespaceName,
 			SrcReservedLabels: strings.Split(kalog.Labels, ","),
 			SrcPodName:        kalog.PodName,

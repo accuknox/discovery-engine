@@ -19,9 +19,9 @@ func TestDescendingLabelCountMap(t *testing.T) {
 		"b": 1,
 		"c": 2,
 	}
-	expected := []LabelCount{LabelCount{Label: "a", Count: 5.01},
-		LabelCount{Label: "c", Count: 2.01},
-		LabelCount{Label: "b", Count: 1.01}}
+	expected := []LabelCount{{Label: "a", Count: 5.01},
+		{Label: "c", Count: 2.01},
+		{Label: "b", Count: 1.01}}
 
 	results := descendingLabelCountMap(labelCountMap)
 
@@ -52,9 +52,9 @@ func TestCombinationLabels(t *testing.T) {
 
 func TestRemoveSrcFromSlice(t *testing.T) {
 	srcs := []SrcSimple{
-		SrcSimple{Namespace: "test1",
+		{Namespace: "test1",
 			PodName: "testPod1"},
-		SrcSimple{Namespace: "test2",
+		{Namespace: "test2",
 			PodName: "testPod2"},
 	}
 
@@ -63,7 +63,7 @@ func TestRemoveSrcFromSlice(t *testing.T) {
 
 	results := removeSrcFromSlice(srcs, removedSrc)
 	expected := []SrcSimple{
-		SrcSimple{Namespace: "test1",
+		{Namespace: "test1",
 			PodName: "testPod1"},
 	}
 
@@ -72,9 +72,9 @@ func TestRemoveSrcFromSlice(t *testing.T) {
 
 func TestRemoveDstFromSlice(t *testing.T) {
 	dsts := []Dst{
-		Dst{Namespace: "test1",
+		{Namespace: "test1",
 			PodName: "testPod1"},
-		Dst{Namespace: "test2",
+		{Namespace: "test2",
 			PodName: "testPod2"},
 	}
 
@@ -83,7 +83,7 @@ func TestRemoveDstFromSlice(t *testing.T) {
 
 	results := removeDstFromSlice(dsts, removedDst)
 	expected := []Dst{
-		Dst{Namespace: "test1",
+		{Namespace: "test1",
 			PodName: "testPod1"},
 	}
 
@@ -92,18 +92,18 @@ func TestRemoveDstFromSlice(t *testing.T) {
 
 func TestRemoveDstFromMergedDstSlice(t *testing.T) {
 	ports := []MergedPortDst{
-		MergedPortDst{
+		{
 			Namespace: "test1",
 			PodName:   "testPod1",
-			ToPorts: []types.SpecPort{types.SpecPort{
+			ToPorts: []types.SpecPort{{
 				Port:     "80",
 				Protocol: "tcp",
 			}},
 		},
-		MergedPortDst{
+		{
 			Namespace: "test2",
 			PodName:   "testPod2",
-			ToPorts: []types.SpecPort{types.SpecPort{
+			ToPorts: []types.SpecPort{{
 				Port:     "8080",
 				Protocol: "tcp",
 			}},
@@ -113,7 +113,7 @@ func TestRemoveDstFromMergedDstSlice(t *testing.T) {
 	removedPort := MergedPortDst{
 		Namespace: "test2",
 		PodName:   "testPod2",
-		ToPorts: []types.SpecPort{types.SpecPort{
+		ToPorts: []types.SpecPort{{
 			Port:     "8080",
 			Protocol: "tcp",
 		}},
@@ -121,10 +121,10 @@ func TestRemoveDstFromMergedDstSlice(t *testing.T) {
 
 	results := removeDstFromMergedDstSlice(ports, removedPort)
 	expected := []MergedPortDst{
-		MergedPortDst{
+		{
 			Namespace: "test1",
 			PodName:   "testPod1",
-			ToPorts: []types.SpecPort{types.SpecPort{
+			ToPorts: []types.SpecPort{{
 				Port:     "80",
 				Protocol: "tcp",
 			}},

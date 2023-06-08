@@ -5,8 +5,11 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/accuknox/auto-policy-discovery/src/license"
+
 	"github.com/rs/zerolog"
 
+	"github.com/accuknox/auto-policy-discovery/src/admissioncontrollerpolicy"
 	analyzer "github.com/accuknox/auto-policy-discovery/src/analyzer"
 	core "github.com/accuknox/auto-policy-discovery/src/config"
 	fc "github.com/accuknox/auto-policy-discovery/src/feedconsumer"
@@ -22,6 +25,7 @@ import (
 	fpb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/consumer"
 	dpb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/discovery"
 	ipb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/insight"
+	lpb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/license"
 	opb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/observability"
 	ppb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/publisher"
 	wpb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/worker"
@@ -108,18 +112,24 @@ func (s *workerServer) GetWorkerStatus(ctx context.Context, in *wpb.WorkerReques
 
 func (s *workerServer) Convert(ctx context.Context, in *wpb.WorkerRequest) (*wpb.WorkerResponse, error) {
 
-	if strings.Contains(in.GetPolicytype(), "NetworkPolicy") {
+	policyType := in.GetPolicytype()
+	if strings.Contains(policyType, "NetworkPolicy") {
 		log.Info().Msg("Convert network policy called")
 		network.InitNetPolicyDiscoveryConfiguration()
 		network.WriteNetworkPoliciesToFile(in.GetClustername(), in.GetNamespace())
-		return network.GetNetPolicy(in.Clustername, in.Namespace, in.GetPolicytype()), nil
-	} else if in.GetPolicytype() == "KubearmorSecurityPolicy" {
+		return network.GetNetPolicy(in.Clustername, in.Namespace, policyType), nil
+	} else if policyType == "KubearmorSecurityPolicy" {
 		log.Info().Msg("Convert system policy called")
 		system.InitSysPolicyDiscoveryConfiguration()
 		system.WriteSystemPoliciesToFile(in.GetNamespace(), in.GetClustername(), in.GetLabels(), in.GetFromsource(), in.GetIncludenetwork())
 		return system.GetSysPolicy(in.Namespace, in.Clustername, in.Labels, in.Fromsource, in.Includenetwork), nil
+	} else if policyType == types.PolicyTypeAdmissionController || policyType == types.PolicyTypeAdmissionControllerGeneric {
+		log.Info().Msg("Convert admission controller policy called")
+		admissioncontrollerpolicy.InitAdmissionControllerPolicyDiscoveryConfiguration()
+		policies := admissioncontrollerpolicy.GetAdmissionControllerPolicy(in.Namespace, in.Clustername, in.Labels, policyType)
+		return admissioncontrollerpolicy.ConvertPoliciesToWorkerResponse(policies), nil
 	} else {
-		log.Error().Msgf("unsupported policy type - %s", in.GetPolicytype())
+		log.Error().Msgf("unsupported policy type - %s", policyType)
 	}
 
 	return &wpb.WorkerResponse{Res: "ok"}, nil
@@ -260,8 +270,19 @@ func (s *observabilityServer) Summary(ctx context.Context, in *opb.Request) (*op
 	return resp, err
 }
 
+// Service to fetch summary data per deployment
+func (s *observabilityServer) SummaryPerDeploy(ctx context.Context, in *opb.Request) (*opb.Response, error) {
+	resp, err := obs.GetSummaryDataPerDeploy(in)
+	return resp, err
+}
+
 func (s *observabilityServer) GetPodNames(ctx context.Context, in *opb.Request) (*opb.PodNameResponse, error) {
 	resp, err := obs.GetPodNames(in)
+	return &resp, err
+}
+
+func (s *observabilityServer) GetDeployNames(ctx context.Context, in *opb.Request) (*opb.DeployNameResponse, error) {
+	resp, err := obs.GetDeployNames(in)
 	return &resp, err
 }
 
@@ -281,15 +302,26 @@ func (ps *publisherServer) GetSummary(req *ppb.SummaryRequest, srv ppb.Publisher
 	return obs.SysSummary.RelaySummaryEventToGrpcStream(srv, consumer)
 }
 
-// ================= //
-// == gRPC server == //
-// ================= //
-
-func GetNewServer() *grpc.Server {
+func StartGrpcServer() *grpc.Server {
 	s := grpc.NewServer()
 	grpc_health_v1.RegisterHealthServer(s, health.NewServer())
 
 	reflection.Register(s)
+
+	return s
+}
+
+func AddLicenseServer(s *grpc.Server) *grpc.Server {
+	licenseServer := &license.Server{}
+	lpb.RegisterLicenseServer(s, licenseServer)
+	return s
+}
+
+// ================= //
+// == gRPC server == //
+// ================= //
+
+func AddServers(s *grpc.Server) *grpc.Server {
 
 	// create server instances
 	workerServer := &workerServer{}

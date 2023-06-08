@@ -150,8 +150,12 @@ func SetDefaultConfig() {
 
 	viper.SetDefault("recommend.cron-job-time-interval", "1h0m00s")
 	viper.SetDefault("recommend.operation-mode", 1)
-	viper.SetDefault("recommend.recommend-host-policy", true)
+	viper.SetDefault("recommend.host-policy", true)
+	viper.SetDefault("recommend.admission-controller-policy", true)
+	viper.SetDefault("license.enabled", false)
 
+	// pprof
+	viper.SetDefault("pprof", false)
 }
 
 type cfgArray []string
@@ -203,7 +207,7 @@ func CheckCommandLineConfig() {
 	var cmdlineCfg cfgArray
 
 	pprofFlag := flag.Bool("pprof", false, "enable pprof")
-	version1 := flag.Bool("v", false, "print version and exit")
+	version1 := flag.Bool("ver", false, "print version and exit")
 	version2 := flag.Bool("version", false, "print version and exit")
 	flag.Var(&cmdlineCfg, "cfg", "Configuration key=val")
 

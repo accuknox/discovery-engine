@@ -75,8 +75,6 @@ func extractNetworkInfoFromSystemLog(netLog pb.Alert, pods []types.Pod, services
 
 func convertSysLogToSysSummaryMap(syslogs []*pb.Alert) {
 
-	deployments := cluster.GetDeploymentsFromK8sClient()
-
 	var services []types.Service
 	var pods []types.Pod
 	var err error
@@ -124,14 +122,9 @@ func convertSysLogToSysSummaryMap(syslogs []*pb.Alert) {
 		sysSummary.Message = syslog.Message
 		sysSummary.Severity = syslog.Severity
 		sysSummary.PolicyName = syslog.PolicyName
-		sysSummary.Deployment = ""
-
-		for _, d := range deployments {
-			if d.Labels == syslog.Labels && d.Namespace == syslog.NamespaceName {
-				sysSummary.Deployment = d.Name
-				break
-			}
-		}
+		sysSummary.Workload.Type = syslog.Owner.Ref
+		sysSummary.Workload.Name = syslog.Owner.Name
+		sysSummary.Deployment = syslog.Owner.Name
 
 		if syslog.Operation == "Network" {
 			if existingClustername != syslog.ClusterName {

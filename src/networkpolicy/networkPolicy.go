@@ -1893,6 +1893,7 @@ func convertKnoxNetworkLogToKnoxNetworkPolicy(log *types.KnoxNetworkLog, pods []
 
 			iPolicy.Spec.Ingress = append(iPolicy.Spec.Ingress, ingress)
 			iPolicy.Metadata["namespace"] = log.DstNamespace
+			iPolicy.Metadata["container_name"] = log.ContainerName
 
 			ingressPolicy = &iPolicy
 		}
@@ -1910,7 +1911,7 @@ func convertKnoxNetworkLogToKnoxNetworkPolicy(log *types.KnoxNetworkLog, pods []
 		dstEntity := getEntityFromReservedLabels(log.DstReservedLabels)
 		if dstEntity != "" {
 			if dstEntity == "world" && log.DNSQuery != "" {
-				fqdn := types.SpecFQDN{[]string{log.DNSQuery}}
+				fqdn := types.SpecFQDN{MatchNames: []string{log.DNSQuery}}
 				egress.ToFQDNs = append(egress.ToFQDNs, fqdn)
 			} else {
 				egress.ToEntities = append(egress.ToEntities, dstEntity)
@@ -1935,6 +1936,7 @@ func convertKnoxNetworkLogToKnoxNetworkPolicy(log *types.KnoxNetworkLog, pods []
 
 			ePolicy.Spec.Egress = append(ePolicy.Spec.Egress, egress)
 			ePolicy.Metadata["namespace"] = log.SrcNamespace
+			ePolicy.Metadata["container_name"] = log.ContainerName
 			egressPolicy = &ePolicy
 		}
 	} else if log.DstPodName == "" && len(log.DstReservedLabels) == 0 {
@@ -1947,6 +1949,7 @@ func convertKnoxNetworkLogToKnoxNetworkPolicy(log *types.KnoxNetworkLog, pods []
 		// Update namespace
 		if iePolicy.Metadata["status"] == "latest" {
 			iePolicy.Metadata["namespace"] = log.SrcNamespace
+			iePolicy.Metadata["container_name"] = log.ContainerName
 		}
 	}
 
@@ -2229,7 +2232,6 @@ func writeNetworkPoliciesYamlToDB(policies []types.KnoxNetworkPolicy) {
 		k8sNetPolicies := plugin.ConvertKnoxNetPolicyToK8sNetworkPolicy("", "", policies)
 
 		for _, np := range k8sNetPolicies {
-			np.ClusterName = ""
 			jsonBytes, err := json.Marshal(np)
 			if err != nil {
 				log.Error().Msg(err.Error())

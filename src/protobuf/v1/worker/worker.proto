@@ -27,6 +27,7 @@ message WorkerResponse {
     repeated Policy kubearmorpolicy = 2;
     repeated Policy ciliumpolicy = 3;
     repeated Policy k8sNetworkpolicy = 4;
+    repeated Policy admissionControllerPolicy = 5;
 }
 
 message Policy {

@@ -179,6 +179,9 @@ func LoadConfigFromFile() {
 	CurrentCfg.ConfigSysPolicy.NsFilter, CurrentCfg.ConfigSysPolicy.NsNotFilter = getConfigNsFilter("application.system.namespace-filter")
 	CurrentCfg.ConfigSysPolicy.FromSourceFilter = viper.GetStringSlice("application.system.fromsource-filter")
 
+	CurrentCfg.ConfigAdmissionControllerPolicy.NsFilter, CurrentCfg.ConfigAdmissionControllerPolicy.NsNotFilter = getConfigNsFilter("application.admission-controller.namespace-filter")
+	CurrentCfg.ConfigAdmissionControllerPolicy.GenericPolicyList = viper.GetStringSlice("application.admission-controller.generic-policy-list")
+
 	// load cluster resource info
 	CurrentCfg.ConfigClusterMgmt = types.ConfigClusterMgmt{
 		ClusterInfoFrom: viper.GetString("application.cluster.cluster-info-from"),
@@ -208,10 +211,11 @@ func LoadConfigFromFile() {
 
 	// recommend policy configurations
 	CurrentCfg.ConfigRecommendPolicy = types.ConfigRecommendPolicy{
-		CronJobTimeInterval:     "@every " + viper.GetString("recommend.cron-job-time-interval"),
-		OneTimeJobTimeSelection: "", // e.g., 2021-01-20 07:00:23|2021-01-20 07:00:25
-		OperationMode:           viper.GetInt("recommend.operation-mode"),
-		RecommendHostPolicy:     viper.GetBool("recommend.recommend-host-policy"),
+		CronJobTimeInterval:                "@every " + viper.GetString("recommend.cron-job-time-interval"),
+		OneTimeJobTimeSelection:            "", // e.g., 2021-01-20 07:00:23|2021-01-20 07:00:25
+		OperationMode:                      viper.GetInt("recommend.operation-mode"),
+		RecommendHostPolicy:                viper.GetBool("recommend.host-policy"),
+		RecommendAdmissionControllerPolicy: viper.GetBool("recommend.admission-controller-policy"),
 	}
 
 	// load database
@@ -515,4 +519,8 @@ func GetCfgRecOneTime() string {
 
 func GetCfgRecommendHostPolicy() bool {
 	return CurrentCfg.ConfigRecommendPolicy.RecommendHostPolicy
+}
+
+func GetCfgRecommendAdmissionControllerPolicy() bool {
+	return CurrentCfg.ConfigRecommendPolicy.RecommendAdmissionControllerPolicy
 }

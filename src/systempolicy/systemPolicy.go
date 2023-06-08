@@ -2,7 +2,6 @@ package systempolicy
 
 import (
 	"errors"
-	"hash/fnv"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -33,7 +32,6 @@ import (
 )
 
 var log *zerolog.Logger
-var kubearmorRelayURL types.ConfigKubeArmorRelay
 
 func init() {
 	log = logger.GetInstance()
@@ -771,16 +769,12 @@ func mergeFromSource(pols []types.KnoxSystemPolicy) []types.KnoxSystemPolicy {
 	return results
 }
 
-func hashInt(s string) uint32 {
-	h := fnv.New32a()
-	_, _ = h.Write([]byte(s))
-	return h.Sum32()
-}
-
 func mergeSysPolicies(pols []types.KnoxSystemPolicy) []types.KnoxSystemPolicy {
 	var results []types.KnoxSystemPolicy
 	for _, pol := range pols {
-		pol.Metadata["name"] = "autopol-system-" + strconv.FormatUint(uint64(hashInt(pol.Metadata["labels"]+pol.Metadata["namespace"]+pol.Metadata["clustername"]+pol.Metadata["containername"])), 10)
+		pol.Metadata["name"] = "autopol-system-" +
+			strconv.FormatUint(uint64(common.HashInt(pol.Metadata["labels"]+
+				pol.Metadata["namespace"]+pol.Metadata["clustername"]+pol.Metadata["containername"])), 10)
 		i := checkIfMetadataMatches(pol, results)
 		if i < 0 {
 			results = append(results, pol)
@@ -1469,13 +1463,24 @@ func DiscoverSystemPolicyMain() {
 func StartSystemLogRcvr() {
 	for {
 		if cfg.GetCfgSystemLogFrom() == "kubearmor" {
-			err := plugin.StartKubeArmorRelay(SystemStopChan, cfg.GetCfgKubeArmor())
-			if val, ok := <-err; ok && val != nil {
-				url := cluster.GetKubearmorRelayURL()
-				kubearmorRelayURL.KubeArmorRelayURL = url
-				kubearmorRelayURL.KubeArmorRelayPort = "32767"
-				_ = plugin.StartKubeArmorRelay(SystemStopChan, kubearmorRelayURL)
+			url := cluster.GetKubearmorRelayURL()
+			if url == "" {
+				log.Error().Msg("kubearmor-relay url not found, retrying...")
+				for i := 0; i < types.Maxtries; i++ {
+					time.Sleep(10 * time.Second)
+					url = cluster.GetKubearmorRelayURL()
+					if url != "" {
+						break
+					}
+				}
 			}
+			if url == "" {
+				url = cfg.CurrentCfg.ConfigKubeArmorRelay.KubeArmorRelayURL
+			}
+			plugin.StartKubeArmorRelay(SystemStopChan, types.ConfigKubeArmorRelay{
+				KubeArmorRelayURL:  url,
+				KubeArmorRelayPort: cfg.CurrentCfg.ConfigKubeArmorRelay.KubeArmorRelayPort,
+			})
 		} else if cfg.GetCfgSystemLogFrom() == "feed-consumer" {
 			fc.ConsumerMutex.Lock()
 			fc.StartConsumer()

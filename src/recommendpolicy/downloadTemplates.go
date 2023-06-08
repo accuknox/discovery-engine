@@ -111,7 +111,11 @@ func DownloadAndUnzipRelease() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	_ = updatePolicyRules(strings.TrimSuffix(resp.Filename, ".zip"))
+	err = updatePolicyRules(strings.TrimSuffix(resp.Filename, ".zip"))
+	if err != nil {
+		log.Error().Msgf("Failed to update policy rules %s", err.Error())
+		return "", err
+	}
 	CurrentVersion = CurrentRelease()
 	log.Info().Msgf("Latest recommendation downloaded and updated")
 	return LatestVersion, nil
@@ -201,18 +205,38 @@ func updatePolicyRules(filePath string) error {
 		ms, err := getNextRule(&idx)
 		for ; err == nil; ms, err = getNextRule(&idx) {
 			if ms.Yaml != "" {
-				newPolicyFile := types.KnoxSystemPolicy{}
+				var policy map[string]interface{}
 				newYaml, err := os.ReadFile(filepath.Clean(fmt.Sprintf("%s%s", strings.TrimSuffix(file, "metadata.yaml"), ms.Yaml)))
 				if err != nil {
-					newYaml, _ = os.ReadFile(filepath.Clean(fmt.Sprintf("%s/%s", filePath, ms.Yaml)))
+					newYaml, err = os.ReadFile(filepath.Clean(fmt.Sprintf("%s/%s", filePath, ms.Yaml)))
+					if err != nil {
+						log.Error().Msgf("Failed to read yaml file %v", err)
+						return err
+					}
 				}
-				err = yaml.Unmarshal(newYaml, &newPolicyFile)
+				err = yaml.Unmarshal(newYaml, &policy)
 				if err != nil {
 					return err
 				}
+				apiVersion := policy["apiVersion"].(string)
+				if strings.Contains(apiVersion, "kyverno") {
+					policyKind := policy["kind"].(string)
+					kyvernoPolicyInterface, err := getKyvernoPolicy(policyKind, newYaml)
+					if err != nil {
+						return err
+					}
+					ms.KyvernoPolicy = &kyvernoPolicyInterface
+					ms.Kind = kyvernoPolicyInterface.GetKind()
+				} else if strings.Contains(apiVersion, "kubearmor") {
+					var knoxSystemPolicy types.KnoxSystemPolicy
+					err = yaml.Unmarshal(newYaml, &knoxSystemPolicy)
+					if err != nil {
+						return err
+					}
+					ms.Kind = knoxSystemPolicy.Kind
+					ms.Spec = knoxSystemPolicy.Spec
+				}
 				ms.Yaml = ""
-				ms.Spec = newPolicyFile.Spec
-				ms.Kind = newPolicyFile.Kind
 			}
 			completePolicy = append(completePolicy, ms)
 		}

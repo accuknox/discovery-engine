@@ -2,10 +2,11 @@ package common
 
 import (
 	"fmt"
+	"hash/fnv"
 	"strings"
 )
 
-//Basic Constant
+// Basic Constant
 const (
 	STATUS     = "Passed"
 	LIMIT      = " limit "
@@ -22,7 +23,7 @@ const (
 	L3_L4      = "L3_L4"
 )
 
-//Query Constant
+// Query Constant
 const (
 	WHERE_NAMESPACE_NAME  = ` where namespace_name = "`
 	WHERE                 = ` where `
@@ -33,14 +34,14 @@ const (
 	ORDER_BY_UPDATED_TIME = ` order by updated_time DESC`
 )
 
-//Error Constant
+// Error Constant
 const (
 	INCORRECT_DIRECTION = "incorrect direction"
 	INCORRECT_VERDICT   = "incorrect verdict"
 	INCORRECT_TYPE      = "incorrect type"
 )
 
-//ConvertArrayToString - Convert Array of string to String
+// ConvertArrayToString - Convert Array of string to String
 func ConvertArrayToString(arr []string) string {
 	var str string
 	for _, label := range arr {
@@ -58,7 +59,7 @@ func ConvertArrayToString(arr []string) string {
 
 }
 
-//ConvertStringToArray - Convert String to Array of string
+// ConvertStringToArray - Convert String to Array of string
 func ConvertStringToArray(str string) []string {
 	return strings.Split(str, ",")
 }
@@ -85,4 +86,10 @@ func StringDeDuplication(strSlice []string) []string {
 		}
 	}
 	return list
+}
+
+func HashInt(s string) uint32 {
+	h := fnv.New32a()
+	_, _ = h.Write([]byte(s))
+	return h.Sum32()
 }
