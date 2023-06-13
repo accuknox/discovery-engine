@@ -215,10 +215,10 @@ func discoversyspolicy(ns string, l string, rules []string, maxcnt int) (types.K
 		if err != nil {
 			log.Error().Msgf("Failed to apply the `karmor discover` command : %v", err)
 		}
-		if cnt == 9 {
-			fmt.Println("KubeArmor Security Policy :\n", string(cmd))
-		}
-
+		// if cnt == 9 {
+		// 	fmt.Println("KubeArmor Security Policy :\n", string(cmd))
+		// }
+		fmt.Println("KubeArmor Security Policy :\n", string(cmd))
 		err = json.Unmarshal(cmd, &policy)
 		if err != nil {
 			log.Error().Msgf("Failed to unmarshal the system policy : %v", err)
@@ -245,10 +245,10 @@ func discovernetworkpolicy(ns string, maxcnt int) ([]nv1.NetworkPolicy, error) {
 		}
 
 		yamls := strings.Split(string(cmd), "---")
-		if cnt == 9 {
-			fmt.Println("Network Policies : \n", yamls)
-		}
-
+		// if cnt == 9 {
+		// 	fmt.Println("Network Policies : \n", yamls)
+		// }
+		fmt.Println("Network Policies : \n", yamls)
 		if len(yamls) > 0 {
 			yamls = yamls[:len(yamls)-1]
 		}
@@ -404,7 +404,7 @@ var _ = Describe("Smoke", func() {
 		It("testing for network policy", func() {
 			//check whether wordpress service is running or not using curl command
 			for i := 0; i < 10; i++ {
-				_, err := exec.Command("curl", "-X", "POST", "-d", `WORDPRESS_DB_HOST="mysql"`, "-d", `WORDPRESS_DB_PASSWORD="root-password"`, "-d", `wp-submit="Log In"`, "-d", `redirect_to="http://localhost:30080/wp-admin/"`, "-d", "testcookie=1", "http://localhost:30080/wp-admin/install.php").Output()
+				_, err := exec.Command("curl", "-X", "POST", "-d", `WORDPRESS_DB_HOST="mysql"`, "-d", `WORDPRESS_DB_PASSWORD="root-password"`, "-d", `wp-submit="Log In"`, "-d", `redirect_to="http://localhost:30080/wp-admin/"`, "-d", `"testcookie=1"`, "http://localhost:30080/wp-admin/install.php").Output()
 				if err != nil {
 					log.Error().Msgf("Failed to apply curl command : %v", err)
 				}
