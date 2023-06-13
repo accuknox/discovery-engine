@@ -160,7 +160,6 @@ func convertSysLogToSysSummaryMap(syslogs []*pb.Alert) {
 
 		if syslog.Type == "ContainerLog" && syslog.NamespaceName == types.PolicyDiscoveryContainerNamespace {
 			sysSummary.NamespaceName = types.PolicyDiscoveryContainerNamespace
-			sysSummary.PodName = types.PolicyDiscoveryContainerPodName
 		}
 
 		if syslog.Type == "HostLog" || syslog.Type == "MatchedHostPolicy" {

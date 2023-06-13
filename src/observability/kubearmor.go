@@ -110,7 +110,6 @@ func ProcessSystemLogs() {
 
 			if locLog.Type == "ContainerLog" && locLog.NamespaceName == types.PolicyDiscoveryContainerNamespace {
 				locLog.NamespaceName = types.PolicyDiscoveryContainerNamespace
-				locLog.PodName = types.PolicyDiscoveryContainerPodName
 			}
 
 			if locLog.Type == "HostLog" || locLog.Type == "MatchedHostPolicy" {
