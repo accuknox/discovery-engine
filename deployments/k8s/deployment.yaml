@@ -101,11 +101,11 @@ data:
       system-observability: true
       network-observability: false
       write-logs-to-db: false
-
-    publisher: 
-      enable: true
-      cron-job-time-interval: "0h1m00s"         # format: XhYmZs
-
+      summary-jobs:
+        publisher: true
+        write-summary-to-db: false
+        cron-interval: "0h1m00s"
+    
     database:
       driver: sqlite3
       host: mysql.explorer.svc.cluster.local
