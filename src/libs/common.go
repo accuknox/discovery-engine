@@ -3,6 +3,8 @@ package libs
 import (
 	"bytes"
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"flag"
 	"fmt"
 	"math/big"
@@ -13,6 +15,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -688,4 +691,36 @@ func labelKVSplitter(r rune) bool {
 
 func labelArrSplitter(r rune) bool {
 	return r == ',' || r == ';'
+}
+
+func HashSystemSummary(summary *types.SystemSummary) string {
+	h := sha256.New()
+	h.Write(
+		[]byte(
+			summary.ClusterName +
+				strconv.Itoa(int(summary.ClusterId)) +
+				strconv.Itoa(int(summary.WorkspaceId)) +
+				summary.NamespaceName +
+				strconv.Itoa(int(summary.NamespaceId)) +
+				summary.ContainerName +
+				summary.ContainerImage +
+				summary.ContainerID +
+				summary.PodName +
+				summary.Operation +
+				summary.Labels +
+				summary.Deployment +
+				summary.Source +
+				summary.Destination +
+				summary.DestNamespace +
+				summary.DestLabels +
+				summary.NwType +
+				summary.IP +
+				strconv.Itoa(int(summary.Port)) +
+				summary.Protocol +
+				summary.Action +
+				summary.BindPort +
+				summary.BindAddress,
+		),
+	)
+	return hex.EncodeToString(h.Sum(nil))
 }

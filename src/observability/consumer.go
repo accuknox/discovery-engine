@@ -42,7 +42,7 @@ func NewSummaryConsumer(req *ppb.SummaryRequest) *SummaryConsumer {
 		Labels:      req.Labels,
 		Deployment:  req.DeploymentName,
 		Operation:   req.Operation,
-		Events:      make(chan *types.SystemSummary),
+		Events:      make(chan *types.SystemSummary, 1024),
 	}
 }
 

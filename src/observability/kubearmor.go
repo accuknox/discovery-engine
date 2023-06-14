@@ -139,16 +139,6 @@ func ProcessSystemLogs() {
 	// Convert kubearmor sys logs to SystemSummaryMap
 	convertSysLogToSysSummaryMap(locSysLogs)
 
-	// update summary map to DB
-	if err := libs.UpsertSystemSummary(CfgDB, SummarizerMap); err != nil {
-		log.Error().Msg(err.Error())
-	}
-
-	if config.GetCfgPublisherEnable() {
-		// Update publisher map with summarizer map
-		updatePublisherMap()
-	}
-
 	//clearSummarizerMap()
 }
 

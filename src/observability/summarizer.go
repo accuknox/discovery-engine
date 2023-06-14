@@ -173,8 +173,10 @@ func convertSysLogToSysSummaryMap(syslogs []*pb.Alert) {
 }
 
 func appendSummaryDataToSummaryMap(summary types.SystemSummary, ts int64) {
+	SummarizerMapMutex.Lock()
 	SummarizerMap[summary] = types.SysSummaryTimeCount{
 		Count:       SummarizerMap[summary].Count + 1,
 		UpdatedTime: ts,
 	}
+	SummarizerMapMutex.Unlock()
 }

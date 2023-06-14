@@ -103,17 +103,19 @@ type ConfigClusterMgmt struct {
 }
 
 type ConfigObservability struct {
-	Enable              bool   `json:"enable,omitempty" bson:"enable,omitempty"`
-	CronJobTimeInterval string `json:"cronjob_time_interval,omitempty" bson:"cronjob_time_interval,omitempty"`
-	DBName              string `json:"db_name,omitempty" bson:"db_name,omitempty"`
-	SysObservability    bool   `json:"sys_observability,omitempty" bson:"sys_observability,omitempty"`
-	NetObservability    bool   `json:"net_observability,omitempty" bson:"net_observability,omitempty"`
-	WriteLogsToDB       bool   `json:"write_logs_to_db,omitempty" bson:"write_logs_to_db,omitempty"`
+	Enable              bool              `json:"enable,omitempty" bson:"enable,omitempty"`
+	CronJobTimeInterval string            `json:"cronjob_time_interval,omitempty" bson:"cronjob_time_interval,omitempty"`
+	DBName              string            `json:"db_name,omitempty" bson:"db_name,omitempty"`
+	SysObservability    bool              `json:"sys_observability,omitempty" bson:"sys_observability,omitempty"`
+	NetObservability    bool              `json:"net_observability,omitempty" bson:"net_observability,omitempty"`
+	WriteLogsToDB       bool              `json:"write_logs_to_db,omitempty" bson:"write_logs_to_db,omitempty"`
+	SummaryJobsConfig   SummaryJobsConfig `json:"summary_jobs,omitempty" bson:"summary_jobs,omitempty"`
 }
 
-type ConfigPublisher struct {
-	Enable              bool   `json:"enable,omitempty" bson:"enable,omitempty"`
-	CronJobTimeInterval string `json:"cronjob_time_interval,omitempty" bson:"cronjob_time_interval,omitempty"`
+type SummaryJobsConfig struct {
+	Publisher        bool   `json:"publisher,omitempty" bson:"publisher,omitempty"`
+	WriteSummaryToDB bool   `json:"write_summary_to_db" bson:"write_summary_to_db,omitempty"`
+	CronInterval     string `json:"cron_interval,omitempty" bson:"cron_interval,omitempty"`
 }
 
 type ConfigPurgeOldDBEntries struct {
@@ -147,7 +149,6 @@ type Configuration struct {
 	ConfigAdmissionControllerPolicy ConfigAdmissionControllerPolicy `json:"config_admission_controller_policy,omitempty" bson:"config_admission_controller_policy,omitempty"`
 	ConfigClusterMgmt               ConfigClusterMgmt               `json:"config_cluster_mgmt,omitempty" bson:"config_cluster_mgmt,omitempty"`
 	ConfigObservability             ConfigObservability             `json:"config_observability,omitempty" bson:"config_observability,omitempty"`
-	ConfigPublisher                 ConfigPublisher                 `json:"config_summarizer,omitempty" bson:"config_summarizer,omitempty"`
 	ConfigPurgeOldDBEntries         ConfigPurgeOldDBEntries         `json:"config_purge_old_db_entries,omitempty" bson:"config_purge_old_db_entries,omitempty"`
 	ConfigRecommendPolicy           ConfigRecommendPolicy           `json:"config_recommend_policy,omitempty" bson:"config_recommend_policy,omitempty"`
 }
