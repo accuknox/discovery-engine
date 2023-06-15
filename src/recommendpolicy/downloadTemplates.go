@@ -51,21 +51,22 @@ func latestRelease() string {
 	return *latestRelease.TagName
 }
 
-// CurrentRelease gets the current release of policy-templates
-func CurrentRelease() string {
+// updatePolicyMap gets the current release of policy-templates
+func updatePolicyMap() {
 
 	path, err := os.ReadFile(fmt.Sprintf("%s%s", getCachePath(), "rules.yaml"))
 	if err != nil {
-		CurrentVersion = strings.Trim(updateRulesYAML([]byte{}), "\"")
+		updateRulesYAML([]byte{})
 	} else {
-
-		CurrentVersion = strings.Trim(updateRulesYAML(path), "\"")
+		updateRulesYAML(path)
 	}
-
-	return CurrentVersion
 }
 
 func isLatest() bool {
+
+	if Version == "" {
+		LatestVersion = latestRelease()
+	}
 
 	if LatestVersion == "" && CurrentVersion == "" {
 		return false
@@ -87,38 +88,40 @@ func init() {
 }
 
 // DownloadAndUnzipRelease downloads the latest version of policy-templates
-func DownloadAndUnzipRelease() (string, error) {
+func DownloadAndUnzipRelease(version string) error {
 
-	if LatestVersion == "" {
-		LatestVersion = latestRelease()
+	if version != "" {
+		LatestVersion = version
 	}
+
 	_ = removeData(getCachePath())
 	err := os.MkdirAll(filepath.Dir(getCachePath()), 0740)
 	if err != nil {
-		return "", err
+		return err
 	}
 	downloadURL := fmt.Sprintf("%s%s.zip", url, LatestVersion)
 	resp, err := grab.Get(getCachePath(), downloadURL)
 	if err != nil {
 		_ = removeData(getCachePath())
-		return "", err
+		return err
 	}
 	err = unZip(resp.Filename, getCachePath())
 	if err != nil {
-		return "", err
+		return err
 	}
 	err = removeData(resp.Filename)
 	if err != nil {
-		return "", err
+		return err
 	}
 	err = updatePolicyRules(strings.TrimSuffix(resp.Filename, ".zip"))
 	if err != nil {
 		log.Error().Msgf("Failed to update policy rules %s", err.Error())
-		return "", err
+		return err
 	}
-	CurrentVersion = CurrentRelease()
-	log.Info().Msgf("Latest recommendation downloaded and updated")
-	return LatestVersion, nil
+	updatePolicyMap()
+	CurrentVersion = LatestVersion
+	log.Info().Msgf("Template version %v downloaded and cached", LatestVersion)
+	return nil
 }
 
 // Sanitize archive file pathing from "G305: Zip Slip vulnerability"

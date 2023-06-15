@@ -216,6 +216,7 @@ func LoadConfigFromFile() {
 		OperationMode:                      viper.GetInt("recommend.operation-mode"),
 		RecommendHostPolicy:                viper.GetBool("recommend.host-policy"),
 		RecommendAdmissionControllerPolicy: viper.GetBool("recommend.admission-controller-policy"),
+		RecommendTemplateVersion:           viper.GetString("recommend.template-version"),
 	}
 
 	// load database
@@ -527,4 +528,8 @@ func GetCfgRecommendHostPolicy() bool {
 
 func GetCfgRecommendAdmissionControllerPolicy() bool {
 	return CurrentCfg.ConfigRecommendPolicy.RecommendAdmissionControllerPolicy
+}
+
+func GetCfgRecommendTemplateVersion() string {
+	return CurrentCfg.ConfigRecommendPolicy.RecommendTemplateVersion
 }
