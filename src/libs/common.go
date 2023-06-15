@@ -150,11 +150,13 @@ func SetDefaultConfig() {
 	viper.SetDefault("feed-consumer.pulsar.operation-timeout", "30")
 
 	// recommend config
-
 	viper.SetDefault("recommend.cron-job-time-interval", "1h0m00s")
 	viper.SetDefault("recommend.operation-mode", 1)
 	viper.SetDefault("recommend.host-policy", true)
 	viper.SetDefault("recommend.admission-controller-policy", true)
+	viper.SetDefault("recommend.template-version", "")
+
+	// DE license config
 	viper.SetDefault("license.enabled", false)
 
 	// pprof

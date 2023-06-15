@@ -130,6 +130,7 @@ type ConfigRecommendPolicy struct {
 	OneTimeJobTimeSelection            string `json:"one_time_job_time_selection,omitempty" bson:"one_time_job_time_selection,omitempty"`
 	RecommendHostPolicy                bool   `json:"recommend_host_policy,omitempty" bson:"recommend_host_policy,omitempty"`
 	RecommendAdmissionControllerPolicy bool   `json:"recommend_admission_controller_policy,omitempty" bson:"recommend_admission_controller_policy,omitempty"`
+	RecommendTemplateVersion                    string `json:"template_version,omitempty" bson:"template_version,omitempty"`
 }
 
 type Configuration struct {
