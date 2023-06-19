@@ -148,7 +148,7 @@ func ProcessKubearmorLogs(kubearmorLog *pb.Alert) {
 	SystemLogsMutex.Unlock()
 }
 
-func aggregateProcFileData(data []types.SysObsProcFileData) []types.SysObsProcFileData {
+func AggregateProcFileData(data []types.SysObsProcFileData) []types.SysObsProcFileData {
 	if len(data) <= 0 {
 		return nil
 	}
@@ -212,14 +212,14 @@ func GetKubearmorSummaryData(req *opb.Request) ([]types.SysObsProcFileData, []ty
 	var nwData []types.SysObsNwData
 	var podInfo types.ObsPodDetail
 
-	sysSummary, err := libs.GetSystemSummary(CfgDB, types.SystemSummary{
+	sysSummary, err := libs.GetSystemSummary(CfgDB, &types.SystemSummary{
 		PodName:       req.PodName,
 		NamespaceName: req.NameSpace,
 		ContainerName: req.ContainerName,
 		ClusterName:   req.ClusterName,
 		Labels:        req.Label,
 		Deployment:    req.DeployName,
-	})
+	}, nil)
 	if err != nil {
 		return nil, nil, nil, types.ObsPodDetail{}
 	}
@@ -273,7 +273,7 @@ func GetKubearmorSummaryData(req *opb.Request) ([]types.SysObsProcFileData, []ty
 	}
 
 	if req.Aggregate {
-		fileData = aggregateProcFileData(fileData)
+		fileData = AggregateProcFileData(fileData)
 	}
 
 	return processData, fileData, nwData, podInfo

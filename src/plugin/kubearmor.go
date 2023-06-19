@@ -313,9 +313,8 @@ func ConvertKubeArmorLogToKnoxSystemLog(relayLog *pb.Alert) (types.KnoxSystemLog
 
 func ConnectKubeArmorRelay(cfg types.ConfigKubeArmorRelay) *grpc.ClientConn {
 	addr := net.JoinHostPort(cfg.KubeArmorRelayURL, cfg.KubeArmorRelayPort)
-
 	// Check for kubearmor-relay with 30s timeout
-	ctx, cf1 := context.WithTimeout(context.Background(), time.Second*30)
+	ctx, cf1 := context.WithTimeout(context.Background(), time.Second*60)
 	defer cf1()
 
 	// Blocking grpc Dial: in case of a bad connection, fails with timeout
@@ -390,6 +389,9 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 	}
 	KubeArmorRelayStarted = true
 	conn := ConnectKubeArmorRelay(cfg)
+	if conn == nil {
+		return
+	}
 
 	client := pb.NewLogServiceClient(conn)
 	req := pb.RequestMessage{}

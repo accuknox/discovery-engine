@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/accuknox/auto-policy-discovery/src/report"
 	"math/rand"
 	"net"
 	"net/http"
@@ -71,6 +72,7 @@ func init() {
 
 	cfg.K8sClient = cluster.ConnectK8sClient()
 	license.InitializeConfig(cfg.K8sClient)
+	report.InitializeConfig()
 }
 
 // ========== //

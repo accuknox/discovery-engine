@@ -232,6 +232,7 @@ func CheckCommandLineConfig() {
 	viper.SetConfigName(GetEnv("CONF_FILE_NAME", "conf"))
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath(*configFilePath)
+	viper.SetConfigFile(*configFilePath)
 	if err := viper.ReadInConfig(); err != nil {
 		if readErr, ok := err.(viper.ConfigFileNotFoundError); !ok {
 			log.Panic().Msgf("Error reading config file: %s\n", readErr)
