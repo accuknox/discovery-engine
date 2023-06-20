@@ -122,9 +122,15 @@ func convertSysLogToSysSummaryMap(syslogs []*pb.Alert) {
 		sysSummary.Message = syslog.Message
 		sysSummary.Severity = syslog.Severity
 		sysSummary.PolicyName = syslog.PolicyName
-		sysSummary.Workload.Type = syslog.Owner.Ref
-		sysSummary.Workload.Name = syslog.Owner.Name
-		sysSummary.Deployment = syslog.Owner.Name
+
+		if syslog.Owner != nil {
+			sysSummary.Workload = types.Workload{
+				Type: syslog.Owner.Ref,
+				Name: syslog.Owner.Name,
+			}
+			sysSummary.Deployment = syslog.Owner.Name
+
+		}
 
 		if syslog.Operation == "Network" {
 			if existingClustername != syslog.ClusterName {
