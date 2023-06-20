@@ -45,8 +45,8 @@ message ResourceTypeData{
 message ResourceData{
   string ResourceType=1;
   string ResourceName=2;
-  MetaData MData=3;
-  SummaryData SumData=4;
+  MetaData MetaData=3;
+  SummaryData SummaryData=4;
 }
 
 message SummaryData{

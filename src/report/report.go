@@ -64,11 +64,11 @@ func getSystemReport(o *Options) (*rpb.ReportResponse, error) {
 					res.Clusters[cv.ClusterName].Namespaces[nv.NamespaceName].ResourceTypes[rtk].Resources[rsdk] = &rpb.ResourceData{
 						ResourceType: rsdv.ResourceType,
 						ResourceName: rsdv.ResourceName,
-						MData: &rpb.MetaData{
+						MetaData: &rpb.MetaData{
 							Label:         rsdv.MetaData.Label,
 							ContainerName: rsdv.MetaData.ContainerName,
 						},
-						SumData: &rpb.SummaryData{
+						SummaryData: &rpb.SummaryData{
 							ProcessData:       []*opb.SysProcFileSummaryData{},
 							FileData:          []*opb.SysProcFileSummaryData{},
 							IngressConnection: []*opb.SysNwSummaryData{},
@@ -77,10 +77,10 @@ func getSystemReport(o *Options) (*rpb.ReportResponse, error) {
 						},
 					}
 
-					res.Clusters[cv.ClusterName].Namespaces[nv.NamespaceName].ResourceTypes[rtk].Resources[rsdk].SumData = &rpb.SummaryData{}
+					res.Clusters[cv.ClusterName].Namespaces[nv.NamespaceName].ResourceTypes[rtk].Resources[rsdk].SummaryData = &rpb.SummaryData{}
 
 					for _, sd := range rsdv.SummaryData.ProcessData {
-						res.Clusters[cv.ClusterName].Namespaces[nv.NamespaceName].ResourceTypes[rtk].Resources[rsdk].SumData.ProcessData = append(res.Clusters[cv.ClusterName].Namespaces[nv.NamespaceName].ResourceTypes[rtk].Resources[rsdk].SumData.ProcessData,
+						res.Clusters[cv.ClusterName].Namespaces[nv.NamespaceName].ResourceTypes[rtk].Resources[rsdk].SummaryData.ProcessData = append(res.Clusters[cv.ClusterName].Namespaces[nv.NamespaceName].ResourceTypes[rtk].Resources[rsdk].SummaryData.ProcessData,
 							&opb.SysProcFileSummaryData{
 								Source:      sd.Source,
 								Destination: sd.Destination,
@@ -89,7 +89,7 @@ func getSystemReport(o *Options) (*rpb.ReportResponse, error) {
 					}
 
 					for _, sd := range rsdv.SummaryData.FileData {
-						res.Clusters[cv.ClusterName].Namespaces[nv.NamespaceName].ResourceTypes[rtk].Resources[rsdk].SumData.FileData = append(res.Clusters[cv.ClusterName].Namespaces[nv.NamespaceName].ResourceTypes[rtk].Resources[rsdk].SumData.FileData,
+						res.Clusters[cv.ClusterName].Namespaces[nv.NamespaceName].ResourceTypes[rtk].Resources[rsdk].SummaryData.FileData = append(res.Clusters[cv.ClusterName].Namespaces[nv.NamespaceName].ResourceTypes[rtk].Resources[rsdk].SummaryData.FileData,
 							&opb.SysProcFileSummaryData{
 								Source:      sd.Source,
 								Destination: sd.Destination,
@@ -98,7 +98,7 @@ func getSystemReport(o *Options) (*rpb.ReportResponse, error) {
 					}
 					for _, sd := range rsdv.SummaryData.NetworkData {
 						if sd.NetType == "ingress" {
-							res.Clusters[cv.ClusterName].Namespaces[nv.NamespaceName].ResourceTypes[rtk].Resources[rsdk].SumData.IngressConnection = append(res.Clusters[cv.ClusterName].Namespaces[nv.NamespaceName].ResourceTypes[rtk].Resources[rsdk].SumData.IngressConnection, &opb.SysNwSummaryData{
+							res.Clusters[cv.ClusterName].Namespaces[nv.NamespaceName].ResourceTypes[rtk].Resources[rsdk].SummaryData.IngressConnection = append(res.Clusters[cv.ClusterName].Namespaces[nv.NamespaceName].ResourceTypes[rtk].Resources[rsdk].SummaryData.IngressConnection, &opb.SysNwSummaryData{
 								Protocol:  sd.Protocol,
 								Command:   sd.Command,
 								IP:        sd.PodSvcIP,
@@ -107,7 +107,7 @@ func getSystemReport(o *Options) (*rpb.ReportResponse, error) {
 								Namespace: sd.Namespace,
 							})
 						} else if sd.NetType == "egress" {
-							res.Clusters[cv.ClusterName].Namespaces[nv.NamespaceName].ResourceTypes[rtk].Resources[rsdk].SumData.EgressConnection = append(res.Clusters[cv.ClusterName].Namespaces[nv.NamespaceName].ResourceTypes[rtk].Resources[rsdk].SumData.EgressConnection, &opb.SysNwSummaryData{
+							res.Clusters[cv.ClusterName].Namespaces[nv.NamespaceName].ResourceTypes[rtk].Resources[rsdk].SummaryData.EgressConnection = append(res.Clusters[cv.ClusterName].Namespaces[nv.NamespaceName].ResourceTypes[rtk].Resources[rsdk].SummaryData.EgressConnection, &opb.SysNwSummaryData{
 								Protocol:  sd.Protocol,
 								Command:   sd.Command,
 								IP:        sd.PodSvcIP,
@@ -116,7 +116,7 @@ func getSystemReport(o *Options) (*rpb.ReportResponse, error) {
 								Namespace: sd.Namespace,
 							})
 						} else if sd.NetType == "bind" {
-							res.Clusters[cv.ClusterName].Namespaces[nv.NamespaceName].ResourceTypes[rtk].Resources[rsdk].SumData.BindConnection = append(res.Clusters[cv.ClusterName].Namespaces[nv.NamespaceName].ResourceTypes[rtk].Resources[rsdk].SumData.
+							res.Clusters[cv.ClusterName].Namespaces[nv.NamespaceName].ResourceTypes[rtk].Resources[rsdk].SummaryData.BindConnection = append(res.Clusters[cv.ClusterName].Namespaces[nv.NamespaceName].ResourceTypes[rtk].Resources[rsdk].SummaryData.
 								BindConnection, &opb.SysNwSummaryData{
 								Protocol:    sd.Protocol,
 								Command:     sd.Command,
