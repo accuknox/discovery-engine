@@ -484,20 +484,20 @@ func upsertSysSummarySQL(db *sql.DB, summary types.SystemSummary, timeCount type
 	return nil
 }
 
-func GetSystemSummary(cfg types.ConfigDB, filterOptions types.SystemSummary) ([]types.SystemSummary, error) {
+func GetSystemSummary(cfg types.ConfigDB, filterOptions *types.SystemSummary, reportOptions *types.ReportOptions) ([]types.SystemSummary, error) {
 	var err = errors.New("unknown db driver")
 	res := []types.SystemSummary{}
 
 	if cfg.DBDriver == "mysql" {
-		res, err = GetSystemSummaryMySQL(cfg, filterOptions)
+		res, err = GetSystemSummaryMySQL(cfg, filterOptions, reportOptions)
 	} else if cfg.DBDriver == "sqlite3" {
-		res, err = GetSystemSummarySQLite(cfg, filterOptions)
+		res, err = GetSystemSummarySQLite(cfg, filterOptions, reportOptions)
 	}
 
 	return res, err
 }
 
-func getSysSummarySQL(db *sql.DB, dbName string, filterOptions types.SystemSummary) ([]types.SystemSummary, error) {
+func getSysSummarySQL(db *sql.DB, dbName string, filterOptions *types.SystemSummary, reportOptions *types.ReportOptions) ([]types.SystemSummary, error) {
 	var results *sql.Rows
 	var err error
 
@@ -510,61 +510,66 @@ func getSysSummarySQL(db *sql.DB, dbName string, filterOptions types.SystemSumma
 	var whereClause string
 	var args []interface{}
 
-	if filterOptions.ClusterName != "" {
-		concatWhereClause(&whereClause, "cluster_name")
-		args = append(args, filterOptions.ClusterName)
-	}
-	if filterOptions.ClusterId != 0 {
-		concatWhereClause(&whereClause, "cluster_id")
-		args = append(args, filterOptions.ClusterId)
-	}
-	if filterOptions.WorkspaceId != 0 {
-		concatWhereClause(&whereClause, "workpsace_id")
-		args = append(args, filterOptions.WorkspaceId)
-	}
-	if filterOptions.NamespaceName != "" {
-		concatWhereClause(&whereClause, "namespace_name")
-		args = append(args, filterOptions.NamespaceName)
-	}
-	if filterOptions.NamespaceId != 0 {
-		concatWhereClause(&whereClause, "namespace_id")
-		args = append(args, filterOptions.NamespaceId)
-	}
-	if filterOptions.ContainerName != "" {
-		concatWhereClause(&whereClause, "container_name")
-		args = append(args, filterOptions.ContainerName)
-	}
-	if filterOptions.ContainerImage != "" {
-		concatWhereClause(&whereClause, "container_image")
-		args = append(args, filterOptions.ContainerImage)
-	}
-	if filterOptions.ContainerID != "" {
-		concatWhereClause(&whereClause, "container_id")
-		args = append(args, filterOptions.ContainerID)
-	}
-	if filterOptions.PodName != "" {
-		concatWhereClause(&whereClause, "podname")
-		args = append(args, filterOptions.PodName)
-	}
-	if filterOptions.Operation != "" {
-		concatWhereClause(&whereClause, "operation")
-		args = append(args, filterOptions.Operation)
-	}
-	if filterOptions.Labels != "" {
-		concatWhereClause(&whereClause, "labels")
-		args = append(args, filterOptions.Labels)
-	}
-	if filterOptions.Deployment != "" {
-		concatWhereClause(&whereClause, "deployment_name")
-		args = append(args, filterOptions.Deployment)
-	}
-	if filterOptions.Source != "" {
-		concatWhereClause(&whereClause, "source")
-		args = append(args, filterOptions.Source)
-	}
-	if filterOptions.Destination != "" {
-		concatWhereClause(&whereClause, "destination")
-		args = append(args, filterOptions.Destination)
+	args = addWhereClauseForReport(reportOptions)
+
+	if reportOptions == nil {
+
+		if filterOptions.ClusterName != "" {
+			concatWhereClause(&whereClause, "cluster_name")
+			args = append(args, filterOptions.ClusterName)
+		}
+		if filterOptions.ClusterId != 0 {
+			concatWhereClause(&whereClause, "cluster_id")
+			args = append(args, filterOptions.ClusterId)
+		}
+		if filterOptions.WorkspaceId != 0 {
+			concatWhereClause(&whereClause, "workpsace_id")
+			args = append(args, filterOptions.WorkspaceId)
+		}
+		if filterOptions.NamespaceName != "" {
+			concatWhereClause(&whereClause, "namespace_name")
+			args = append(args, filterOptions.NamespaceName)
+		}
+		if filterOptions.NamespaceId != 0 {
+			concatWhereClause(&whereClause, "namespace_id")
+			args = append(args, filterOptions.NamespaceId)
+		}
+		if filterOptions.ContainerName != "" {
+			concatWhereClause(&whereClause, "container_name")
+			args = append(args, filterOptions.ContainerName)
+		}
+		if filterOptions.ContainerImage != "" {
+			concatWhereClause(&whereClause, "container_image")
+			args = append(args, filterOptions.ContainerImage)
+		}
+		if filterOptions.ContainerID != "" {
+			concatWhereClause(&whereClause, "container_id")
+			args = append(args, filterOptions.ContainerID)
+		}
+		if filterOptions.PodName != "" {
+			concatWhereClause(&whereClause, "podname")
+			args = append(args, filterOptions.PodName)
+		}
+		if filterOptions.Operation != "" {
+			concatWhereClause(&whereClause, "operation")
+			args = append(args, filterOptions.Operation)
+		}
+		if filterOptions.Labels != "" {
+			concatWhereClause(&whereClause, "labels")
+			args = append(args, filterOptions.Labels)
+		}
+		if filterOptions.Deployment != "" {
+			concatWhereClause(&whereClause, "deployment_name")
+			args = append(args, filterOptions.Deployment)
+		}
+		if filterOptions.Source != "" {
+			concatWhereClause(&whereClause, "source")
+			args = append(args, filterOptions.Source)
+		}
+		if filterOptions.Destination != "" {
+			concatWhereClause(&whereClause, "destination")
+			args = append(args, filterOptions.Destination)
+		}
 	}
 
 	results, err = db.Query(query+whereClause, args...)
@@ -610,6 +615,52 @@ func getSysSummarySQL(db *sql.DB, dbName string, filterOptions types.SystemSumma
 	}
 
 	return resSummary, err
+}
+
+func addWhereClauseForReport(reportOptions *types.ReportOptions) []interface{} {
+	var args []interface{}
+
+	if reportOptions != nil {
+		addOrWhereClauseForStringArray(args, reportOptions.Clusters, "cluster_name")
+
+		addOrWhereClauseForStringArray(args, reportOptions.Namespaces, "namespace_name")
+
+		addOrWhereClauseForStringArray(args, reportOptions.ResourceType, "resource_type")
+
+		addOrWhereClauseForStringArray(args, reportOptions.ResourceName, "resource_name")
+
+		if reportOptions.MetaData != nil {
+			addOrWhereClauseForString(args, reportOptions.MetaData.Label, "label")
+
+			addOrWhereClauseForString(args, reportOptions.MetaData.ContainerName, "container_name")
+		}
+		addOrWhereClauseForString(args, reportOptions.Operation, "operation")
+
+		addOrWhereClauseForString(args, reportOptions.PodName, "pod_name")
+
+		addOrWhereClauseForStringArray(args, reportOptions.Source, "source")
+
+		addOrWhereClauseForStringArray(args, reportOptions.Destination, "destination")
+	}
+	return args
+}
+
+func addOrWhereClauseForStringArray(args []interface{}, fieldValues []string, fieldName string) {
+	var whereClause string
+	if fieldValues != nil {
+		for fv := range fieldValues {
+			concatWhereClause(&whereClause, fieldName)
+			args = append(args, fv)
+		}
+	}
+}
+
+func addOrWhereClauseForString(args []interface{}, fieldValues string, fieldName string) {
+	var whereClause string
+	if fieldValues != "" {
+		concatWhereClause(&whereClause, fieldName)
+		args = append(args, fieldValues)
+	}
 }
 
 // ==================================== //

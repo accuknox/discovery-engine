@@ -3,6 +3,8 @@ package server
 import (
 	"context"
 	"errors"
+	rpb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/report"
+	"github.com/accuknox/auto-policy-discovery/src/report"
 	"strings"
 
 	"github.com/accuknox/auto-policy-discovery/src/license"
@@ -317,6 +319,13 @@ func AddLicenseServer(s *grpc.Server) *grpc.Server {
 	return s
 }
 
+// addReportServer add report grpc server
+func addReportServer(s *grpc.Server) *grpc.Server {
+	reportServer := &report.Server{}
+	rpb.RegisterReportServer(s, reportServer)
+	return s
+}
+
 // ================= //
 // == gRPC server == //
 // ================= //
@@ -340,6 +349,8 @@ func AddServers(s *grpc.Server) *grpc.Server {
 	opb.RegisterObservabilityServer(s, observabilityServer)
 	dpb.RegisterDiscoveryServer(s, discoveryServer)
 	ppb.RegisterPublisherServer(s, publisherServer)
+
+	s = addReportServer(s)
 
 	if core.GetCurrentCfg().ConfigClusterMgmt.ClusterInfoFrom != "k8sclient" {
 		// start consumer automatically

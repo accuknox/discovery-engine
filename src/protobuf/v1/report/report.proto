@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+package v1.report;
+
+option go_package = "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/report";
+
+import "v1/observability/observability.proto";
+
+
+service Report{
+  rpc GetReport(ReportRequest) returns (ReportResponse);
+}
+
+message ReportRequest{
+  repeated string Clusters =1;
+  repeated string Namespaces=2;
+  repeated string ResourceType=3;
+  repeated string ResourceName=4;
+  string PodName=5;
+  MetaData MetaData=6;
+  string Operation=7;
+  repeated string Source=8;
+  repeated string Destination=9;
+}
+
+message ReportResponse{
+  map<string,ClusterData> Clusters=1;
+}
+
+message ClusterData{
+  string ClusterName=1;
+  map<string,NamespaceData> Namespaces=2;
+}
+
+message NamespaceData{
+  string NamespaceName=1;
+  map<string, ResourceTypeData> ResourceTypes=2;
+}
+
+message ResourceTypeData{
+  string ResourceType=1;
+  map<string,ResourceData> Resources=2;
+}
+
+message ResourceData{
+  string ResourceType=1;
+  string ResourceName=2;
+  MetaData MData=3;
+  SummaryData SumData=4;
+}
+
+message SummaryData{
+  repeated observability.SysProcFileSummaryData ProcessData = 1;
+  repeated observability.SysProcFileSummaryData FileData = 2;
+  repeated observability.SysNwSummaryData IngressConnection = 3;
+  repeated observability.SysNwSummaryData EgressConnection = 4;
+  repeated observability.SysNwSummaryData BindConnection = 5;
+}
+
+message MetaData {
+  string Label=1;
+  string ContainerName=2;
+}

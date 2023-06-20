@@ -1858,10 +1858,10 @@ func UpsertSystemSummarySQLite(cfg types.ConfigDB, sysSummary map[types.SystemSu
 	return nil
 }
 
-func GetSystemSummarySQLite(cfg types.ConfigDB, filterOptions types.SystemSummary) ([]types.SystemSummary, error) {
+func GetSystemSummarySQLite(cfg types.ConfigDB, filterOptions *types.SystemSummary, reportOptions *types.ReportOptions) ([]types.SystemSummary, error) {
 	db := connectSQLiteOBS(cfg, config.GetCfgObservabilityDBName())
 
-	res, err := getSysSummarySQL(db, TableSystemSummarySQLite, filterOptions)
+	res, err := getSysSummarySQL(db, TableSystemSummarySQLite, filterOptions, reportOptions)
 
 	return res, err
 }

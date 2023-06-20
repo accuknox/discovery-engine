@@ -1839,11 +1839,11 @@ func UpsertSystemSummaryMySQL(cfg types.ConfigDB, sysSummary map[types.SystemSum
 	return nil
 }
 
-func GetSystemSummaryMySQL(cfg types.ConfigDB, filterOptions types.SystemSummary) ([]types.SystemSummary, error) {
+func GetSystemSummaryMySQL(cfg types.ConfigDB, filterOptions *types.SystemSummary, reportOptions *types.ReportOptions) ([]types.SystemSummary, error) {
 	db := connectMySQL(cfg)
 	defer db.Close()
 
-	res, err := getSysSummarySQL(db, TableSystemSummarySQLite, filterOptions)
+	res, err := getSysSummarySQL(db, TableSystemSummarySQLite, filterOptions, reportOptions)
 
 	return res, err
 }
