@@ -467,6 +467,10 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 					Owner:             &owner,
 				}
 
+				if strings.Contains(kubearmorLog.Labels, types.JobLabelControllerUidStr) {
+					kubearmorLog.Labels = libs.RemoveFieldFromLabel(kubearmorLog.Labels, types.JobLabelControllerUidStr)
+				}
+
 				KubeArmorRelayLogsMutex.Lock()
 				KubeArmorRelayLogs = append(KubeArmorRelayLogs, &kubearmorLog)
 				KubeArmorRelayLogsMutex.Unlock()
@@ -520,6 +524,10 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 
 				if len(res.Resource) != 0 && res.Operation != "Network" && !strings.HasPrefix(res.Resource, "/") {
 					continue
+				}
+
+				if strings.Contains(res.Labels, types.JobLabelControllerUidStr) {
+					res.Labels = libs.RemoveFieldFromLabel(res.Labels, types.JobLabelControllerUidStr)
 				}
 
 				KubeArmorRelayLogsMutex.Lock()
