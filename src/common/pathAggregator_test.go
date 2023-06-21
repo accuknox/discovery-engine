@@ -1,6 +1,9 @@
 package common
 
 import (
+	"fmt"
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -162,14 +165,24 @@ func TestAggregatePathsExt_4(t *testing.T) {
 
 func TestAggregatePaths_FromFile(t *testing.T) {
 	// load paths from fpath.list
-	paths := []string{
-		"/usr/lib/python2.7/UserDict.py",
-		"/usr/lib/python2.7/UserDict.pyo",
-		"/usr/lib/python2.7/UserDict.3",
-		"/usr/lib/python2.7/UserDict.4",
+
+	data, err := os.ReadFile("./fpath.list")
+
+	var paths []string
+
+	if assert.NoError(t, err) {
+		paths = append(paths, strings.Split(string(data), "\n")...)
 	}
 
-	results := AggregatePaths(paths)
+	if assert.NotEmpty(t, paths) {
+		results := AggregatePaths(paths)
+		if assert.NotEmpty(t, results) {
+			fmt.Println("\nAggregated paths: ")
+			for i, result := range results {
+				fmt.Printf("\t%v. %v\n", i+1, result)
+			}
+		}
+	}
 
 	//print results
 }
