@@ -144,8 +144,8 @@ func GetDeployNames(request *opb.Request) (opb.DeployNameResponse, error) {
 	return opb.DeployNameResponse{DeployName: result}, nil
 }
 
-func UpsertSummaryCronJob(tempSummarizerMap map[types.SystemSummary]types.SysSummaryTimeCount, wg *sync.WaitGroup) {
-	defer wg.Done()
+func UpsertSummaryCronJob(tempSummarizerMap map[types.SystemSummary]types.SysSummaryTimeCount) {
+	//defer wg.Done()
 	// update summary map to DB
 	if err := libs.UpsertSystemSummary(CfgDB, tempSummarizerMap); err != nil {
 		log.Error().Msg(err.Error())

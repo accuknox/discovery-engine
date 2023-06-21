@@ -1,8 +1,6 @@
 package observability
 
 import (
-	"sync"
-
 	"github.com/accuknox/auto-policy-discovery/src/common"
 	cfg "github.com/accuknox/auto-policy-discovery/src/config"
 	"github.com/accuknox/auto-policy-discovery/src/types"
@@ -18,11 +16,11 @@ func ProcessSystemSummary() {
 	tempSummarizerMap := common.MoveMap(SummarizerMap)
 	SummarizerMapMutex.Unlock()
 
-	var ProcessSystemSummaryWg sync.WaitGroup
+	//var ProcessSystemSummaryWg sync.WaitGroup
 
 	if cfg.GetCfgObservabilityWriteToDB() {
-		ProcessSystemSummaryWg.Add(1)
-		go UpsertSummaryCronJob(tempSummarizerMap, &ProcessSystemSummaryWg)
+		//ProcessSystemSummaryWg.Add(1)
+		UpsertSummaryCronJob(tempSummarizerMap)
 	}
 
 	if cfg.GetCfgPublisherEnable() {
@@ -43,5 +41,5 @@ func ProcessSystemSummary() {
 		}
 		PublisherMutex.Unlock()
 	}
-	ProcessSystemSummaryWg.Wait()
+	//ProcessSystemSummaryWg.Wait()
 }
