@@ -164,7 +164,8 @@ func GetNamespacesFromK8sClient() []string {
 var skipLabelKey = []string{
 	"pod-template-hash",                  // common k8s hash label
 	"controller-revision-hash",           // from istana robot-shop
-	"statefulset.kubernetes.io/pod-name"} // from istana robot-shop
+	"statefulset.kubernetes.io/pod-name", // from istana robot-shop
+	"controller-uid"}                     // from jobs
 
 func GetPodsFromK8sClient() []types.Pod {
 	results := []types.Pod{}
