@@ -31,6 +31,7 @@ func TestAggregatePaths_2(t *testing.T) {
 	results := AggregatePaths(paths)
 
 	assert.Equal(t, len(results), 1)
+	assert.Equal(t, results[0].Path, "/usr/lib/python2.7/")
 	assert.True(t, results[0].IsDir)
 }
 
@@ -157,4 +158,18 @@ func TestAggregatePathsExt_4(t *testing.T) {
 	results := AggregatePathsExt(paths)
 
 	assert.Equal(t, len(results), 1)
+}
+
+func TestAggregatePaths_FromFile(t *testing.T) {
+	// load paths from fpath.list
+	paths := []string{
+		"/usr/lib/python2.7/UserDict.py",
+		"/usr/lib/python2.7/UserDict.pyo",
+		"/usr/lib/python2.7/UserDict.3",
+		"/usr/lib/python2.7/UserDict.4",
+	}
+
+	results := AggregatePaths(paths)
+
+	//print results
 }
