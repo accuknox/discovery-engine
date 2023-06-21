@@ -174,15 +174,41 @@ func TestAggregatePaths_FromFile(t *testing.T) {
 		paths = append(paths, strings.Split(string(data), "\n")...)
 	}
 
+	var failedAssert, successAsser []string
+
 	if assert.NotEmpty(t, paths) {
 		results := AggregatePaths(paths)
 		if assert.NotEmpty(t, results) {
-			fmt.Println("\nAggregated paths: ")
 			for i, result := range results {
-				fmt.Printf("\t%v. %v\n", i+1, result)
+				found := false
+				if result.IsDir {
+					if strings.Contains(strings.Join(paths, " "), result.Path) {
+						found = true
+					}
+					if assert.True(t, found) {
+						successAsser = append(successAsser, fmt.Sprintf("\t%v. %v\n", i+1, result.Path))
+					} else {
+						failedAssert = append(failedAssert, fmt.Sprintf("\t%v. %v\n", i+1, result.Path))
+					}
+
+				} else {
+					if assert.Contains(t, paths, result.Path) {
+						successAsser = append(successAsser, fmt.Sprintf("\t%v. %v\n", i+1, result.Path))
+					} else {
+						failedAssert = append(failedAssert, fmt.Sprintf("\t%v. %v\n", i+1, result.Path))
+					}
+				}
 			}
 		}
 	}
 
-	//print results
+	if len(successAsser) > 0 {
+		fmt.Println("\nSuccessful Asserted paths: ")
+		fmt.Printf("%v\n", successAsser)
+	}
+	if len(failedAssert) > 0 {
+		fmt.Println("\nFailed Asserted paths: ")
+		fmt.Printf("%v\n", failedAssert)
+	}
+
 }
