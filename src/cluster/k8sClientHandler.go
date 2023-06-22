@@ -165,7 +165,7 @@ var skipLabelKey = []string{
 	"pod-template-hash",                  // common k8s hash label
 	"controller-revision-hash",           // from istana robot-shop
 	"statefulset.kubernetes.io/pod-name", // from istana robot-shop
-	types.JobLabelControllerUidStr}       // from jobs
+	types.LabelJobControllerUid}          // from jobs
 
 func GetPodsFromK8sClient() []types.Pod {
 	results := []types.Pod{}
