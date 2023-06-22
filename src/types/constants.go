@@ -64,5 +64,5 @@ const (
 
 	// For Jobs, this field from labels changes everytime
 	// Hence ignoring the same from labels if exist
-	JobLabelControllerUidStr = "controller-uid"
+	LabelJobControllerUid = "controller-uid"
 )
