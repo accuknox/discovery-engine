@@ -724,3 +724,16 @@ func HashSystemSummary(summary *types.SystemSummary) string {
 	)
 	return hex.EncodeToString(h.Sum(nil))
 }
+
+// Removes the label associated to the key specified and returns the final label
+func RemoveFieldFromLabel(srcLabel, keyLabel string) string {
+	labels := strings.Split(srcLabel, ",")
+	resLabels := []string{}
+	for _, label := range labels {
+		if strings.HasPrefix(label, keyLabel) {
+			continue
+		}
+		resLabels = append(resLabels, label)
+	}
+	return strings.Join(resLabels, ",")
+}

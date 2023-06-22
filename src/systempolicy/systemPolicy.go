@@ -772,8 +772,7 @@ func mergeSysPolicies(pols []types.KnoxSystemPolicy) []types.KnoxSystemPolicy {
 	var results []types.KnoxSystemPolicy
 	for _, pol := range pols {
 		pol.Metadata["name"] = "autopol-system-" +
-			strconv.FormatUint(uint64(common.HashInt(pol.Metadata["labels"]+
-				pol.Metadata["namespace"]+pol.Metadata["clustername"]+pol.Metadata["containername"])), 10)
+			strconv.FormatUint(uint64(common.HashInt(pol.Metadata["labels"]+pol.Metadata["namespace"]+pol.Metadata["clustername"])), 10)
 		i := checkIfMetadataMatches(pol, results)
 		if i < 0 {
 			results = append(results, pol)
