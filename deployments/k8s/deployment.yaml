@@ -3,173 +3,88 @@ kind: Namespace
 metadata:
   name: accuknox-agents
 ---
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
 metadata:
-  name: discovery-engine
-  namespace: accuknox-agents
-  labels:
-    deployment: discovery-engine
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.11.1
+  name: discoveredpolicies.security.kubearmor.com
 spec:
-  selector:
-    matchLabels:
-      app: discovery-engine
-  template:
-    metadata:
-      labels:
-        app: discovery-engine
-    spec:
-      serviceAccountName: discovery-engine
-      containers:
-      - image: accuknox/knoxautopolicy:stable
-        imagePullPolicy: Always
-        name: discovery-engine
-        resources:
-          requests:
-            cpu: 100m
-            memory: 100Mi
-          limits:
-            cpu: 500m
-            memory: 1Gi
-        ports:
-        - containerPort: 9089
-          protocol: TCP
-        volumeMounts:
-          - mountPath: /conf
-            name: config-volume
-            readOnly: true
-      volumes:
-        - name: config-volume
-          configMap:
-            name: discovery-engine-config
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: discovery-engine-config
-  namespace: accuknox-agents
-data:
-  conf.yaml: |-
-    application:
-      name: discovery-engine
-      network:
-        operation-mode: 1                         # 1: cronjob | 2: one-time-job
-        cron-job-time-interval: "0h0m10s"         # format: XhYmZs
-        operation-trigger: 5
-        network-log-from: "kubearmor"             # db|hubble|feed-consumer|kubearmor
-        network-log-file: "./flow.json"           # file path
-        network-policy-to: "db"                   # db, file
-        network-policy-dir: "./"
-        namespace-filter:
-        - "!kube-system"
-      system:
-        operation-mode: 1                         # 1: cronjob | 2: one-time-job
-        cron-job-time-interval: "0h0m10s"         # format: XhYmZs
-        operation-trigger: 5
-        system-log-from: "kubearmor"              # db|kubearmor|feed-consumer
-        system-log-file: "./log.json"             # file path
-        system-policy-to: "db"                    # db, file
-        system-policy-dir: "./"
-        deprecate-old-mode: true
-        namespace-filter:
-        - "!kube-system"
-        fromsource-filter:
-        - "knoxAutoPolicy"
-        
-      admission-controller:
-        generic-policy-list:
-        - "restrict-deprecated-registry"
-        - "prevent-cr8escape"
-        - "check-kernel-version"
-        - "restrict-ingress-defaultbackend"
-        - "restrict-nginx-ingress-annotations"
-        - "restrict-ingress-paths"
-        - "prevent-naked-pods"
-        - "restrict-wildcard-verbs"
-        - "restrict-wildcard-resources"
-        - "require-requests-limits"
-        - "require-pod-probes"
-        - "drop-cap-net-raw"
-
-      cluster:
-        cluster-info-from: "k8sclient"            # k8sclient|accuknox
-
-    observability: 
-      enable: true
-      cron-job-time-interval: "0h0m10s"         # format: XhYmZs
-      dbname: ./accuknox-obs.db
-      system-observability: true
-      network-observability: false
-      write-logs-to-db: false
-      summary-jobs:
-        publisher: true
-        write-summary-to-db: false
-        cron-interval: "0h1m00s"
-    
-    database:
-      driver: sqlite3
-      host: mysql.explorer.svc.cluster.local
-      port: 3306
-      user: root
-      password: password
-      dbname: discovery-engine
-      table-configuration: auto_policy_config
-      table-network-log: network_log
-      table-network-policy: network_policy
-      table-system-log: system_log
-      table-system-policy: system_policy
-
-    feed-consumer:
-      driver: "pulsar"
-      servers:
-        - "pulsar-proxy.accuknox-dev-pulsar.svc.cluster.local:6650"
-      topic: 
-        cilium: "persistent://accuknox/datapipeline/ciliumalertsflowv1"
-        kubearmor: "persistent://accuknox/datapipeline/kubearmoralertsflowv1"
-      encryption:
-        enable: false
-        ca-cert: /kafka-ssl/ca.pem 
-      auth:
-        enable: false
-        cert: /kafka-ssl/user.cert.pem
-        key: /kafka-ssl/user.key.pem
-
-    logging:
-      level: "INFO"
-
-    # kubectl -n kube-system port-forward service/hubble-relay --address 0.0.0.0 --address :: 4245:80
-    cilium-hubble:
-      url: hubble-relay.kube-system.svc.cluster.local
-      port: 80
-
-    kubearmor:
-      url: kubearmor.kube-system.svc.cluster.local
-      port: 32767
-
-    # Recommended policies configuration
-    recommend:
-      operation-mode: 1                       # 1: cronjob | 2: one-time-job
-      cron-job-time-interval: "1h0m00s"       # format: XhYmZs
-    
-    # license
-    license:
-      enabled: false
-      validate: "user-id"
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: discovery-engine
-  namespace: accuknox-agents
-  labels:
-    service: discovery-engine
-spec:
-  ports:
-  - port: 9089
-    targetPort: 9089
-    protocol: TCP
-  selector:
-    app: discovery-engine
+  group: security.kubearmor.com
+  names:
+    kind: DiscoveredPolicy
+    listKind: DiscoveredPolicyList
+    plural: discoveredpolicies
+    shortNames:
+    - dsp
+    singular: discoveredpolicy
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .status.phase
+      name: Status
+      type: string
+    - jsonPath: .spec.status
+      name: Policy_Status
+      type: string
+    - jsonPath: .status.kind
+      name: Policy_Type
+      type: string
+    name: v1
+    schema:
+      openAPIV3Schema:
+        description: DiscoveredPolicy is the Schema for the discoveredpolicies API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: DiscoveredPolicySpec defines the desired state of DiscoveredPolicy
+            properties:
+              policy:
+                x-kubernetes-preserve-unknown-fields: true
+              status:
+                default: Inactive
+                enum:
+                - Inactive
+                - inactive
+                - Active
+                - active
+                - PendingUpdates
+                type: string
+            required:
+            - status
+            type: object
+          status:
+            description: DiscoveredPolicyStatus defines the observed state of DiscoveredPolicy
+            properties:
+              kind:
+                type: string
+              lastUpdatedTime:
+                format: date-time
+                type: string
+              message:
+                type: string
+              phase:
+                enum:
+                - Validated
+                - Success
+                - Failed
+                - Unknown
+                type: string
+              reason:
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -178,13 +93,150 @@ metadata:
   namespace: accuknox-agents
 ---
 apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: leader-election-role
+  namespace: accuknox-agents
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: discovery-engine-role
 rules:
-- apiGroups: ["*"]
-  resources: ["pods", "services", "deployments", "endpoints", "namespaces", "nodes", "replicasets", "statefulsets", "daemonsets", "secrets"]
-  verbs: ["get", "list", "watch", "create", "update", "delete"]
+- apiGroups:
+  - '*'
+  resources:
+  - pods
+  - services
+  - deployments
+  - endpoints
+  - namespaces
+  - nodes
+  - replicasets
+  - statefulsets
+  - daemonsets
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: manager-role
+rules:
+- apiGroups:
+  - cilium.io
+  resources:
+  - ciliumnetworkpolicies
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - networkpolicies
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - security.kubearmor.com
+  resources:
+  - discoveredpolicies
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - security.kubearmor.com
+  resources:
+  - discoveredpolicies/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - security.kubearmor.com
+  resources:
+  - discoveredpolicies/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - security.kubearmor.com
+  resources:
+  - kubearmorpolicies
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: leader-election-rolebinding
+  namespace: accuknox-agents
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: leader-election-role
+subjects:
+- kind: ServiceAccount
+  name: discovery-engine
+  namespace: accuknox-agents
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -198,3 +250,112 @@ subjects:
 - kind: ServiceAccount
   name: discovery-engine
   namespace: accuknox-agents
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: manager-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: manager-role
+subjects:
+- kind: ServiceAccount
+  name: discovery-engine
+  namespace: accuknox-agents
+---
+apiVersion: v1
+data:
+  conf.yaml: "application:\n  name: discovery-engine\n  network:\n    operation-mode: 1                         # 1: cronjob | 2: one-time-job\n    cron-job-time-interval: \"0h0m10s\"         # format: XhYmZs\n    operation-trigger: 5\n    network-log-from: \"kubearmor\"             # db|hubble|feed-consumer|kubearmor\n    network-log-file: \"./flow.json\"           # file path\n    network-policy-to: \"db\"                   # db, file\n    network-policy-dir: \"./\"\n    namespace-filter:\n    - \"!kube-system\"\n  system:\n    operation-mode: 1                         # 1: cronjob | 2: one-time-job\n    cron-job-time-interval: \"0h0m10s\"         # format: XhYmZs\n    operation-trigger: 5\n    system-log-from: \"kubearmor\"              # db|kubearmor|feed-consumer\n    system-log-file: \"./log.json\"             # file path\n    system-policy-to: \"db\"                    # db, file\n    system-policy-dir: \"./\"\n    deprecate-old-mode: true\n    namespace-filter:\n    - \"!kube-system\"\n    fromsource-filter:\n    - \"knoxAutoPolicy\"\n    \n  admission-controller:\n    generic-policy-list:\n    - \"restrict-deprecated-registry\"\n    - \"prevent-cr8escape\"\n    - \"check-kernel-version\"\n    - \"restrict-ingress-defaultbackend\"\n    - \"restrict-nginx-ingress-annotations\"\n    - \"restrict-ingress-paths\"\n    - \"prevent-naked-pods\"\n    - \"restrict-wildcard-verbs\"\n    - \"restrict-wildcard-resources\"\n    - \"require-requests-limits\"\n    - \"require-pod-probes\"\n    - \"drop-cap-net-raw\"\n\n  cluster:\n    cluster-info-from: \"k8sclient\"            # k8sclient|accuknox\n\nobservability: \n  enable: true\n  cron-job-time-interval: \"0h0m10s\"         # format: XhYmZs\n  dbname: ./accuknox-obs.db\n  system-observability: true\n  network-observability: false\n  write-logs-to-db: false\n  summary-jobs:\n    publisher: true\n    write-summary-to-db: false\n    cron-interval: \"0h1m00s\"\n\ndatabase:\n  driver: sqlite3\n  host: mysql.explorer.svc.cluster.local\n  port: 3306\n  user: root\n  password: password\n  dbname: discovery-engine\n  table-configuration: auto_policy_config\n  table-network-log: network_log\n  table-network-policy: network_policy\n  table-system-log: system_log\n  table-system-policy: system_policy\n\nfeed-consumer:\n  driver: \"pulsar\"\n  servers:\n    - \"pulsar-proxy.accuknox-dev-pulsar.svc.cluster.local:6650\"\n  topic: \n    cilium: \"persistent://accuknox/datapipeline/ciliumalertsflowv1\"\n    kubearmor: \"persistent://accuknox/datapipeline/kubearmoralertsflowv1\"\n  encryption:\n    enable: false\n    ca-cert: /kafka-ssl/ca.pem \n  auth:\n    enable: false\n    cert: /kafka-ssl/user.cert.pem\n    key: /kafka-ssl/user.key.pem\n\nlogging:\n  level: \"INFO\"\n\n# kubectl -n kube-system port-forward service/hubble-relay --address 0.0.0.0 --address :: 4245:80\ncilium-hubble:\n  url: hubble-relay.kube-system.svc.cluster.local\n  port: 80\n\nkubearmor:\n  url: kubearmor.kube-system.svc.cluster.local\n  port: 32767\n\n# Recommended policies configuration\nrecommend:\n  operation-mode: 1                       # 1: cronjob | 2: one-time-job\n  cron-job-time-interval: \"1h0m00s\"       # format: XhYmZs\n\n# license\nlicense:\n  enabled: false\n  validate: \"user-id\"\n\ndsp:\n  auto-deploy-dsp: true  "
+kind: ConfigMap
+metadata:
+  name: discovery-engine-config
+  namespace: accuknox-agents
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    service: discovery-engine
+  name: discovery-engine
+  namespace: accuknox-agents
+spec:
+  ports:
+  - port: 9089
+    protocol: TCP
+    targetPort: 9089
+  selector:
+    app: discovery-engine
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    deployment: discovery-engine
+  name: discovery-engine
+  namespace: accuknox-agents
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: discovery-engine
+  template:
+    metadata:
+      labels:
+        app: discovery-engine
+    spec:
+      containers:
+      - args:
+        - --leader-elect
+        command:
+        - /manager
+        image: accuknox/dsp-controller:latest
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        name: manager
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          limits:
+            cpu: 500m
+            memory: 128Mi
+          requests:
+            cpu: 10m
+            memory: 64Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          runAsNonRoot: true
+      - image: accuknox/knoxautopolicy:stable
+        imagePullPolicy: Always
+        name: discovery-engine
+        ports:
+        - containerPort: 9089
+          protocol: TCP
+        resources:
+          limits:
+            cpu: 500m
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 100Mi
+        volumeMounts:
+        - mountPath: /conf
+          name: config-volume
+          readOnly: true
+      serviceAccountName: discovery-engine
+      terminationGracePeriodSeconds: 10
+      volumes:
+      - configMap:
+          name: discovery-engine-config
+        name: config-volume
