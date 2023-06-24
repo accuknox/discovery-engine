@@ -65,4 +65,9 @@ const (
 	// For Jobs, this field from labels changes everytime
 	// Hence ignoring the same from labels if exist
 	LabelJobControllerUid = "controller-uid"
+
+	// Constants to match with operations when aggregating summary data
+	FileOperation = "File"
+	NetworkOperation = "Network"
+	ProcessOperation = "Process"
 )
