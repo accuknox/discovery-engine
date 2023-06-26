@@ -737,6 +737,8 @@ func CreateSystemSummaryTableSQLite(cfg types.ConfigDB) error {
 			"	`workspace_id` int DEFAULT NULL," +
 			"	`namespace_name` varchar(50) DEFAULT NULL," +
 			"	`namespace_id` int DEFAULT NULL," +
+			"	`resource_type` varchar(50) DEFAULT NULL," +
+			"	`resource_name` varchar(50) DEFAULT NULL," +
 			"	`container_name` varchar(50) DEFAULT NULL," +
 			"	`container_image` varchar(100) DEFAULT NULL," +
 			"	`container_id` varchar(150) DEFAULT NULL," +

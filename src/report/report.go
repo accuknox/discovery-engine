@@ -168,18 +168,18 @@ func getKubearmorReportData(CfgDB types.ConfigDB, reportOptions *types.ReportOpt
 			}
 		}
 		// TODO: Add resource type and resource name in system_summary table and reference it here
-		_, ok = reportSummaryData.Clusters[ss.ClusterName].Namespaces[ss.NamespaceName].ResourceTypesData["Deployment"]
+		_, ok = reportSummaryData.Clusters[ss.ClusterName].Namespaces[ss.NamespaceName].ResourceTypesData[ss.Workload.Type]
 		if !ok {
-			reportSummaryData.Clusters[ss.ClusterName].Namespaces[ss.NamespaceName].ResourceTypesData["Deployment"] = ResourceTypeData{
-				ResourceType:        "Deployment",
+			reportSummaryData.Clusters[ss.ClusterName].Namespaces[ss.NamespaceName].ResourceTypesData[ss.Workload.Type] = ResourceTypeData{
+				ResourceType:        ss.Workload.Type,
 				ResourceSummaryData: map[string]ResourceData{},
 			}
 		}
-		_, ok = reportSummaryData.Clusters[ss.ClusterName].Namespaces[ss.NamespaceName].ResourceTypesData["Deployment"].ResourceSummaryData[ss.Deployment]
+		_, ok = reportSummaryData.Clusters[ss.ClusterName].Namespaces[ss.NamespaceName].ResourceTypesData[ss.Workload.Type].ResourceSummaryData[ss.Workload.Name]
 		if !ok {
-			reportSummaryData.Clusters[ss.ClusterName].Namespaces[ss.NamespaceName].ResourceTypesData["Deployment"].ResourceSummaryData[ss.Deployment] = ResourceData{
-				ResourceType: "Deployment",
-				ResourceName: ss.Deployment,
+			reportSummaryData.Clusters[ss.ClusterName].Namespaces[ss.NamespaceName].ResourceTypesData[ss.Workload.Type].ResourceSummaryData[ss.Workload.Name] = ResourceData{
+				ResourceType: ss.Workload.Type,
+				ResourceName: ss.Workload.Name,
 				MetaData: &types.MetaData{
 					Label:         ss.Labels,
 					ContainerName: ss.ContainerName,
@@ -229,9 +229,9 @@ func getKubearmorReportData(CfgDB types.ConfigDB, reportOptions *types.ReportOpt
 			})
 		}
 
-		reportSummaryData.Clusters[ss.ClusterName].Namespaces[ss.NamespaceName].ResourceTypesData["Deployment"].ResourceSummaryData[ss.Deployment].SummaryData.ProcessData = processData
-		reportSummaryData.Clusters[ss.ClusterName].Namespaces[ss.NamespaceName].ResourceTypesData["Deployment"].ResourceSummaryData[ss.Deployment].SummaryData.FileData = observability.AggregateProcFileData(fileData)
-		reportSummaryData.Clusters[ss.ClusterName].Namespaces[ss.NamespaceName].ResourceTypesData["Deployment"].ResourceSummaryData[ss.Deployment].SummaryData.NetworkData = nwData
+		reportSummaryData.Clusters[ss.ClusterName].Namespaces[ss.NamespaceName].ResourceTypesData[ss.Workload.Type].ResourceSummaryData[ss.Workload.Name].SummaryData.ProcessData = processData
+		reportSummaryData.Clusters[ss.ClusterName].Namespaces[ss.NamespaceName].ResourceTypesData[ss.Workload.Type].ResourceSummaryData[ss.Workload.Name].SummaryData.FileData = observability.AggregateProcFileData(fileData)
+		reportSummaryData.Clusters[ss.ClusterName].Namespaces[ss.NamespaceName].ResourceTypesData[ss.Workload.Type].ResourceSummaryData[ss.Workload.Name].SummaryData.NetworkData = nwData
 	}
 
 	return &reportSummaryData, nil

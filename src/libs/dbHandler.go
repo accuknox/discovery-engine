@@ -434,8 +434,8 @@ func upsertSysSummarySQL(db *sql.DB, summary types.SystemSummary, timeCount type
 
 	hash := HashSystemSummary(&summary)
 
-	insertQueryString := `(cluster_name,cluster_id,workspace_id,namespace_name,namespace_id,container_name,container_image,container_id,podname,operation,labels,deployment_name,
-				source,destination,destination_namespace,destination_labels,type,ip,port,protocol,action,bindport,bindaddr,updated_time,count,hash_id) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+	insertQueryString := `(cluster_name,cluster_id,workspace_id,namespace_name,namespace_id,resource_type,resource_name,container_name,container_image,container_id,podname,operation,labels,deployment_name,
+				source,destination,destination_namespace,destination_labels,type,ip,port,protocol,action,bindport,bindaddr,updated_time,count,hash_id) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
 
 	uniqueQueryString := " ON CONFLICT(hash_id) DO UPDATE SET count=count+?,updated_time=?;"
 	insertQuery := "INSERT INTO " + TableSystemSummarySQLite + insertQueryString + uniqueQueryString
@@ -452,6 +452,8 @@ func upsertSysSummarySQL(db *sql.DB, summary types.SystemSummary, timeCount type
 		summary.WorkspaceId,
 		summary.NamespaceName,
 		summary.NamespaceId,
+		summary.Workload.Type,
+		summary.Workload.Name,
 		summary.ContainerName,
 		summary.ContainerImage,
 		summary.ContainerID,
