@@ -581,26 +581,24 @@ func GetNodesFromK8sClient() (*v1.NodeList, error) {
 }
 
 func GetKubearmorRelayURL() string {
-	var namespace string
 	client := ConnectK8sClient()
 	if client == nil {
 		return ""
 	}
 
 	// get kubearmor-relay pod from k8s api client
-	pods, err := client.CoreV1().Pods("").List(context.Background(), metav1.ListOptions{
+	svc, err := client.CoreV1().Services("").List(context.Background(), metav1.ListOptions{
 		LabelSelector: "kubearmor-app=kubearmor-relay",
 	})
 	if err != nil {
-		log.Error().Msg(err.Error())
+		log.Error().Msgf("error while getting list of services for kubearmor-relay, error: %s", err.Error())
 		return ""
 	}
-	if pods == nil || len(pods.Items) == 0 {
-		log.Error().Msgf("Unable to find kubearmor-relay")
+	if svc == nil || len(svc.Items) == 0 {
+		log.Error().Msgf("unable to find service for kubearmor-relay")
 		return ""
 	}
-	namespace = pods.Items[0].Namespace
-	url := "kubearmor." + namespace + ".svc.cluster.local"
+	url := svc.Items[0].Name + "." + svc.Items[0].Namespace + ".svc.cluster.local"
 	return url
 }
 
