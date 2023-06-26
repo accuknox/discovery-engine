@@ -37,10 +37,17 @@ jobs:
       - name: Generate discovery engine artifacts
         run: |
             GITHUB_SHA=$GITHUB_SHA ./src/build/build_knoxautopolicy.sh ${{ steps.vars.outputs.tag }}
+      
+      - name: Install Kustomize
+        run: |      
+            curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"  | bash
+            sudo mv kustomize /usr/local/bin/
 
       - name: Run discovery engine
         run: |
-            kubectl apply -f deployments/k8s/ && kubectl wait --for=condition=ready --timeout=5m -n accuknox-agents pod -l app=discovery-engine            
+            docker save accuknox/knoxautopolicy:${{ steps.vars.outputs.tag }} | sudo k3s ctr images import -
+            kustomize build ./deployments/k8s/default/discovery-engine | sed -e 's/\(image: *\).*/\1accuknox\/knoxautopolicy:${{ steps.vars.outputs.tag }}/' -e 's/\(imagePullPolicy: *\).*/\1Never/' | kubectl apply -f - 
+            kubectl wait --for=condition=ready --timeout=5m -n accuknox-agents pod -l app=discovery-engine            
             kubectl get pods -A
 
 #TODO: add the following tests after they are fixed
