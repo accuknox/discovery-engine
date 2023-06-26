@@ -51,7 +51,6 @@ jobs:
           go-version: v1.20
 
       - name: Setup Enviroment
-        run: |  
         id: vars
         run: |
           echo ::set-output name=tag::${GITHUB_REF#refs/*/}
