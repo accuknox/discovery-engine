@@ -300,7 +300,11 @@ func getNetworkLogs() map[*types.KnoxNetworkLog]bool {
 		kaNwLogs := plugin.GetNetworkLogsFromKubeArmor()
 
 		// convert kubearmor log/alert to KnoxNetworkLog
-		networkLogs = plugin.ConvertKubeArmorNetLogToKnoxNetLog(kaNwLogs)
+		for _, nwLog := range kaNwLogs {
+			if knoxNetLog, err := plugin.ConvertKubeArmorNetLogToKnoxNetLog(nwLog); err == nil {
+				NetworkLogMap[&knoxNetLog] = true
+			}
+		}
 	} else {
 		log.Error().Msgf("Network log source not correct: %s", NetworkLogFrom)
 		return nil
