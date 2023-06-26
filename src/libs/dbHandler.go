@@ -507,7 +507,7 @@ func getSysSummarySQL(db *sql.DB, dbName string, filterOptions *types.SystemSumm
 
 	query := `SELECT cluster_name,cluster_id,workspace_id,namespace_name,namespace_id,container_name,
 	container_image,container_id,podname,operation,labels,deployment_name,source,destination,destination_namespace,
-	destination_labels,type,ip,port,protocol,action,count,updated_time,bindport,bindaddr FROM ` + dbName
+	destination_labels,type,ip,port,protocol,action,count,updated_time,bindport,bindaddr,resource_type,resource_name FROM ` + dbName
 
 	var whereClause string
 	var args []interface{}
@@ -610,6 +610,8 @@ func getSysSummarySQL(db *sql.DB, dbName string, filterOptions *types.SystemSumm
 			&localSum.UpdatedTime,
 			&localSum.BindPort,
 			&localSum.BindAddress,
+			&localSum.Workload.Type,
+			&localSum.Workload.Name,
 		); err != nil {
 			return nil, err
 		}

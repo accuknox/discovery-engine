@@ -3,7 +3,7 @@ application:
   network:
     operation-mode: 1                             # 1: cronjob | 2: one-time-job
     operation-trigger: 5
-    cron-job-time-interval: "0h0m10s"             # format: XhYmZs 
+    cron-job-time-interval: "0h0m10s"             # format: XhYmZs
     network-log-limit: 10000
     network-log-from: "kubearmor"                 # db|hubble|feed-consumer|kubearmor
     #network-log-file: "/home/rahul/feeds.json"   # file path
@@ -32,7 +32,7 @@ application:
     #cluster-mgmt-url: "http://cluster-management-service.accuknox-dev-cluster-mgmt.svc.cluster.local/cm"
     cluster-mgmt-url: "http://localhost:8080"
 
-observability: 
+observability:
   enable: true
   cron-job-time-interval: "0h0m10s"         # format: XhYmZs
   dbname: ./accuknox-obs.db
@@ -41,13 +41,13 @@ observability:
   write-logs-to-db: false
   summary-jobs:
     publisher: true
-    write-summary-to-db: false
-    cron-interval: "0h1m00s"     # format: XhYmZs
+    write-summary-to-db: true
+    cron-interval: "0h0m10s"
 
 purge-old-db-entries:
-  enable: true 
+  enable: true
   cron-job-time-interval: "240h0m00s"      # format: XhYmZs
-  dbname: 
+  dbname:
    - ./accuknox-obs.db
    - ./accuknox-pol.db
 
@@ -74,21 +74,21 @@ cilium-hubble:
   port: 4245
 
 kubearmor:
-  url: localhost
+  url: 127.0.0.1
   port: 32767
 
 feed-consumer:
   driver: "pulsar" # kafka | pulsar
   servers:
     - "localhost:6650"
-  topic: 
+  topic:
     cilium: "persistent://accuknox/datapipeline/ciliumalertsrawflow"
     kubearmor: "persistent://accuknox/datapipeline/kubearmoralertsrawflow"
     # cilium: "cilium-alerts"
     # kubearmor: "kubearmor-alerts"
   encryption:
     enable: false
-    ca-cert: /kafka-ssl/ca.pem 
+    ca-cert: /kafka-ssl/ca.pem
   auth:
     enable: false
     cert: /kafka-ssl/user.cert.pem
