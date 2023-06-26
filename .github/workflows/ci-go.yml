@@ -1,5 +1,4 @@
 name: ci-go
-
 on:
   push:
     branches:
@@ -7,74 +6,76 @@ on:
   pull_request:
     branches:
       - '**'  # matches every branch
-
 jobs:
   go-fmt:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Source
         uses: actions/checkout@v2
-
       - uses: actions/setup-go@v3
         with:
           go-version: v1.20
-
       - name: Check gofmt
         run: gofmt -s -d $(find . -type f -name '*.go' -print)
         working-directory: src
-
   go-lint:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Source
         uses: actions/checkout@v2
-
       - name: Run Revive Action by pulling pre-built image
         uses: morphy2k/revive-action@v2
         with:
           path: "./src/..."
-
   go-sec:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Source
         uses: actions/checkout@v2
-
       - uses: actions/setup-go@v3
         with:
           go-version: v1.20
-
       - name: Run Gosec Security Scanner
         run: |
           go install github.com/securego/gosec/v2/cmd/gosec@latest
           go get .
           gosec -exclude=G204,G304,G107 -exclude-dir=protobuf/ ./...  
         working-directory: src
-
   go-ginkgo-test:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Source
         uses: actions/checkout@v2
-
       - uses: actions/setup-go@v3
         with:
           go-version: v1.20
-        
+
       - name: Setup Enviroment
         run: |  
+        id: vars
+        run: |
+          echo ::set-output name=tag::${GITHUB_REF#refs/*/}
           # setup kubernetes environment
           ./k3s/install_k3s.sh
-
       - name: Run KubeArmor in background
         run: |
           curl -sfL http://get.kubearmor.io/ | sudo sh -s -- -b /usr/local/bin
           karmor install
-
+          
+      - name: Build Discovery Engine 
+        run: |
+          GITHUB_SHA=$GITHUB_SHA ./src/build/build_knoxautopolicy.sh latest
+      - name: Install Kustomize
+        run: |      
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"  | bash
+          sudo mv kustomize /usr/local/bin/
+      - name: Run Discovery Engine
+        run: |
+          docker save accuknox/knoxautopolicy:latest | sudo k3s ctr images import -
+          kustomize build ./deployments/k8s/default/discovery-engine | sed -e 's/\(image: *\).*/\1accuknox\/knoxautopolicy:latest/' -e 's/\(imagePullPolicy: *\).*/\1Never/' | kubectl apply -f - 
       - name: Install Ginkgo
         run: |
           go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
-
       - name: Run ginkgo tests
         run: ginkgo -r
         working-directory: tests
