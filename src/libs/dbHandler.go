@@ -512,7 +512,7 @@ func getSysSummarySQL(db *sql.DB, dbName string, filterOptions *types.SystemSumm
 	var whereClause string
 	var args []interface{}
 
-	args = addWhereClauseForReport(reportOptions)
+	args = addWhereClauseForReport(&whereClause, reportOptions)
 
 	if reportOptions == nil {
 
@@ -621,50 +621,64 @@ func getSysSummarySQL(db *sql.DB, dbName string, filterOptions *types.SystemSumm
 	return resSummary, err
 }
 
-func addWhereClauseForReport(reportOptions *types.ReportOptions) []interface{} {
+func addWhereClauseForReport(whereClause *string, reportOptions *types.ReportOptions) []interface{} {
 	var args []interface{}
 
 	if reportOptions != nil {
-		addOrWhereClauseForStringArray(args, reportOptions.Clusters, "cluster_name")
+		args = addOrWhereClauseForStringArray(whereClause, args, reportOptions.Clusters, "cluster_name")
 
-		addOrWhereClauseForStringArray(args, reportOptions.Namespaces, "namespace_name")
+		args = addOrWhereClauseForStringArray(whereClause, args, reportOptions.Namespaces, "namespace_name")
 
-		addOrWhereClauseForStringArray(args, reportOptions.ResourceType, "resource_type")
+		args = addOrWhereClauseForStringArray(whereClause, args, reportOptions.ResourceType, "resource_type")
 
-		addOrWhereClauseForStringArray(args, reportOptions.ResourceName, "resource_name")
+		args = addOrWhereClauseForStringArray(whereClause, args, reportOptions.ResourceName, "resource_name")
 
 		if reportOptions.MetaData != nil {
-			addOrWhereClauseForString(args, reportOptions.MetaData.Label, "label")
+			args = addOrWhereClauseForString(whereClause, args, reportOptions.MetaData.Label, "label")
 
-			addOrWhereClauseForString(args, reportOptions.MetaData.ContainerName, "container_name")
+			args = addOrWhereClauseForString(whereClause, args, reportOptions.MetaData.ContainerName, "container_name")
 		}
-		addOrWhereClauseForString(args, reportOptions.Operation, "operation")
+		args = addOrWhereClauseForString(whereClause, args, reportOptions.Operation, "operation")
 
-		addOrWhereClauseForString(args, reportOptions.PodName, "pod_name")
+		args = addOrWhereClauseForString(whereClause, args, reportOptions.PodName, "pod_name")
 
-		addOrWhereClauseForStringArray(args, reportOptions.Source, "source")
+		args = addOrWhereClauseForStringArray(whereClause, args, reportOptions.Source, "source")
 
-		addOrWhereClauseForStringArray(args, reportOptions.Destination, "destination")
+		args = addOrWhereClauseForStringArray(whereClause, args, reportOptions.Destination, "destination")
 	}
 	return args
 }
 
-func addOrWhereClauseForStringArray(args []interface{}, fieldValues []string, fieldName string) {
-	var whereClause string
+func addOrWhereClauseForStringArray(whereClause *string, args []interface{}, fieldValues []string, fieldName string) []interface{} {
 	if fieldValues != nil {
 		for fv := range fieldValues {
-			concatWhereClause(&whereClause, fieldName)
-			args = append(args, fv)
+			if *whereClause == "" {
+				*whereClause = " where "
+			} else if fv == 0 {
+				*whereClause += " and "
+			} else {
+				*whereClause += " or "
+			}
+			if fv == 0 {
+				*whereClause += " ( "
+			}
+
+			*whereClause = *whereClause + fieldName + " = ?"
+			if fv == len(fieldValues)-1 {
+				*whereClause += " ) "
+			}
+			args = append(args, fieldValues[fv])
 		}
 	}
+	return args
 }
 
-func addOrWhereClauseForString(args []interface{}, fieldValues string, fieldName string) {
-	var whereClause string
+func addOrWhereClauseForString(whereClause *string, args []interface{}, fieldValues string, fieldName string) []interface{} {
 	if fieldValues != "" {
-		concatWhereClause(&whereClause, fieldName)
+		concatWhereClause(whereClause, fieldName)
 		args = append(args, fieldValues)
 	}
+	return args
 }
 
 // ==================================== //
