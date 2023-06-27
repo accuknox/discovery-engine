@@ -656,6 +656,8 @@ func ConvertKubeArmorNetLogToKnoxNetLog(kaNwLog *pb.Alert) (types.KnoxNetworkLog
 		knoxNetLog.Protocol = libs.IPProtocolUDP
 		//knoxNetLog.DstIP = "0.0.0.0"
 		knoxNetLog.Direction = "EGRESS"
+	} else {
+		return types.KnoxNetworkLog{}, errors.New("not an ingress/egress traffic")
 	}
 
 	if kaNwLog.Result != "Passed" {
