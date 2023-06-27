@@ -29,72 +29,73 @@ func ProcessSystemSummary() {
 
 	if cfg.GetCfgPublisherEnable() {
 		PublisherMutex.Lock()
-		timeVar := time.Now()
-		tempSummarizerMap = getAggregatedSummaryMap(tempSummarizerMap)
+		initTime := time.Now()
+
+		aggregateSummaryMap(tempSummarizerMap)
 
 		log.Info().Msgf("Events to publish after aggregation: [%v]", len(tempSummarizerMap))
 		count := 0
 
 		// publish summary map in GRPC
-		for ss, sstc := range tempSummarizerMap {
+		for sysSummary, summaryTimeCount := range tempSummarizerMap {
 			count++
-			var locSummary types.SystemSummary = ss
+			var locSummary types.SystemSummary = sysSummary
 
 			// update count/time
-			locSummary.Count = sstc.Count
-			locSummary.UpdatedTime = sstc.UpdatedTime
+			locSummary.Count = summaryTimeCount.Count
+			locSummary.UpdatedTime = summaryTimeCount.UpdatedTime
 
 			// publish data to feeder grpc
 			SysSummary.Publish(&locSummary)
 
 			// clear each published entry from data map
-			delete(tempSummarizerMap, ss)
+			delete(tempSummarizerMap, sysSummary)
 		}
-		log.Info().Msgf("Published %v events in %v", count, time.Since(timeVar))
+		log.Info().Msgf("Published %v events in %v", count, time.Since(initTime))
 		PublisherMutex.Unlock()
 	}
 	ProcessSystemSummaryWg.Wait()
 }
 
-func getAggregatedSummaryMap(tempSummarizerMap map[types.SystemSummary]types.SysSummaryTimeCount) map[types.SystemSummary]types.SysSummaryTimeCount {
+func aggregateSummaryMap(summaryMap map[types.SystemSummary]types.SysSummaryTimeCount) {
 
-	var fileArr []string
-	log.Info().Msgf("Events before aggregation: [%v]", len(tempSummarizerMap))
+	podFilePaths := make(map[string][]string)
+	aggPodFilePaths := make(map[string][]common.SysPath)
+	fileSummarizerMap := make(map[types.SystemSummary]types.SysSummaryTimeCount)
 
-	fileSumMap := make(map[types.SystemSummary]types.SysSummaryTimeCount)
-	updatedSummarizerMap := make(map[types.SystemSummary]types.SysSummaryTimeCount)
-	for tss, tsstc := range tempSummarizerMap {
-		if tss.Operation == types.FileOperation {
-			fileArr = append(fileArr, tss.Destination)
-			fileSumMap[tss] = tsstc
-		} else {
-			updatedSummarizerMap[tss] = tsstc
+	log.Info().Msgf("Events before aggregation: [%v]", len(summaryMap))
+	for sysSummary, summaryTimeCount := range summaryMap {
+		if sysSummary.Operation == types.FileOperation {
+			key := sysSummary.PodName + "_" + sysSummary.Source
+			podFilePaths[key] = append(podFilePaths[key], sysSummary.Destination)
+			fileSummarizerMap[sysSummary] = summaryTimeCount
+			delete(summaryMap, sysSummary)
 		}
 	}
-	tempSummarizerMap = updatedSummarizerMap
 
-	aggregatedFilePaths := common.AggregatePaths(fileArr)
+	for key, files := range podFilePaths {
+		aggPodFilePaths[key] = common.AggregatePaths(files)
+		log.Info().Msgf("Got %v aggregated file paths for key [%v]", len(aggPodFilePaths[key]), key)
+	}
 
-	log.Info().Msgf("Aggregated file paths: [%v]", len(aggregatedFilePaths))
-	for ss, sstc := range fileSumMap {
-		for _, path := range aggregatedFilePaths {
-			if strings.HasPrefix(ss.Destination, path.Path) && (len(ss.Destination) == len(path.Path) || ss.Destination[len(strings.TrimSuffix(path.Path, "/"))] == '/') {
-				ss.Destination = path.Path
+	for sysSummary, summaryTimeCount := range fileSummarizerMap {
+		key := sysSummary.PodName + "_" + sysSummary.Source
+		files := aggPodFilePaths[key]
+		for _, path := range files {
+			if strings.HasPrefix(sysSummary.Destination, path.Path) && (len(sysSummary.Destination) == len(path.Path) || sysSummary.Destination[len(strings.TrimSuffix(path.Path, "/"))] == '/') {
+				sysSummary.Destination = path.Path
 				break
 			}
 		}
-
-		if existingSstc, ok := tempSummarizerMap[ss]; ok {
-			existingSstc.Count += sstc.Count
-			if sstc.UpdatedTime > existingSstc.UpdatedTime {
-				existingSstc.UpdatedTime = sstc.UpdatedTime
+		if timeCount, ok := summaryMap[sysSummary]; ok {
+			timeCount.Count += summaryTimeCount.Count
+			if summaryTimeCount.UpdatedTime > timeCount.UpdatedTime {
+				timeCount.UpdatedTime = summaryTimeCount.UpdatedTime
 			}
-			tempSummarizerMap[ss] = existingSstc
+			summaryMap[sysSummary] = timeCount
 		} else {
-			tempSummarizerMap[ss] = sstc
+			summaryMap[sysSummary] = summaryTimeCount
 		}
 
 	}
-
-	return tempSummarizerMap
 }
