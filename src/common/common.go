@@ -41,6 +41,13 @@ const (
 	INCORRECT_TYPE      = "incorrect type"
 )
 
+// Policy Types
+const (
+	KUBEARMOR_POLICY      = "KubeArmorPolicy"
+	CILIUM_NETWORK_POLICY = "CiliumNetworkPolicy"
+	K8s_NETWORK_POLICY    = "K8sNetworkPolicy"
+)
+
 // ConvertArrayToString - Convert Array of string to String
 func ConvertArrayToString(arr []string) string {
 	var str string

@@ -227,6 +227,9 @@ func LoadConfigFromFile() {
 
 	// load kubearmor relay config
 	CurrentCfg.ConfigKubeArmorRelay = LoadConfigKubeArmor()
+
+	// load discovered policy config
+	CurrentCfg.ConfigAutoDepolyDiscoveredPolicy = viper.GetBool("dsp.auto-deploy-dsp")
 }
 
 // ============================ //
@@ -532,4 +535,12 @@ func GetCfgRecommendAdmissionControllerPolicy() bool {
 
 func GetCfgRecommendTemplateVersion() string {
 	return CurrentCfg.ConfigRecommendPolicy.RecommendTemplateVersion
+}
+
+// ======================================= //
+// == Get Discovered Policy Config Info == //
+// ======================================= //
+
+func GetCfgDsp() bool {
+	return CurrentCfg.ConfigAutoDepolyDiscoveredPolicy
 }
