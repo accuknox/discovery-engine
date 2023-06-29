@@ -320,7 +320,7 @@ func ConnectKubeArmorRelay(cfg types.ConfigKubeArmorRelay) *grpc.ClientConn {
 	// Blocking grpc Dial: in case of a bad connection, fails with timeout
 	conn, err := grpc.DialContext(ctx, addr, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
 	if err != nil {
-		log.Error().Msg("Error connecting kubearmor relay: " + err.Error())
+		log.Error().Msgf("Error connecting kubearmor relay at addr: %s, error: %s", addr, err.Error())
 		return nil
 	}
 
