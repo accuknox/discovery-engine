@@ -312,7 +312,7 @@ func ConvertKubeArmorLogToKnoxSystemLog(relayLog *pb.Alert) (types.KnoxSystemLog
 // ========================= //
 
 func ConnectKubeArmorRelay(cfg types.ConfigKubeArmorRelay) *grpc.ClientConn {
-	addr := net.JoinHostPort("127.0.0.1", cfg.KubeArmorRelayPort)
+	addr := net.JoinHostPort(cfg.KubeArmorRelayURL, cfg.KubeArmorRelayPort)
 	// Check for kubearmor-relay with 30s timeout
 	ctx, cf1 := context.WithTimeout(context.Background(), time.Second*60)
 	defer cf1()
