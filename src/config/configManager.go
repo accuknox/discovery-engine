@@ -216,6 +216,7 @@ func LoadConfigFromFile() {
 		OperationMode:                      viper.GetInt("recommend.operation-mode"),
 		RecommendHostPolicy:                viper.GetBool("recommend.host-policy"),
 		RecommendAdmissionControllerPolicy: viper.GetBool("recommend.admission-controller-policy"),
+		RecommendTemplateVersion:           viper.GetString("recommend.template-version"),
 	}
 
 	// load database
@@ -226,6 +227,9 @@ func LoadConfigFromFile() {
 
 	// load kubearmor relay config
 	CurrentCfg.ConfigKubeArmorRelay = LoadConfigKubeArmor()
+
+	// load discovered policy config
+	CurrentCfg.ConfigAutoDepolyDiscoveredPolicy = viper.GetBool("dsp.auto-deploy-dsp")
 }
 
 // ============================ //
@@ -527,4 +531,16 @@ func GetCfgRecommendHostPolicy() bool {
 
 func GetCfgRecommendAdmissionControllerPolicy() bool {
 	return CurrentCfg.ConfigRecommendPolicy.RecommendAdmissionControllerPolicy
+}
+
+func GetCfgRecommendTemplateVersion() string {
+	return CurrentCfg.ConfigRecommendPolicy.RecommendTemplateVersion
+}
+
+// ======================================= //
+// == Get Discovered Policy Config Info == //
+// ======================================= //
+
+func GetCfgDsp() bool {
+	return CurrentCfg.ConfigAutoDepolyDiscoveredPolicy
 }

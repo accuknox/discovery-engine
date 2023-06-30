@@ -130,6 +130,7 @@ type ConfigRecommendPolicy struct {
 	OneTimeJobTimeSelection            string `json:"one_time_job_time_selection,omitempty" bson:"one_time_job_time_selection,omitempty"`
 	RecommendHostPolicy                bool   `json:"recommend_host_policy,omitempty" bson:"recommend_host_policy,omitempty"`
 	RecommendAdmissionControllerPolicy bool   `json:"recommend_admission_controller_policy,omitempty" bson:"recommend_admission_controller_policy,omitempty"`
+	RecommendTemplateVersion                    string `json:"template_version,omitempty" bson:"template_version,omitempty"`
 }
 
 type Configuration struct {
@@ -151,4 +152,5 @@ type Configuration struct {
 	ConfigObservability             ConfigObservability             `json:"config_observability,omitempty" bson:"config_observability,omitempty"`
 	ConfigPurgeOldDBEntries         ConfigPurgeOldDBEntries         `json:"config_purge_old_db_entries,omitempty" bson:"config_purge_old_db_entries,omitempty"`
 	ConfigRecommendPolicy           ConfigRecommendPolicy           `json:"config_recommend_policy,omitempty" bson:"config_recommend_policy,omitempty"`
+	ConfigAutoDepolyDiscoveredPolicy bool `json:"config_dsp,omitempty" bson:"config_dsp,omitempty"`
 }

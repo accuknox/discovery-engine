@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/accuknox/auto-policy-discovery/src/cluster"
+	"github.com/accuknox/auto-policy-discovery/src/common"
 	cfg "github.com/accuknox/auto-policy-discovery/src/config"
 	fc "github.com/accuknox/auto-policy-discovery/src/feedconsumer"
 	"github.com/accuknox/auto-policy-discovery/src/libs"
@@ -2259,6 +2260,15 @@ func writeNetworkPoliciesYamlToDB(policies []types.KnoxNetworkPolicy) {
 			}
 			res = append(res, policyYaml)
 
+			// Deploy policy if auto-deploy-policy is enabled
+			if cfg.GetCfgDsp() {
+				log.Info().Msgf("Deploying dsp %s", np.Name)
+				_ = cluster.CreateDsp(np.Name,
+					np.Namespace,
+					common.K8s_NETWORK_POLICY,
+					jsonBytes)
+			}
+
 			PolicyStore.Publish(&policyYaml)
 		}
 
@@ -2298,6 +2308,15 @@ func writeNetworkPoliciesYamlToDB(policies []types.KnoxNetworkPolicy) {
 				Yaml:        yamlBytes,
 			}
 			res = append(res, policyYaml)
+
+			// Deploy policy if auto-deploy-policy is enabled
+			if cfg.GetCfgDsp() && cluster.IsCiliumPolicyAvailable {
+				log.Info().Msgf("Deploying dsp %s", ciliumPolicy.Metadata["name"])
+				_ = cluster.CreateDsp(ciliumPolicy.Metadata["name"],
+					ciliumPolicy.Metadata["namespace"],
+					common.CILIUM_NETWORK_POLICY,
+					jsonBytes)
+			}
 
 			PolicyStore.Publish(&policyYaml)
 		}

@@ -1428,6 +1428,15 @@ func InsertSysPoliciesYamlToDB(policies []types.KnoxSystemPolicy) {
 		}
 		res = append(res, policyYaml)
 
+		// Deploy policy if auto-deploy-policy is enabled
+		if cfg.GetCfgDsp() {
+			log.Info().Msgf("Deploying dsp %s", kubearmorPolicy.Metadata["name"])
+			_ = cluster.CreateDsp(kubearmorPolicy.Metadata["name"],
+				kubearmorPolicy.Metadata["namespace"],
+				common.KUBEARMOR_POLICY,
+				jsonBytes)
+		}
+
 		PolicyStore.Publish(&policyYaml)
 	}
 
