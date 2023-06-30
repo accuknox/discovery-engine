@@ -611,8 +611,8 @@ func ConvertKubeArmorNetLogToKnoxNetLog(kaNwLog *pb.Alert) (types.KnoxNetworkLog
 		}
 
 		// Extract IP and port
-		resslice := strings.Split(kaNwLog.Resource, " ")
-		for _, locres := range resslice {
+		resource := strings.Split(kaNwLog.Resource, " ")
+		for _, locres := range resource {
 			if strings.Contains(locres, "remoteip") {
 				ip = strings.Split(locres, "=")[1]
 			}
@@ -647,8 +647,8 @@ func ConvertKubeArmorNetLogToKnoxNetLog(kaNwLog *pb.Alert) (types.KnoxNetworkLog
 		// TODO : Identify a way to get protocol from kubearmor
 		// knoxNetLog.Protocol = libs.IPProtocolUDP
 
-		resSlice := strings.Split(kaNwLog.Resource, " ")
-		for _, v := range resSlice {
+		resource := strings.Split(kaNwLog.Resource, " ")
+		for _, v := range resource {
 			if strings.Contains(v, "sin_port") {
 				port = strings.Split(v, "=")[1]
 			}
