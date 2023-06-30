@@ -4,16 +4,17 @@ go 1.20
 
 replace (
 	github.com/accuknox/auto-policy-discovery/src/protobuf => ./protobuf
+	github.com/cilium/cilium => github.com/cilium/cilium v1.10.14
 	github.com/miekg/dns => github.com/cilium/dns v1.1.4-0.20190417235132-8e25ec9a0ff3
 	github.com/optiopay/kafka => github.com/cilium/kafka v0.0.0-20180809090225-01ce283b732b
 )
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.0
-	github.com/accuknox/auto-policy-discovery/src/protobuf v0.0.0-00010101000000-000000000000
+	github.com/accuknox/auto-policy-discovery/src/protobuf v0.0.0-20230628192822-7249456fae5c
 	github.com/apache/pulsar-client-go v0.10.0
 	github.com/cavaliergopher/grab/v3 v3.0.1
-	github.com/cilium/cilium v1.10.14
+	github.com/cilium/cilium v1.13.1
 	github.com/clarketm/json v1.17.1
 	github.com/confluentinc/confluent-kafka-go v1.9.2
 	github.com/go-sql-driver/mysql v1.7.0
