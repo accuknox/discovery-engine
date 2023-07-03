@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	opb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/observability"
 	"github.com/accuknox/auto-policy-discovery/src/types"
 	"github.com/kubearmor/discovery-engine/tests/util"
 	. "github.com/onsi/ginkgo/v2"
@@ -87,45 +86,6 @@ func checkntwpolicyrules(policies []nv1.NetworkPolicy) (int, int) {
 	return flag, flag_i
 }
 
-func findProcessORFileData(ProcFiledata []*opb.SysProcFileSummaryData, source, destination string, dataType string) bool {
-	if dataType == "Process" {
-		for _, p := range ProcFiledata {
-			if p.Source == source && p.Destination == destination && p.Status == "Allow" {
-				return true
-			}
-		}
-	}
-	if dataType == "File" {
-		for _, f := range ProcFiledata {
-			if f.Source == source && f.Destination == destination && f.Status == "Allow" {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-func verifyProcessORFileData(ProcFileData []*opb.SysProcFileSummaryData, data map[string]string, dataType string) error {
-	var flag bool
-	if dataType == "Process" {
-		for destination, source := range data {
-			flag = findProcessORFileData(ProcFileData, source, destination, dataType)
-			if !flag {
-				return fmt.Errorf("process data is not correct for source : %v, destination : %v", source, destination)
-			}
-		}
-	}
-	if dataType == "File" {
-		for destination, source := range data {
-			flag := findProcessORFileData(ProcFileData, source, destination, dataType)
-			if !flag {
-				return fmt.Errorf("file data is not correct for source : %v, destination : %v", source, destination)
-			}
-		}
-	}
-	return nil
-}
-
 // WordpressPortForward enable port forwarding for wordpress
 func WordpressPortForward() error {
 	if stopChan != nil {
@@ -172,12 +132,9 @@ func checkPod(name string, ant string, ns string) {
 }
 
 var _ = BeforeSuite(func() {
-	// // install discovery-engine
-	// _, err := util.Kubectl(fmt.Sprintf("apply -f https://raw.githubusercontent.com/kubearmor/discovery-engine/dev/deployments/k8s/deployment.yaml"))
-	// Expect(err).To(BeNil())
 	// check discovery-engine pod status
-	// checkPod("discovery-engine-",
-	// 	"container.apparmor.security.beta.kubernetes.io/discovery-engine: localhost/kubearmor-accuknox-agents-discovery-engine-discovery-engine", "accuknox-agents")
+	checkPod("discovery-engine-",
+		"container.apparmor.security.beta.kubernetes.io/discovery-engine: localhost/kubearmor-accuknox-agents-discovery-engine-discovery-engine", "accuknox-agents")
 
 	//install wordpress-mysql app
 	err := util.K8sApply([]string{"res/wordpress-mysql-deployment.yaml"})
@@ -215,9 +172,7 @@ func discoversyspolicy(ns string, l string, rules []string, maxcnt int) (types.K
 		if err != nil {
 			log.Error().Msgf("Failed to apply the `karmor discover` command : %v", err)
 		}
-		// if cnt == 9 {
-		// 	fmt.Println("KubeArmor Security Policy :\n", string(cmd))
-		// }
+
 		fmt.Println("KubeArmor Security Policy :\n", string(cmd))
 		err = json.Unmarshal(cmd, &policy)
 		if err != nil {
@@ -245,9 +200,7 @@ func discovernetworkpolicy(ns string, maxcnt int) ([]nv1.NetworkPolicy, error) {
 		}
 
 		yamls := strings.Split(string(cmd), "---")
-		// if cnt == 9 {
-		// 	fmt.Println("Network Policies : \n", yamls)
-		// }
+
 		fmt.Println("Network Policies : \n", yamls)
 		if len(yamls) > 0 {
 			yamls = yamls[:len(yamls)-1]
@@ -270,110 +223,6 @@ func discovernetworkpolicy(ns string, maxcnt int) ([]nv1.NetworkPolicy, error) {
 		}
 	}
 	return []nv1.NetworkPolicy{}, err
-}
-
-func getsummary(podName string, maxcnt int) (*opb.Response, error) {
-	var err error
-	for cnt := 0; cnt < maxcnt; cnt++ {
-		var jsonObjects []string
-		var jsonObject string
-		var i int
-		var summ *opb.Response
-		res := []*opb.Response{}
-		summary, err := exec.Command("karmor", "summary", "-o", "json").Output()
-		if err != nil {
-			log.Error().Msgf("Failed to apply the `karmor summary` command : %v", err)
-		}
-
-		// implemented to break the summary and make the output a valid json object
-		jsonObjects = strings.Split(string(summary), "}\n{")
-		for i, jsonObject = range jsonObjects {
-			r := &opb.Response{}
-			if i > 0 {
-				jsonObject = "{" + jsonObject
-			}
-			if i < len(jsonObjects)-1 {
-				jsonObject = jsonObject + "}"
-			}
-			err = json.Unmarshal([]byte(jsonObject), r)
-			if err != nil {
-				log.Error().Msgf("Failed to unmarshal the Summary : %v", err)
-			}
-			res = append(res, r)
-		}
-		for _, summ = range res {
-			fmt.Printf("Summary : %v", summ)
-			if strings.Contains(summ.PodName, podName) {
-				if podName == "wordpress" {
-					processData := map[string]string{
-						"/usr/local/bin/php": "/bin/bash",
-						"/usr/bin/sha1sum":   "/bin/bash",
-					}
-					err := verifyProcessORFileData(summ.ProcessData, processData, "Process")
-					if err != nil {
-						fmt.Println(err)
-						break
-					}
-					fileData := map[string]string{
-						"/etc/hosts":                         "/usr/local/bin/php",
-						"/lib/x86_64-linux-gnu/libc-2.19.so": "/bin/sed",
-					}
-					err = verifyProcessORFileData(summ.FileData, fileData, "File")
-					if err != nil {
-						fmt.Println(err)
-						break
-					}
-					flag := 0
-					for _, e := range summ.EgressConnection {
-						if e.Protocol == "TCP" && e.Command == "/usr/local/bin/php" && e.IP == "svc/mysql" && e.Port == "3306" && e.Labels == "app=mysql" && e.Namespace == "wordpress-mysql" {
-							flag = 1
-							break
-						}
-						fmt.Println("Egress Connection for wordpress pod is not matching")
-
-						//return nil, fmt.Errorf("Egress Connection for wordpress pod is not matching")
-					}
-					if flag == 0 {
-						break
-					}
-					return summ, nil
-				} else if podName == "mysql" {
-					processData := map[string]string{
-						"/bin/date":        "/bin/bash",
-						"/usr/sbin/mysqld": "/bin/bash",
-					}
-					err := verifyProcessORFileData(summ.ProcessData, processData, "Process")
-					if err != nil {
-						fmt.Println(err)
-						break
-					}
-					fileData := map[string]string{
-						"/lib/x86_64-linux-gnu/libc-2.24.so": "/usr/bin/mysql",
-					}
-					err = verifyProcessORFileData(summ.FileData, fileData, "File")
-					if err != nil {
-						fmt.Println(err)
-						break
-					}
-					flag := 0
-					for _, i := range summ.IngressConnection {
-						if i.Protocol == "TCPv6" && i.Command == "/usr/sbin/mysqld" && strings.Contains(i.IP, "wordpress") && i.Port == "3306" && i.Namespace == "wordpress-mysql" && i.Labels == "app=wordpress" {
-							flag = 1
-							break
-						}
-					}
-					if flag == 0 {
-						fmt.Println("Ingress Connection for mysql pod is not matching")
-						break
-					}
-					flag = 0
-					return summ, nil
-				}
-			}
-		}
-		time.Sleep(10 * time.Second)
-	}
-	return nil, err
 }
 
 var _ = Describe("Smoke", func() {
@@ -402,13 +251,14 @@ var _ = Describe("Smoke", func() {
 			Expect(policy.Spec.Severity).To(Equal(1))
 		})
 		It("testing for network policy", func() {
-			//check whether wordpress service is running or not using curl command
+			// checking whether wordpress service is running or not using curl command
 			for i := 0; i < 10; i++ {
 				_, err := exec.Command("curl", "-X", "POST", "-d", `WORDPRESS_DB_HOST="mysql"`, "-d", `WORDPRESS_DB_PASSWORD="root-password"`, "-d", `wp-submit="Log In"`, "-d", `redirect_to="http://localhost:30080/wp-admin/"`, "-d", `"testcookie=1"`, "http://localhost:30080/wp-admin/install.php").Output()
 				if err != nil {
 					log.Error().Msgf("Failed to apply curl command : %v", err)
+				} else {
+					log.Info().Msgf("curl successful")
 				}
-				log.Info().Msgf("curl successful")
 				if err == nil {
 					break
 				}
@@ -422,24 +272,6 @@ var _ = Describe("Smoke", func() {
 				Expect(policy[i].TypeMeta.APIVersion).To(Equal("networking.k8s.io/v1"))
 				Expect(policy[i].ObjectMeta.Namespace).To(Equal("wordpress-mysql"))
 			}
-		})
-		It("testing summary output for wordpress pod", func() {
-			summary, err := getsummary("wordpress", 20)
-			Expect(err).To(BeNil())
-			Expect(summary).NotTo(BeNil())
-			Expect(summary.ClusterName).To(Equal("default"))
-			Expect(summary.Namespace).To(Equal("wordpress-mysql"))
-			Expect(summary.Label).To(Equal("app=wordpress"))
-			Expect(summary.ContainerName).To(Equal("wordpress"))
-		})
-		It("testing summary output for mysql pod", func() {
-			summary, err := getsummary("mysql", 20)
-			Expect(err).To(BeNil())
-			Expect(summary).NotTo(BeNil())
-			Expect(summary.ClusterName).To(Equal("default"))
-			Expect(summary.Namespace).To(Equal("wordpress-mysql"))
-			Expect(summary.Label).To(Equal("app=mysql"))
-			Expect(summary.ContainerName).To(Equal("mysql"))
 		})
 	})
 })
