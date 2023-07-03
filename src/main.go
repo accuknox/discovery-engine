@@ -62,6 +62,7 @@ func init() {
 	log.Info().Msgf("CILIUM: %+v", config.GetCfgCiliumHubble())
 	log.Info().Msgf("SYSTEM-POLICY: %+v", config.GetCfgSys())
 	log.Info().Msgf("KUBEARMOR: %+v", config.GetCfgKubeArmor())
+	log.Info().Msgf("AUTO-DEPLOY-DSP: %+v", config.GetCfgDsp())
 
 	// 3. setup the tables in db
 	libs.CreateTablesIfNotExist(config.GetCfgDB())

@@ -44,8 +44,11 @@ const (
 // CurrentVersion stores the current version of policy-template
 var CurrentVersion string
 
-// LatestVersion stores the latest version of policy-template
+// LatestVersion stores the Latest version of policy-template
 var LatestVersion string
+
+// Version stores the version of policy-template to be downloaded
+var Version string
 
 // LabelMap is an alias for map[string]string
 type LabelMap = map[string]string
@@ -124,6 +127,8 @@ func StopRecommendCronJob() {
 func RecommendPolicyMain() {
 
 	nsNotFilter := cfg.CurrentCfg.ConfigSysPolicy.NsNotFilter
+	Version = cfg.GetCfgRecommendTemplateVersion()
+
 	client := cluster.ConnectK8sClient()
 	if client == nil {
 		return
@@ -237,13 +242,16 @@ func GetHardenPolicy(deployments *v1.DeploymentList, replicaSets *v1.ReplicaSetL
 
 	var policies []types.KnoxSystemPolicy
 	if !isLatest() {
-		version, err := DownloadAndUnzipRelease()
+		err := DownloadAndUnzipRelease(Version)
 		if err != nil {
-			log.Error().Msgf("Unable to download %v", err.Error())
+			log.Error().Msgf("Unable to download template %v", err.Error())
 			return nil
 		}
-		log.Info().Msgf("Downloaded version: %v", version)
+		log.Info().Msgf("Downloaded policy template version: %v", LatestVersion)
+	} else {
+		log.Info().Msgf("Using cached template version: %v", CurrentVersion)
 	}
+
 	for _, d := range deployments.Items {
 		deploy := uniqueNsDeploy(d.Name, d.Namespace)
 

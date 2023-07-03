@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -51,6 +52,29 @@ func waitForDBSQLite(db *sql.DB) {
 			break
 		}
 	}
+}
+
+var connectSQLiteOBSOnce sync.Once
+var SQLiteOBSDB *sql.DB
+
+func connectSQLiteOBS(cfg types.ConfigDB, dbpath string) (db *sql.DB) {
+	if MockDB != nil {
+		return MockDB
+	}
+	connectSQLiteOBSOnce.Do(func() {
+		var err error
+		SQLiteOBSDB, err = sql.Open(cfg.DBDriver, dbpath+"?_journal=OFF")
+		for err != nil {
+			log.Error().Msgf("sqlite driver:%s, user:%s, host:%s, port:%s, dbname:%s conn-error:%s",
+				cfg.DBDriver, cfg.DBUser, cfg.DBHost, cfg.DBPort, cfg.DBName, err.Error())
+			time.Sleep(time.Second * 1)
+			SQLiteOBSDB, err = sql.Open(cfg.DBDriver, dbpath)
+		}
+		SQLiteOBSDB.SetMaxIdleConns(0)
+	})
+	waitForDBSQLite(SQLiteOBSDB)
+
+	return SQLiteOBSDB
 }
 
 func connectSQLite(cfg types.ConfigDB, dbpath string) (db *sql.DB) {
@@ -591,8 +615,7 @@ func CreateTableWorkLoadProcessFileSetSQLite(cfg types.ConfigDB) error {
 }
 
 func CreateTableSystemLogsSQLite(cfg types.ConfigDB) error {
-	db := connectSQLite(cfg, config.GetCfgObservabilityDBName())
-	defer db.Close()
+	db := connectSQLiteOBS(cfg, config.GetCfgObservabilityDBName())
 
 	tableName := TableSystemLogsSQLite_TableName
 
@@ -621,8 +644,7 @@ func CreateTableSystemLogsSQLite(cfg types.ConfigDB) error {
 }
 
 func CreateTableNetworkLogsSQLite(cfg types.ConfigDB) error {
-	db := connectSQLite(cfg, config.GetCfgObservabilityDBName())
-	defer db.Close()
+	db := connectSQLiteOBS(cfg, config.GetCfgObservabilityDBName())
 
 	tableName := TableNetworkLogsSQLite_TableName
 
@@ -705,8 +727,7 @@ func CreatePolicyTableSQLite(cfg types.ConfigDB) error {
 }
 
 func CreateSystemSummaryTableSQLite(cfg types.ConfigDB) error {
-	db := connectSQLite(cfg, config.GetCfgObservabilityDBName())
-	defer db.Close()
+	db := connectSQLiteOBS(cfg, config.GetCfgObservabilityDBName())
 
 	query :=
 		"CREATE TABLE IF NOT EXISTS `" + TableSystemSummarySQLite + "` (" +
@@ -736,6 +757,7 @@ func CreateSystemSummaryTableSQLite(cfg types.ConfigDB) error {
 			"	`action` varchar(10) DEFAULT NULL," +
 			"	`count` int NOT NULL," +
 			"	`updated_time` bigint NOT NULL," +
+			"	`hash_id` varchar(50) DEFAULT NULL UNIQUE," +
 			"	PRIMARY KEY (`id`)" +
 			"  );"
 
@@ -950,8 +972,7 @@ func UpdateWorkloadProcessFileSetSQLite(cfg types.ConfigDB, wpfs types.WorkloadP
 
 // UpdateOrInsertKubearmorLogsSQLite -- Update existing log or insert a new log into DB
 func UpdateOrInsertKubearmorLogsSQLite(cfg types.ConfigDB, kubearmorlogmap map[types.KubeArmorLog]int) error {
-	db := connectSQLite(cfg, config.GetCfgObservabilityDBName())
-	defer db.Close()
+	db := connectSQLiteOBS(cfg, config.GetCfgObservabilityDBName())
 
 	start := time.Now().UnixNano() / int64(time.Millisecond)
 	log.Info().Msgf("sqlite update or insert %d", len(kubearmorlogmap))
@@ -1039,8 +1060,7 @@ func updateOrInsertKubearmorLogsSQLite(db *sql.DB, kubearmorlog types.KubeArmorL
 
 // GetSystemLogsMySQL
 func GetSystemLogsSQLite(cfg types.ConfigDB, filterLog types.KubeArmorLog) ([]types.KubeArmorLog, []uint32, error) {
-	db := connectSQLite(cfg, config.GetCfgObservabilityDBName())
-	defer db.Close()
+	db := connectSQLiteOBS(cfg, config.GetCfgObservabilityDBName())
 
 	resLog := []types.KubeArmorLog{}
 	resTotal := []uint32{}
@@ -1145,8 +1165,7 @@ func GetSystemLogsSQLite(cfg types.ConfigDB, filterLog types.KubeArmorLog) ([]ty
 
 // GetNetworkLogsMySQL
 func GetCiliumLogsSQLite(cfg types.ConfigDB, filterLog types.CiliumLog) ([]types.CiliumLog, []uint32, error) {
-	db := connectSQLite(cfg, config.GetCfgObservabilityDBName())
-	defer db.Close()
+	db := connectSQLiteOBS(cfg, config.GetCfgObservabilityDBName())
 
 	resLog := []types.CiliumLog{}
 	resTotal := []uint32{}
@@ -1397,8 +1416,7 @@ func GetCiliumLogsSQLite(cfg types.ConfigDB, filterLog types.CiliumLog) ([]types
 // UpdateCiliumLogsMySQL -- Update existing log with time and count
 func UpdateOrInsertCiliumLogsSQLite(cfg types.ConfigDB, ciliumlogs []types.CiliumLog) error {
 	var err error = nil
-	db := connectSQLite(cfg, config.GetCfgObservabilityDBName())
-	defer db.Close()
+	db := connectSQLiteOBS(cfg, config.GetCfgObservabilityDBName())
 
 	for _, ciliumLog := range ciliumlogs {
 		if err := updateOrInsertCiliumLogSQLite(db, ciliumLog); err != nil {
@@ -1545,8 +1563,7 @@ func updateOrInsertCiliumLogSQLite(db *sql.DB, ciliumlog types.CiliumLog) error 
 }
 
 func GetPodNamesSQLite(cfg types.ConfigDB, filter types.ObsPodDetail) ([]string, error) {
-	db := connectSQLite(cfg, config.GetCfgObservabilityDBName())
-	defer db.Close()
+	db := connectSQLiteOBS(cfg, config.GetCfgObservabilityDBName())
 
 	resPodNames := []string{}
 
@@ -1605,8 +1622,7 @@ func GetPodNamesSQLite(cfg types.ConfigDB, filter types.ObsPodDetail) ([]string,
 }
 
 func GetDeployNamesSQLite(cfg types.ConfigDB, filter types.ObsPodDetail) ([]string, error) {
-	db := connectSQLite(cfg, config.GetCfgObservabilityDBName())
-	defer db.Close()
+	db := connectSQLiteOBS(cfg, config.GetCfgObservabilityDBName())
 
 	resDeployNames := []string{}
 
@@ -1830,8 +1846,7 @@ func DeletePolicyBasedOnPolicyNameSQLite(cfg types.ConfigDB, policyName, namespa
 // == Summary DB == //
 // ================ //
 func UpsertSystemSummarySQLite(cfg types.ConfigDB, sysSummary map[types.SystemSummary]types.SysSummaryTimeCount) error {
-	db := connectSQLite(cfg, config.GetCfgObservabilityDBName())
-	defer db.Close()
+	db := connectSQLiteOBS(cfg, config.GetCfgObservabilityDBName())
 
 	for ss, sstc := range sysSummary {
 		if err := upsertSysSummarySQL(db, ss, sstc); err != nil {
@@ -1844,8 +1859,7 @@ func UpsertSystemSummarySQLite(cfg types.ConfigDB, sysSummary map[types.SystemSu
 }
 
 func GetSystemSummarySQLite(cfg types.ConfigDB, filterOptions types.SystemSummary) ([]types.SystemSummary, error) {
-	db := connectSQLite(cfg, config.GetCfgObservabilityDBName())
-	defer db.Close()
+	db := connectSQLiteOBS(cfg, config.GetCfgObservabilityDBName())
 
 	res, err := getSysSummarySQL(db, TableSystemSummarySQLite, filterOptions)
 
@@ -1860,7 +1874,7 @@ func PurgeOldDBEntriesSQLite(cfg types.ConfigDB) {
 	defer db.Close()
 
 	timeNow := (ConvertStrToUnixTime("now"))
-	purgeTime := (config.GetCfgPublisherCronJobTime()) //sec
+	purgeTime := (config.GetCfgObservabilitySummaryCronInterval()) //sec
 	PurgeTimeValue, err := strconv.ParseInt(purgeTime, 10, 64)
 	if err != nil {
 		log.Error().Msg(err.Error())

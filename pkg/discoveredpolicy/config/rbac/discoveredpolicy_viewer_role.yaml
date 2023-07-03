@@ -1,0 +1,27 @@
+# permissions for end users to view discoveredpolicies.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: discoveredpolicy-viewer-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: discoveredpolicies
+    app.kubernetes.io/part-of: discoveredpolicies
+    app.kubernetes.io/managed-by: kustomize
+  name: discoveredpolicy-viewer-role
+rules:
+- apiGroups:
+  - security.kubearmor.com
+  resources:
+  - discoveredpolicies
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - security.kubearmor.com
+  resources:
+  - discoveredpolicies/status
+  verbs:
+  - get

@@ -128,19 +128,19 @@ type Response struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	DeploymentName    string                    `protobuf:"bytes,1,opt,name=DeploymentName,proto3" json:"DeploymentName,omitempty"`
-	PodName           string                    `protobuf:"bytes,2,opt,name=PodName,proto3" json:"PodName,omitempty"`
-	ClusterName       string                    `protobuf:"bytes,3,opt,name=ClusterName,proto3" json:"ClusterName,omitempty"`
-	Namespace         string                    `protobuf:"bytes,4,opt,name=Namespace,proto3" json:"Namespace,omitempty"`
-	Label             string                    `protobuf:"bytes,5,opt,name=Label,proto3" json:"Label,omitempty"`
-	ContainerName     string                    `protobuf:"bytes,6,opt,name=ContainerName,proto3" json:"ContainerName,omitempty"`
-	ProcessData       []*SysProcFileSummaryData `protobuf:"bytes,7,rep,name=ProcessData,proto3" json:"ProcessData,omitempty"`
-	FileData          []*SysProcFileSummaryData `protobuf:"bytes,8,rep,name=FileData,proto3" json:"FileData,omitempty"`
-	IngressConnection []*SysNwSummaryData       `protobuf:"bytes,9,rep,name=IngressConnection,proto3" json:"IngressConnection,omitempty"`
-	EgressConnection  []*SysNwSummaryData       `protobuf:"bytes,10,rep,name=EgressConnection,proto3" json:"EgressConnection,omitempty"`
-	IngressData       []*CiliumSummData         `protobuf:"bytes,11,rep,name=IngressData,proto3" json:"IngressData,omitempty"`
-	EgressData        []*CiliumSummData         `protobuf:"bytes,12,rep,name=EgressData,proto3" json:"EgressData,omitempty"`
-	BindConnection    []*SysNwSummaryData       `protobuf:"bytes,13,rep,name=BindConnection,proto3" json:"BindConnection,omitempty"`
+	PodName           string                    `protobuf:"bytes,1,opt,name=PodName,proto3" json:"PodName,omitempty"`
+	ClusterName       string                    `protobuf:"bytes,2,opt,name=ClusterName,proto3" json:"ClusterName,omitempty"`
+	Namespace         string                    `protobuf:"bytes,3,opt,name=Namespace,proto3" json:"Namespace,omitempty"`
+	Label             string                    `protobuf:"bytes,4,opt,name=Label,proto3" json:"Label,omitempty"`
+	ContainerName     string                    `protobuf:"bytes,5,opt,name=ContainerName,proto3" json:"ContainerName,omitempty"`
+	ProcessData       []*SysProcFileSummaryData `protobuf:"bytes,6,rep,name=ProcessData,proto3" json:"ProcessData,omitempty"`
+	FileData          []*SysProcFileSummaryData `protobuf:"bytes,7,rep,name=FileData,proto3" json:"FileData,omitempty"`
+	IngressConnection []*SysNwSummaryData       `protobuf:"bytes,8,rep,name=IngressConnection,proto3" json:"IngressConnection,omitempty"`
+	EgressConnection  []*SysNwSummaryData       `protobuf:"bytes,9,rep,name=EgressConnection,proto3" json:"EgressConnection,omitempty"`
+	IngressData       []*CiliumSummData         `protobuf:"bytes,10,rep,name=IngressData,proto3" json:"IngressData,omitempty"`
+	EgressData        []*CiliumSummData         `protobuf:"bytes,11,rep,name=EgressData,proto3" json:"EgressData,omitempty"`
+	BindConnection    []*SysNwSummaryData       `protobuf:"bytes,12,rep,name=BindConnection,proto3" json:"BindConnection,omitempty"`
+	DeploymentName    string                    `protobuf:"bytes,13,opt,name=DeploymentName,proto3" json:"DeploymentName,omitempty"`
 }
 
 func (x *Response) Reset() {

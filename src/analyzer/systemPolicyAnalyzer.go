@@ -134,7 +134,7 @@ func populatePbSysPolicyFromSysPolicy(KnoxSysPolicy types.KnoxSystemPolicy) apb.
 func extractSystemPoliciesFromSystemLogs(systemLogs []types.KnoxSystemLog) []*apb.KnoxSystemPolicy {
 
 	pbSystemPolicies := []*apb.KnoxSystemPolicy{}
-	systemPolicies := syspolicy.PopulateSystemPoliciesFromSystemLogs(systemLogs)
+	systemPolicies := syspolicy.PopulateSystemPoliciesFromSystemLogs(nil)
 
 	for _, sysPolicy := range systemPolicies {
 		pbSysPolicy := populatePbSysPolicyFromSysPolicy(sysPolicy)

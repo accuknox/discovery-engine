@@ -21,17 +21,17 @@ import (
 
 var BaseURL string
 var BearerToken string
-var log *zerolog.Logger
+var Logr *zerolog.Logger
 
 func init() {
-	log = logger.GetInstance()
+	Logr = logger.GetInstance()
 }
 
 func dumpHttpClient(req *http.Request, rsp *http.Response) {
 	if req != nil {
 		_, err := httputil.DumpRequestOut(req, true)
 		if err != nil {
-			log.Error().Msgf("Failed to dump request: %s", err.Error())
+			Logr.Error().Msgf("Failed to dump request: %s", err.Error())
 			//		} else {
 			//			log.Info().Msgf("REQUEST:\n%q", dump)
 		}
@@ -39,7 +39,7 @@ func dumpHttpClient(req *http.Request, rsp *http.Response) {
 	if rsp != nil {
 		_, err := httputil.DumpResponse(rsp, true)
 		if err != nil {
-			log.Error().Msgf("Failed to dump response: %s", err.Error())
+			Logr.Error().Msgf("Failed to dump response: %s", err.Error())
 			//		} else {
 			//			log.Info().Msgf("RESPONSE:\n%q", dump)
 		}
@@ -57,15 +57,15 @@ func getResponseBytes(method string, url string, data map[string]interface{}) []
 	// prepare input data
 	jsonData, err := json.Marshal(data)
 	if err != nil {
-		log.Error().Msg(err.Error())
+		Logr.Error().Msg(err.Error())
 		return nil
 	}
 
-	log.Info().Msgf("http request url: %s", url)
+	Logr.Info().Msgf("http request url: %s", url)
 	// create a new request using http [method; POST, GET]
 	req, err := http.NewRequest(method, url, bytes.NewBuffer(jsonData))
 	if err != nil {
-		log.Error().Msgf("http reqeust error: %s", err.Error())
+		Logr.Error().Msgf("http reqeust error: %s", err.Error())
 		return nil
 	}
 
@@ -85,39 +85,39 @@ func getResponseBytes(method string, url string, data map[string]interface{}) []
 	client := &http.Client{Transport: tr}
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Error().Msgf("Error on response.\n[ERROR] - %s", err)
+		Logr.Error().Msgf("Error on response.\n[ERROR] - %s", err)
 		return nil
 	}
 	dumpHttpClient(nil, resp)
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			log.Error().Msgf("Error closing http response: %s", err)
+			Logr.Error().Msgf("Error closing http response: %s", err)
 		}
 	}()
 
 	// read response to []byte
 	resByte, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Error().Msgf("Error while reading the response bytes: %s", err)
+		Logr.Error().Msgf("Error while reading the response bytes: %s", err)
 		return nil
 	}
 
 	if !strings.Contains(string(resByte), "result") {
-		log.Error().Msgf("There is no results from the url: %s, input:%s, msg: %s", url, string(jsonData), string(resByte))
+		Logr.Error().Msgf("There is no results from the url: %s, input:%s, msg: %s", url, string(jsonData), string(resByte))
 		return nil
 	}
 
 	// unmarshal []byte to map
 	var result map[string]interface{}
 	if err := json.Unmarshal(resByte, &result); err != nil {
-		log.Error().Msgf("Error while unmarshaling the result: %s", err)
+		Logr.Error().Msgf("Error while unmarshaling the result: %s", err)
 		return nil
 	}
 
 	// marshal map["result"] to []byte again
 	resultByte, err := json.Marshal(result["result"])
 	if err != nil {
-		log.Error().Msgf("Error while marshaling the response bytes: %s", err)
+		Logr.Error().Msgf("Error while marshaling the response bytes: %s", err)
 		return nil
 	}
 
@@ -139,7 +139,7 @@ func GetClustersFromClusterNames(clusterNames []string) []types.Cluster {
 	res := getResponseBytes("POST", url, data)
 	if res != nil {
 		if err := json.Unmarshal(res, &results); err != nil {
-			log.Error().Msg(err.Error())
+			Logr.Error().Msg(err.Error())
 		}
 	}
 
@@ -157,7 +157,7 @@ func GetClusterFromClusterName(clusterName string) types.Cluster {
 	res := getResponseBytes("POST", url, data)
 	if res != nil {
 		if err := json.Unmarshal(res, &results); err != nil {
-			log.Error().Msg(err.Error())
+			Logr.Error().Msg(err.Error())
 		}
 	}
 
@@ -185,7 +185,7 @@ func GetNamespacesFromCluster(cluster types.Cluster) []string {
 	namespaces := []map[string]interface{}{}
 	if res != nil {
 		if err := json.Unmarshal(res, &namespaces); err != nil {
-			log.Error().Msg(err.Error())
+			Logr.Error().Msg(err.Error())
 			return results
 		}
 	}
@@ -215,7 +215,7 @@ func GetServicesFromCluster(cluster types.Cluster) []types.Service {
 	services := []map[string]interface{}{}
 	if res != nil {
 		if err := json.Unmarshal(res, &services); err != nil {
-			log.Error().Msg(err.Error())
+			Logr.Error().Msg(err.Error())
 			return results
 		}
 	}
@@ -223,7 +223,7 @@ func GetServicesFromCluster(cluster types.Cluster) []types.Service {
 	for _, v := range services {
 		svcCluster := types.ServiceCluster{}
 		if err := libs.MapToStructure(v, &svcCluster); err != nil {
-			log.Error().Msg(err.Error())
+			Logr.Error().Msg(err.Error())
 			continue
 		}
 
@@ -288,7 +288,7 @@ func GetEndpointsFromCluster(cluster types.Cluster) []types.Endpoint {
 	endpoints := []map[string]interface{}{}
 	if res != nil {
 		if err := json.Unmarshal(res, &endpoints); err != nil {
-			log.Error().Msg(err.Error())
+			Logr.Error().Msg(err.Error())
 			return results
 		}
 	}
@@ -297,11 +297,11 @@ func GetEndpointsFromCluster(cluster types.Cluster) []types.Endpoint {
 		epCluster := types.EndpointCluster{}
 		b, err := json.Marshal(v)
 		if err != nil {
-			log.Error().Msg(err.Error())
+			Logr.Error().Msg(err.Error())
 			continue
 		}
 		if err := json.Unmarshal(b, &epCluster); err != nil {
-			log.Error().Msg(err.Error())
+			Logr.Error().Msg(err.Error())
 		}
 
 		ep := types.Endpoint{
@@ -318,7 +318,7 @@ func GetEndpointsFromCluster(cluster types.Cluster) []types.Endpoint {
 		for _, m := range epCluster.Mappings {
 			protocol, ok := m["Protocol"].(string)
 			if !ok {
-				log.Error().Msg("Field protocol is not a string")
+				Logr.Error().Msg("Field protocol is not a string")
 			}
 
 			mapping := types.Mapping{
@@ -359,7 +359,7 @@ func GetPodsFromCluster(cluster types.Cluster) []types.Pod {
 	pods := []map[string]interface{}{}
 	if res != nil {
 		if err := json.Unmarshal(res, &pods); err != nil {
-			log.Error().Msg(err.Error())
+			Logr.Error().Msg(err.Error())
 		}
 	}
 
@@ -368,12 +368,12 @@ func GetPodsFromCluster(cluster types.Cluster) []types.Pod {
 
 		b, err := json.Marshal(v)
 		if err != nil {
-			log.Error().Msg(err.Error())
+			Logr.Error().Msg(err.Error())
 			continue
 		}
 
 		if err := json.Unmarshal(b, &podCluster); err != nil {
-			log.Error().Msg(err.Error())
+			Logr.Error().Msg(err.Error())
 			continue
 		}
 

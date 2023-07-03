@@ -195,11 +195,11 @@ func LoadConfigFromFile() {
 		SysObservability:    viper.GetBool("observability.system-observability"),
 		NetObservability:    viper.GetBool("observability.network-observability"),
 		WriteLogsToDB:       viper.GetBool("observability.write-logs-to-db"),
-	}
-
-	CurrentCfg.ConfigPublisher = types.ConfigPublisher{
-		Enable:              viper.GetBool("publisher.enable"),
-		CronJobTimeInterval: "@every " + viper.GetString("publisher.cron-job-time-interval"),
+		SummaryJobsConfig: types.SummaryJobsConfig{
+			Publisher:        viper.GetBool("observability.summary-jobs.publisher"),
+			WriteSummaryToDB: viper.GetBool("observability.summary-jobs.write-summary-to-db"),
+			CronInterval:     "@every " + viper.GetString("observability.summary-jobs.cron-interval"),
+		},
 	}
 
 	// for purge old entries from db
@@ -216,6 +216,7 @@ func LoadConfigFromFile() {
 		OperationMode:                      viper.GetInt("recommend.operation-mode"),
 		RecommendHostPolicy:                viper.GetBool("recommend.host-policy"),
 		RecommendAdmissionControllerPolicy: viper.GetBool("recommend.admission-controller-policy"),
+		RecommendTemplateVersion:           viper.GetString("recommend.template-version"),
 	}
 
 	// load database
@@ -226,6 +227,9 @@ func LoadConfigFromFile() {
 
 	// load kubearmor relay config
 	CurrentCfg.ConfigKubeArmorRelay = LoadConfigKubeArmor()
+
+	// load discovered policy config
+	CurrentCfg.ConfigAutoDepolyDiscoveredPolicy = viper.GetBool("dsp.auto-deploy-dsp")
 }
 
 // ============================ //
@@ -456,6 +460,10 @@ func GetCfgObservabilityWriteLogsToDB() bool {
 	return CurrentCfg.ConfigObservability.WriteLogsToDB
 }
 
+func GetCfgObservabilityWriteToDB() bool {
+	return CurrentCfg.ConfigObservability.SummaryJobsConfig.WriteSummaryToDB
+}
+
 // ======================= //
 // == Extract NS Filter == //
 // ======================= //
@@ -478,11 +486,11 @@ func getConfigNsFilter(config string) ([]string, []string) {
 // ========================== //
 
 func GetCfgPublisherEnable() bool {
-	return CurrentCfg.ConfigPublisher.Enable
+	return CurrentCfg.ConfigObservability.SummaryJobsConfig.Publisher
 }
 
-func GetCfgPublisherCronJobTime() string {
-	return CurrentCfg.ConfigPublisher.CronJobTimeInterval
+func GetCfgObservabilitySummaryCronInterval() string {
+	return CurrentCfg.ConfigObservability.SummaryJobsConfig.CronInterval
 }
 
 // ========================== //
@@ -523,4 +531,16 @@ func GetCfgRecommendHostPolicy() bool {
 
 func GetCfgRecommendAdmissionControllerPolicy() bool {
 	return CurrentCfg.ConfigRecommendPolicy.RecommendAdmissionControllerPolicy
+}
+
+func GetCfgRecommendTemplateVersion() string {
+	return CurrentCfg.ConfigRecommendPolicy.RecommendTemplateVersion
+}
+
+// ======================================= //
+// == Get Discovered Policy Config Info == //
+// ======================================= //
+
+func GetCfgDsp() bool {
+	return CurrentCfg.ConfigAutoDepolyDiscoveredPolicy
 }

@@ -1857,7 +1857,7 @@ func PurgeOldDBEntriesMySQL(cfg types.ConfigDB) {
 	defer db.Close()
 
 	timeNow := (ConvertStrToUnixTime("now"))
-	purgeTime := (config.GetCfgPublisherCronJobTime()) //sec
+	purgeTime := (config.GetCfgObservabilitySummaryCronInterval()) //sec
 	PurgeTimeValue, err := strconv.ParseInt(purgeTime, 10, 64)
 	if err != nil {
 		log.Error().Msg(err.Error())
