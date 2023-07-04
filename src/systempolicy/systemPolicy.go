@@ -1481,7 +1481,6 @@ func StartSystemLogRcvr() {
 						}
 					}
 				}
-				url = ""
 				if url == "" {
 					url = cfg.CurrentCfg.ConfigKubeArmorRelay.KubeArmorRelayURL
 				}
