@@ -1467,8 +1467,8 @@ func DiscoverSystemPolicyMain() {
 // ==================================== //
 
 func StartSystemLogRcvr() {
-	for {
-		if !plugin.KubeArmorRelayStarted {
+	if !plugin.KubeArmorRelayStarted {
+		for {
 			if cfg.GetCfgSystemLogFrom() == "kubearmor" {
 				url := cluster.GetKubearmorRelayURL()
 				if url == "" {
