@@ -17,21 +17,21 @@ func GetResourcesFromKvmService() ([]string, []types.Pod) {
 
 	url := config.GetCfgClusterMgmtURL() + "/vmlist"
 
-	log.Info().Msgf("http request url: %s", url)
+	Logr.Info().Msgf("http request url: %s", url)
 	resp, err := http.Get(url)
 	if err != nil {
-		log.Error().Msgf("http response error: %s", err.Error())
+		Logr.Error().Msgf("http response error: %s", err.Error())
 		return nil, nil
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			log.Warn().Msgf("Error closing http stream %s\n", err)
+			Logr.Warn().Msgf("Error closing http stream %s\n", err)
 		}
 	}()
 
 	data, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Error().Msgf("http response error: %s", err.Error())
+		Logr.Error().Msgf("http response error: %s", err.Error())
 		return nil, nil
 	}
 
@@ -39,7 +39,7 @@ func GetResourcesFromKvmService() ([]string, []types.Pod) {
 
 	err = json.Unmarshal(data, &endpoints)
 	if err != nil {
-		log.Error().Msgf("json unmarshall error: %s", err.Error())
+		Logr.Error().Msgf("json unmarshall error: %s", err.Error())
 		return nil, nil
 	}
 

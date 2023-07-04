@@ -35,7 +35,8 @@ var (
 	KubeArmorLogMap map[types.KubeArmorLog]int
 	ProcFileMap     map[types.SysObsProcFileMapKey]types.SysObsProcFileMapValue
 	// Memory maps for summary
-	PublisherMap, SummarizerMap map[types.SystemSummary]types.SysSummaryTimeCount
+	SummarizerMap      map[types.SystemSummary]types.SysSummaryTimeCount
+	SummarizerMapMutex sync.Mutex
 )
 
 // =================== //
@@ -49,6 +50,9 @@ func initMutex() {
 	}
 	if cfg.GetCfgObservabilitySysObsStatus() {
 		NetworkLogsMutex = &sync.Mutex{}
+	}
+	if cfg.GetCfgPublisherEnable() {
+		PublisherMutex = &sync.Mutex{}
 	}
 }
 
@@ -75,26 +79,13 @@ func InitObservability() {
 			log.Error().Msg(err.Error())
 			return
 		}
-		ObsCronJob.Start()
-		log.Info().Msg("Observability cron job started")
-	}
-
-	if cfg.GetCfgPublisherEnable() {
-		// Init mutex
-		PublisherMutex = &sync.Mutex{}
-
-		// Define memory map
-		PublisherMap = make(map[types.SystemSummary]types.SysSummaryTimeCount)
-
-		// Define cron job
-		PublisherCronJob = cron.New()
-		err := PublisherCronJob.AddFunc(cfg.GetCfgPublisherCronJobTime(), ProcessSystemSummary) // time interval
+		err = ObsCronJob.AddFunc(cfg.GetCfgObservabilitySummaryCronInterval(), ProcessSystemSummary) // time interval
 		if err != nil {
 			log.Error().Msg(err.Error())
 			return
 		}
-		PublisherCronJob.Start()
-		log.Info().Msg("Publisher cron job started")
+		ObsCronJob.Start()
+		log.Info().Msg("Observability cron job started")
 	}
 }
 
@@ -151,4 +142,12 @@ func GetDeployNames(request *opb.Request) (opb.DeployNameResponse, error) {
 	}
 
 	return opb.DeployNameResponse{DeployName: result}, nil
+}
+
+func UpsertSummaryCronJob(tempSummarizerMap map[types.SystemSummary]types.SysSummaryTimeCount, wg *sync.WaitGroup) {
+	defer wg.Done()
+	// update summary map to DB
+	if err := libs.UpsertSystemSummary(CfgDB, tempSummarizerMap); err != nil {
+		log.Error().Msg(err.Error())
+	}
 }

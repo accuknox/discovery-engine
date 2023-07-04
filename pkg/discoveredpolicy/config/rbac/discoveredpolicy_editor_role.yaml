@@ -1,0 +1,31 @@
+# permissions for end users to edit discoveredpolicies.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: discoveredpolicy-editor-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: discoveredpolicies
+    app.kubernetes.io/part-of: discoveredpolicies
+    app.kubernetes.io/managed-by: kustomize
+  name: discoveredpolicy-editor-role
+rules:
+- apiGroups:
+  - security.kubearmor.com
+  resources:
+  - discoveredpolicies
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - security.kubearmor.com
+  resources:
+  - discoveredpolicies/status
+  verbs:
+  - get

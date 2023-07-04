@@ -390,7 +390,10 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 	}
 	KubeArmorRelayStarted = true
 	conn := ConnectKubeArmorRelay(cfg)
-
+	if conn == nil {
+		log.Error().Msg("failed connecting to kubearmor relay")
+		return
+	}
 	client := pb.NewLogServiceClient(conn)
 	req := pb.RequestMessage{}
 	req.Filter = "all"
@@ -434,9 +437,11 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 				if len(res.Resource) != 0 && res.Operation != "Network" && !strings.HasPrefix(res.Resource, "/") {
 					continue
 				}
-				owner := pb.Podowner{
-					Ref:  res.Owner.Ref,
-					Name: res.Owner.Name,
+
+				owner := pb.Podowner{}
+				if res.Owner != nil {
+					owner.Ref = res.Owner.Ref
+					owner.Name = res.Owner.Name
 				}
 				kubearmorLog := pb.Alert{
 					Timestamp:         res.Timestamp,
@@ -464,6 +469,8 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 					Result:            res.Result,
 					Owner:             &owner,
 				}
+
+				kubearmorLog.Labels = libs.RemoveFieldFromLabel(kubearmorLog.Labels, types.LabelJobControllerUid)
 
 				KubeArmorRelayLogsMutex.Lock()
 				KubeArmorRelayLogs = append(KubeArmorRelayLogs, &kubearmorLog)
@@ -520,6 +527,8 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 					continue
 				}
 
+				res.Labels = libs.RemoveFieldFromLabel(res.Labels, types.LabelJobControllerUid)
+
 				KubeArmorRelayLogsMutex.Lock()
 				KubeArmorRelayLogs = append(KubeArmorRelayLogs, res)
 				KubeArmorRelayLogsMutex.Unlock()
@@ -575,101 +584,94 @@ func GetNetworkLogsFromKubeArmor() []*pb.Alert {
 	return results
 }
 
-func ConvertKubeArmorNetLogToKnoxNetLog(kaNwLogs []*pb.Alert) []types.KnoxNetworkLog {
-	if len(kaNwLogs) <= 0 {
-		return nil
-	}
-
-	results := []types.KnoxNetworkLog{}
+func ConvertKubeArmorNetLogToKnoxNetLog(kaNwLog *pb.Alert) (types.KnoxNetworkLog, error) {
 
 	var services []types.Service
 	var pods []types.Pod
 	var err error
 	existingClustername := ""
 
-	for _, kalog := range kaNwLogs {
-		var ip, port string
-		locKnoxLog := types.KnoxNetworkLog{
-			ClusterName:       kalog.ClusterName,
-			ContainerName:     kalog.ContainerName,
-			SrcNamespace:      kalog.NamespaceName,
-			SrcReservedLabels: strings.Split(kalog.Labels, ","),
-			SrcPodName:        kalog.PodName,
-		}
-
-		// Direction
-		if strings.Contains(kalog.Data, "tcp_") {
-			locKnoxLog.Protocol = libs.IPProtocolTCP
-			if strings.Contains(kalog.Data, "tcp_accept") {
-				locKnoxLog.Direction = "INGRESS"
-			} else if strings.Contains(kalog.Data, "tcp_connect") {
-				locKnoxLog.Direction = "EGRESS"
-			}
-
-			// Extract IP and port
-			resslice := strings.Split(kalog.Resource, " ")
-			for _, locres := range resslice {
-				if strings.Contains(locres, "remoteip") {
-					ip = strings.Split(locres, "=")[1]
-				}
-				if strings.Contains(locres, "port") {
-					port = strings.Split(locres, "=")[1]
-				}
-			}
-
-			if net.ParseIP(ip).IsLoopback() {
-				// ignore adding policies with pod IP pointing to localhost
-				continue
-			}
-
-			if existingClustername != kalog.ClusterName {
-				_, services, _, pods, err = cluster.GetAllClusterResources(kalog.ClusterName)
-				if err == nil {
-					existingClustername = kalog.ClusterName
-				}
-			}
-			destPod, destLabels, destNs := cluster.ExtractPodSvcInfoFromIP(ip, kalog.ClusterName, pods, services)
-
-			if ip != destPod && (strings.Contains(destPod, "pod") || strings.Contains(destPod, "svc")) {
-				locKnoxLog.DstPodName = strings.Split(destPod, "/")[1]
-				locKnoxLog.DstReservedLabels = strings.Split(destLabels, ",")
-				locKnoxLog.DstNamespace = destNs
-			}
-			locKnoxLog.DstIP = ip
-			locKnoxLog.DstPort, _ = strconv.Atoi(port)
-			locKnoxLog.SynFlag = true
-		} else if strings.Contains(kalog.Data, "SYS_BIND") {
-			var port string
-			// TODO : Identify a way to get protocol from kubearmor
-			// locKnoxLog.Protocol = libs.IPProtocolUDP
-
-			resSlice := strings.Split(kalog.Resource, " ")
-			for _, v := range resSlice {
-				if strings.Contains(v, "sin_port") {
-					port = strings.Split(v, "=")[1]
-				}
-			}
-			//locKnoxLog.DstIP = "0.0.0.0"
-			locKnoxLog.DstPort, _ = strconv.Atoi(port)
-			locKnoxLog.Direction = "INGRESS"
-		} else if strings.Contains(kalog.Data, "SYS_SOCKET") && strings.Contains(kalog.Resource, "SOCK_DGRAM") {
-			locKnoxLog.Protocol = libs.IPProtocolUDP
-			//locKnoxLog.DstIP = "0.0.0.0"
-			locKnoxLog.Direction = "EGRESS"
-		}
-
-		if kalog.Result != "Passed" {
-			locKnoxLog.Action = "Deny"
-		} else {
-			locKnoxLog.Action = "Allow"
-		}
-
-		if locKnoxLog.Protocol == 0 && locKnoxLog.DstPort == 0 && len(locKnoxLog.DstReservedLabels) == 0 {
-			continue
-		}
-
-		results = append(results, locKnoxLog)
+	var ip, port string
+	knoxNetLog := types.KnoxNetworkLog{
+		ClusterName:       kaNwLog.ClusterName,
+		ContainerName:     kaNwLog.ContainerName,
+		SrcNamespace:      kaNwLog.NamespaceName,
+		SrcReservedLabels: strings.Split(kaNwLog.Labels, ","),
+		SrcPodName:        kaNwLog.PodName,
 	}
 
-	return results
+	// Direction
+	if strings.Contains(kaNwLog.Data, "tcp_") {
+		knoxNetLog.Protocol = libs.IPProtocolTCP
+		if strings.Contains(kaNwLog.Data, "tcp_accept") {
+			knoxNetLog.Direction = "INGRESS"
+		} else if strings.Contains(kaNwLog.Data, "tcp_connect") {
+			knoxNetLog.Direction = "EGRESS"
+		}
+
+		// Extract IP and port
+		resource := strings.Split(kaNwLog.Resource, " ")
+		for _, locres := range resource {
+			if strings.Contains(locres, "remoteip") {
+				ip = strings.Split(locres, "=")[1]
+			}
+			if strings.Contains(locres, "port") {
+				port = strings.Split(locres, "=")[1]
+			}
+		}
+
+		if net.ParseIP(ip).IsLoopback() {
+			// ignore adding policies with pod IP pointing to localhost
+			return types.KnoxNetworkLog{}, errors.New("invalid log")
+		}
+
+		if existingClustername != kaNwLog.ClusterName {
+			_, services, _, pods, err = cluster.GetAllClusterResources(kaNwLog.ClusterName)
+			if err == nil {
+				existingClustername = kaNwLog.ClusterName
+			}
+		}
+		destPod, destLabels, destNs := cluster.ExtractPodSvcInfoFromIP(ip, kaNwLog.ClusterName, pods, services)
+
+		if ip != destPod && (strings.Contains(destPod, "pod") || strings.Contains(destPod, "svc")) {
+			knoxNetLog.DstPodName = strings.Split(destPod, "/")[1]
+			knoxNetLog.DstReservedLabels = strings.Split(destLabels, ",")
+			knoxNetLog.DstNamespace = destNs
+		}
+		knoxNetLog.DstIP = ip
+		knoxNetLog.DstPort, _ = strconv.Atoi(port)
+		knoxNetLog.SynFlag = true
+	} else if strings.Contains(kaNwLog.Data, "SYS_BIND") {
+		var port string
+		// TODO : Identify a way to get protocol from kubearmor
+		// knoxNetLog.Protocol = libs.IPProtocolUDP
+
+		resource := strings.Split(kaNwLog.Resource, " ")
+		for _, v := range resource {
+			if strings.Contains(v, "sin_port") {
+				port = strings.Split(v, "=")[1]
+			}
+		}
+		//knoxNetLog.DstIP = "0.0.0.0"
+		knoxNetLog.DstPort, _ = strconv.Atoi(port)
+		knoxNetLog.Direction = "INGRESS"
+	} else if strings.Contains(kaNwLog.Data, "SYS_SOCKET") && strings.Contains(kaNwLog.Resource, "SOCK_DGRAM") {
+		knoxNetLog.Protocol = libs.IPProtocolUDP
+		//knoxNetLog.DstIP = "0.0.0.0"
+		knoxNetLog.Direction = "EGRESS"
+	} else {
+		return types.KnoxNetworkLog{}, errors.New("not an ingress/egress traffic")
+	}
+
+	if kaNwLog.Result != "Passed" {
+		knoxNetLog.Action = "Deny"
+	} else {
+		knoxNetLog.Action = "Allow"
+	}
+
+	if knoxNetLog.Protocol == 0 && knoxNetLog.DstPort == 0 && len(knoxNetLog.DstReservedLabels) == 0 {
+		return types.KnoxNetworkLog{}, errors.New("invalid log")
+	}
+
+	return knoxNetLog, nil
 }

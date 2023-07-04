@@ -212,7 +212,7 @@ func FilterNetworkLogsByNamespace(targetNamespace string, logs []types.KnoxNetwo
 // == Network Log == //
 // ================= //
 
-func getNetworkLogs() []types.KnoxNetworkLog {
+func getNetworkLogs() map[*types.KnoxNetworkLog]bool {
 	networkLogs := []types.KnoxNetworkLog{}
 
 	if NetworkLogFrom == "hubble" {
@@ -283,7 +283,8 @@ func getNetworkLogs() []types.KnoxNetworkLog {
 		// convert file flows -> network logs (but, in this case, no flow id..)
 		for _, flow := range flows {
 			if log, valid := plugin.ConvertCiliumFlowToKnoxNetworkLog(flow); valid {
-				networkLogs = append(networkLogs, log)
+				//networkLogs = append(networkLogs, log)
+				NetworkLogMap[&log] = true
 			}
 		}
 
@@ -299,7 +300,11 @@ func getNetworkLogs() []types.KnoxNetworkLog {
 		kaNwLogs := plugin.GetNetworkLogsFromKubeArmor()
 
 		// convert kubearmor log/alert to KnoxNetworkLog
-		networkLogs = plugin.ConvertKubeArmorNetLogToKnoxNetLog(kaNwLogs)
+		for _, nwLog := range kaNwLogs {
+			if knoxNetLog, err := plugin.ConvertKubeArmorNetLogToKnoxNetLog(nwLog); err == nil {
+				NetworkLogMap[&knoxNetLog] = true
+			}
+		}
 	} else {
 		log.Error().Msgf("Network log source not correct: %s", NetworkLogFrom)
 		return nil
@@ -311,14 +316,15 @@ func getNetworkLogs() []types.KnoxNetworkLog {
 		}
 	}
 
-	return networkLogs
+	return NetworkLogMap
 }
 
-func clusteringNetworkLogs(networkLogs []types.KnoxNetworkLog) map[string][]types.KnoxNetworkLog {
+func clusteringNetworkLogs(networkLogMap map[*types.KnoxNetworkLog]bool) map[string][]types.KnoxNetworkLog {
 	clusterNameMap := map[string][]types.KnoxNetworkLog{}
 
-	for _, log := range networkLogs {
-		clusterNameMap[log.ClusterName] = append(clusterNameMap[log.ClusterName], log)
+	for log := range networkLogMap {
+		clusterNameMap[log.ClusterName] = append(clusterNameMap[log.ClusterName], *log)
+		delete(NetworkLogMap, log)
 	}
 
 	return clusterNameMap

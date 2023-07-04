@@ -42,7 +42,7 @@ func NewSummaryConsumer(req *ppb.SummaryRequest) *SummaryConsumer {
 		Labels:      req.Labels,
 		Deployment:  req.DeploymentName,
 		Operation:   req.Operation,
-		Events:      make(chan *types.SystemSummary),
+		Events:      make(chan *types.SystemSummary, 1024),
 	}
 }
 
@@ -108,8 +108,12 @@ func validateSummaryRequest(consumer *SummaryConsumer, summary types.SystemSumma
 
 func convertSystemSummaryToGrpcResponse(summary *types.SystemSummary) *ppb.SummaryResponse {
 	var workload *ppb.Workload
-	workload.Type = summary.Workload.Type
-	workload.Name = summary.Workload.Name
+	if summary.Workload != (types.Workload{}) {
+		workload = &ppb.Workload{
+			Type: summary.Workload.Type,
+			Name: summary.Workload.Name,
+		}
+	}
 	return &ppb.SummaryResponse{
 		ClusterName:   summary.ClusterName,
 		ClusterId:     summary.ClusterId,

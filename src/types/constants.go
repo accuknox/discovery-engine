@@ -61,4 +61,13 @@ const (
 	// RecommendedPolicyDescriptionAnnotation is the annotation used to store the description of the recommended policy.
 	// This annotation is used to identify the description associated with a policy by kubearmor-client.
 	RecommendedPolicyDescriptionAnnotation = "policies.kyverno.io/description"
+
+	// For Jobs, this field from labels changes everytime
+	// Hence ignoring the same from labels if exist
+	LabelJobControllerUid = "controller-uid"
+
+	// Constants to match with operations when aggregating summary data
+	FileOperation = "File"
+	NetworkOperation = "Network"
+	ProcessOperation = "Process"
 )

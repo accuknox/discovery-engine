@@ -25,6 +25,18 @@ application:
     #cluster-mgmt-url: "http://cluster-management-service.accuknox-dev-cluster-mgmt.svc.cluster.local/cm"
     cluster-mgmt-url: "http://localhost:8080"
 
+observability: 
+  enable: true
+  cron-job-time-interval: "0h0m10s"         # format: XhYmZs
+  dbname: ./accuknox-obs.db
+  system-observability: true
+  network-observability: false
+  write-logs-to-db: false
+  summary-jobs:
+    publisher: true
+    write-summary-to-db: false
+    cron-interval: "0h1m00s"
+
 database:
   driver: sqlite3
   host: 127.0.0.1
@@ -71,6 +83,7 @@ recommend:
   operation-mode: 1                       # 1: cronjob | 2: one-time-job
   cron-job-time-interval: "1h0m00s"       # format: XhYmZs
   recommend-host-policy: true
+  template-version: "v0.2.1"
 
 # license
 license:
@@ -79,3 +92,6 @@ license:
   validate: "user-id"
 
 pprof: false
+# Discovered Policies Configuration
+dsp:
+  auto-deploy-dsp: true  

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/accuknox/auto-policy-discovery/src/cluster"
-	"github.com/accuknox/auto-policy-discovery/src/config"
+	"github.com/accuknox/auto-policy-discovery/src/common"
 	cfg "github.com/accuknox/auto-policy-discovery/src/config"
 	fc "github.com/accuknox/auto-policy-discovery/src/feedconsumer"
 	"github.com/accuknox/auto-policy-discovery/src/libs"
@@ -23,10 +23,14 @@ import (
 	"github.com/rs/zerolog"
 )
 
-var log *zerolog.Logger
+var (
+	log           *zerolog.Logger
+	NetworkLogMap map[*types.KnoxNetworkLog]bool
+)
 
 func init() {
 	log = logger.GetInstance()
+	NetworkLogMap = make(map[*types.KnoxNetworkLog]bool)
 }
 
 // const values
@@ -2107,8 +2111,8 @@ func isVM(podName string, pods []types.Pod) bool {
 
 func applyPolicyFilter(discoveredPolicies map[string][]types.KnoxNetworkPolicy) map[string][]types.KnoxNetworkPolicy {
 
-	nsFilter := config.CurrentCfg.ConfigNetPolicy.NsFilter
-	nsNotFilter := config.CurrentCfg.ConfigNetPolicy.NsNotFilter
+	nsFilter := cfg.CurrentCfg.ConfigNetPolicy.NsFilter
+	nsNotFilter := cfg.CurrentCfg.ConfigNetPolicy.NsNotFilter
 
 	if len(nsFilter) > 0 {
 		for ns := range discoveredPolicies {
@@ -2127,12 +2131,12 @@ func applyPolicyFilter(discoveredPolicies map[string][]types.KnoxNetworkPolicy) 
 	return discoveredPolicies
 }
 
-func PopulateNetworkPoliciesFromNetworkLogs(networkLogs []types.KnoxNetworkLog) map[string][]types.KnoxNetworkPolicy {
+func PopulateNetworkPoliciesFromNetworkLogs(networkLogMap map[*types.KnoxNetworkLog]bool) map[string][]types.KnoxNetworkPolicy {
 
 	discoveredNetworkPolicies := map[string][]types.KnoxNetworkPolicy{}
 
 	// get cluster names, iterate each cluster
-	clusteredLogs := clusteringNetworkLogs(networkLogs)
+	clusteredLogs := clusteringNetworkLogs(networkLogMap)
 
 	for clusterName, networkLogs := range clusteredLogs {
 		log.Info().Msgf("Network policy discovery started for cluster [%s]", clusterName)
@@ -2256,6 +2260,15 @@ func writeNetworkPoliciesYamlToDB(policies []types.KnoxNetworkPolicy) {
 			}
 			res = append(res, policyYaml)
 
+			// Deploy policy if auto-deploy-policy is enabled
+			if cfg.GetCfgDsp() {
+				log.Info().Msgf("Deploying dsp %s", np.Name)
+				_ = cluster.CreateDsp(np.Name,
+					np.Namespace,
+					common.K8s_NETWORK_POLICY,
+					jsonBytes)
+			}
+
 			PolicyStore.Publish(&policyYaml)
 		}
 
@@ -2295,6 +2308,15 @@ func writeNetworkPoliciesYamlToDB(policies []types.KnoxNetworkPolicy) {
 				Yaml:        yamlBytes,
 			}
 			res = append(res, policyYaml)
+
+			// Deploy policy if auto-deploy-policy is enabled
+			if cfg.GetCfgDsp() && cluster.IsCiliumPolicyAvailable {
+				log.Info().Msgf("Deploying dsp %s", ciliumPolicy.Metadata["name"])
+				_ = cluster.CreateDsp(ciliumPolicy.Metadata["name"],
+					ciliumPolicy.Metadata["namespace"],
+					common.CILIUM_NETWORK_POLICY,
+					jsonBytes)
+			}
 
 			PolicyStore.Publish(&policyYaml)
 		}
