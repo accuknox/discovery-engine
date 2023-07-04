@@ -404,9 +404,7 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 		defer func() {
 			log.Info().Msg("watchlogs returning")
 			KubeArmorRelayStarted = false
-			if conn != nil {
-				_ = conn.Close()
-			}
+			_ = conn.Close()
 		}()
 		stream, err := client.WatchLogs(context.Background(), &req)
 		if err != nil {
@@ -495,9 +493,7 @@ func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay)
 		defer func() {
 			log.Info().Msg("watchalerts returning")
 			KubeArmorRelayStarted = false
-			if conn != nil {
-				_ = conn.Close()
-			}
+			_ = conn.Close()
 		}()
 		stream, err := client.WatchAlerts(context.Background(), &req)
 		if err != nil {
