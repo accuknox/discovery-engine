@@ -119,8 +119,8 @@ recommend:
   operation-mode: 1                       # 1: cronjob | 2: one-time-job
   cron-job-time-interval: "1h0m00s"       # format: XhYmZs
   recommend-host-policy: true
-  template-version: "v0.2.2"              # policy template version to be used for recommendation (keep empty to fetches latest)
-
+  template-version: ""                    # policy template version to be used for recommendation (keep empty to fetches latest)
+  admission-controller-policy: false
 # license
 license:
   enabled: false
@@ -130,4 +130,4 @@ license:
 pprof: false
 # Discovered Policies Configuration  
 dsp:
-  auto-deploy-dsp: true
+  auto-deploy-dsp: false
