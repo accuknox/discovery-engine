@@ -144,7 +144,8 @@ func getKubearmorReportData(CfgDB types.ConfigDB, reportOptions *types.ReportOpt
 		Clusters: map[string]Clusters{},
 	}
 	var sysSummary []types.SystemSummary
-	var mp map[string]string = map[string]string{}
+	var procMap map[string]string = map[string]string{}
+	var fileMap map[string]string = map[string]string{}
 
 	sysSummary, err = libs.GetSystemSummary(CfgDB, nil, reportOptions)
 
@@ -200,9 +201,9 @@ func getKubearmorReportData(CfgDB types.ConfigDB, reportOptions *types.ReportOpt
 
 		if ss.Operation == "Process" {
 
-			_, sourceOk := mp[unq+"_"+"source"]
-			_, destOk := mp[unq+"_"+"dest"]
-			_, allowOk := mp[unq+"_"+"action"]
+			_, sourceOk := procMap[unq+"_"+"source"]
+			_, destOk := procMap[unq+"_"+"dest"]
+			_, allowOk := procMap[unq+"_"+"action"]
 
 			if sourceOk && destOk && allowOk {
 				continue
@@ -215,14 +216,14 @@ func getKubearmorReportData(CfgDB types.ConfigDB, reportOptions *types.ReportOpt
 				//Count:       uint32(ss.Count),
 				//: t.Format(time.UnixDate),
 			})
-			mp[unq+"_"+"source"] = ss.Source
-			mp[unq+"_"+"dest"] = ss.Destination
-			mp[unq+"_"+"action"] = ss.Action
+			procMap[unq+"_"+"source"] = ss.Source
+			procMap[unq+"_"+"dest"] = ss.Destination
+			procMap[unq+"_"+"action"] = ss.Action
 
 		} else if ss.Operation == "File" {
-			_, sourceOk := mp[unq+"_"+"source"]
-			_, destOk := mp[unq+"_"+"dest"]
-			_, allowOk := mp[unq+"_"+"action"]
+			_, sourceOk := fileMap[unq+"_"+"source"]
+			_, destOk := fileMap[unq+"_"+"dest"]
+			_, allowOk := fileMap[unq+"_"+"action"]
 
 			if sourceOk && destOk && allowOk {
 				continue
@@ -235,9 +236,9 @@ func getKubearmorReportData(CfgDB types.ConfigDB, reportOptions *types.ReportOpt
 				//:       uint32(ss.Count),
 				//UpdatedTime: t.Format(time.UnixDate),
 			})
-			mp[unq+"_"+"source"] = ss.Source
-			mp[unq+"_"+"dest"] = ss.Destination
-			mp[unq+"_"+"action"] = ss.Action
+			fileMap[unq+"_"+"source"] = ss.Source
+			fileMap[unq+"_"+"dest"] = ss.Destination
+			fileMap[unq+"_"+"action"] = ss.Action
 			reportSummaryData.Clusters[ss.ClusterName].Namespaces[ss.NamespaceName].ResourceTypesData[ss.Workload.Type].ResourceSummaryData[ss.Workload.Name].SummaryData.FileData = observability.AggregateProcFileData(reportSummaryData.Clusters[ss.ClusterName].Namespaces[ss.NamespaceName].ResourceTypesData[ss.Workload.Type].ResourceSummaryData[ss.Workload.Name].SummaryData.FileData)
 
 		} else if ss.Operation == "Network" {
