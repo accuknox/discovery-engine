@@ -144,6 +144,7 @@ func getKubearmorReportData(CfgDB types.ConfigDB, reportOptions *types.ReportOpt
 		Clusters: map[string]Clusters{},
 	}
 	var sysSummary []types.SystemSummary
+	var mp map[string]string = map[string]string{}
 
 	sysSummary, err = libs.GetSystemSummary(CfgDB, nil, reportOptions)
 
@@ -193,10 +194,19 @@ func getKubearmorReportData(CfgDB types.ConfigDB, reportOptions *types.ReportOpt
 				},
 			}
 		}
+		unq := ss.ClusterName + "_" + ss.NamespaceName + "_" + ss.Workload.Type + "_" + ss.Workload.Name
 
 		//t := time.Unix(ss.UpdatedTime, 0)
 
 		if ss.Operation == "Process" {
+
+			_, sourceOk := mp[unq+"_"+"source"]
+			_, destOk := mp[unq+"_"+"dest"]
+			_, allowOk := mp[unq+"_"+"action"]
+
+			if sourceOk && destOk && allowOk {
+				continue
+			}
 			//ExtractProcessData
 			reportSummaryData.Clusters[ss.ClusterName].Namespaces[ss.NamespaceName].ResourceTypesData[ss.Workload.Type].ResourceSummaryData[ss.Workload.Name].SummaryData.ProcessData = append(reportSummaryData.Clusters[ss.ClusterName].Namespaces[ss.NamespaceName].ResourceTypesData[ss.Workload.Type].ResourceSummaryData[ss.Workload.Name].SummaryData.ProcessData, types.SysObsProcFileData{
 				Source:      ss.Source,
@@ -205,8 +215,18 @@ func getKubearmorReportData(CfgDB types.ConfigDB, reportOptions *types.ReportOpt
 				//Count:       uint32(ss.Count),
 				//: t.Format(time.UnixDate),
 			})
+			mp[unq+"_"+"source"] = ss.Source
+			mp[unq+"_"+"dest"] = ss.Destination
+			mp[unq+"_"+"action"] = ss.Action
 
 		} else if ss.Operation == "File" {
+			_, sourceOk := mp[unq+"_"+"source"]
+			_, destOk := mp[unq+"_"+"dest"]
+			_, allowOk := mp[unq+"_"+"action"]
+
+			if sourceOk && destOk && allowOk {
+				continue
+			}
 			//ExtractFileData
 			reportSummaryData.Clusters[ss.ClusterName].Namespaces[ss.NamespaceName].ResourceTypesData[ss.Workload.Type].ResourceSummaryData[ss.Workload.Name].SummaryData.FileData = append(reportSummaryData.Clusters[ss.ClusterName].Namespaces[ss.NamespaceName].ResourceTypesData[ss.Workload.Type].ResourceSummaryData[ss.Workload.Name].SummaryData.FileData, types.SysObsProcFileData{
 				Source:      ss.Source,
@@ -215,6 +235,9 @@ func getKubearmorReportData(CfgDB types.ConfigDB, reportOptions *types.ReportOpt
 				//:       uint32(ss.Count),
 				//UpdatedTime: t.Format(time.UnixDate),
 			})
+			mp[unq+"_"+"source"] = ss.Source
+			mp[unq+"_"+"dest"] = ss.Destination
+			mp[unq+"_"+"action"] = ss.Action
 			reportSummaryData.Clusters[ss.ClusterName].Namespaces[ss.NamespaceName].ResourceTypesData[ss.Workload.Type].ResourceSummaryData[ss.Workload.Name].SummaryData.FileData = observability.AggregateProcFileData(reportSummaryData.Clusters[ss.ClusterName].Namespaces[ss.NamespaceName].ResourceTypesData[ss.Workload.Type].ResourceSummaryData[ss.Workload.Name].SummaryData.FileData)
 
 		} else if ss.Operation == "Network" {
