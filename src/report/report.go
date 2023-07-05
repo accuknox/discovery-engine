@@ -152,7 +152,9 @@ func getKubearmorReportData(CfgDB types.ConfigDB, reportOptions *types.ReportOpt
 	}
 
 	for _, ss := range sysSummary {
-
+		if ss.Workload.Type == "" || ss.Workload.Name == "" {
+			continue
+		}
 		_, ok := reportSummaryData.Clusters[ss.ClusterName]
 		if !ok {
 			reportSummaryData.Clusters[ss.ClusterName] = Clusters{
