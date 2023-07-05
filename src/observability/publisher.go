@@ -33,7 +33,7 @@ func ProcessSystemSummary() {
 		PublisherMutex.Lock()
 		initTime := time.Now()
 
-		aggregateSummaryMap(tempSummarizerMap)
+		//aggregateSummaryMap(tempSummarizerMap)
 
 		log.Info().Msgf("Events to publish after aggregation: [%v]", len(tempSummarizerMap))
 		count := 0

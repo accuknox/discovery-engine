@@ -138,8 +138,8 @@ func getSystemReport(o *Options) (*rpb.ReportResponse, error) {
 
 func getKubearmorReportData(CfgDB types.ConfigDB, reportOptions *types.ReportOptions) (*ReportData, error) {
 	var err error
-	var processData, fileData []types.SysObsProcFileData
-	var nwData []types.SysObsNwData
+	//var processData, fileData []types.SysObsProcFileData
+	//var nwData []types.SysObsNwData
 	var reportSummaryData ReportData = ReportData{
 		Clusters: map[string]Clusters{},
 	}
@@ -185,9 +185,9 @@ func getKubearmorReportData(CfgDB types.ConfigDB, reportOptions *types.ReportOpt
 					ContainerName: ss.ContainerName,
 				},
 				SummaryData: &SummaryData{
-					ProcessData: processData,
-					FileData:    fileData,
-					NetworkData: nwData,
+					ProcessData: []types.SysObsProcFileData{},
+					FileData:    []types.SysObsProcFileData{},
+					NetworkData: []types.SysObsNwData{},
 				},
 			}
 		}
@@ -196,25 +196,28 @@ func getKubearmorReportData(CfgDB types.ConfigDB, reportOptions *types.ReportOpt
 
 		if ss.Operation == "Process" {
 			//ExtractProcessData
-			processData = append(processData, types.SysObsProcFileData{
+			reportSummaryData.Clusters[ss.ClusterName].Namespaces[ss.NamespaceName].ResourceTypesData[ss.Workload.Type].ResourceSummaryData[ss.Workload.Name].SummaryData.ProcessData = append(reportSummaryData.Clusters[ss.ClusterName].Namespaces[ss.NamespaceName].ResourceTypesData[ss.Workload.Type].ResourceSummaryData[ss.Workload.Name].SummaryData.ProcessData, types.SysObsProcFileData{
 				Source:      ss.Source,
 				Destination: ss.Destination,
 				Status:      ss.Action,
 				//Count:       uint32(ss.Count),
 				//: t.Format(time.UnixDate),
 			})
+
 		} else if ss.Operation == "File" {
 			//ExtractFileData
-			fileData = append(fileData, types.SysObsProcFileData{
+			reportSummaryData.Clusters[ss.ClusterName].Namespaces[ss.NamespaceName].ResourceTypesData[ss.Workload.Type].ResourceSummaryData[ss.Workload.Name].SummaryData.FileData = append(reportSummaryData.Clusters[ss.ClusterName].Namespaces[ss.NamespaceName].ResourceTypesData[ss.Workload.Type].ResourceSummaryData[ss.Workload.Name].SummaryData.FileData, types.SysObsProcFileData{
 				Source:      ss.Source,
 				Destination: ss.Destination,
 				Status:      ss.Action,
 				//:       uint32(ss.Count),
 				//UpdatedTime: t.Format(time.UnixDate),
 			})
+			reportSummaryData.Clusters[ss.ClusterName].Namespaces[ss.NamespaceName].ResourceTypesData[ss.Workload.Type].ResourceSummaryData[ss.Workload.Name].SummaryData.FileData = observability.AggregateProcFileData(reportSummaryData.Clusters[ss.ClusterName].Namespaces[ss.NamespaceName].ResourceTypesData[ss.Workload.Type].ResourceSummaryData[ss.Workload.Name].SummaryData.FileData)
+
 		} else if ss.Operation == "Network" {
 			//ExtractNwData
-			nwData = append(nwData, types.SysObsNwData{
+			reportSummaryData.Clusters[ss.ClusterName].Namespaces[ss.NamespaceName].ResourceTypesData[ss.Workload.Type].ResourceSummaryData[ss.Workload.Name].SummaryData.NetworkData = append(reportSummaryData.Clusters[ss.ClusterName].Namespaces[ss.NamespaceName].ResourceTypesData[ss.Workload.Type].ResourceSummaryData[ss.Workload.Name].SummaryData.NetworkData, types.SysObsNwData{
 				NetType:     ss.NwType,
 				Protocol:    ss.Protocol,
 				Command:     ss.Source,
@@ -227,11 +230,9 @@ func getKubearmorReportData(CfgDB types.ConfigDB, reportOptions *types.ReportOpt
 				//Count:       uint32(ss.Count),
 				//UpdatedTime: t.Format(time.UnixDate),
 			})
+
 		}
 
-		reportSummaryData.Clusters[ss.ClusterName].Namespaces[ss.NamespaceName].ResourceTypesData[ss.Workload.Type].ResourceSummaryData[ss.Workload.Name].SummaryData.ProcessData = processData
-		reportSummaryData.Clusters[ss.ClusterName].Namespaces[ss.NamespaceName].ResourceTypesData[ss.Workload.Type].ResourceSummaryData[ss.Workload.Name].SummaryData.FileData = observability.AggregateProcFileData(fileData)
-		reportSummaryData.Clusters[ss.ClusterName].Namespaces[ss.NamespaceName].ResourceTypesData[ss.Workload.Type].ResourceSummaryData[ss.Workload.Name].SummaryData.NetworkData = nwData
 	}
 
 	return &reportSummaryData, nil
