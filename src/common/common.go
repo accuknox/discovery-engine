@@ -41,6 +41,13 @@ const (
 	INCORRECT_TYPE      = "incorrect type"
 )
 
+// Policy Types
+const (
+	KUBEARMOR_POLICY      = "KubeArmorPolicy"
+	CILIUM_NETWORK_POLICY = "CiliumNetworkPolicy"
+	K8s_NETWORK_POLICY    = "K8sNetworkPolicy"
+)
+
 // ConvertArrayToString - Convert Array of string to String
 func ConvertArrayToString(arr []string) string {
 	var str string
@@ -92,4 +99,13 @@ func HashInt(s string) uint32 {
 	h := fnv.New32a()
 	_, _ = h.Write([]byte(s))
 	return h.Sum32()
+}
+
+func MoveMap[K, V comparable](m map[K]V) map[K]V {
+	result := make(map[K]V)
+	for k, v := range m {
+		result[k] = v
+		delete(m, k)
+	}
+	return result
 }

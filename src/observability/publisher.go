@@ -1,38 +1,101 @@
 package observability
 
 import (
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/accuknox/auto-policy-discovery/src/common"
+	cfg "github.com/accuknox/auto-policy-discovery/src/config"
 	"github.com/accuknox/auto-policy-discovery/src/types"
 )
 
 func ProcessSystemSummary() {
-	if len(PublisherMap) <= 0 {
+
+	if len(SummarizerMap) == 0 {
 		return
 	}
 
-	PublisherMutex.Lock()
-	// publish summary map in GRPC
-	for ss, sstc := range PublisherMap {
-		var locSummary types.SystemSummary = ss
+	SummarizerMapMutex.Lock()
+	tempSummarizerMap := common.MoveMap(SummarizerMap)
+	SummarizerMapMutex.Unlock()
 
-		// update count/time
-		locSummary.Count = sstc.Count
-		locSummary.UpdatedTime = sstc.UpdatedTime
+	var ProcessSystemSummaryWg sync.WaitGroup
 
-		// publish data to feeder grpc
-		SysSummary.Publish(&locSummary)
-
-		// clear each published entry from data map
-		delete(PublisherMap, ss)
+	if cfg.GetCfgObservabilityWriteToDB() {
+		ProcessSystemSummaryWg.Add(1)
+		go UpsertSummaryCronJob(tempSummarizerMap, &ProcessSystemSummaryWg)
 	}
-	PublisherMutex.Unlock()
+
+	if cfg.GetCfgPublisherEnable() {
+		PublisherMutex.Lock()
+		initTime := time.Now()
+
+		aggregateSummaryMap(tempSummarizerMap)
+
+		log.Info().Msgf("Events to publish after aggregation: [%v]", len(tempSummarizerMap))
+		count := 0
+
+		// publish summary map in GRPC
+		for sysSummary, summaryTimeCount := range tempSummarizerMap {
+			count++
+			var locSummary types.SystemSummary = sysSummary
+
+			// update count/time
+			locSummary.Count = summaryTimeCount.Count
+			locSummary.UpdatedTime = summaryTimeCount.UpdatedTime
+
+			// publish data to feeder grpc
+			SysSummary.Publish(&locSummary)
+
+			// clear each published entry from data map
+			delete(tempSummarizerMap, sysSummary)
+		}
+		log.Info().Msgf("Published %v events in %v", count, time.Since(initTime))
+		PublisherMutex.Unlock()
+	}
+	ProcessSystemSummaryWg.Wait()
 }
 
-func updatePublisherMap() {
-	for ss, sstc := range SummarizerMap {
-		PublisherMap[ss] = types.SysSummaryTimeCount{
-			Count:       PublisherMap[ss].Count + sstc.Count,
-			UpdatedTime: sstc.UpdatedTime,
+func aggregateSummaryMap(summaryMap map[types.SystemSummary]types.SysSummaryTimeCount) {
+
+	podFilePaths := make(map[string][]string)
+	aggPodFilePaths := make(map[string][]common.SysPath)
+	fileSummarizerMap := make(map[types.SystemSummary]types.SysSummaryTimeCount)
+
+	log.Info().Msgf("Events before aggregation: [%v]", len(summaryMap))
+	for sysSummary, summaryTimeCount := range summaryMap {
+		if sysSummary.Operation == types.FileOperation {
+			key := sysSummary.PodName + "_" + sysSummary.Source
+			podFilePaths[key] = append(podFilePaths[key], sysSummary.Destination)
+			fileSummarizerMap[sysSummary] = summaryTimeCount
+			delete(summaryMap, sysSummary)
 		}
-		delete(SummarizerMap, ss)
+	}
+
+	for key, files := range podFilePaths {
+		aggPodFilePaths[key] = common.AggregatePaths(files)
+		log.Info().Msgf("Got %v aggregated file paths for key [%v]", len(aggPodFilePaths[key]), key)
+	}
+
+	for sysSummary, summaryTimeCount := range fileSummarizerMap {
+		key := sysSummary.PodName + "_" + sysSummary.Source
+		files := aggPodFilePaths[key]
+		for _, path := range files {
+			if strings.HasPrefix(sysSummary.Destination, path.Path) && (len(sysSummary.Destination) == len(path.Path) || sysSummary.Destination[len(strings.TrimSuffix(path.Path, "/"))] == '/') {
+				sysSummary.Destination = path.Path
+				break
+			}
+		}
+		if timeCount, ok := summaryMap[sysSummary]; ok {
+			timeCount.Count += summaryTimeCount.Count
+			if summaryTimeCount.UpdatedTime > timeCount.UpdatedTime {
+				timeCount.UpdatedTime = summaryTimeCount.UpdatedTime
+			}
+			summaryMap[sysSummary] = timeCount
+		} else {
+			summaryMap[sysSummary] = summaryTimeCount
+		}
+
 	}
 }

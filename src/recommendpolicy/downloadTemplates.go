@@ -5,7 +5,6 @@ import (
 	"archive/zip"
 	"context"
 	"fmt"
-	kyvernov1 "github.com/kyverno/kyverno/api/kyverno/v1"
 	"os"
 	"path"
 	"path/filepath"
@@ -52,21 +51,22 @@ func latestRelease() string {
 	return *latestRelease.TagName
 }
 
-// CurrentRelease gets the current release of policy-templates
-func CurrentRelease() string {
+// updatePolicyMap gets the current release of policy-templates
+func updatePolicyMap() {
 
 	path, err := os.ReadFile(fmt.Sprintf("%s%s", getCachePath(), "rules.yaml"))
 	if err != nil {
-		CurrentVersion = strings.Trim(updateRulesYAML([]byte{}), "\"")
+		updateRulesYAML([]byte{})
 	} else {
-
-		CurrentVersion = strings.Trim(updateRulesYAML(path), "\"")
+		updateRulesYAML(path)
 	}
-
-	return CurrentVersion
 }
 
 func isLatest() bool {
+
+	if Version == "" {
+		LatestVersion = latestRelease()
+	}
 
 	if LatestVersion == "" && CurrentVersion == "" {
 		return false
@@ -88,34 +88,40 @@ func init() {
 }
 
 // DownloadAndUnzipRelease downloads the latest version of policy-templates
-func DownloadAndUnzipRelease() (string, error) {
+func DownloadAndUnzipRelease(version string) error {
 
-	if LatestVersion == "" {
-		LatestVersion = latestRelease()
+	if version != "" {
+		LatestVersion = version
 	}
+
 	_ = removeData(getCachePath())
 	err := os.MkdirAll(filepath.Dir(getCachePath()), 0740)
 	if err != nil {
-		return "", err
+		return err
 	}
 	downloadURL := fmt.Sprintf("%s%s.zip", url, LatestVersion)
 	resp, err := grab.Get(getCachePath(), downloadURL)
 	if err != nil {
 		_ = removeData(getCachePath())
-		return "", err
+		return err
 	}
 	err = unZip(resp.Filename, getCachePath())
 	if err != nil {
-		return "", err
+		return err
 	}
 	err = removeData(resp.Filename)
 	if err != nil {
-		return "", err
+		return err
 	}
-	_ = updatePolicyRules(strings.TrimSuffix(resp.Filename, ".zip"))
-	CurrentVersion = CurrentRelease()
-	log.Info().Msgf("Latest recommendation downloaded and updated")
-	return LatestVersion, nil
+	err = updatePolicyRules(strings.TrimSuffix(resp.Filename, ".zip"))
+	if err != nil {
+		log.Error().Msgf("Failed to update policy rules %s", err.Error())
+		return err
+	}
+	updatePolicyMap()
+	CurrentVersion = LatestVersion
+	log.Info().Msgf("Template version %v downloaded and cached", LatestVersion)
+	return nil
 }
 
 // Sanitize archive file pathing from "G305: Zip Slip vulnerability"
@@ -205,7 +211,11 @@ func updatePolicyRules(filePath string) error {
 				var policy map[string]interface{}
 				newYaml, err := os.ReadFile(filepath.Clean(fmt.Sprintf("%s%s", strings.TrimSuffix(file, "metadata.yaml"), ms.Yaml)))
 				if err != nil {
-					newYaml, _ = os.ReadFile(filepath.Clean(fmt.Sprintf("%s/%s", filePath, ms.Yaml)))
+					newYaml, err = os.ReadFile(filepath.Clean(fmt.Sprintf("%s/%s", filePath, ms.Yaml)))
+					if err != nil {
+						log.Error().Msgf("Failed to read yaml file %v", err)
+						return err
+					}
 				}
 				err = yaml.Unmarshal(newYaml, &policy)
 				if err != nil {
@@ -213,13 +223,13 @@ func updatePolicyRules(filePath string) error {
 				}
 				apiVersion := policy["apiVersion"].(string)
 				if strings.Contains(apiVersion, "kyverno") {
-					var kyvernoPolicy kyvernov1.Policy
-					err = yaml.Unmarshal(newYaml, &kyvernoPolicy)
+					policyKind := policy["kind"].(string)
+					kyvernoPolicyInterface, err := getKyvernoPolicy(policyKind, newYaml)
 					if err != nil {
 						return err
 					}
-					ms.KyvernoPolicySpec = &kyvernoPolicy.Spec
-					ms.Kind = kyvernoPolicy.Kind
+					ms.KyvernoPolicy = &kyvernoPolicyInterface
+					ms.Kind = kyvernoPolicyInterface.GetKind()
 				} else if strings.Contains(apiVersion, "kubearmor") {
 					var knoxSystemPolicy types.KnoxSystemPolicy
 					err = yaml.Unmarshal(newYaml, &knoxSystemPolicy)

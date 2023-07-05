@@ -42,7 +42,7 @@ func NewSummaryConsumer(req *ppb.SummaryRequest) *SummaryConsumer {
 		Labels:      req.Labels,
 		Deployment:  req.DeploymentName,
 		Operation:   req.Operation,
-		Events:      make(chan *types.SystemSummary),
+		Events:      make(chan *types.SystemSummary, 1024),
 	}
 }
 
@@ -107,31 +107,37 @@ func validateSummaryRequest(consumer *SummaryConsumer, summary types.SystemSumma
 }
 
 func convertSystemSummaryToGrpcResponse(summary *types.SystemSummary) *ppb.SummaryResponse {
-
+	var workload *ppb.Workload
+	if summary.Workload != (types.Workload{}) {
+		workload = &ppb.Workload{
+			Type: summary.Workload.Type,
+			Name: summary.Workload.Name,
+		}
+	}
 	return &ppb.SummaryResponse{
-		ClusterName:    summary.ClusterName,
-		ClusterId:      summary.ClusterId,
-		NamespaceName:  summary.NamespaceName,
-		NamespaceId:    summary.NamespaceId,
-		ContainerName:  summary.ContainerName,
-		ContainerId:    summary.ContainerID,
-		PodName:        summary.PodName,
-		PodId:          summary.PodId,
-		Operation:      summary.Operation,
-		Labels:         summary.Labels,
-		DeploymentName: summary.Deployment,
-		Source:         summary.Source,
-		Destination:    summary.Destination,
-		DestNamespace:  summary.DestNamespace,
-		DestLabels:     summary.DestLabels,
-		NwType:         summary.NwType,
-		IP:             summary.IP,
-		Port:           summary.Port,
-		Protocol:       summary.Protocol,
-		Action:         summary.Action,
-		Count:          summary.Count,
-		UpdatedTime:    summary.UpdatedTime,
-		WorkspaceId:    summary.WorkspaceId,
+		ClusterName:   summary.ClusterName,
+		ClusterId:     summary.ClusterId,
+		NamespaceName: summary.NamespaceName,
+		NamespaceId:   summary.NamespaceId,
+		ContainerName: summary.ContainerName,
+		ContainerId:   summary.ContainerID,
+		PodName:       summary.PodName,
+		PodId:         summary.PodId,
+		Operation:     summary.Operation,
+		Labels:        summary.Labels,
+		Source:        summary.Source,
+		Destination:   summary.Destination,
+		DestNamespace: summary.DestNamespace,
+		DestLabels:    summary.DestLabels,
+		NwType:        summary.NwType,
+		IP:            summary.IP,
+		Port:          summary.Port,
+		Protocol:      summary.Protocol,
+		Action:        summary.Action,
+		Count:         summary.Count,
+		UpdatedTime:   summary.UpdatedTime,
+		WorkspaceId:   summary.WorkspaceId,
+		Workload:      workload,
 	}
 }
 

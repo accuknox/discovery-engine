@@ -38,7 +38,7 @@ func TestConvertMySQLKubeArmorLogsToKnoxSystemLogs(t *testing.T) {
 }
 
 func TestConvertSQLiteKubeArmorLogsToKnoxSystemLogs(t *testing.T) {
-        var kubearmor string = `{
+	var kubearmor string = `{
                 "ContainerID":"78c4b0cb165d24e6ae4049fa2547507be26f7def6bf39a265b9360928a606e2a",
                 "ContainerName":"k8s_server_recommendationservice-cb98b57c-6255h_default_57402aec-19ae-4119-a090-fa3d223cea11_745",
                 "Data":"fd=6",
@@ -58,11 +58,11 @@ func TestConvertSQLiteKubeArmorLogsToKnoxSystemLogs(t *testing.T) {
                 "component_name":"kubearmor"
          }`
 
-        dataBytes := []byte(kubearmor)
-        doc := map[string]interface{}{}
+	dataBytes := []byte(kubearmor)
+	doc := map[string]interface{}{}
 
-        json.Unmarshal(dataBytes, &doc)
+	json.Unmarshal(dataBytes, &doc)
 
-        results := ConvertSQLiteKubeArmorLogsToKnoxSystemLogs([]map[string]interface{}{doc})
-        assert.Equal(t, "fd=6", results[0].Data)
+	results := ConvertSQLiteKubeArmorLogsToKnoxSystemLogs([]map[string]interface{}{doc})
+	assert.Equal(t, "fd=6", results[0].Data)
 }

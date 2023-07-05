@@ -334,7 +334,7 @@ func AggregatePathsExt(paths []string) []string {
 		flist = append(flist, rec)
 	}
 
-	for k, _ := range dirlist {
+	for k := range dirlist {
 		flist = append(flist, k)
 	}
 	sort.Strings(flist)

@@ -135,7 +135,7 @@ func populatePbNetPolicyFromNetPolicy(KnoxNwPolicy types.KnoxNetworkPolicy) apb.
 func extractNetworkPoliciesFromNetworkLogs(networkLogs []types.KnoxNetworkLog) []*apb.KnoxNetworkPolicy {
 
 	pbNetPolicies := []*apb.KnoxNetworkPolicy{}
-	netPoliciesPerNamespace := netpolicy.PopulateNetworkPoliciesFromNetworkLogs(networkLogs)
+	netPoliciesPerNamespace := netpolicy.PopulateNetworkPoliciesFromNetworkLogs(nil)
 
 	for _, netPolicies := range netPoliciesPerNamespace {
 		for _, netPolicy := range netPolicies {

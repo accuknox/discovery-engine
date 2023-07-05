@@ -432,6 +432,8 @@ func upsertSysSummarySQL(db *sql.DB, summary types.SystemSummary, timeCount type
 	sort.Strings(sortedLabels)
 	summary.Labels = strings.Join(sortedLabels, ",")
 
+	hash := HashSystemSummary(&summary)
+
 	queryString := `cluster_name = ? and cluster_id = ? and workspace_id = ? and namespace_name = ? and namespace_id = ? and container_name = ? and container_image = ? 
 					and podname = ? and operation = ? and labels = ? and deployment_name = ? and source = ? and destination = ? 
 					and destination_namespace = ? and destination_labels = ? and type = ? and ip = ? and port = ? and protocol = ? and action = ? and bindport = ? and bindaddr = ? and syscall = ? and parameters = ?`
@@ -482,9 +484,10 @@ func upsertSysSummarySQL(db *sql.DB, summary types.SystemSummary, timeCount type
 	if err == nil && rowsAffected == 0 {
 
 		insertQueryString := `(cluster_name,cluster_id,workspace_id,namespace_name,namespace_id,container_name,container_image,container_id,podname,operation,labels,deployment_name,
-				source,destination,destination_namespace,destination_labels,type,ip,port,protocol,action,count,updated_time,bindport,bindaddr,syscall,parameters) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+				source,destination,destination_namespace,destination_labels,type,ip,port,protocol,action,bindport,bindaddr,updated_time,count,hash_id,syscall,parameters) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
 
-		insertQuery := "INSERT INTO " + TableSystemSummarySQLite + insertQueryString
+		uniqueQueryString := " ON CONFLICT(hash_id) DO UPDATE SET count=count+?,updated_time=?;"
+		insertQuery := "INSERT INTO " + TableSystemSummarySQLite + insertQueryString + uniqueQueryString
 
 		insertStmt, err := db.Prepare(insertQuery)
 		if err != nil {
@@ -514,10 +517,14 @@ func upsertSysSummarySQL(db *sql.DB, summary types.SystemSummary, timeCount type
 			summary.Port,
 			summary.Protocol,
 			summary.Action,
-			timeCount.Count,
-			timeCount.UpdatedTime,
 			summary.BindPort,
 			summary.BindAddress,
+			timeCount.UpdatedTime,
+			timeCount.Count,
+			hash,
+			timeCount.Count,
+			timeCount.UpdatedTime,
+
 			summary.Syscall,
 			summary.Parameters)
 		if err != nil {

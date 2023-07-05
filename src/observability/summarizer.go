@@ -97,8 +97,6 @@ func extractSyscallInfoFromSystemLog(syscallLog pb.Alert, pods []types.Pod, serv
 
 func convertSysLogToSysSummaryMap(syslogs []*pb.Alert) {
 
-	deployments := cluster.GetDeploymentsFromK8sClient()
-
 	var services []types.Service
 	var pods []types.Pod
 	var err error
@@ -146,13 +144,14 @@ func convertSysLogToSysSummaryMap(syslogs []*pb.Alert) {
 		sysSummary.Message = syslog.Message
 		sysSummary.Severity = syslog.Severity
 		sysSummary.PolicyName = syslog.PolicyName
-		sysSummary.Deployment = ""
 
-		for _, d := range deployments {
-			if strings.Contains(syslog.Labels, d.Labels) && d.Namespace == syslog.NamespaceName {
-				sysSummary.Deployment = d.Name
-				break
+		if syslog.Owner != nil {
+			sysSummary.Workload = types.Workload{
+				Type: syslog.Owner.Ref,
+				Name: syslog.Owner.Name,
 			}
+			sysSummary.Deployment = syslog.Owner.Name
+
 		}
 
 		if syslog.Operation == types.OpTypeNetwork {
@@ -211,7 +210,6 @@ func convertSysLogToSysSummaryMap(syslogs []*pb.Alert) {
 
 		if syslog.Type == "ContainerLog" && syslog.NamespaceName == types.PolicyDiscoveryContainerNamespace {
 			sysSummary.NamespaceName = types.PolicyDiscoveryContainerNamespace
-			sysSummary.PodName = types.PolicyDiscoveryContainerPodName
 		}
 
 		if syslog.Type == "HostLog" || syslog.Type == "MatchedHostPolicy" {
@@ -225,8 +223,10 @@ func convertSysLogToSysSummaryMap(syslogs []*pb.Alert) {
 }
 
 func appendSummaryDataToSummaryMap(summary types.SystemSummary, ts int64) {
+	SummarizerMapMutex.Lock()
 	SummarizerMap[summary] = types.SysSummaryTimeCount{
 		Count:       SummarizerMap[summary].Count + 1,
 		UpdatedTime: ts,
 	}
+	SummarizerMapMutex.Unlock()
 }

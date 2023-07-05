@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: discovery-engine
+  labels:
+    deployment: discovery-engine
+spec:
+  selector:
+    matchLabels:
+      app: discovery-engine
+  template:
+    metadata:
+      labels:
+        app: discovery-engine
+    spec:
+      serviceAccountName: discovery-engine
+      containers:
+      - image: accuknox/knoxautopolicy:stable
+        imagePullPolicy: Always
+        name: discovery-engine
+        resources:
+          requests:
+            cpu: 100m
+            memory: 100Mi
+          limits:
+            cpu: 500m
+            memory: 1Gi
+        ports:
+        - containerPort: 9089
+          protocol: TCP
+        volumeMounts:
+          - mountPath: /conf
+            name: config-volume
+            readOnly: true
+      volumes:
+        - name: config-volume
+          configMap:
+            name: discovery-engine-config

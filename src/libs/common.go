@@ -3,6 +3,8 @@ package libs
 import (
 	"bytes"
 	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"flag"
 	"fmt"
 	"math/big"
@@ -13,6 +15,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -147,12 +150,22 @@ func SetDefaultConfig() {
 	viper.SetDefault("feed-consumer.pulsar.operation-timeout", "30")
 
 	// recommend config
-
 	viper.SetDefault("recommend.cron-job-time-interval", "1h0m00s")
 	viper.SetDefault("recommend.operation-mode", 1)
 	viper.SetDefault("recommend.host-policy", true)
 	viper.SetDefault("recommend.admission-controller-policy", true)
+	viper.SetDefault("recommend.template-version", "")
+
+	// DE license config
 	viper.SetDefault("license.enabled", false)
+
+	// pprof
+	viper.SetDefault("pprof", false)
+	viper.SetDefault("recommend.recommend-host-policy", true)
+
+	// discoveredPolicy config
+	viper.SetDefault("dsp.auto-deploy-dsp", true)
+
 }
 
 type cfgArray []string
@@ -204,7 +217,7 @@ func CheckCommandLineConfig() {
 	var cmdlineCfg cfgArray
 
 	pprofFlag := flag.Bool("pprof", false, "enable pprof")
-	version1 := flag.Bool("v", false, "print version and exit")
+	version1 := flag.Bool("ver", false, "print version and exit")
 	version2 := flag.Bool("version", false, "print version and exit")
 	flag.Var(&cmdlineCfg, "cfg", "Configuration key=val")
 
@@ -685,4 +698,49 @@ func labelKVSplitter(r rune) bool {
 
 func labelArrSplitter(r rune) bool {
 	return r == ',' || r == ';'
+}
+
+func HashSystemSummary(summary *types.SystemSummary) string {
+	h := sha256.New()
+	h.Write(
+		[]byte(
+			summary.ClusterName +
+				strconv.Itoa(int(summary.ClusterId)) +
+				strconv.Itoa(int(summary.WorkspaceId)) +
+				summary.NamespaceName +
+				strconv.Itoa(int(summary.NamespaceId)) +
+				summary.ContainerName +
+				summary.ContainerImage +
+				summary.ContainerID +
+				summary.PodName +
+				summary.Operation +
+				summary.Labels +
+				summary.Deployment +
+				summary.Source +
+				summary.Destination +
+				summary.DestNamespace +
+				summary.DestLabels +
+				summary.NwType +
+				summary.IP +
+				strconv.Itoa(int(summary.Port)) +
+				summary.Protocol +
+				summary.Action +
+				summary.BindPort +
+				summary.BindAddress,
+		),
+	)
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+// Removes the label associated to the key specified and returns the final label
+func RemoveFieldFromLabel(srcLabel, keyLabel string) string {
+	labels := strings.Split(srcLabel, ",")
+	resLabels := []string{}
+	for _, label := range labels {
+		if strings.HasPrefix(label, keyLabel) {
+			continue
+		}
+		resLabels = append(resLabels, label)
+	}
+	return strings.Join(resLabels, ",")
 }

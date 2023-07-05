@@ -39,10 +39,10 @@ observability:
   system-observability: true
   network-observability: false
   write-logs-to-db: false
-
-publisher: 
-  enable: true
-  cron-job-time-interval: "0h1m00s"         # format: XhYmZs
+  summary-jobs:
+    publisher: true
+    write-summary-to-db: false
+    cron-interval: "0h1m00s"     # format: XhYmZs
 
 purge-old-db-entries:
   enable: true 
@@ -119,9 +119,15 @@ recommend:
   operation-mode: 1                       # 1: cronjob | 2: one-time-job
   cron-job-time-interval: "1h0m00s"       # format: XhYmZs
   recommend-host-policy: true
+  template-version: "v0.2.2"              # policy template version to be used for recommendation (keep empty to fetches latest)
 
 # license
 license:
   enabled: false
   # validate can be user-id or platform-uuid
   validate: "user-id"
+
+pprof: false
+# Discovered Policies Configuration  
+dsp:
+  auto-deploy-dsp: true

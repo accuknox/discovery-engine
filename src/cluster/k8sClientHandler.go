@@ -3,9 +3,6 @@ package cluster
 import (
 	"context"
 	"errors"
-	"flag"
-	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 
@@ -14,116 +11,28 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	rest "k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
+	ctrl "sigs.k8s.io/controller-runtime"
 
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 )
-
-var parsed = false
-var kubeconfig *string
 
 type Config struct {
 	K8sClient *kubernetes.Clientset
 }
 
-func isInCluster() bool {
-	if _, ok := os.LookupEnv("KUBERNETES_PORT"); ok {
-		return true
-	}
-
-	return false
-}
-
 func ConnectK8sClient() *kubernetes.Clientset {
-	if isInCluster() {
-		return ConnectInClusterAPIClient()
-	}
-
-	return ConnectLocalAPIClient()
-}
-
-func ConnectLocalAPIClient() *kubernetes.Clientset {
-	if !parsed {
-		homeDir := ""
-		if h := os.Getenv("HOME"); h != "" {
-			homeDir = h
-		} else {
-			homeDir = os.Getenv("USERPROFILE") // windows
-		}
-
-		envKubeConfig := os.Getenv("KUBECONFIG")
-		if envKubeConfig != "" {
-			kubeconfig = &envKubeConfig
-		} else {
-			if home := homeDir; home != "" {
-				kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
-			} else {
-				kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
-			}
-			flag.Parse()
-		}
-
-		parsed = true
-	}
-
-	// use the current context in kubeconfig
-	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
+	config, err := ctrl.GetConfig()
 	if err != nil {
-		log.Error().Msg(err.Error())
+		Logr.Error().Msg(err.Error())
 		return nil
 	}
-
-	// creates the clientset
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		log.Error().Msg(err.Error())
+		Logr.Error().Msg(err.Error())
 		return nil
 	}
 
 	return clientset
-}
-
-func ConnectInClusterAPIClient() *kubernetes.Clientset {
-	host := ""
-	port := ""
-	token := ""
-
-	if val, ok := os.LookupEnv("KUBERNETES_SERVICE_HOST"); ok {
-		host = val
-	} else {
-		host = "127.0.0.1"
-	}
-
-	if val, ok := os.LookupEnv("KUBERNETES_PORT_443_TCP_PORT"); ok {
-		port = val
-	} else {
-		port = "6443"
-	}
-
-	read, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/token")
-	if err != nil {
-		log.Error().Msg(err.Error())
-		return nil
-	}
-
-	token = string(read)
-
-	// create the configuration by token
-	kubeConfig := &rest.Config{
-		Host:        "https://" + host + ":" + port,
-		BearerToken: token,
-		TLSClientConfig: rest.TLSClientConfig{
-			Insecure: true,
-		},
-	}
-	client, err := kubernetes.NewForConfig(kubeConfig)
-	if err != nil {
-		log.Error().Msg(err.Error())
-		return nil
-	}
-	return client
-
 }
 
 // =============== //
@@ -135,14 +44,14 @@ func GetNamespacesFromK8sClient() []string {
 
 	client := ConnectK8sClient()
 	if client == nil {
-		log.Error().Msg("failed to create k8s client")
+		Logr.Error().Msg("failed to create k8s client")
 		return results
 	}
 
 	// get namespaces from k8s api client
 	namespaces, err := client.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{})
 	if err != nil {
-		log.Error().Msg(err.Error())
+		Logr.Error().Msg(err.Error())
 		return results
 	}
 
@@ -164,21 +73,22 @@ func GetNamespacesFromK8sClient() []string {
 var skipLabelKey = []string{
 	"pod-template-hash",                  // common k8s hash label
 	"controller-revision-hash",           // from istana robot-shop
-	"statefulset.kubernetes.io/pod-name"} // from istana robot-shop
+	"statefulset.kubernetes.io/pod-name", // from istana robot-shop
+	types.LabelJobControllerUid}          // from jobs
 
 func GetPodsFromK8sClient() []types.Pod {
 	results := []types.Pod{}
 
 	client := ConnectK8sClient()
 	if client == nil {
-		log.Error().Msg("failed to create k8s client")
+		Logr.Error().Msg("failed to create k8s client")
 		return nil
 	}
 
 	// get pods from k8s api client
 	pods, err := client.CoreV1().Pods("").List(context.Background(), metav1.ListOptions{})
 	if err != nil {
-		log.Error().Msg(err.Error())
+		Logr.Error().Msg(err.Error())
 		return results
 	}
 
@@ -279,14 +189,14 @@ func GetServicesFromK8sClient() []types.Service {
 
 	client := ConnectK8sClient()
 	if client == nil {
-		log.Error().Msg("failed to create k8s client")
+		Logr.Error().Msg("failed to create k8s client")
 		return results
 	}
 
 	// get pods from k8s api client
 	svcs, err := client.CoreV1().Services("").List(context.Background(), metav1.ListOptions{})
 	if err != nil {
-		log.Error().Msg(err.Error())
+		Logr.Error().Msg(err.Error())
 		return results
 	}
 
@@ -332,14 +242,14 @@ func GetEndpointsFromK8sClient() []types.Endpoint {
 
 	client := ConnectK8sClient()
 	if client == nil {
-		log.Error().Msg("failed to create k8s client")
+		Logr.Error().Msg("failed to create k8s client")
 		return results
 	}
 
 	// get pods from k8s api client
 	endpoints, err := client.CoreV1().Endpoints("").List(context.Background(), metav1.ListOptions{})
 	if err != nil {
-		log.Error().Msg(err.Error())
+		Logr.Error().Msg(err.Error())
 		return results
 	}
 
@@ -401,14 +311,14 @@ func GetEndpointsFromK8sClient() []types.Endpoint {
 func GetClusterNameFromK8sClient() string {
 	client := ConnectK8sClient()
 	if client == nil {
-		log.Error().Msg("failed to create k8s client")
+		Logr.Error().Msg("failed to create k8s client")
 		return "default"
 	}
 
 	// get pods from k8s api client
 	configMaps, err := client.CoreV1().ConfigMaps("kube-system").List(context.Background(), metav1.ListOptions{})
 	if err != nil {
-		log.Error().Msg(err.Error())
+		Logr.Error().Msg(err.Error())
 		return "default"
 	}
 
@@ -439,14 +349,14 @@ func GetDeploymentsFromK8sClient() []types.Deployment {
 
 	client := ConnectK8sClient()
 	if client == nil {
-		log.Error().Msg("failed to create k8s client")
+		Logr.Error().Msg("failed to create k8s client")
 		return results
 	}
 
 	// get namespaces from k8s api client
 	deployments, err := client.AppsV1().Deployments("").List(context.Background(), metav1.ListOptions{})
 	if err != nil {
-		log.Error().Msg(err.Error())
+		Logr.Error().Msg(err.Error())
 		return results
 	}
 
@@ -485,14 +395,14 @@ func GetReplicaSetsFromK8sClient() []types.Deployment {
 
 	client := ConnectK8sClient()
 	if client == nil {
-		log.Error().Msg("failed to create k8s client")
+		Logr.Error().Msg("failed to create k8s client")
 		return results
 	}
 
 	// get namespaces from k8s api client
 	replicasets, err := client.AppsV1().ReplicaSets("").List(context.Background(), metav1.ListOptions{})
 	if err != nil {
-		log.Error().Msg(err.Error())
+		Logr.Error().Msg(err.Error())
 		return results
 	}
 
@@ -529,14 +439,14 @@ func GetStatefulSetsFromK8sClient() []types.Deployment {
 
 	client := ConnectK8sClient()
 	if client == nil {
-		log.Error().Msg("failed to create k8s client")
+		Logr.Error().Msg("failed to create k8s client")
 		return results
 	}
 
 	// get namespaces from k8s api client
 	statefulset, err := client.AppsV1().StatefulSets("").List(context.Background(), metav1.ListOptions{})
 	if err != nil {
-		log.Error().Msg(err.Error())
+		Logr.Error().Msg(err.Error())
 		return results
 	}
 
@@ -573,33 +483,31 @@ func GetNodesFromK8sClient() (*v1.NodeList, error) {
 	client := ConnectK8sClient()
 	nodeList, err := client.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
-		log.Error().Msg(err.Error())
+		Logr.Error().Msg(err.Error())
 		return &v1.NodeList{}, err
 	}
 	return nodeList, nil
 }
 
 func GetKubearmorRelayURL() string {
-	var namespace string
 	client := ConnectK8sClient()
 	if client == nil {
 		return ""
 	}
 
 	// get kubearmor-relay pod from k8s api client
-	pods, err := client.CoreV1().Pods("").List(context.Background(), metav1.ListOptions{
+	svc, err := client.CoreV1().Services("").List(context.Background(), metav1.ListOptions{
 		LabelSelector: "kubearmor-app=kubearmor-relay",
 	})
 	if err != nil {
-		log.Error().Msg(err.Error())
+		Logr.Error().Msgf("error while getting list of services for kubearmor-relay, error: %s", err.Error())
 		return ""
 	}
-	if pods == nil || len(pods.Items) == 0 {
-		log.Error().Msgf("Unable to find kubearmor-relay")
+	if svc == nil || len(svc.Items) == 0 {
+		Logr.Error().Msgf("unable to find service for kubearmor-relay")
 		return ""
 	}
-	namespace = pods.Items[0].Namespace
-	url := "kubearmor." + namespace + ".svc.cluster.local"
+	url := svc.Items[0].Name + "." + svc.Items[0].Namespace + ".svc.cluster.local"
 	return url
 }
 
@@ -612,7 +520,7 @@ func GetSecrets(k8sClient *kubernetes.Clientset, label string, namespace string,
 	secrets, err := k8sClient.CoreV1().Secrets(namespace).Get(context.Background(), name, metav1.GetOptions{})
 
 	if err != nil && !strings.Contains(err.Error(), "not found") {
-		log.Error().Msgf("error while getting license secrets with name: %s from %s namespace, error: %s", name, namespace, err.Error())
+		Logr.Error().Msgf("error while getting license secrets with name: %s from %s namespace, error: %s", name, namespace, err.Error())
 		return nil, err
 	}
 
@@ -633,12 +541,12 @@ func CreateLicenseSecret(k8sClient *kubernetes.Clientset, namespace string, key 
 	secret, err := GetSecrets(k8sClient, label, namespace, name)
 
 	if err != nil {
-		log.Error().Msgf("error while fetching secrets, error: %s", err.Error())
+		Logr.Error().Msgf("error while fetching secrets, error: %s", err.Error())
 		return nil, err
 	}
 
 	if secret != nil {
-		log.Info().Msgf("secrets already exists for discovery-engine license for user-id: %s", userId)
+		Logr.Info().Msgf("secrets already exists for discovery-engine license for user-id: %s", userId)
 		return secret, nil
 	}
 	t := true
@@ -662,10 +570,10 @@ func CreateLicenseSecret(k8sClient *kubernetes.Clientset, namespace string, key 
 
 	secret, err = k8sClient.CoreV1().Secrets(namespace).Create(context.Background(), &secretSpec, metav1.CreateOptions{})
 	if err != nil {
-		log.Error().Msgf("error while creating secret for license key, error: %s", err.Error())
+		Logr.Error().Msgf("error while creating secret for license key, error: %s", err.Error())
 		return nil, err
 	}
-	log.Info().Msgf("secret created successfully for discovery-engine")
+	Logr.Info().Msgf("secret created successfully for discovery-engine")
 	return secret, nil
 }
 
@@ -677,7 +585,7 @@ func DeleteSecrets(k8sClient *kubernetes.Clientset, name string, namespace strin
 
 	err := k8sClient.CoreV1().Secrets(namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
 	if err != nil {
-		log.Error().Msgf("error while deleting secrets for discovery-engine, error: %s", err.Error())
+		Logr.Error().Msgf("error while deleting secrets for discovery-engine, error: %s", err.Error())
 		return err
 	}
 
