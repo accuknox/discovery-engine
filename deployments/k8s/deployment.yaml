@@ -21,7 +21,7 @@ spec:
     spec:
       serviceAccountName: discovery-engine
       containers:
-      - image: accuknox/knoxautopolicy:v0.8.11-report
+      - image: accuknox/knoxautopolicy:v0.8.12-report
         imagePullPolicy: Always
         name: discovery-engine
         resources:
