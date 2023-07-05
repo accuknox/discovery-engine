@@ -524,7 +524,6 @@ func upsertSysSummarySQL(db *sql.DB, summary types.SystemSummary, timeCount type
 			hash,
 			timeCount.Count,
 			timeCount.UpdatedTime,
-
 			summary.Syscall,
 			summary.Parameters)
 		if err != nil {
