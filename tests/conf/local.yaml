@@ -32,3 +32,8 @@ database:
 
 logging:
   level: "INFO"
+
+# license
+license:
+  enabled: false
+  validate: "user-id"

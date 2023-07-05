@@ -3,6 +3,7 @@ package license
 import (
 	"context"
 	"errors"
+	"fmt"
 	ipb "github.com/accuknox/auto-policy-discovery/src/protobuf/v1/license"
 	"github.com/rs/zerolog/log"
 	"time"
@@ -15,6 +16,12 @@ type Server struct {
 // InstallLicense Implementation of grpc server code. Function to install license when grpc request is made
 func (ls *Server) InstallLicense(ctx context.Context, lr *ipb.LicenseInstallRequest) (*ipb.LicenseInstallResponse, error) {
 	log.Info().Msgf("request received to install license for user-id: %s", lr.UserId)
+	if lr.UserId == "" || lr.Key == "" {
+		return &ipb.LicenseInstallResponse{
+			Res:     -1,
+			Message: "error while validating license",
+		}, fmt.Errorf("invalid request body")
+	}
 	l := &License{
 		UserId: lr.UserId,
 		Key:    lr.Key,

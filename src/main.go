@@ -55,20 +55,23 @@ func init() {
 func main() {
 
 	lis, server := CreateListenerAndGrpcServer()
-	// add license server
-	server = grpcserver.AddLicenseServer(server)
 
-	// check for license secret, if exist then validate
-	err := license.CheckLicenseSecret()
+	if license.LCfg.Enabled {
+		// add license server
+		server = grpcserver.AddLicenseServer(server)
 
-	if err != nil {
-		log.Error().Msgf("error while validating license secrets for discovery engine, error: %s", err.Error())
-		go serve(lis, server)
-		_ = license.LCfg.WatchFeatures()
-		os.Exit(1)
+		// check for license secret, if exist then validate
+		err := license.CheckLicenseSecret()
+
+		if err != nil {
+			log.Error().Msgf("error while validating license secrets for discovery engine, error: %s", err.Error())
+			go serve(lis, server)
+			_ = license.LCfg.WatchFeatures()
+			os.Exit(1)
+		}
+
+		go license.LCfg.WatchLicenseValidity()
 	}
-
-	go license.LCfg.WatchLicenseValidity()
 
 	server = grpcserver.AddServers(server)
 	serve(lis, server)
