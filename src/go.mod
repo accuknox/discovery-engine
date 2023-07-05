@@ -11,8 +11,8 @@ replace (
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.0
+	github.com/accuknox/auto-policy-discovery/src/protobuf v0.0.0-20230628192822-7249456fae5c
 	github.com/accuknox/auto-policy-discovery/pkg/discoveredpolicy v0.0.0-20230623101739-bc5c3d9a3892
-	github.com/accuknox/auto-policy-discovery/src/protobuf v0.0.0-00010101000000-000000000000
 	github.com/apache/pulsar-client-go v0.10.0
 	github.com/cavaliergopher/grab/v3 v3.0.1
 	github.com/cilium/cilium v1.13.1
