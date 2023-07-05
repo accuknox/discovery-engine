@@ -523,7 +523,10 @@ func upsertSysSummarySQL(db *sql.DB, summary types.SystemSummary, timeCount type
 			timeCount.Count,
 			hash,
 			summary.Syscall,
-			summary.Parameters)
+			summary.Parameters,
+			timeCount.Count,
+			timeCount.UpdatedTime,
+		)
 		if err != nil {
 			log.Error().Msg(err.Error())
 			return err
