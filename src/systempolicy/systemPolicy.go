@@ -1468,31 +1468,33 @@ func DiscoverSystemPolicyMain() {
 
 func StartSystemLogRcvr() {
 	for {
-		if cfg.GetCfgSystemLogFrom() == "kubearmor" {
-			url := cluster.GetKubearmorRelayURL()
-			if url == "" {
-				log.Error().Msg("kubearmor-relay url not found, retrying...")
-				for i := 0; i < types.Maxtries; i++ {
-					time.Sleep(10 * time.Second)
-					url = cluster.GetKubearmorRelayURL()
-					if url != "" {
-						break
+		if !plugin.KubeArmorRelayStarted {
+			if cfg.GetCfgSystemLogFrom() == "kubearmor" {
+				url := cluster.GetKubearmorRelayURL()
+				if url == "" {
+					log.Error().Msg("kubearmor-relay url not found, retrying...")
+					for i := 0; i < types.Maxtries; i++ {
+						time.Sleep(10 * time.Second)
+						url = cluster.GetKubearmorRelayURL()
+						if url != "" {
+							break
+						}
 					}
 				}
+				if url == "" {
+					url = cfg.CurrentCfg.ConfigKubeArmorRelay.KubeArmorRelayURL
+				}
+				plugin.StartKubeArmorRelay(SystemStopChan, types.ConfigKubeArmorRelay{
+					KubeArmorRelayURL:  url,
+					KubeArmorRelayPort: cfg.CurrentCfg.ConfigKubeArmorRelay.KubeArmorRelayPort,
+				})
+			} else if cfg.GetCfgSystemLogFrom() == "feed-consumer" {
+				fc.ConsumerMutex.Lock()
+				fc.StartConsumer()
+				fc.ConsumerMutex.Unlock()
 			}
-			if url == "" {
-				url = cfg.CurrentCfg.ConfigKubeArmorRelay.KubeArmorRelayURL
-			}
-			plugin.StartKubeArmorRelay(SystemStopChan, types.ConfigKubeArmorRelay{
-				KubeArmorRelayURL:  url,
-				KubeArmorRelayPort: cfg.CurrentCfg.ConfigKubeArmorRelay.KubeArmorRelayPort,
-			})
-		} else if cfg.GetCfgSystemLogFrom() == "feed-consumer" {
-			fc.ConsumerMutex.Lock()
-			fc.StartConsumer()
-			fc.ConsumerMutex.Unlock()
+			time.Sleep(time.Second * 2)
 		}
-		time.Sleep(time.Second * 2)
 	}
 }
 

@@ -23,12 +23,13 @@ import (
 )
 
 // Global Variable
-var KubeArmorRelayLogs []*pb.Alert
-var KubeArmorNetworkLogs []*pb.Alert
-var KubeArmorRelayLogsMutex *sync.Mutex
+var (
+	KubeArmorRelayLogs, KubeArmorNetworkLogs      []*pb.Alert
+	KubeArmorRelayLogsMutex, KubeArmorFCLogsMutex *sync.Mutex
 
-var KubeArmorFCLogs []*types.KnoxSystemLog
-var KubeArmorFCLogsMutex *sync.Mutex
+	KubeArmorFCLogs       []*types.KnoxSystemLog
+	KubeArmorRelayStarted = false
+)
 
 func generateProcessPaths(fromSrc []types.KnoxFromSource) []string {
 	var processpaths []string
@@ -380,8 +381,6 @@ func ignoreLogFromRelayWithNamespace(nsFilter, nsNotFilter []string, namespace s
 	}
 	return false
 }
-
-var KubeArmorRelayStarted = false
 
 func StartKubeArmorRelay(StopChan chan struct{}, cfg types.ConfigKubeArmorRelay) {
 	if KubeArmorRelayStarted {
