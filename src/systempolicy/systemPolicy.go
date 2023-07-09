@@ -587,7 +587,6 @@ func checkIfMetadataMatches(pin types.KnoxSystemPolicy, hay []types.KnoxSystemPo
 	for idx, v := range hay {
 		if pin.Metadata["clusterName"] == v.Metadata["clusterName"] &&
 			pin.Metadata["namespace"] == v.Metadata["namespace"] &&
-			pin.Metadata["containername"] == v.Metadata["containername"] &&
 			pin.Metadata["labels"] == v.Metadata["labels"] {
 			return idx
 		}
