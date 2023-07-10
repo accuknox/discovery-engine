@@ -69,11 +69,11 @@ func K8sApply(files []string) error {
 }
 
 // K8sGetPods Check if Pods exists and is/are Running
-func K8sGetPods(podstr string, ns string, ants []string, timeout int) ([]string, error) {
+func K8sGetPods(podPrefix , namespace string, annotations []string, timeoutSeconds int) ([]string, error) {
 	pods := []string{}
-	log.Printf("K8sGetPods pod=%s ns=%s ants=%v timeout=%d", podstr, ns, ants, timeout)
-	for t := 0; t <= timeout; t++ {
-		podList, err := k8sClient.CoreV1().Pods(ns).List(context.TODO(), v1.ListOptions{})
+	log.Printf("K8sGetPods pod=%s ns=%s ants=%v timeout=%d", podPrefix, namespace, annotations, timeoutSeconds)
+	for t := 0; t <= timeoutSeconds; t++ {
+		podList, err := k8sClient.CoreV1().Pods(namespace).List(context.TODO(), v1.ListOptions{})
 		if err != nil {
 			log.Errorf("k8s list pods failed. error=%s", err)
 			return nil, err
@@ -86,16 +86,16 @@ func K8sGetPods(podstr string, ns string, ants []string, timeout int) ([]string,
 			if p.Status.Reason != "" {
 				continue
 			}
-			if !annotationsMatch(p, ants) {
+			if !annotationsMatch(p, annotations) {
 				continue
 			}
-			if strings.HasPrefix(p.ObjectMeta.Name, podstr) {
+			if strings.HasPrefix(p.ObjectMeta.Name, podPrefix) {
 				pods = append(pods, p.ObjectMeta.Name)
-			} else if match, _ := regexp.MatchString(podstr, p.ObjectMeta.Name); match {
+			} else if match, _ := regexp.MatchString(podPrefix, p.ObjectMeta.Name); match {
 				pods = append(pods, p.ObjectMeta.Name)
 			}
 		}
-		if timeout == 0 || len(pods) > 0 {
+		if timeoutSeconds == 0 || len(pods) > 0 {
 			break
 		}
 		time.Sleep(1 * time.Second)
