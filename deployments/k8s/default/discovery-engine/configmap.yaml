@@ -57,9 +57,9 @@ data:
       write-logs-to-db: false
       summary-jobs:
         publisher: true
-        write-summary-to-db: false
+        write-summary-to-db: true
         cron-interval: "0h1m00s"
-    
+
     database:
       driver: sqlite3
       host: mysql.explorer.svc.cluster.local
@@ -92,6 +92,7 @@ data:
       level: "INFO"
 
     # kubectl -n kube-system port-forward service/hubble-relay --address 0.0.0.0 --address :: 4245:80
+
     cilium-hubble:
       url: hubble-relay.kube-system.svc.cluster.local
       port: 80
@@ -101,14 +102,19 @@ data:
       port: 32767
 
     # Recommended policies configuration
+
     recommend:
       operation-mode: 1                       # 1: cronjob | 2: one-time-job
       cron-job-time-interval: "1h0m00s"       # format: XhYmZs
-    
+      recommend-host-policy: true
+      template-version: ""
+      admission-controller-policy: false
+
     # license
+
     license:
       enabled: false
       validate: "user-id"
-    
+
     dsp:
-      auto-deploy-dsp: true  
+      auto-deploy-dsp: false
