@@ -60,9 +60,11 @@ jobs:
       - uses: actions/setup-go@v3
         with:
           go-version: v1.20
-        
+
       - name: Setup Enviroment
-        run: |  
+        id: vars
+        run: |
+          echo ::set-output name=tag::${GITHUB_REF#refs/*/}
           # setup kubernetes environment
           ./k3s/install_k3s.sh
 
@@ -70,11 +72,25 @@ jobs:
         run: |
           curl -sfL http://get.kubearmor.io/ | sudo sh -s -- -b /usr/local/bin
           karmor install
+          
+      - name: Build Discovery Engine 
+        run: |
+          GITHUB_SHA=$GITHUB_SHA ./src/build/build_knoxautopolicy.sh latest
+
+      - name: Install Kustomize
+        run: |      
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"  | bash
+          sudo mv kustomize /usr/local/bin/
+
+      - name: Run Discovery Engine
+        run: |
+          docker save accuknox/knoxautopolicy:latest | sudo k3s ctr images import -
+          kustomize build ./deployments/k8s/default/discovery-engine | sed -e 's/\(image: *\).*/\1accuknox\/knoxautopolicy:latest/' -e 's/\(imagePullPolicy: *\).*/\1Never/' | kubectl apply -f - 
 
       - name: Install Ginkgo
         run: |
           go install -mod=mod github.com/onsi/ginkgo/v2/ginkgo
-
+          
       - name: Run ginkgo tests
         run: ginkgo -r
         working-directory: tests
