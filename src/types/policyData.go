@@ -1,6 +1,9 @@
 package types
 
-import kyvernov1 "github.com/kyverno/kyverno/api/kyverno/v1"
+import (
+	kyvernov1 "github.com/kyverno/kyverno/api/kyverno/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
 
 // LabelMap stores the label of an endpoint
 type LabelMap = map[string]string
@@ -310,7 +313,7 @@ type KnoxSystemPolicy struct {
 type KubeArmorPolicy struct {
 	APIVersion string            `json:"apiVersion,omitempty" yaml:"apiVersion,omitempty"`
 	Kind       string            `json:"kind,omitempty" yaml:"kind,omitempty"`
-	Metadata   map[string]string `json:"metadata,omitempty" yaml:"metadata,omitempty"`
+	Metadata   metav1.ObjectMeta `json:"metadata,omitempty" yaml:"metadata,omitempty"`
 
 	Spec KnoxSystemSpec `json:"spec,omitempty" yaml:"spec,omitempty"`
 }

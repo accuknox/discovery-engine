@@ -271,14 +271,14 @@ func populateKnoxSysPolicyFromWPFSDb(namespace, clustername, labels, fromsource 
 func WriteSystemPoliciesToFile_Ext(namespace, clustername, labels, fromsource string, includeNetwork bool) {
 	kubearmorK8SPolicies := extractK8SSystemPolicies(namespace, clustername, labels, fromsource, includeNetwork)
 	for _, pol := range kubearmorK8SPolicies {
-		fname := "kubearmor_policies_" + pol.Metadata["clusterName"] + "_" + pol.Metadata["namespace"] + "_" + pol.Metadata["containername"] + "_" + pol.Metadata["name"]
+		fname := "kubearmor_policies_" + pol.Metadata.Namespace + "_" + pol.Metadata.Name
 		libs.WriteKubeArmorPolicyToYamlFile(fname, []types.KubeArmorPolicy{pol})
 	}
 
 	kubearmorVMPolicies, sources := extractVMSystemPolicies(types.PolicyDiscoveryVMNamespace, clustername, labels, fromsource)
 	for index, pol := range kubearmorVMPolicies {
 		locSrc := strings.ReplaceAll(sources[index], "/", "-")
-		fname := "kubearmor_policies_" + pol.Metadata["namespace"] + "_" + pol.Metadata["containername"] + locSrc
+		fname := "kubearmor_policies_" + pol.Metadata.Namespace + "_" + locSrc
 		libs.WriteKubeArmorPolicyToYamlFile(fname, []types.KubeArmorPolicy{pol})
 	}
 }
@@ -337,7 +337,7 @@ func extractK8SSystemPolicies(namespace, clustername, labels, fromsource string,
 
 	var result []types.KubeArmorPolicy
 	for _, pol := range policies {
-		if pol.Metadata["namespace"] != types.PolicyDiscoveryVMNamespace {
+		if pol.Metadata.Namespace != types.PolicyDiscoveryVMNamespace {
 			if !includeNetwork {
 				pol.Spec.Network = types.NetworkRule{}
 			}
@@ -421,7 +421,7 @@ func extractVMSystemPolicies(namespace, clustername, labels, fromSource string) 
 		policies := plugin.ConvertKnoxSystemPolicyToKubeArmorPolicy(sysPols)
 
 		for _, pol := range policies {
-			if pol.Metadata["namespace"] == types.PolicyDiscoveryVMNamespace {
+			if pol.Metadata.Namespace == types.PolicyDiscoveryVMNamespace {
 				result = append(result, pol)
 				resFromSrc = append(resFromSrc, fromSource)
 			}
@@ -1417,8 +1417,8 @@ func InsertSysPoliciesYamlToDB(policies []types.KnoxSystemPolicy) {
 		policyYaml := types.PolicyYaml{
 			Type:        types.PolicyTypeSystem,
 			Kind:        kubearmorPolicy.Kind,
-			Name:        kubearmorPolicy.Metadata["name"],
-			Namespace:   kubearmorPolicy.Metadata["namespace"],
+			Name:        kubearmorPolicy.Metadata.Name,
+			Namespace:   kubearmorPolicy.Metadata.Namespace,
 			Cluster:     cfg.GetCfgClusterName(),
 			WorkspaceId: cfg.GetCfgWorkspaceId(),
 			ClusterId:   cfg.GetCfgClusterId(),
@@ -1429,9 +1429,9 @@ func InsertSysPoliciesYamlToDB(policies []types.KnoxSystemPolicy) {
 
 		// Deploy policy if auto-deploy-policy is enabled
 		if cfg.GetCfgDsp() {
-			log.Info().Msgf("Deploying dsp %s", kubearmorPolicy.Metadata["name"])
-			_ = cluster.CreateDsp(kubearmorPolicy.Metadata["name"],
-				kubearmorPolicy.Metadata["namespace"],
+			log.Info().Msgf("Deploying dsp %s", kubearmorPolicy.Metadata.Name)
+			_ = cluster.CreateDsp(kubearmorPolicy.Metadata.Name,
+				kubearmorPolicy.Metadata.Namespace,
 				common.KUBEARMOR_POLICY,
 				jsonBytes)
 		}

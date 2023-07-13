@@ -50,14 +50,20 @@ func ConvertKnoxSystemPolicyToKubeArmorPolicy(knoxPolicies []types.KnoxSystemPol
 		kubePolicy := types.KubeArmorPolicy{
 			APIVersion: "security.kubearmor.com/v1",
 			Kind:       "KubeArmorPolicy",
-			Metadata:   map[string]string{},
 		}
 
 		if policy.Kind != types.KindKubeArmorHostPolicy {
-			kubePolicy.Metadata["namespace"] = policy.Metadata["namespace"]
+			kubePolicy.Metadata.Namespace = policy.Metadata["namespace"]
 		}
 
-		kubePolicy.Metadata["name"] = policy.Metadata["name"]
+		kubePolicy.Metadata.Name = policy.Metadata["name"]
+
+		if policy.Metadata["annotation-tldr"] != "" || policy.Metadata["annotation-description"] != "" {
+			kubePolicy.Metadata.Annotations = map[string]string{
+				"app.accuknox.com/tldr":        policy.Metadata["annotation-tldr"],
+				"app.accuknox.com/description": policy.Metadata["annotation-description"],
+			}
+		}
 
 		if policy.Metadata["namespace"] == types.PolicyDiscoveryVMNamespace {
 			kubePolicy.Kind = "KubeArmorHostPolicy"
