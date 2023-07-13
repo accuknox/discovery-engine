@@ -323,16 +323,16 @@ func createPolicy(ms types.MatchSpec, name, namespace string, labels LabelMap) (
 	}
 	policy.APIVersion = "v1"
 	policy.Kind = ms.Kind
+	policy.Metadata = map[string]string{
+		"annotation-tldr":        ms.Description.Tldr,
+		"annotation-description": ms.Description.Detailed,
+	}
 
 	if policy.Kind != types.KindKubeArmorHostPolicy {
-		policy.Metadata = map[string]string{
-			"name":      fmt.Sprintf("%v-%v-%v", types.HardeningPolicy, name, ms.Name),
-			"namespace": namespace,
-		}
+		policy.Metadata["name"] = fmt.Sprintf("%v-%v-%v", types.HardeningPolicy, name, ms.Name)
+		policy.Metadata["namespace"] = namespace
 	} else {
-		policy.Metadata = map[string]string{
-			"name": fmt.Sprintf("%v-host-%v-%v", types.HardeningPolicy, name, ms.Name),
-		}
+		policy.Metadata["name"] = fmt.Sprintf("%v-host-%v-%v", types.HardeningPolicy, name, ms.Name)
 	}
 
 	policy.Spec.Action = ms.Spec.Action
