@@ -63,6 +63,7 @@ func init() {
 	log.Info().Msgf("SYSTEM-POLICY: %+v", config.GetCfgSys())
 	log.Info().Msgf("KUBEARMOR: %+v", config.GetCfgKubeArmor())
 	log.Info().Msgf("AUTO-DEPLOY-DSP: %+v", config.GetCfgDsp())
+	log.Info().Msgf("TLS enabled: %t", viper.GetBool("server.tls.enable"))
 
 	// 3. setup the tables in db
 	libs.CreateTablesIfNotExist(config.GetCfgDB())
@@ -107,7 +108,7 @@ func main() {
 // CreateListenerAndGrpcServer - Creates a new connection and listens on a given port
 func CreateListenerAndGrpcServer() (net.Listener, *grpc.Server) {
 	// create server
-	lis, err := net.Listen("tcp", ":"+grpcserver.PortNumber)
+	lis, err := net.Listen("tcp", ":"+viper.GetString("server.port"))
 	if err != nil {
 		log.Error().Msgf("gRPC server failed to listen: %v", err)
 		os.Exit(1)

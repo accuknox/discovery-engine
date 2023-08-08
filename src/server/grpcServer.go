@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/accuknox/auto-policy-discovery/src/license"
+	"github.com/spf13/viper"
 
 	"github.com/rs/zerolog"
 
@@ -32,12 +33,11 @@ import (
 	"github.com/accuknox/auto-policy-discovery/src/types"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/reflection"
 )
-
-const PortNumber = "9089"
 
 var log *zerolog.Logger
 
@@ -303,7 +303,18 @@ func (ps *publisherServer) GetSummary(req *ppb.SummaryRequest, srv ppb.Publisher
 }
 
 func StartGrpcServer() *grpc.Server {
-	s := grpc.NewServer()
+	var s *grpc.Server
+	if viper.GetBool("server.tls.enable") {
+		creds := GetTLSCredentails()
+		if creds != nil {
+			s = grpc.NewServer(grpc.ServerOption(grpc.Creds(creds)))
+		} else {
+			log.Fatal().Msgf("Unable to read credentails ::  %s", creds)
+		}
+	} else {
+		s = grpc.NewServer()
+	}
+
 	grpc_health_v1.RegisterHealthServer(s, health.NewServer())
 
 	reflection.Register(s)
@@ -361,4 +372,15 @@ func AddServers(s *grpc.Server) *grpc.Server {
 	recommend.StartRecommendWorker()
 
 	return s
+}
+
+func GetTLSCredentails() credentials.TransportCredentials {
+	certFile := viper.GetString("server.tls.cert")
+	keyFile := viper.GetString("server.tls.key")
+	creds, err := credentials.NewServerTLSFromFile(certFile, keyFile)
+	if err != nil {
+		log.Error().Msgf("Unable to read tls certificate credentails ::  %s", err)
+		return nil
+	}
+	return creds
 }
