@@ -131,3 +131,10 @@ pprof: false
 # Discovered Policies Configuration  
 dsp:
   auto-deploy-dsp: false
+
+server:
+  port: 9089
+  tls:
+    enable: false
+    cert: /tls/cert.pem
+    key: /tls/key.pem
