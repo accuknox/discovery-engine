@@ -14,7 +14,6 @@ require (
 	github.com/accuknox/auto-policy-discovery/pkg/discoveredpolicy v0.0.0-20230623101739-bc5c3d9a3892
 	github.com/accuknox/auto-policy-discovery/src/protobuf v0.0.0-20230628192822-7249456fae5c
 	github.com/apache/pulsar-client-go v0.10.0
-	github.com/cavaliergopher/grab/v3 v3.0.1
 	github.com/cilium/cilium v1.13.1
 	github.com/clarketm/json v1.17.1
 	github.com/confluentinc/confluent-kafka-go v1.9.2
