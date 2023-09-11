@@ -5,6 +5,7 @@ import (
 	"archive/zip"
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"path"
 	"path/filepath"
@@ -12,7 +13,6 @@ import (
 	"strings"
 
 	"github.com/accuknox/auto-policy-discovery/src/types"
-	"github.com/cavaliergopher/grab/v3"
 	"github.com/google/go-github/github"
 	"sigs.k8s.io/yaml"
 )
@@ -87,6 +87,23 @@ func init() {
 
 }
 
+func downloadZip(url string, destination string) error {
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+
+	out, err := os.Create(filepath.Clean(destination))
+	if err != nil {
+		return err
+	}
+
+	defer out.Close()
+	return nil
+}
+
 // DownloadAndUnzipRelease downloads the latest version of policy-templates
 func DownloadAndUnzipRelease(version string) error {
 
@@ -100,20 +117,22 @@ func DownloadAndUnzipRelease(version string) error {
 		return err
 	}
 	downloadURL := fmt.Sprintf("%s%s.zip", url, LatestVersion)
-	resp, err := grab.Get(getCachePath(), downloadURL)
+	zipPath := getCachePath() + ".zip"
+
+	err = downloadZip(downloadURL, zipPath)
 	if err != nil {
 		_ = removeData(getCachePath())
 		return err
 	}
-	err = unZip(resp.Filename, getCachePath())
+	err = unZip(zipPath, getCachePath())
 	if err != nil {
 		return err
 	}
-	err = removeData(resp.Filename)
+	err = removeData(zipPath)
 	if err != nil {
 		return err
 	}
-	err = updatePolicyRules(strings.TrimSuffix(resp.Filename, ".zip"))
+	err = updatePolicyRules(strings.TrimSuffix(zipPath, ".zip"))
 	if err != nil {
 		log.Error().Msgf("Failed to update policy rules %s", err.Error())
 		return err
