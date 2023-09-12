@@ -166,7 +166,8 @@ func SetDefaultConfig() {
 	// discoveredPolicy config
 	viper.SetDefault("dsp.auto-deploy-dsp", true)
 
-	// Server TLS Config
+	// Server Config
+	viper.SetDefault("server.port", 9089)
 	viper.SetDefault("server.tls.enable", false)
 
 }
