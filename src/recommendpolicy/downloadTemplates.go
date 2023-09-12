@@ -5,6 +5,7 @@ import (
 	"archive/zip"
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path"
@@ -101,6 +102,11 @@ func downloadZip(url string, destination string) error {
 	}
 
 	defer out.Close()
+
+	_, err = io.Copy(out, resp.Body)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
