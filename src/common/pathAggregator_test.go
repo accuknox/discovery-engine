@@ -1,6 +1,9 @@
 package common
 
 import (
+	"fmt"
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -31,6 +34,7 @@ func TestAggregatePaths_2(t *testing.T) {
 	results := AggregatePaths(paths)
 
 	assert.Equal(t, len(results), 1)
+	assert.Equal(t, results[0].Path, "/usr/lib/python2.7/")
 	assert.True(t, results[0].IsDir)
 }
 
@@ -157,4 +161,54 @@ func TestAggregatePathsExt_4(t *testing.T) {
 	results := AggregatePathsExt(paths)
 
 	assert.Equal(t, len(results), 1)
+}
+
+func TestAggregatePaths_FromFile(t *testing.T) {
+	// load paths from fpath.list
+
+	data, err := os.ReadFile("./fpath.list")
+
+	var paths []string
+
+	if assert.NoError(t, err) {
+		paths = append(paths, strings.Split(string(data), "\n")...)
+	}
+
+	var failedAssert, successAsser []string
+
+	if assert.NotEmpty(t, paths) {
+		results := AggregatePaths(paths)
+		if assert.NotEmpty(t, results) {
+			for i, result := range results {
+				found := false
+				if result.IsDir {
+					if strings.Contains(strings.Join(paths, " "), result.Path) {
+						found = true
+					}
+					if assert.True(t, found) {
+						successAsser = append(successAsser, fmt.Sprintf("\t%v. %v\n", i+1, result.Path))
+					} else {
+						failedAssert = append(failedAssert, fmt.Sprintf("\t%v. %v\n", i+1, result.Path))
+					}
+
+				} else {
+					if assert.Contains(t, paths, result.Path) {
+						successAsser = append(successAsser, fmt.Sprintf("\t%v. %v\n", i+1, result.Path))
+					} else {
+						failedAssert = append(failedAssert, fmt.Sprintf("\t%v. %v\n", i+1, result.Path))
+					}
+				}
+			}
+		}
+	}
+
+	if len(successAsser) > 0 {
+		fmt.Println("\nSuccessful Asserted paths: ")
+		fmt.Printf("%v\n", successAsser)
+	}
+	if len(failedAssert) > 0 {
+		fmt.Println("\nFailed Asserted paths: ")
+		fmt.Printf("%v\n", failedAssert)
+	}
+
 }
