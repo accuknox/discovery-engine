@@ -127,21 +127,39 @@ func getProcessList(client kubernetes.Interface, namespace string, labels string
 				PodName:       pod.Name,
 				NameSpace:     pod.Namespace,
 				ContainerName: container.Name,
-				Type:          "process,file",
+				Type:          "process,file,network",
 			})
 			if err != nil {
 				log.Warn().Msgf("Error getting summary data for pod %s, container %s, namespace %s: %s", pod.Name, container.Name, pod.Namespace, err.Error())
 				break
 			}
 
+			for _, procData := range sumResp.ProcessData {
+				if !duplicatePaths[procData.Source] {
+					processList = append(processList, procData.Source)
+					duplicatePaths[procData.Source] = true
+				}
+				if !duplicatePaths[procData.Destination] {
+					processList = append(processList, procData.Destination)
+					duplicatePaths[procData.Destination] = true
+				}
+			}
 			for _, fileData := range sumResp.FileData {
 				if !duplicatePaths[fileData.Source] {
-					// ignore serviceaccount related process
-					if strings.Contains(fileData.Destination, "serviceaccount") {
-						continue
-					}
 					processList = append(processList, fileData.Source)
 					duplicatePaths[fileData.Source] = true
+				}
+			}
+			for _, netData := range sumResp.IngressConnection {
+				if !duplicatePaths[netData.Command] {
+					processList = append(processList, netData.Command)
+					duplicatePaths[netData.Command] = true
+				}
+			}
+			for _, netData := range sumResp.EgressConnection {
+				if !duplicatePaths[netData.Command] {
+					processList = append(processList, netData.Command)
+					duplicatePaths[netData.Command] = true
 				}
 			}
 		}
@@ -163,6 +181,12 @@ func getVolumeMountPaths(client kubernetes.Interface, labels string) ([]string, 
 	for _, pod := range podList.Items {
 		for _, container := range pod.Spec.Containers {
 			for _, volumeMount := range container.VolumeMounts {
+				// fmt.Printf("\n\n\n%s\n\n\n", volumeMount.MountPath)
+				if volumeMount.MountPath == "/var/run/secrets/kubernetes.io/serviceaccount" {
+					//
+					mountPaths = append(mountPaths, "/run/secrets/kubernetes.io/serviceaccount")
+					continue
+				}
 				mountPaths = append(mountPaths, volumeMount.MountPath)
 			}
 		}
@@ -171,7 +195,7 @@ func getVolumeMountPaths(client kubernetes.Interface, labels string) ([]string, 
 }
 
 // Get used mount paths from observability data
-func usedMountPath(client kubernetes.Interface, namespace string, labels string) ([]string, map[string]string, error) {
+func usedPaths(client kubernetes.Interface, namespace string, labels string) ([]string, map[string]string, error) {
 	var sumResponses []string
 	fromSource := make(map[string]string)
 
@@ -188,7 +212,7 @@ func usedMountPath(client kubernetes.Interface, namespace string, labels string)
 				PodName:       pod.Name,
 				NameSpace:     pod.Namespace,
 				ContainerName: container.Name,
-				Type:          "process,file",
+				Type:          "file",
 			})
 			if err != nil {
 				log.Warn().Msgf("Error getting summary data for pod %s, container %s, namespace %s: %s", pod.Name, container.Name, pod.Namespace, err.Error())
@@ -202,6 +226,74 @@ func usedMountPath(client kubernetes.Interface, namespace string, labels string)
 		}
 	}
 	return sumResponses, fromSource, nil
+}
+
+// Get network information from observability data
+func usedNetwork(client kubernetes.Interface, namespace string, labels string) ([]types.KnoxMatchProtocols, error) {
+	fromSource := make(map[string][]string)
+
+	podList, err := client.CoreV1().Pods("").List(context.Background(), metav1.ListOptions{
+		LabelSelector: labels,
+	})
+	if err != nil {
+		log.Warn().Msg(err.Error())
+	}
+
+	for _, pod := range podList.Items {
+		for _, container := range pod.Spec.Containers {
+			sumResp, err := obs.GetSummaryData(&opb.Request{
+				PodName:       pod.Name,
+				NameSpace:     pod.Namespace,
+				ContainerName: container.Name,
+				Type:          "network",
+			})
+			if err != nil {
+				log.Warn().Msgf("Error getting summary data for pod %s, container %s, namespace %s: %s", pod.Name, container.Name, pod.Namespace, err.Error())
+				break
+			}
+
+			for _, netData := range sumResp.IngressConnection {
+				if strings.Contains(strings.ToLower(netData.Protocol), "tcp") {
+					fromSource["tcp"] = append(fromSource["tcp"], netData.Command)
+				}
+				if strings.Contains(strings.ToLower(netData.Protocol), "udp") {
+					fromSource["udp"] = append(fromSource["udp"], netData.Command)
+				}
+				if strings.Contains(strings.ToLower(netData.Protocol), "icmp") {
+					fromSource["icmp"] = append(fromSource["icmp"], netData.Command)
+				}
+				if strings.Contains(strings.ToLower(netData.Protocol), "raw") {
+					fromSource["raw"] = append(fromSource["raw"], netData.Command)
+				}
+			}
+			for _, netData := range sumResp.EgressConnection {
+				if strings.Contains(strings.ToLower(netData.Protocol), "tcp") {
+					fromSource["tcp"] = append(fromSource["tcp"], netData.Command)
+				}
+				if strings.Contains(strings.ToLower(netData.Protocol), "udp") {
+					fromSource["udp"] = append(fromSource["udp"], netData.Command)
+				}
+				if strings.Contains(strings.ToLower(netData.Protocol), "icmp") {
+					fromSource["icmp"] = append(fromSource["icmp"], netData.Command)
+				}
+				if strings.Contains(strings.ToLower(netData.Protocol), "raw") {
+					fromSource["raw"] = append(fromSource["raw"], netData.Command)
+				}
+			}
+		}
+	}
+
+	var matchProtocols []types.KnoxMatchProtocols
+
+	for k, v := range fromSource {
+		var matchProto types.KnoxMatchProtocols
+		matchProto.Protocol = k
+		for _, src := range v {
+			matchProto.FromSource = append(matchProto.FromSource, types.KnoxFromSource{Path: src})
+		}
+		matchProtocols = append(matchProtocols, matchProto)
+	}
+	return matchProtocols, nil
 }
 
 // Match used mounts paths with actually accessed mount paths
@@ -260,8 +352,10 @@ func getCrownjewelPolicy(client kubernetes.Interface, cname, namespace string, l
 	var ms types.MatchSpec
 	action := "Allow"
 
-	// mount paths being used (from observability)
-	sumResp, fromSrc, _ := usedMountPath(client, namespace, labels)
+	// file paths being used (from observability)
+	sumResp, fileFromSrc, _ := usedPaths(client, namespace, labels)
+
+	netFromSrc, _ := usedNetwork(client, namespace, labels)
 
 	// all mount paths being used (from k8s cluster)
 	mnt, _ := getVolumeMountPaths(client, labels)
@@ -272,7 +366,7 @@ func getCrownjewelPolicy(client kubernetes.Interface, cname, namespace string, l
 	// process paths being used and are present in observability data
 	matchedProcessPaths, _ := getProcessList(client, namespace, labels)
 
-	policy := createCrownjewelPolicy(ms, cname, namespace, action, labels, mnt, matchedMountPaths, matchedProcessPaths, fromSrc)
+	policy := createCrownjewelPolicy(ms, cname, namespace, action, labels, mnt, matchedMountPaths, matchedProcessPaths, fileFromSrc, netFromSrc)
 	// Check for empty policy
 	if policy.Spec.File.MatchDirectories == nil && policy.Spec.File.MatchPaths == nil &&
 		policy.Spec.Process.MatchDirectories == nil && policy.Spec.Process.MatchPaths == nil {
@@ -284,7 +378,7 @@ func getCrownjewelPolicy(client kubernetes.Interface, cname, namespace string, l
 }
 
 // Build Crown jewel System policy structure
-func buildSystemPolicy(cname, ns, action string, labels string, matchDirs []types.KnoxMatchDirectories, matchPaths []types.KnoxMatchPaths) types.KnoxSystemPolicy {
+func buildSystemPolicy(cname, ns, action string, labels string, matchDirs []types.KnoxMatchDirectories, matchPaths []types.KnoxMatchPaths, matchProtocols []types.KnoxMatchProtocols) types.KnoxSystemPolicy {
 	clustername := config.GetCfgClusterName()
 
 	// create policy name
@@ -309,21 +403,18 @@ func buildSystemPolicy(cname, ns, action string, labels string, matchDirs []type
 			Process: types.KnoxSys{
 				MatchPaths: matchPaths,
 			},
+			Network: types.NetworkRule{
+				MatchProtocols: matchProtocols,
+			},
 		},
 	}
 }
 
-func createCrownjewelPolicy(ms types.MatchSpec, cname, namespace, action string, labels string, matchedDirPts, matchedMountPts, matchedProcessPts []string, fromSrc map[string]string) types.KnoxSystemPolicy {
+func createCrownjewelPolicy(ms types.MatchSpec, cname, namespace, action string, labels string, matchedDirPts, matchedMountPts, matchedProcessPts []string, fromSrc map[string]string, matchProtocols []types.KnoxMatchProtocols) types.KnoxSystemPolicy {
 	var matchDirs []types.KnoxMatchDirectories
 	i := 1
 	for _, dirpath := range matchedDirPts {
 		action = "Block"
-		// TODO: handle serviceaccount token access
-		// ignore serviceaccount token related accesses
-		if strings.Contains(dirpath, "serviceaccount") {
-			continue
-		}
-
 		for _, mountPt := range matchedMountPts {
 			if dirpath == mountPt {
 				action = "Allow"
@@ -385,8 +476,7 @@ func createCrownjewelPolicy(ms types.MatchSpec, cname, namespace, action string,
 		}
 		matchPaths = append(matchPaths, matchPath)
 	}
-
-	policy := buildSystemPolicy(cname, namespace, action, labels, matchDirs, matchPaths)
+	policy := buildSystemPolicy(cname, namespace, action, labels, matchDirs, matchPaths, matchProtocols)
 
 	return policy
 }
