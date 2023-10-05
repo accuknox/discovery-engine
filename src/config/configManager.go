@@ -219,6 +219,13 @@ func LoadConfigFromFile() {
 		RecommendTemplateVersion:           viper.GetString("recommend.template-version"),
 	}
 
+	// crown jewel policy configurations
+	CurrentCfg.ConfigCrownjewelPolicy = types.ConfigCrownjewelPolicy{
+		CronJobTimeInterval:     "@every " + viper.GetString("crownjewel.cron-job-time-interval"),
+		OneTimeJobTimeSelection: "", // e.g., 2021-01-20 07:00:23|2021-01-20 07:00:25
+		OperationMode:           viper.GetInt("crownjewel.operation-mode"),
+	}
+
 	// load database
 	CurrentCfg.ConfigDB = LoadConfigDB()
 
@@ -531,6 +538,25 @@ func GetCfgRecommendHostPolicy() bool {
 
 func GetCfgRecommendAdmissionControllerPolicy() bool {
 	return CurrentCfg.ConfigRecommendPolicy.RecommendAdmissionControllerPolicy
+}
+
+// ================================== //
+// == Get Crown Jewel Config Info == //
+// ================================ //
+
+// run the Crown jewel scan once
+func GetCfgCrownjewelOneTime() string {
+	return CurrentCfg.ConfigCrownjewelPolicy.OneTimeJobTimeSelection
+}
+
+// run the Crown jewel scan as a cron job
+func GetCfgCrownjewelCronJobTime() string {
+	return CurrentCfg.ConfigCrownjewelPolicy.CronJobTimeInterval
+}
+
+// dont' run the Crown jewel scan
+func GetCfgCrownjewelOperationMode() int {
+	return CurrentCfg.ConfigCrownjewelPolicy.OperationMode
 }
 
 func GetCfgRecommendTemplateVersion() string {

@@ -122,7 +122,6 @@ func getNextRule(idx *int) (types.MatchSpec, error) {
 }
 
 func genericPolicy(precondition []string) bool {
-
 	for _, preCondition := range precondition {
 		if strings.Contains(preCondition, "OPTSCAN") {
 			return true
@@ -132,7 +131,6 @@ func genericPolicy(precondition []string) bool {
 }
 
 func generateKnoxSystemPolicy(name, namespace string, labels LabelMap) ([]types.KnoxSystemPolicy, error) {
-
 	var ms types.MatchSpec
 	var err error
 	var policies []types.KnoxSystemPolicy
@@ -203,6 +201,9 @@ func generateKyvernoPolicy(name, namespace string, labels LabelMap) ([]kyvernov1
 func createRestrictAutomountSATokenPolicy(ms types.MatchSpec, name, namespace string, labels LabelMap) kyvernov1.PolicyInterface {
 	policyInterface := *(ms.KyvernoPolicy)
 	policy := (policyInterface.(*kyvernov1.Policy)).DeepCopy()
+	if policy.Annotations == nil {
+		policy.Annotations = make(map[string]string)
+	}
 	policy.Annotations[types.RecommendedPolicyTagsAnnotation] = strings.Join(ms.KyvernoPolicyTags, ",")
 	policy.Name = name + "-" + ms.Name
 	policy.Namespace = namespace
@@ -351,7 +352,6 @@ func createPolicy(ms types.MatchSpec, name, namespace string, labels LabelMap) (
 }
 
 func addPolicyRule(policy *types.KnoxSystemPolicy, r *types.KnoxSystemSpec) {
-
 	if r.File.MatchDirectories != nil || r.File.MatchPaths != nil {
 		policy.Spec.File = r.File
 	}

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/accuknox/auto-policy-discovery/src/crownjewel"
 	"github.com/accuknox/auto-policy-discovery/src/license"
 	"github.com/spf13/viper"
 
@@ -371,6 +372,8 @@ func AddServers(s *grpc.Server) *grpc.Server {
 	//start recommendation
 	recommend.StartRecommendWorker()
 
+	// start crown jewel
+	crownjewel.StartCrownjewelWorker()
 	return s
 }
 

@@ -130,7 +130,13 @@ type ConfigRecommendPolicy struct {
 	OneTimeJobTimeSelection            string `json:"one_time_job_time_selection,omitempty" bson:"one_time_job_time_selection,omitempty"`
 	RecommendHostPolicy                bool   `json:"recommend_host_policy,omitempty" bson:"recommend_host_policy,omitempty"`
 	RecommendAdmissionControllerPolicy bool   `json:"recommend_admission_controller_policy,omitempty" bson:"recommend_admission_controller_policy,omitempty"`
-	RecommendTemplateVersion                    string `json:"template_version,omitempty" bson:"template_version,omitempty"`
+	RecommendTemplateVersion           string `json:"template_version,omitempty" bson:"template_version,omitempty"`
+}
+
+type ConfigCrownjewelPolicy struct {
+	OperationMode           int    `json:"operation_mode,omitempty" bson:"operation_mode,omitempty"`
+	CronJobTimeInterval     string `json:"cronjob_time_interval,omitempty" bson:"cronjob_time_interval,omitempty"`
+	OneTimeJobTimeSelection string `json:"one_time_job_time_selection,omitempty" bson:"one_time_job_time_selection,omitempty"`
 }
 
 type Configuration struct {
@@ -145,12 +151,13 @@ type Configuration struct {
 	ConfigCiliumHubble   ConfigCiliumHubble   `json:"config_cilium_hubble,omitempty" bson:"config_cilium_hubble,omitempty"`
 	ConfigKubeArmorRelay ConfigKubeArmorRelay `json:"config_kubearmor_relay,omitempty" bson:"config_kubearmor_relay,omitempty"`
 
-	ConfigNetPolicy                 ConfigNetworkPolicy             `json:"config_network_policy,omitempty" bson:"config_network_policy,omitempty"`
-	ConfigSysPolicy                 ConfigSystemPolicy              `json:"config_system_policy,omitempty" bson:"config_system_policy,omitempty"`
-	ConfigAdmissionControllerPolicy ConfigAdmissionControllerPolicy `json:"config_admission_controller_policy,omitempty" bson:"config_admission_controller_policy,omitempty"`
-	ConfigClusterMgmt               ConfigClusterMgmt               `json:"config_cluster_mgmt,omitempty" bson:"config_cluster_mgmt,omitempty"`
-	ConfigObservability             ConfigObservability             `json:"config_observability,omitempty" bson:"config_observability,omitempty"`
-	ConfigPurgeOldDBEntries         ConfigPurgeOldDBEntries         `json:"config_purge_old_db_entries,omitempty" bson:"config_purge_old_db_entries,omitempty"`
-	ConfigRecommendPolicy           ConfigRecommendPolicy           `json:"config_recommend_policy,omitempty" bson:"config_recommend_policy,omitempty"`
-	ConfigAutoDepolyDiscoveredPolicy bool `json:"config_dsp,omitempty" bson:"config_dsp,omitempty"`
+	ConfigNetPolicy                  ConfigNetworkPolicy             `json:"config_network_policy,omitempty" bson:"config_network_policy,omitempty"`
+	ConfigSysPolicy                  ConfigSystemPolicy              `json:"config_system_policy,omitempty" bson:"config_system_policy,omitempty"`
+	ConfigAdmissionControllerPolicy  ConfigAdmissionControllerPolicy `json:"config_admission_controller_policy,omitempty" bson:"config_admission_controller_policy,omitempty"`
+	ConfigClusterMgmt                ConfigClusterMgmt               `json:"config_cluster_mgmt,omitempty" bson:"config_cluster_mgmt,omitempty"`
+	ConfigObservability              ConfigObservability             `json:"config_observability,omitempty" bson:"config_observability,omitempty"`
+	ConfigPurgeOldDBEntries          ConfigPurgeOldDBEntries         `json:"config_purge_old_db_entries,omitempty" bson:"config_purge_old_db_entries,omitempty"`
+	ConfigRecommendPolicy            ConfigRecommendPolicy           `json:"config_recommend_policy,omitempty" bson:"config_recommend_policy,omitempty"`
+	ConfigAutoDepolyDiscoveredPolicy bool                            `json:"config_dsp,omitempty" bson:"config_dsp,omitempty"`
+	ConfigCrownjewelPolicy           ConfigCrownjewelPolicy          `json:"config_crownjewel_policy,omitempty" bson:"config_crownjewel_policy,omitempty"`
 }

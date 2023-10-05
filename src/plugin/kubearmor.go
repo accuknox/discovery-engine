@@ -71,12 +71,15 @@ func ConvertKnoxSystemPolicyToKubeArmorPolicy(knoxPolicies []types.KnoxSystemPol
 
 		kubePolicy.Spec = policy.Spec
 
-		if kubePolicy.Kind == types.KindKubeArmorPolicy && policy.Spec.Action == "Allow" {
-			dirRule := types.KnoxMatchDirectories{
-				Dir:       types.PreConfiguredKubearmorRule,
-				Recursive: true,
+		// skip adding preconfigured rule in case of crown-jewel policies
+		if !strings.Contains(policy.Metadata["name"], "sensitive") {
+			if kubePolicy.Kind == types.KindKubeArmorPolicy && policy.Spec.Action == "Allow" {
+				dirRule := types.KnoxMatchDirectories{
+					Dir:       types.PreConfiguredKubearmorRule,
+					Recursive: true,
+				}
+				kubePolicy.Spec.File.MatchDirectories = append(policy.Spec.File.MatchDirectories, dirRule)
 			}
-			kubePolicy.Spec.File.MatchDirectories = append(policy.Spec.File.MatchDirectories, dirRule)
 		}
 
 		for _, procpath := range kubePolicy.Spec.Process.MatchPaths {

@@ -287,7 +287,8 @@ func WriteSystemPoliciesToFile(namespace, clustername, labels, fromsource string
 	latestPolicies := libs.GetSystemPolicies(CfgDB, namespace, "latest")
 	if len(latestPolicies) > 0 {
 		kubeArmorPolicies := plugin.ConvertKnoxSystemPolicyToKubeArmorPolicy(latestPolicies)
-		libs.WriteKubeArmorPolicyToYamlFile("kubearmor_policies", kubeArmorPolicies)
+		fname := "kubearmor_policies_sensitive"
+		libs.WriteKubeArmorPolicyToYamlFile(fname, kubeArmorPolicies)
 	}
 	WriteSystemPoliciesToFile_Ext(namespace, clustername, labels, fromsource, includeNetwork)
 }
