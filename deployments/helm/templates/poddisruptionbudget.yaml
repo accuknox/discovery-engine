@@ -1,0 +1,14 @@
+{{- if .Values.pdb.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ .Values.labels.app }}-pdb
+  namespace: {{ include "namespace" . }}
+  labels:
+    {{ toYaml .Values.labels | indent 4 }}
+spec:
+  minAvailable: {{ .Values.pdb.minAvailable }}
+  selector:
+    matchLabels:
+      {{ toYaml .Values.labels | indent 6 }}
+{{- end }}
