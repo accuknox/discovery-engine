@@ -85,6 +85,10 @@ resourcesDiscoveryEngine:
     cpu: 500m
     memory: 1Gi
 
+pdb:
+  enabled: true
+  minAvailable: 1
+
 nodeSelector: {}
 
 tolerations: []
