@@ -135,7 +135,7 @@ func FilterSystemLogsByConfig(logs []types.KnoxSystemLog, pods []types.Pod) []ty
 			}
 
 			// 6. check process dirs
-			if log.Operation == SYS_OP_PROCESS && (checkItems&32 > 0) && containsFormat(filter.ProcessDirs, log.Resource) {
+			if log.Operation == SYS_OP_PROCESS && (checkItems&32 > 0) && containsDirectory(filter.ProcessDirs, log.Resource) {
 				checkedItems = checkedItems | 1<<5
 			}
 
