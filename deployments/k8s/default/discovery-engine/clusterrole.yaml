@@ -4,5 +4,8 @@ metadata:
   name: discovery-engine-role
 rules:
 - apiGroups: ["*"]
-  resources: ["pods", "services", "deployments", "endpoints", "namespaces", "nodes","replicasets", "statefulsets", "daemonsets", "secrets"]
+  resources: ["pods", "services", "deployments", "endpoints", "namespaces", "replicasets", "statefulsets", "daemonsets", "secrets"]
   verbs: ["get", "list", "watch","create", "update", "delete"]
+- apiGroups: ["*"]
+  resources: ["nodes"]
+  verbs: ["get", "list", "watch"]
